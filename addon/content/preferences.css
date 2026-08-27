@@ -120,7 +120,7 @@
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
-  background: url("chrome://citationmap/content/icons/trash.svg") center / 16px
+  background: url("chrome://__addonRef__/content/icons/trash.svg") center / 16px
     16px no-repeat;
   filter: brightness(0) invert(1);
 }

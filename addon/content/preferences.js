@@ -1,7 +1,7 @@
 /* global clearTimeout, document, setTimeout, Zotero */
 
 (() => {
-  const PREF_PREFIX = "extensions.zotero.citationmap.";
+  const PREF_PREFIX = "__prefsPrefix__.";
   let initialized = false;
   let notificationTimer = null;
 
