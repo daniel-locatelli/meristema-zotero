@@ -336,14 +336,14 @@ describe("Architecture foundations", function () {
     ).to.equal(true);
   });
 
-  it("assigns separate default names to map and Focus views", function () {
-    expect(nextCitationMapViewTitle("map", [])).to.equal("Citation Map");
-    expect(nextCitationMapViewTitle("map", ["Citation Map"])).to.equal(
-      "Citation Map 2",
+  it("assigns separate default names to Collection Graph and Explore views", function () {
+    expect(nextCitationMapViewTitle("map", [])).to.equal("Collection Graph");
+    expect(nextCitationMapViewTitle("map", ["Collection Graph"])).to.equal(
+      "Collection Graph 2",
     );
     expect(
-      nextCitationMapViewTitle("focus", ["Citation Map", "Focus View"]),
-    ).to.equal("Focus View 2");
+      nextCitationMapViewTitle("focus", ["Collection Graph", "Explore"]),
+    ).to.equal("Explore 2");
   });
 
   it("defers redraws for hidden Citation Map tabs", function () {

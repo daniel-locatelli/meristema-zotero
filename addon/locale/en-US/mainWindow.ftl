@@ -2,7 +2,7 @@ tools-submenu =
     .label = Citation Map
 
 open-command =
-    .label = Open Citation Map (Current Library)
+    .label = Open Collection Graph (Current Library)
 
 update-library-command =
     .label = Update Fields (Current Library)
@@ -41,28 +41,28 @@ provider-inspire-command =
     .label = { $marker }INSPIRE-HEP
 
 show-items-command =
-    .label = Open in Citation Map
+    .label = Open in Collection Graph
 
 open-focus-view-command =
-    .label = Open in Focus View
+    .label = Open in Explore
 
 refresh-command =
     .label = Refresh
 
 show-items-new-tab-command =
-    .label = Open in New Citation Map
+    .label = Open in New Collection Graph
 
 open-focus-view-new-tab-command =
-    .label = Open Focus View in New Tab
+    .label = Open Explore in New Tab
 
 open-in-submenu =
     .label = Open in
 
 new-citation-map-view-command =
-    .label = New Citation Map View
+    .label = New Collection Graph
 
 new-focus-view-command =
-    .label = New Focus View
+    .label = New Explore View
 
 open-existing-view-command =
     .label = { $name }

@@ -20,7 +20,7 @@ export function isCitationMapTabDescriptor(
 }
 
 export function citationMapViewBaseTitle(kind: CitationMapViewKind): string {
-  return kind === "focus" ? "Focus View" : "Citation Map";
+  return kind === "focus" ? "Explore" : "Collection Graph";
 }
 
 /**

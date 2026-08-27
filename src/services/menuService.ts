@@ -20,36 +20,28 @@ const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
 const OPEN_IN_DYNAMIC_ATTR = "data-citation-map-open-view";
 
-// Menu labels alone do not convey that Citation Map only draws connections
-// between papers already in the library, while Focus View fetches related
-// works from the providers. Keyed by command name, applied in `commandItem`.
-const MENU_TOOLTIPS: Record<string, string> = {
-  "show-items-command":
-    "Map how the selected papers cite each other. Only papers already in your library are shown; nothing is downloaded.",
-  "show-items-new-tab-command":
-    "Map how the selected papers cite each other, in a new tab. Only papers already in your library are shown; nothing is downloaded.",
-  "new-citation-map-view-command":
-    "Open an empty Citation Map for this library. A map shows connections between papers you already have — add papers to it with “Open in”.",
-  "open-focus-view-command":
-    "Explore outward from the selected papers to their references and citing works, including papers that are not yet in your library.",
-  "open-focus-view-new-tab-command":
-    "Explore outward from the selected papers to their references and citing works, in a new tab. Includes papers that are not yet in your library.",
-  "new-focus-view-command":
-    "Open an empty Focus View for this library. Add seed papers to explore their references and citing works.",
-  "refresh-command":
-    "Re-fetch citation counts and relationship data for the selected papers.",
-  "refresh-library-command":
-    "Re-fetch citation counts and relationship data for every paper in this library.",
+// Menu labels do not convey the difference between the two views: a Citation
+// Map only draws connections between papers already in the library, while a
+// Focus View fetches references and citing works from the providers. Tooltips
+// cannot be used for this — Gecko does not render them over an open menupopup —
+// so the hint goes in acceltext, the only secondary text a menuitem will draw.
+const MENU_HINTS: Record<string, string> = {
+  "show-items-command": "library only",
+  "show-items-new-tab-command": "library only",
+  "new-citation-map-view-command": "library only",
+  "open-focus-view-command": "fetches online",
+  "open-focus-view-new-tab-command": "fetches online",
+  "new-focus-view-command": "fetches online",
 };
 
-function menuTooltip(l10nID: string): string | undefined {
-  return MENU_TOOLTIPS[l10nID.replace(`${config.addonRef}-`, "")];
+function menuHint(l10nID: string): string | undefined {
+  return MENU_HINTS[l10nID.replace(`${config.addonRef}-`, "")];
 }
 
-function applyTooltip(context: any, tooltip: string): void {
+function applyHint(context: any, hint: string): void {
   const element = safeContextValue(context, "menuElem") as
     HTMLElement | undefined;
-  element?.setAttribute("tooltiptext", tooltip);
+  element?.setAttribute("acceltext", hint);
 }
 
 type MainWindow = _ZoteroTypes.MainWindow;
@@ -68,7 +60,9 @@ type MenuContextResolver = (
 function register(definition: Record<string, unknown>): void {
   const manager = (Zotero as any).MenuManager;
   if (!manager?.registerMenu) {
-    throw new Error("Zotero.MenuManager is unavailable. Zotero 9 is required.");
+    throw new Error(
+      "Zotero.MenuManager is unavailable. Zotero 9 or later is required.",
+    );
   }
   const id = manager.registerMenu(definition);
   if (id) registeredMenuIDs.push(id);
@@ -281,15 +275,15 @@ function commandItem(
   run: (context: any) => Promise<void> | void,
   l10nArgs?: Record<string, unknown>,
 ): MenuData {
-  const tooltip = menuTooltip(l10nID);
+  const hint = menuHint(l10nID);
   return {
     menuType: "menuitem",
     l10nID,
     ...(l10nArgs ? { l10nArgs: JSON.stringify(l10nArgs) } : {}),
-    ...(tooltip
+    ...(hint
       ? {
           onShowing: (_event: Event, context: any) => {
-            applyTooltip(context, tooltip);
+            applyHint(context, hint);
           },
         }
       : {}),
@@ -351,10 +345,8 @@ function openInSubmenu(resolve: MenuContextResolver): MenuData {
           view.active ? `✓ ${view.title}` : view.title,
         );
         item.setAttribute(
-          "tooltiptext",
-          view.kind === "focus"
-            ? `Add the selected papers to “${view.title}” as new Focus seeds and explore outward from them.`
-            : `Add the selected papers to the “${view.title}” map, keeping the papers already in it.`,
+          "acceltext",
+          view.kind === "focus" ? "add as seeds" : "add to map",
         );
         item.addEventListener(
           "command",

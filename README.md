@@ -1,6 +1,6 @@
 # Zotero Citation Map:
 
-Zotero Citation Map is a plugin for Zotero 9 that brings citation networks,bibliometric data, and paper discovery directly into your Zotero library.
+Zotero Citation Map is a plugin for Zotero 9 and 10 that brings citation networks,bibliometric data, and paper discovery directly into your Zotero library.
 
 The project began as a weekend experiment. I wanted to test how far I could take ChatGPT 5.6 SOL while solving a minor annoyance in my own research workflow.
 
@@ -28,13 +28,13 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
 
 ## Main Features
 
-- **See how papers in your library are connected**
+- **See how papers in your library are connected (Collection Graph)**
   Build an interactive citation map for a library, collection, or selectedpapers. Search and filter the graph, inspect a paper, and return directly toits Zotero item, notes, or PDF.
   ![graph](docs/assets/FreeGraph.png)
 
-- **Focus on one or more papers**
+- **Explore outward from one or more papers**
   Explore references, citing papers, or both around one or more "seed" papers. Add or remove seeds, include papers outside Zotero, rank and limit neighbours, and move backward or forward through previous focus states.
-  ![FocusView](docs/assets/FocusView.png)
+  ![Explore](docs/assets/FocusView.png)
 
 - **Inspect citation data inside Zotero**
   Show citation and reference counts as library columns. Use the item pane to review overview metrics, references, and citing papers; search, sort, and filter long lists; refresh stale data and correct or add custom relationships.
@@ -47,7 +47,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   Explore external references, citing works, and similar papers alongside your Zotero items. Preview their metadata, open the DOI, mark incorrect matches, or add the paper directly to Zotero.
 
 - **Work with multiple independent views**
-  Open several Citation Map and Focus View tabs at once. Rename views and use `Open in ›` to create a new view or add a paper to an existing one. Each view keeps its own scope, filters, selection, camera, and navigation history.
+  Open several Collection Graph and Explore tabs at once. Rename views and use `Open in ›` to create a new view or add a paper to an existing one. Each view keeps its own scope, filters, selection, camera, and navigation history.
 
 - **Control providers and updates**
   Choose which scholarly-data providers to use, which Zotero libraries shouldupdate automatically, and when cached data become stale. Refresh data manually when needed; long updates show progress and can be cancelled.

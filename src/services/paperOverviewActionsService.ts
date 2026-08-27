@@ -114,7 +114,7 @@ export function createPaperOverviewActionBar(
     openInButton = element(document, "button", secondaryButtonClass);
     openInButton.type = "button";
     openInButton.textContent = "Open in ›";
-    openInButton.title = "Open this paper in a Citation Map view.";
+    openInButton.title = "Open this paper in a Collection Graph view.";
     openInButton.setAttribute("aria-haspopup", "menu");
     openInButton.setAttribute("aria-expanded", "false");
 

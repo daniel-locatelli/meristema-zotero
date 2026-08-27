@@ -703,22 +703,22 @@ function renderOverview(
       const openViews = getOpenCitationMapViews(hostWindow);
       return [
         {
-          label: "New Citation Map",
-          title: "Open this paper in a new Citation Map tab.",
+          label: "New Collection Graph",
+          title: "Open this paper in a new Collection Graph tab.",
           action: () =>
             openCitationMapAndSelectItemsInNewTab([itemID], hostWindow),
         },
         {
-          label: "New Focus View",
-          title: "Open this paper as the seed of a new Focus View.",
+          label: "New Explore view",
+          title: "Open this paper as the seed of a new Explore view.",
           action: () => openCitationMapFocusItemsInNewTab([itemID], hostWindow),
         },
         ...openViews.map((view, index) => ({
           label: `${view.active ? "✓ " : ""}${view.title}`,
           title:
             view.kind === "focus"
-              ? "Add this paper as a seed in the selected Focus View."
-              : "Add this paper to the selected Citation Map.",
+              ? "Add this paper as a seed in the selected Explore view."
+              : "Add this paper to the selected Collection Graph.",
           separatorBefore: index === 0,
           action: () =>
             view.kind === "focus"

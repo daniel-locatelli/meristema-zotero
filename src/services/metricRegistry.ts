@@ -82,7 +82,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     label: "Citation sequence",
     group: "Core",
     description:
-      "Ordinal publication order in the current graph. In Focus View, the primary seed is 0, references are negative steps and citing papers are positive steps.",
+      "Ordinal publication order in the current graph. In Explore, the primary seed is 0, references are negative steps and citing papers are positive steps.",
     interpretation:
       "Equal spacing represents one paper in sequence, not a fixed amount of elapsed time. Full dates are used when available; year-only ties are ordered deterministically.",
     valueType: "integer",

@@ -608,7 +608,7 @@ export function installCitationMapTabHooks(win: _ZoteroTypes.MainWindow): void {
   manager.tabHooks.moveToNewWindow ??= {};
   manager.tabHooks.restoreState[TAB_TYPE] = async () => ({ itemID: null });
   manager.tabHooks.getTitle[TAB_TYPE] = async (tab: any) =>
-    String(tab?.data?.citationMapTitle ?? "Citation Map");
+    String(tab?.data?.citationMapTitle ?? "Collection Graph");
   const focus = (tab: any): void => {
     const container = manager.getTabContent(tab.id);
     (container?.querySelector(".cm-search") as HTMLElement | null)?.focus();

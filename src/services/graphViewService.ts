@@ -466,7 +466,7 @@ export function renderCitationMapView(
   const viewTitle = text(
     document,
     "h1",
-    currentViewKind === "focus" ? "Focus View" : "Citation Map",
+    currentViewKind === "focus" ? "Explore" : "Collection Graph",
   );
   titleRow.append(historyControls, networkLogo(document), viewTitle);
   const summary = text(
@@ -489,7 +489,10 @@ export function renderCitationMapView(
   const addNodePopup = element(document, "section", "cm-add-node-popup");
   addNodePopup.hidden = true;
   addNodePopup.setAttribute("role", "dialog");
-  addNodePopup.setAttribute("aria-label", "Add papers to Citation Map view");
+  addNodePopup.setAttribute(
+    "aria-label",
+    "Add papers to Collection Graph view",
+  );
   const addNodeSearch = element(document, "input", "cm-add-node-search");
   addNodeSearch.type = "search";
   addNodeSearch.placeholder = "Search title, creator, or year";
@@ -627,10 +630,10 @@ export function renderCitationMapView(
     const changed = currentViewKind !== kind;
     currentViewKind = kind;
     root.dataset.viewKind = kind;
-    viewTitle.textContent = kind === "focus" ? "Focus View" : "Citation Map";
+    viewTitle.textContent = kind === "focus" ? "Explore" : "Collection Graph";
     refreshButton.title =
       kind === "focus"
-        ? "Refresh references and citing papers for the current Focus seeds."
+        ? "Refresh references and citing papers for the current Explore seeds."
         : "Refresh metadata and citation counts for the currently visible papers.";
     if (kind === "map") {
       refreshButton.removeAttribute("aria-busy");
@@ -662,7 +665,7 @@ export function renderCitationMapView(
   const focusSeedPopover = element(document, "div", "cm-focus-seed-popover");
   focusSeedPopover.hidden = true;
   focusSeedPopover.setAttribute("role", "dialog");
-  focusSeedPopover.setAttribute("aria-label", "Focus seeds");
+  focusSeedPopover.setAttribute("aria-label", "Explore seeds");
   const focusSeedSearchWrap = element(
     document,
     "label",
@@ -672,7 +675,7 @@ export function renderCitationMapView(
   const focusSeedSearch = element(document, "input", "cm-focus-seed-search");
   focusSeedSearch.type = "search";
   focusSeedSearch.placeholder = "Search seeds";
-  focusSeedSearch.setAttribute("aria-label", "Search Focus seeds");
+  focusSeedSearch.setAttribute("aria-label", "Search Explore seeds");
   focusSeedSearchWrap.appendChild(focusSeedSearch);
   const focusSeedResults = element(document, "div", "cm-focus-seed-results");
   focusSeedResults.setAttribute("role", "list");
@@ -750,6 +753,16 @@ export function renderCitationMapView(
     zoom.appendChild(button);
   }
   graphArea.appendChild(zoom);
+
+  // A Citation Map only draws connections between papers already in the
+  // library, so opening one on a single item renders a single node. Without
+  // this the view looks broken rather than empty by definition.
+  const emptyState = element(document, "div", "cm-empty-state");
+  emptyState.hidden = true;
+  const emptyStateTitle = text(document, "p", "", "cm-empty-state-title");
+  const emptyStateBody = text(document, "p", "", "cm-empty-state-body");
+  emptyState.append(emptyStateTitle, emptyStateBody);
+  graphArea.appendChild(emptyState);
   let currentLayout = initialLayout;
   let libraryLayoutBeforeFocus: GraphLayoutOptions | null = null;
   let libraryViewBeforeFocus: GraphViewTransform | null = null;
@@ -1161,8 +1174,30 @@ export function renderCitationMapView(
   document.addEventListener("keydown", closeAddNodePopupOnEscape, true);
   renderSelectedLibraryPapers();
 
+  const updateEmptyState = (visibleCount: number): void => {
+    // Focus View fetches its own neighbours, so an empty projection there is a
+    // transient loading state rather than a misunderstanding worth explaining.
+    if (currentViewKind !== "map" || visibleCount > 1) {
+      emptyState.hidden = true;
+      return;
+    }
+    emptyState.hidden = false;
+    emptyStateTitle.textContent = visibleCount
+      ? "Only one paper in this map"
+      : "This map is empty";
+    emptyStateBody.textContent = visibleCount
+      ? "A Collection Graph shows how papers you already have cite each other, " +
+        "so a single paper has nothing to connect to. Add more papers with " +
+        "“Open in”, or switch to Explore to fetch its references and " +
+        "citing works."
+      : "A Collection Graph shows how papers you already have cite each other. " +
+        "Add papers with “Open in”, or switch to Explore to look " +
+        "outward from a paper and find related work online.";
+  };
+
   const updateSummary = (): void => {
     const renderedKeys = new Set(visibleKeys);
+    updateEmptyState(renderedKeys.size);
     const base = `${formatCount(renderedKeys.size)} nodes - ${formatCount(
       renderer?.getVisibleEdgeCount() ?? 0,
     )} links`;
@@ -1596,7 +1631,7 @@ export function renderCitationMapView(
     refreshButton.disabled = focusLoadActive;
     refreshButton.title = focusLoadActive
       ? `Updating connections for ${focusRefreshCount} seed${focusRefreshCount === 1 ? "" : "s"}…`
-      : "Refresh references and citing papers for the current Focus seeds.";
+      : "Refresh references and citing papers for the current Explore seeds.";
     refreshButton.setAttribute("aria-busy", String(focusLoadActive));
   };
 
@@ -2553,7 +2588,7 @@ export function renderCitationMapView(
       const focusNode = focusNodeForWork(work);
       const focusButton = element(document, "button", "cm-secondary-button");
       focusButton.type = "button";
-      focusButton.textContent = "Focus on this paper";
+      focusButton.textContent = "Explore from this paper";
       focusButton.addEventListener("click", () => {
         focusOnPaper(focusNode);
       });
@@ -2563,7 +2598,7 @@ export function renderCitationMapView(
         addSeed.type = "button";
         addSeed.textContent = "Add as seed";
         addSeed.title =
-          "Add this paper to the current Focus View without adding it to Zotero.";
+          "Add this paper to the current Explore view without adding it to Zotero.";
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(focusNode)) addSeed.remove();
         });
@@ -3428,7 +3463,7 @@ export function renderCitationMapView(
 
       const focus = element(document, "button", "cm-secondary-button");
       focus.type = "button";
-      focus.textContent = "Focus on this paper";
+      focus.textContent = "Explore from this paper";
       focus.title = "Replace the current seed set with this paper.";
       focus.addEventListener("click", () => focusOnPaper(node));
       actions.appendChild(focus);
@@ -3438,7 +3473,7 @@ export function renderCitationMapView(
         addSeed.type = "button";
         addSeed.textContent = "Add as seed";
         addSeed.title =
-          "Add this paper to Focus View without adding it to Zotero.";
+          "Add this paper to Explore without adding it to Zotero.";
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(node)) renderOverview(node);
         });
@@ -3531,8 +3566,8 @@ export function renderCitationMapView(
             ? undefined
             : () => [
                 {
-                  label: "Current Focus View",
-                  title: "Use this paper as the seed of this Focus View.",
+                  label: "Current Explore view",
+                  title: "Use this paper as the seed of this Explore view.",
                   action: () => {
                     focusOnPaper(node);
                   },
@@ -3568,7 +3603,7 @@ export function renderCitationMapView(
         addSeed.type = "button";
         addSeed.textContent = "Add as seed";
         addSeed.title =
-          "Add this paper to the current Focus View without changing Zotero.";
+          "Add this paper to the current Explore view without changing Zotero.";
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(node)) renderOverview(node);
         });
