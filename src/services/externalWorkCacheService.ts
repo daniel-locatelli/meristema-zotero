@@ -309,7 +309,7 @@ function rowToRelationshipEntry(
 
 function requireDB(): _ZoteroTypes.DBConnection {
   if (!db || !initialized) {
-    throw new Error("Citation Map external-work cache is not initialized.");
+    throw new Error("Meristema external-work cache is not initialized.");
   }
   return db;
 }
@@ -323,7 +323,7 @@ async function ensureExternalWorkCache(): Promise<boolean> {
 function queueWrite<T>(task: () => Promise<T>): Promise<T> {
   return writeQueue.enqueue(async () => {
     if (!(await ensureExternalWorkCache())) {
-      throw new Error("Citation Map external-work cache is closing.");
+      throw new Error("Meristema external-work cache is closing.");
     }
     return task();
   });
@@ -380,7 +380,7 @@ export function initExternalWorkCache(): Promise<void> {
       relationshipDependencyIndex.clear();
       initialized = true;
       Zotero.debug(
-        `Citation Map: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists`,
+        `Meristema: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists`,
       );
     } catch (error) {
       await connection.closeDatabase(true).catch(() => undefined);
@@ -565,7 +565,7 @@ export async function saveExternalRelationshipCache(
   const durationMs = Date.now() - startedAt;
   if (durationMs >= 500) {
     Zotero.debug(
-      `Citation Map: saved ${storedWorks.length} relationship members in ${durationMs} ms`,
+      `Meristema: saved ${storedWorks.length} relationship members in ${durationMs} ms`,
     );
   }
 }

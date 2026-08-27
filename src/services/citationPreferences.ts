@@ -75,7 +75,7 @@ export function getEnabledProviders(): CitationProviderID[] {
   for (const name of Object.values(PROVIDER_PREF_NAMES))
     setBoolPref(name, true);
   Zotero.debug(
-    "Citation Map: repaired an invalid empty provider selection by enabling automatic mode.",
+    "Meristema: repaired an invalid empty provider selection by enabling automatic mode.",
   );
   return [...CITATION_PROVIDER_IDS];
 }

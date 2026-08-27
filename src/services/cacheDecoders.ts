@@ -74,7 +74,7 @@ export class CacheDecodeError extends Error {
   public readonly context: string;
 
   public constructor(context: string, message: string) {
-    super(`Invalid Citation Map cache data at ${context}: ${message}`);
+    super(`Invalid Meristema cache data at ${context}: ${message}`);
     this.name = "CacheDecodeError";
     this.context = context;
   }

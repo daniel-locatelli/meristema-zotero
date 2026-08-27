@@ -166,7 +166,7 @@ export async function resolveRelatedWorksMetadata(
       }
     } catch (error) {
       Zotero.debug(
-        "Citation Map: " +
+        "Meristema: " +
           `${getCitationProvider(providerID).label} batch metadata resolution failed: ` +
           String(error),
       );
@@ -211,7 +211,7 @@ export async function resolveRelatedWorksMetadata(
           }
         } catch (error) {
           Zotero.debug(
-            "Citation Map: " +
+            "Meristema: " +
               `${provider.label} metadata resolution failed: ${String(error)}`,
           );
         }

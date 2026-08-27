@@ -13,7 +13,7 @@ export interface ZoteroTabDescriptor {
   type?: string | null;
 }
 
-/** Only real Citation Map tabs may be promoted into the view-instance registry. */
+/** Only real Meristema tabs may be promoted into the view-instance registry. */
 export function isGraphTabDescriptor(
   tab: ZoteroTabDescriptor | null | undefined,
 ): boolean {
@@ -43,7 +43,7 @@ export function nextGraphViewTitle(
 }
 
 /**
- * Route ordinary commands to the selected Citation Map when possible,
+ * Route ordinary commands to the selected Meristema when possible,
  * otherwise to the most recently activated live instance.
  */
 export function selectReusableGraphInstance<T extends ViewInstanceDescriptor>(

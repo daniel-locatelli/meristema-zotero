@@ -181,7 +181,7 @@ async function enrichAutomaticResult(
           };
         } catch (error) {
           Zotero.debug(
-            "Citation Map: optional " +
+            "Meristema: optional " +
               `${provider.label} enrichment failed: ${String(error)}`,
           );
           return null;

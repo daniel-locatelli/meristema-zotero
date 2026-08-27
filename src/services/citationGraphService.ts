@@ -524,7 +524,7 @@ function buildCitationGraphModel(
   const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - startedAt;
   if (elapsed >= 500) {
     Zotero.debug(
-      `Citation Map: built ${model.nodes.length} nodes and ${model.edges.length} edges in ${Math.round(elapsed)} ms`,
+      `Meristema: built ${model.nodes.length} nodes and ${model.edges.length} edges in ${Math.round(elapsed)} ms`,
     );
   }
   return model;

@@ -129,7 +129,7 @@ export class CitationGraphRenderer {
   constructor(options: CitationGraphRendererOptions) {
     this.canvas = options.canvas;
     const context = this.canvas.getContext("2d");
-    if (!context) throw new Error("Citation Map requires a 2D canvas context.");
+    if (!context) throw new Error("Meristema requires a 2D canvas context.");
     this.context = context;
     this.model = options.model;
     this.layout = { ...options.layout };
@@ -943,9 +943,7 @@ export class CitationGraphRenderer {
         Zotero.logError(
           error instanceof Error
             ? error
-            : new Error(
-                `Citation Map canvas rendering failed: ${String(error)}`,
-              ),
+            : new Error(`Meristema canvas rendering failed: ${String(error)}`),
         );
       }
     }

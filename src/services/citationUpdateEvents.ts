@@ -29,7 +29,7 @@ function notifyListeners(event: CitationUpdateCompletedEvent): void {
   for (const listener of listeners) {
     void Promise.resolve(listener(event)).catch((error: unknown) => {
       Zotero.debug(
-        `Citation Map: update-completed listener failed: ${String(error)}`,
+        `Meristema: update-completed listener failed: ${String(error)}`,
       );
     });
   }

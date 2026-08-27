@@ -407,7 +407,7 @@ export async function completeLibraryItemUpdates(
         if (!isExpectedBoundedResult(relationshipMode, storedResolution)) {
           relationshipFailures += 1;
           Zotero.debug(
-            `Citation Map: ${direction} membership remained incomplete for ${node.itemKey} ` +
+            `Meristema: ${direction} membership remained incomplete for ${node.itemKey} ` +
               `(${finalResolution.identifiedCount}/${finalResolution.reportedCount ?? "unknown"})`,
           );
         }
@@ -415,7 +415,7 @@ export async function completeLibraryItemUpdates(
         relationshipFailures += 1;
         rememberRelationshipFailure(relationshipResolutions, node, direction);
         Zotero.debug(
-          `Citation Map: ${relationshipMode} ${direction} update failed for ${node.itemKey}: ${String(error)}`,
+          `Meristema: ${relationshipMode} ${direction} update failed for ${node.itemKey}: ${String(error)}`,
         );
       } finally {
         completedRelationships += 1;

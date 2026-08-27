@@ -39,7 +39,7 @@ export interface GraphFocusSeedRelationships {
 
 export interface GraphFocusInput {
   graph: CitationGraphModel;
-  /** Optional graph-ready indexes shared by Citation Map and Focus View. */
+  /** Optional graph-ready indexes shared by Meristema and Focus View. */
   index?: CitationGraphIndex;
   state: GraphFocusState;
   /** Seed nodes may be local or temporary external nodes. */

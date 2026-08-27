@@ -104,7 +104,7 @@ async function citingWorksForReference(
       if (works.length) return works;
     } catch (error) {
       Zotero.debug(
-        `Citation Map: bibliographic-coupling lookup failed through ${providerID}: ${String(error)}`,
+        `Meristema: bibliographic-coupling lookup failed through ${providerID}: ${String(error)}`,
       );
     }
   }

@@ -754,7 +754,7 @@ export function renderGraphView(
   }
   graphArea.appendChild(zoom);
 
-  // A Citation Map only draws connections between papers already in the
+  // A Meristema only draws connections between papers already in the
   // library, so opening one on a single item renders a single node. Without
   // this the view looks broken rather than empty by definition.
   const emptyState = element(document, "div", "cm-empty-state");
@@ -976,7 +976,7 @@ export function renderGraphView(
           citationKey = String(item?.getField?.("citationKey") ?? "");
         } catch (error) {
           Zotero.debug(
-            `Citation Map: could not rank item ${paper.itemID}: ${String(error)}`,
+            `Meristema: could not rank item ${paper.itemID}: ${String(error)}`,
           );
         }
         return {
@@ -4214,7 +4214,7 @@ export function renderGraphView(
       })
       .catch((error: unknown) => {
         Zotero.debug(
-          `Citation Map: background local-relation extraction failed: ${String(error)}`,
+          `Meristema: background local-relation extraction failed: ${String(error)}`,
         );
       });
   };

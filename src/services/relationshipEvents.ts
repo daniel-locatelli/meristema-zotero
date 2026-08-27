@@ -52,7 +52,7 @@ function notifyListeners(event: RelationshipPublicationEvent): void {
   for (const listener of [...listeners]) {
     void Promise.resolve(listener(event)).catch((error: unknown) => {
       Zotero.debug(
-        `Citation Map: relationship-publication listener failed: ${String(error)}`,
+        `Meristema: relationship-publication listener failed: ${String(error)}`,
       );
     });
   }

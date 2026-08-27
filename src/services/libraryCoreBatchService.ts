@@ -245,7 +245,7 @@ async function resolveProviderBatches(
         }
       } catch (error) {
         Zotero.debug(
-          `Citation Map: ${provider} core batch failed; unresolved works will use fallback lookup: ${String(error)}`,
+          `Meristema: ${provider} core batch failed; unresolved works will use fallback lookup: ${String(error)}`,
         );
       }
       completedBatches += 1;

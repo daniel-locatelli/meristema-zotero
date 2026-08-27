@@ -45,7 +45,7 @@ async function regularItemsInLibrary(
 function preferenceError(context: string, error: unknown): Error {
   if (error instanceof Error) return error;
   const detail = error === undefined ? "undefined rejection" : String(error);
-  return new Error(`Citation Map: ${context} failed (${detail})`);
+  return new Error(`Meristema: ${context} failed (${detail})`);
 }
 
 async function runPreferenceAction(
@@ -169,7 +169,7 @@ export async function registerPreferencePane(): Promise<void> {
     id: `${config.addonRef}-preferences`,
     src: rootURI + "content/preferences.xhtml",
     scripts: [rootURI + "content/preferences.js"],
-    label: "Citation Map",
+    label: "Meristema",
     image: `chrome://${config.addonRef}/content/icons/network.svg`,
   } as any);
   observerIDs.push(

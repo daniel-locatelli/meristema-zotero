@@ -13,7 +13,7 @@ const PROVIDER_LABELS: Record<CitationDataSourceID, string> = {
   inspire: "INSPIRE-HEP",
   openalex: "OpenAlex",
   zotero: "Zotero",
-  "citation-map": "Citation Map",
+  "citation-map": "Meristema",
   manual: "Manual",
 };
 

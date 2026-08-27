@@ -484,7 +484,7 @@ async function persistOneItemCore(
     );
   } catch (error) {
     Zotero.debug(
-      `Citation Map: post-core update processing failed for ${itemKey}: ${String(error)}`,
+      `Meristema: post-core update processing failed for ${itemKey}: ${String(error)}`,
     );
   }
 
@@ -630,7 +630,7 @@ async function runUpdate(
         // Preserve the previous per-item failure isolation only when the bulk
         // transaction itself fails. The normal path uses one transaction.
         Zotero.debug(
-          `Citation Map: batched core persistence failed; retrying individually: ${String(error)}`,
+          `Meristema: batched core persistence failed; retrying individually: ${String(error)}`,
         );
         for (const [index, record] of coreRecordsToPersist.entries()) {
           await saveCitationMetricRecord(record);
@@ -702,7 +702,7 @@ async function runUpdate(
       finishProgress(progress, result, enrichmentText);
       if (getDebugLoggingEnabled()) {
         Zotero.debug(
-          "Citation Map: batched update completed " +
+          "Meristema: batched update completed " +
             JSON.stringify({
               items: selected.length,
               pending: pending.length,

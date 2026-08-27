@@ -233,7 +233,7 @@ function cancelAllUpdates(): void {
       callback();
     } catch (error) {
       Zotero.debug(
-        `Citation Map: update cancellation hook failed: ${String(error)}`,
+        `Meristema: update cancellation hook failed: ${String(error)}`,
       );
     }
   }
@@ -405,7 +405,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   const cancel = makeButton(
     document,
     "trash",
-    "Cancel all Citation Map updates and close",
+    "Cancel all Meristema updates and close",
     true,
   );
   minimize.addEventListener("click", () =>

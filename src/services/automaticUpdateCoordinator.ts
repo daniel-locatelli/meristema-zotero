@@ -29,7 +29,7 @@ let automaticUpdateTail: Promise<void> = Promise.resolve();
 function reportBackgroundError(context: string, error: unknown): void {
   const detail = error instanceof Error ? error : new Error(String(error));
   Zotero.logError(
-    new Error(`Citation Map: ${context} failed: ${detail.message}`, {
+    new Error(`Meristema: ${context} failed: ${detail.message}`, {
       cause: detail,
     }),
   );
@@ -130,7 +130,7 @@ function schedulePendingItems(): void {
 /**
  * Register automatic updates without any silent execution path. Zotero item
  * notifications are coalesced and then processed one library at a time. All
- * automatic work is limited to the libraries selected in Citation Map
+ * automatic work is limited to the libraries selected in Meristema
  * settings. Each library is processed separately through the normal cancellable
  * progress window.
  */

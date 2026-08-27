@@ -229,13 +229,13 @@ function beginTeardown(closeGraphTab = true): void {
     try {
       action();
     } catch (error) {
-      Zotero.debug(`Citation Map: shutdown cleanup failed: ${String(error)}`);
+      Zotero.debug(`Meristema: shutdown cleanup failed: ${String(error)}`);
     }
   }
   try {
     closeGraphWindow(closeGraphTab);
   } catch (error) {
-    Zotero.debug(`Citation Map: graph cleanup failed: ${String(error)}`);
+    Zotero.debug(`Meristema: graph cleanup failed: ${String(error)}`);
   }
 }
 
@@ -243,7 +243,7 @@ async function onStartup(): Promise<void> {
   teardownStarted = false;
   addon.data.alive = true;
   await Promise.all([Zotero.initializationPromise, Zotero.unlockPromise]);
-  // Restored Citation Map tabs can render during UI restoration. Initialize
+  // Restored Meristema tabs can render during UI restoration. Initialize
   // both persistent stores before waiting for uiReady so no restored tab can
   // read from, or write to, an uninitialized external-work cache.
   await Promise.all([initCitationMetricsStore(), initExternalWorkCache()]);
@@ -259,7 +259,7 @@ async function onStartup(): Promise<void> {
   registerMenus();
   registerAutomaticCitationUpdates();
   addon.data.initialized = true;
-  Zotero.debug("Citation Map: startup completed");
+  Zotero.debug("Meristema: startup completed");
 }
 
 async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
@@ -267,13 +267,11 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   // are idempotent and ensure the graph never observes an empty cache mirror.
   await Promise.all([initCitationMetricsStore(), initExternalWorkCache()]);
   // Install the custom tab hook immediately. Zotero may restore saved tabs
-  // before the user has ever opened Citation Map in this session.
+  // before the user has ever opened Meristema in this session.
   try {
     installGraphTabHooks(win);
   } catch (error) {
-    Zotero.debug(
-      `Citation Map: tab-hook installation deferred: ${String(error)}`,
-    );
+    Zotero.debug(`Meristema: tab-hook installation deferred: ${String(error)}`);
   }
   win.MozXULElement.insertFTLIfNeeded(`${config.addonRef}-mainWindow.ftl`);
   installStyles(win);

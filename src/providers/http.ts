@@ -77,7 +77,7 @@ function notifyResponseObservers(context: ProviderJSONResponseContext): void {
   for (const observer of responseObservers) {
     void Promise.resolve(observer(context)).catch((error: unknown) => {
       Zotero.debug(
-        `Citation Map: provider response observer failed: ${String(error)}`,
+        `Meristema: provider response observer failed: ${String(error)}`,
       );
     });
   }
@@ -88,7 +88,7 @@ function cancelledResult<T>(): HTTPResult<T> {
     ok: false,
     status: 0,
     data: null,
-    message: "Citation Map request cancelled during shutdown",
+    message: "Meristema request cancelled during shutdown",
   };
 }
 
@@ -103,7 +103,7 @@ function disabledProviderResult<T>(
     ok: false,
     status: 403,
     data: null,
-    message: `${provider} is disabled in Citation Map settings`,
+    message: `${provider} is disabled in Meristema settings`,
   };
 }
 
@@ -334,7 +334,7 @@ export async function requestJSON<T>(
             const headers = {
               Accept: "application/json",
               "User-Agent":
-                "Zotero-Citation-Map/0.2 (mailto omitted; public API pool)",
+                "Zotero-Meristema/0.2 (mailto omitted; public API pool)",
               ...(semanticScholarAPIKey
                 ? { "x-api-key": semanticScholarAPIKey }
                 : {}),

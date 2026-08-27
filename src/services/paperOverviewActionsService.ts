@@ -52,7 +52,7 @@ function invoke(button: HTMLButtonElement, action: Action): void {
       Zotero.logError(
         error instanceof Error
           ? error
-          : new Error(`Citation Map overview action failed: ${String(error)}`),
+          : new Error(`Meristema overview action failed: ${String(error)}`),
       );
     })
     .finally(() => {

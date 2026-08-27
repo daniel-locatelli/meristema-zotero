@@ -289,7 +289,7 @@ describe("Architecture foundations", function () {
     expect(notified).to.equal(true);
   });
 
-  it("routes ordinary Citation Map commands to the selected or most recent instance", function () {
+  it("routes ordinary Meristema commands to the selected or most recent instance", function () {
     const instances = [
       { instanceID: "older", tabID: "tab-1", lastActivatedAt: 10 },
       { instanceID: "newer", tabID: "tab-2", lastActivatedAt: 20 },
@@ -347,7 +347,7 @@ describe("Architecture foundations", function () {
     ).to.equal("Explore 2");
   });
 
-  it("defers redraws for hidden Citation Map tabs", function () {
+  it("defers redraws for hidden Meristema tabs", function () {
     expect(graphInstanceShouldRender(false, false)).to.equal(false);
     expect(graphInstanceShouldRender(false, true)).to.equal(true);
     expect(graphInstanceShouldRender(true, false)).to.equal(true);

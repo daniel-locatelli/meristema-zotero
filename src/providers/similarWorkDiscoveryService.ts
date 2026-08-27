@@ -48,7 +48,7 @@ export async function discoverSimilarWorks(
       }
     } catch (error) {
       Zotero.debug(
-        `Citation Map: ${getCitationProvider(providerID).label} similar-paper discovery failed: ${String(error)}`,
+        `Meristema: ${getCitationProvider(providerID).label} similar-paper discovery failed: ${String(error)}`,
       );
       continue;
     }

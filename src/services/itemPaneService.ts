@@ -163,7 +163,7 @@ function runUIAction(context: string, action: () => Promise<void>): void {
       error instanceof Error
         ? error
         : new Error(
-            `Citation Map: ${context} failed (${
+            `Meristema: ${context} failed (${
               error === undefined ? "undefined rejection" : String(error)
             })`,
           );
@@ -379,7 +379,7 @@ function renderMatchConfirmation(
       txt(
         document,
         "p",
-        "Zotero and the provider returned conflicting stable identifiers. Citation Map kept the Zotero data and did not merge the provider record.",
+        "Zotero and the provider returned conflicting stable identifiers. Meristema kept the Zotero data and did not merge the provider record.",
       ),
     );
     container.appendChild(warning);
@@ -980,8 +980,8 @@ function renderRelationCard(
     title.classList.add("meristema-manual-relation-title");
     title.title =
       direction === "reference"
-        ? "Reference added manually in Citation Map"
-        : "Citing paper added manually in Citation Map";
+        ? "Reference added manually in Meristema"
+        : "Citing paper added manually in Meristema";
   }
   card.appendChild(title);
   card.appendChild(
@@ -1483,7 +1483,7 @@ export function registerCitationItemPane(): void {
   if (registeredPaneID) return;
   const manager = (Zotero as any).ItemPaneManager;
   if (!manager?.registerSection) {
-    Zotero.debug("Citation Map: Zotero ItemPaneManager is unavailable.");
+    Zotero.debug("Meristema: Zotero ItemPaneManager is unavailable.");
     return;
   }
   registeredPaneID = manager.registerSection({
@@ -1589,9 +1589,7 @@ function scheduleCitationItemPaneRefresh(
         continue;
       }
       void refresh().catch((error) =>
-        Zotero.debug(
-          `Citation Map: item-pane refresh failed: ${String(error)}`,
-        ),
+        Zotero.debug(`Meristema: item-pane refresh failed: ${String(error)}`),
       );
     }
   }, 30);
@@ -1600,7 +1598,7 @@ function scheduleCitationItemPaneRefresh(
 export function refreshCitationItemPanes(): void {
   for (const refresh of refreshCallbacks.values()) {
     void refresh().catch((error) =>
-      Zotero.debug(`Citation Map: item-pane refresh failed: ${String(error)}`),
+      Zotero.debug(`Meristema: item-pane refresh failed: ${String(error)}`),
     );
   }
 }
@@ -1610,7 +1608,7 @@ export function unregisterCitationItemPane(): void {
     try {
       (Zotero as any).ItemPaneManager?.unregisterSection?.(registeredPaneID);
     } catch (error) {
-      Zotero.debug(`Citation Map: item pane cleanup failed: ${String(error)}`);
+      Zotero.debug(`Meristema: item pane cleanup failed: ${String(error)}`);
     }
   }
   registeredPaneID = null;

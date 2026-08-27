@@ -341,7 +341,7 @@ async function buildWholeLibrarySnapshot(
   const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - startedAt;
   if (elapsed >= 500) {
     Zotero.debug(
-      `Citation Map: prepared ${papers.length} library papers in ${Math.round(elapsed)} ms`,
+      `Meristema: prepared ${papers.length} library papers in ${Math.round(elapsed)} ms`,
     );
   }
   return snapshot;
@@ -364,7 +364,7 @@ async function refreshCachedSnapshotMetrics(
   const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - startedAt;
   if (elapsed >= 500) {
     Zotero.debug(
-      `Citation Map: refreshed ${snapshot.papers.length} cached paper metrics in ${Math.round(elapsed)} ms`,
+      `Meristema: refreshed ${snapshot.papers.length} cached paper metrics in ${Math.round(elapsed)} ms`,
     );
   }
   return snapshot;

@@ -245,7 +245,7 @@ function injectGraphLibraryFilter(
     void onSelectLibrary(libraryID).catch((error) => {
       select.disabled = false;
       select.value = String(currentLibraryID);
-      reportAsyncError("Citation Map: library selection failed", error);
+      reportAsyncError("Meristema: library selection failed", error);
     });
   });
 
@@ -335,7 +335,7 @@ function renderDetachedWindow(
     onViewKindChange: (kind) => setInstanceKind(host, instance, kind),
     onSelectPaper: (itemID) => {
       void selectPaper(host, itemID).catch((error) =>
-        reportAsyncError("Citation Map: paper selection failed", error),
+        reportAsyncError("Meristema: paper selection failed", error),
       );
     },
     initialItemIDs: request.selectionItemIDs,
@@ -387,7 +387,7 @@ async function openDetachedGraphWindow(
     instance.instanceID,
     "chrome,dialog=no,resizable,centerscreen,width=1200,height=820",
   ) as Window | null;
-  if (!popup) throw new Error("Unable to open the Citation Map window.");
+  if (!popup) throw new Error("Unable to open the Meristema window.");
 
   await waitForWindowLoad(popup);
   const mount = popup.document.getElementById(
@@ -395,7 +395,7 @@ async function openDetachedGraphWindow(
   ) as HTMLElement | null;
   if (!mount) {
     popup.close();
-    throw new Error("Citation Map window mount point is unavailable.");
+    throw new Error("Meristema window mount point is unavailable.");
   }
 
   instance.detachedWindow = popup;
@@ -582,7 +582,7 @@ function activeOrRecentInstance(
 /**
  * Register custom-tab hooks as soon as the Zotero main window is available.
  * Zotero restores saved tabs during window startup, so delaying this until the
- * user first opens Citation Map can leave a stale plugin tab without a
+ * user first opens Meristema can leave a stale plugin tab without a
  * restoreState hook.
  */
 export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
@@ -615,7 +615,7 @@ export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
   manager.tabHooks.moveToNewWindow[TAB_TYPE] = async (tab: any) => {
     try {
       const instance = instanceForTab(win, tab);
-      if (!instance) throw new Error("Citation Map instance is unavailable.");
+      if (!instance) throw new Error("Meristema instance is unavailable.");
       const libraryID = tabLibraryID(tab, win, instance);
       const snapshot = await loadWholeLibrary(libraryID);
       const request = consumePendingRequest(instance);
@@ -624,7 +624,7 @@ export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
       manager.close(tab.id);
     } catch (error) {
       reportAsyncError(
-        "Citation Map: moving the tab to a new window failed",
+        "Meristema: moving the tab to a new window failed",
         error,
       );
     }
@@ -680,10 +680,7 @@ function prepareContainer(
         if (instance.dirty) {
           instance.dirty = false;
           void refreshGraphInstance(win, instance).catch((error) =>
-            reportAsyncError(
-              "Citation Map: deferred graph refresh failed",
-              error,
-            ),
+            reportAsyncError("Meristema: deferred graph refresh failed", error),
           );
         }
       }
@@ -723,7 +720,7 @@ function renderTab(
       onViewKindChange: (kind) => setInstanceKind(win, instance, kind),
       onSelectPaper: (itemID) => {
         void selectPaper(win, itemID).catch((error) =>
-          reportAsyncError("Citation Map: paper selection failed", error),
+          reportAsyncError("Meristema: paper selection failed", error),
         );
       },
       initialItemIDs: request.selectionItemIDs,
@@ -895,7 +892,7 @@ export async function openGraphWindow(
   const snapshot = await loadWholeLibrary(targetLibraryID);
   if (!snapshot.papers.length) {
     throw new Error(
-      `${snapshot.libraryName} contains no regular Zotero items for Citation Map.`,
+      `${snapshot.libraryName} contains no regular Zotero items for Meristema.`,
     );
   }
 
@@ -986,7 +983,7 @@ export async function openGraphWindow(
   });
   if (result.id === "zotero-pane" || result.container?.id === "zotero-pane") {
     throw new Error(
-      "Citation Map refused to mount into Zotero's reserved library tab.",
+      "Meristema refused to mount into Zotero's reserved library tab.",
     );
   }
   instance.tabID = result.id;
@@ -1054,10 +1051,10 @@ export function renameGraphView(
   const win = hostWindow ?? defaultMainWindow();
   const instance = instanceForTabID(win, tabID);
   if (!instance) {
-    throw new Error("The selected tab is not a Citation Map view.");
+    throw new Error("The selected tab is not a Meristema view.");
   }
   const normalized = title.trim();
-  if (!normalized) throw new Error("Citation Map view names cannot be empty.");
+  if (!normalized) throw new Error("Meristema view names cannot be empty.");
   instance.title = normalized;
   instance.customTitle = true;
   syncInstanceTitle(win, instance);
@@ -1282,7 +1279,7 @@ export async function refreshOpenGraphViews(): Promise<void> {
           renderTab(win, instance, container, snapshot);
         }
       } catch (error) {
-        reportAsyncError("Citation Map: graph refresh failed", error);
+        reportAsyncError("Meristema: graph refresh failed", error);
       }
     }
   }

@@ -73,7 +73,7 @@ export async function exportGraphJSON(
   await saveExport(
     document,
     {
-      title: "Export Citation Map as JSON",
+      title: "Export as JSON",
       filename,
       extension: "json",
       filterLabel: "JSON files",
@@ -142,7 +142,7 @@ export async function exportGraphCSV(
   await saveExport(
     document,
     {
-      title: "Export Citation Map as CSV",
+      title: "Export as CSV",
       filename,
       extension: "csv",
       filterLabel: "CSV files",
@@ -167,7 +167,7 @@ export async function exportGraphPNG(
 ): Promise<void> {
   const filename = `${sanitizeFilename(snapshot.libraryName)}-citation-map.png`;
   const path = await chooseSavePath(document, {
-    title: "Export Citation Map as PNG",
+    title: "Export as PNG",
     filename,
     extension: "png",
     filterLabel: "PNG images",

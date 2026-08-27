@@ -87,7 +87,7 @@ async function runSourceMetricTasks(
     if (result.status !== "rejected") continue;
     failed += 1;
     Zotero.debug(
-      `Citation Map: source-metric batch failed: ${String(result.reason)}`,
+      `Meristema: source-metric batch failed: ${String(result.reason)}`,
     );
   }
   return failed;

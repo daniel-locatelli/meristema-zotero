@@ -54,7 +54,7 @@ async function requestOpenAlex<T>(
       status: 401,
       data: null,
       message:
-        "OpenAlex API key is not configured. Add it in Settings → Citation Map.",
+        "OpenAlex API key is not configured. Add it in Settings → Meristema.",
     };
   }
   return requestJSON<T>("openalex", openAlexURL(path, parameters), {

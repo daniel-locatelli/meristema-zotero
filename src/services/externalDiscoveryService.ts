@@ -240,7 +240,7 @@ function invokeRefreshCallback<T>(
     callback(value);
   } catch (error) {
     Zotero.debug(
-      `Citation Map: relationship refresh callback failed: ${String(error)}`,
+      `Meristema: relationship refresh callback failed: ${String(error)}`,
     );
   }
 }
@@ -250,7 +250,7 @@ function invokeRefreshSignal(callback: () => void): void {
     callback();
   } catch (error) {
     Zotero.debug(
-      `Citation Map: relationship refresh signal failed: ${String(error)}`,
+      `Meristema: relationship refresh signal failed: ${String(error)}`,
     );
   }
 }
@@ -620,7 +620,7 @@ function scheduleRelationshipMetadataHydrationRun(): void {
     }
     void runRelationshipMetadataHydrationQueue().catch((error: unknown) => {
       Zotero.debug(
-        `Citation Map: background relationship metadata hydration failed: ${String(error)}`,
+        `Meristema: background relationship metadata hydration failed: ${String(error)}`,
       );
     });
   }, RELATIONSHIP_METADATA_BACKGROUND_DELAY_MS);
@@ -914,7 +914,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
         const publicationDurationMs = Date.now() - publicationStartedAt;
         if (publicationDurationMs >= 500) {
           Zotero.debug(
-            `Citation Map: published relationship summaries for ${finalTargets.length} target${
+            `Meristema: published relationship summaries for ${finalTargets.length} target${
               finalTargets.length === 1 ? "" : "s"
             } in ${publicationDurationMs} ms`,
           );
@@ -925,7 +925,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
               callback();
             } catch (error) {
               Zotero.debug(
-                `Citation Map: relationship hydration callback failed: ${String(error)}`,
+                `Meristema: relationship hydration callback failed: ${String(error)}`,
               );
             }
           }
@@ -1110,9 +1110,7 @@ export async function hydrateExternalWorksMetadata(
         }
       },
     ).catch((error: unknown) => {
-      Zotero.debug(
-        `Citation Map: metadata batch queue failed: ${String(error)}`,
-      );
+      Zotero.debug(`Meristema: metadata batch queue failed: ${String(error)}`);
       for (const job of jobs) {
         for (const result of job.deferred) result.resolve(null);
       }
@@ -1149,7 +1147,7 @@ export async function hydrateExternalWorksMetadata(
   const cacheSaveDurationMs = Date.now() - cacheSaveStartedAt;
   if (cacheSaveDurationMs >= 500) {
     Zotero.debug(
-      `Citation Map: saved ${cacheEntries.length} related-paper summaries in ${cacheSaveDurationMs} ms`,
+      `Meristema: saved ${cacheEntries.length} related-paper summaries in ${cacheSaveDurationMs} ms`,
     );
   }
   await checkpoint(true);
@@ -1195,7 +1193,7 @@ async function withProviderTimeout<T>(
       new Promise<null>((resolve) => {
         timer = setTimeout(() => {
           Zotero.debug(
-            `Citation Map: ${providerID} ${direction} lookup timed out`,
+            `Meristema: ${providerID} ${direction} lookup timed out`,
           );
           resolve(null);
         }, RELATIONSHIP_PROVIDER_TIMEOUT_MS);
@@ -1388,7 +1386,7 @@ async function fetchProviderRelationshipSnapshot(
     };
   } catch (error) {
     Zotero.debug(
-      `Citation Map: ${providerID} ${direction} lookup failed: ${String(error)}`,
+      `Meristema: ${providerID} ${direction} lookup failed: ${String(error)}`,
     );
     return failed();
   }

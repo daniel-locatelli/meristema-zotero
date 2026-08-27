@@ -315,7 +315,7 @@ export async function ensureExternalWorkMetrics(key: string): Promise<void> {
       });
       Zotero.logError(
         new Error(
-          `Citation Map: external metric hydration failed for ${key}; retry ${attempts} is delayed by ${delay} ms.`,
+          `Meristema: external metric hydration failed for ${key}; retry ${attempts} is delayed by ${delay} ms.`,
           { cause: error },
         ),
       );

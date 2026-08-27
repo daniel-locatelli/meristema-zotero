@@ -356,7 +356,7 @@ for (const [label, definition] of Object.entries({
   "structured-references":
     "Number of externally retrieved bibliography entries with enough structured metadata to identify the referenced work.",
   "local-manual-relations":
-    "Citation relationships for this paper that were added manually in Citation Map.",
+    "Citation relationships for this paper that were added manually in Meristema.",
   "top-1":
     "The paper is in the highest 1% of its OpenAlex citation-normalized comparison group for work type, publication year and subfield.",
   "top-10":
@@ -365,7 +365,7 @@ for (const [label, definition] of Object.entries({
   "ignored-relationship":
     "This provider relationship has been hidden from the citation graph.",
   "manual-relationship":
-    "This citation relationship was added manually in Citation Map.",
+    "This citation relationship was added manually in Meristema.",
   "publication-type": "Publication type reported by the scholarly-data source.",
 })) {
   PROPERTY_DEFINITIONS.set(label, definition);

@@ -413,7 +413,7 @@ function recordToParams(record: CitationMetricRecord): unknown[] {
 
 function requireDB(): _ZoteroTypes.DBConnection {
   if (!db || !initialized) {
-    throw new Error("Citation Map metrics store is not initialized.");
+    throw new Error("Meristema metrics store is not initialized.");
   }
   return db;
 }
@@ -519,7 +519,7 @@ export function initCitationMetricsStore(): Promise<void> {
     initialized = true;
     mirrorRevision += 1;
     Zotero.debug(
-      `Citation Map: cache initialized with ${mirror.size} metric records and ${manualMirror.length} manual relations`,
+      `Meristema: cache initialized with ${mirror.size} metric records and ${manualMirror.length} manual relations`,
     );
   })().finally(() => {
     initPromise = null;
@@ -693,7 +693,7 @@ export async function saveCitationMetricRecords(
   const durationMs = Date.now() - startedAt;
   if (durationMs >= 500) {
     Zotero.debug(
-      `Citation Map: saved ${entries.length} citation metric records in ${durationMs} ms`,
+      `Meristema: saved ${entries.length} citation metric records in ${durationMs} ms`,
     );
   }
 }

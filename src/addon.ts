@@ -22,7 +22,7 @@ export interface MeristemaAPI {
 
 function unavailableAPI(): MeristemaAPI {
   const unavailable = (): never => {
-    throw new Error("Citation Map API is not initialized.");
+    throw new Error("Meristema API is not initialized.");
   };
   return Object.freeze({
     refreshAll: unavailable,

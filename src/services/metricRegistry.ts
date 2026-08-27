@@ -393,7 +393,7 @@ export const SUPPLEMENTARY_PROPERTY_DEFINITIONS: SupplementaryPropertyDefinition
 const BY_ID = new Map(METRIC_DEFINITIONS.map((metric) => [metric.id, metric]));
 export function getMetricDefinition(id: MetricID): MetricDefinition {
   const metric = BY_ID.get(id);
-  if (!metric) throw new Error(`Unknown Citation Map metric: ${id}`);
+  if (!metric) throw new Error(`Unknown Meristema metric: ${id}`);
   return metric;
 }
 

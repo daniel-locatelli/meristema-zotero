@@ -58,12 +58,12 @@ async function resortActiveCitationColumn(
     const durationMs = Date.now() - startedAt;
     if (durationMs >= 500) {
       Zotero.debug(
-        `Citation Map: resorted active metric column in ${durationMs} ms`,
+        `Meristema: resorted active metric column in ${durationMs} ms`,
       );
     }
   } catch (error) {
     Zotero.debug(
-      `Citation Map: could not resort active metric column: ${String(error)}`,
+      `Meristema: could not resort active metric column: ${String(error)}`,
     );
   }
 }
@@ -107,7 +107,7 @@ function getColumnMetricNode(item: Zotero.Item): ColumnMetricNode {
     columnMetricNodeCacheResetScheduled = true;
     // Zotero may request cells across several event-loop turns during a
     // virtualized table refresh. Keep the per-item node briefly so every
-    // visible Citation Map column reuses the same lightweight context.
+    // visible Meristema column reuses the same lightweight context.
     setTimeout(resetColumnMetricNodeCache, 250);
   }
   return node;
@@ -337,11 +337,11 @@ export function refreshCitationColumns(): void {
     const durationMs = Date.now() - startedAt;
     if (durationMs >= 500) {
       Zotero.debug(
-        `Citation Map: refreshed item-tree columns in ${durationMs} ms`,
+        `Meristema: refreshed item-tree columns in ${durationMs} ms`,
       );
     }
   } catch (error) {
-    Zotero.debug(`Citation Map: could not refresh columns: ${String(error)}`);
+    Zotero.debug(`Meristema: could not refresh columns: ${String(error)}`);
   }
 }
 
@@ -359,7 +359,7 @@ export function unregisterCitationColumns(): void {
       Zotero.ItemTreeManager.unregisterColumn(dataKey);
     } catch (error) {
       Zotero.debug(
-        `Citation Map: failed to unregister column ${dataKey}: ${String(error)}`,
+        `Meristema: failed to unregister column ${dataKey}: ${String(error)}`,
       );
     }
   }

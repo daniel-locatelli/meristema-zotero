@@ -471,7 +471,7 @@ function tabRenameItem(): MenuData {
       );
       if (!current) return;
       const next = (hostWindow as any).prompt?.(
-        "Rename Citation Map view",
+        "Rename Meristema view",
         current.title,
       );
       if (next === null || next === undefined) return;
@@ -521,7 +521,7 @@ export function unregisterMenus(): void {
       manager?.unregisterMenu?.(id);
     } catch (error) {
       Zotero.debug(
-        `Citation Map: failed to unregister menu ${id}: ${String(error)}`,
+        `Meristema: failed to unregister menu ${id}: ${String(error)}`,
       );
     }
   }
