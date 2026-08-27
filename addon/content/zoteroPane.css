@@ -17,19 +17,6 @@
   font: menu;
   pointer-events: none;
 }
-.citation-map-progress-track {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, CanvasText 14%, transparent);
-}
-.citation-map-progress-bar {
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-blue, #2563eb);
-  transition: width 120ms ease-out;
-}
 .citation-map-column-warning {
   color: #dc2626;
   font-weight: 700;
@@ -185,14 +172,9 @@
   cursor: pointer;
   font-weight: 650;
 }
-.citation-map-local-results,
 .citation-map-relation-list {
   display: grid;
   gap: 7px;
-}
-.citation-map-local-result {
-  width: 100%;
-  text-align: left;
 }
 .citation-map-relation-card {
   padding: 8px;
@@ -208,62 +190,10 @@
 .citation-map-manual-relation-title {
   color: var(--cmp-manual-title);
 }
-.citation-map-ignored-relation {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 7px;
-  align-items: center;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--cmp-border);
-}
 .citation-map-relation-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, auto) 30px;
   gap: 6px;
   align-items: center;
   margin: 7px 0 2px;
-}
-.citation-map-add-relation-button {
-  width: 30px;
-  min-width: 30px;
-  min-height: 28px !important;
-  padding: 0 !important;
-  font-size: 19px !important;
-  font-weight: 700;
-  line-height: 1;
-}
-.citation-map-relation-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483646;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.34);
-}
-.citation-map-relation-dialog-overlay[hidden] {
-  display: none;
-}
-.citation-map-relation-dialog {
-  display: grid;
-  gap: 9px;
-  width: min(600px, calc(100vw - 40px));
-  max-height: min(700px, calc(100vh - 40px));
-  overflow: auto;
-  padding: 14px;
-  border: 1px solid var(--cmp-border);
-  border-radius: 10px;
-  background: Canvas;
-  box-shadow: 0 16px 55px rgba(0, 0, 0, 0.35);
-}
-.citation-map-relation-dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.citation-map-dialog-close {
-  min-width: 30px;
-  padding: 0 !important;
-  font-size: 18px !important;
 }
