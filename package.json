@@ -22,13 +22,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlessMor/zotero-citation-map.git"
+    "url": "git+https://github.com/daniel-locatelli/zotero-citation-map.git"
   },
-  "author": "AlessMor",
+  "author": "Daniel Nunes Locatelli",
   "bugs": {
-    "url": "https://github.com/AlessMor/zotero-citation-map/issues"
+    "url": "https://github.com/daniel-locatelli/zotero-citation-map/issues"
   },
-  "homepage": "https://github.com/AlessMor/zotero-citation-map#readme",
+  "homepage": "https://github.com/daniel-locatelli/zotero-citation-map#readme",
   "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=24 <27",

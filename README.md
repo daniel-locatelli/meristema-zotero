@@ -1,18 +1,25 @@
 # Zotero Citation Map:
 
-Zotero Citation Map is a plugin for Zotero 9 and 10 that brings citation networks,bibliometric data, and paper discovery directly into your Zotero library.
+> **This is a fork.** Zotero Citation Map was originally created by
+> [Alessandro Morandi (AlessMor)](https://github.com/AlessMor/zotero-citation-map).
+> This repository is a modified version maintained by Daniel Nunes Locatelli,
+> and it is diverging from upstream. It is not endorsed by the original author.
+> See [NOTICE](NOTICE) for the full origin and modification statement.
 
-The project began as a weekend experiment. I wanted to test how far I could take ChatGPT 5.6 SOL while solving a minor annoyance in my own research workflow.
+Zotero Citation Map is a plugin for Zotero 9 and 10 that brings citation
+networks, bibliometric data, and paper discovery directly into your Zotero
+library.
 
-Whenever I wanted to explore the connections between a set of papers, I had to move repeatedly between Zotero and external tools such as ResearchRabbit or Litmaps. I wanted a simple way to inspect those relationships directly inside Zotero.
-
-So I decided to see if something along those lines could be integrated directly inside Zotero... and this plugin is the result!
+The upstream project began as a weekend experiment: its author wanted to explore
+the connections between a set of papers without moving repeatedly between Zotero
+and external tools such as ResearchRabbit or Litmaps, and built a way to inspect
+those relationships directly inside Zotero.
 
 ![zotero-citation-map overview](docs/assets/Registrazione%202026-07-20%20231456.gif)
 
 ## Installation:
 
-1. Open the last [release](https://github.com/AlessMor/zotero-citation-map/releases/latest) page.
+1. Open the last [release](https://github.com/daniel-locatelli/zotero-citation-map/releases/latest) page.
 
 2. Under **Assets**, download the latest `.xpi` file.
 
@@ -69,7 +76,8 @@ differ between providers. The plugin will try to integrate their data, preferrin
 
 ## Acknowledgements:
 
-The project was mainly inspired by other Zotero plugins:
+This fork builds on [AlessMor/zotero-citation-map](https://github.com/AlessMor/zotero-citation-map)
+by Alessandro Morandi, which is itself mainly inspired by other Zotero plugins:
 
 - [windingwind/zotero-plugin-template](https://github.com/windingwind/zotero-plugin-template): initial template for the plugin.
 
@@ -84,3 +92,14 @@ The project was mainly inspired by other Zotero plugins:
 - [danieleongari/zotero-openalex](https://github.com/danieleongari/zotero-openalex)
 
 - [zotero-INSPIRE](https://github.com/fkguo/zotero-inspire)
+
+## License
+
+This program is free software, licensed under the
+**GNU Affero General Public License, version 3 or later** (AGPL-3.0-or-later).
+The full text is in [LICENSE](LICENSE); copyright and modification notices are
+in [NOTICE](NOTICE).
+
+It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See the license for details.
