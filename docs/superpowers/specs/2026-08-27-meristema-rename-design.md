@@ -84,10 +84,71 @@ tiers.
 | `addonInstance` | `CitationMap`                   | `Meristema`                   |
 | `prefsPrefix`   | `extensions.zotero.citationmap` | `extensions.zotero.meristema` |
 
-Also the `name` and `description` fields, and the README title.
+Also in `package.json`, outside the `config` block:
+
+| Key              | From                                              | To                                                             |
+| ---------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| `name`           | `zotero-citation-map`                             | `meristema-zotero`                                             |
+| `description`    | "Citation and reference metrics ..."              | "Think with your literature, inside Zotero." plus feature text |
+| `repository.url` | `.../daniel-locatelli/zotero-citation-map.git`    | `.../daniel-locatelli/meristema-zotero.git`                    |
+| `bugs.url`       | `.../daniel-locatelli/zotero-citation-map/issues` | `.../daniel-locatelli/meristema-zotero/issues`                 |
+| `homepage`       | `.../daniel-locatelli/zotero-citation-map#readme` | `.../daniel-locatelli/meristema-zotero#readme`                 |
+
+And the README title, plus the release link in the installation section.
 
 Changing `addonID` makes Zotero treat this as a plugin distinct from upstream,
 which is the intent for a fork. Users could install both side by side.
+
+## Repository
+
+The work moves to a new repository, `daniel-locatelli/meristema-zotero`, rather
+than renaming the existing GitHub fork.
+
+The repo is named for the _component_, not the brand. If Meristema ever spans a
+Zotero plugin and a web app talking to the Zotero Web API, then "Meristema" is a
+brand, and a brand should not be a repository: a repository is one buildable
+artifact. The bare name stays free for an umbrella or stays unused. The suffix
+form also sorts a future `meristema-web` alongside this one, which the
+`zotero-meristema` prefix form would not.
+
+A repository slug is descriptive use and does not reopen the trademark question
+settled above, which concerns only the display name Zotero shows in its plugin
+list.
+
+Detaching from the fork network is the point of moving. GitHub excludes forks
+from repository and code search by default, disables issues on them by default,
+and pre-fills upstream as the base for any new pull request, which is a standing
+footgun. None of this affects AGPL compliance: attribution lives in `NOTICE`,
+the README banner, and the commit history, not in GitHub's fork metadata.
+
+Procedure:
+
+1. Create an empty `daniel-locatelli/meristema-zotero`, with no README, license,
+   or `.gitignore`.
+2. Repoint `origin` at it. Keep `upstream` pointing at
+   `AlessMor/zotero-citation-map` so improvements can still be pulled and fixes
+   sent back.
+3. Push all branches and tags. **Pushing the full history is the point**:
+   Alessandro Morandi's commits keep their original author metadata, which is
+   stronger evidence of provenance than a GitHub banner and is what backs the
+   dated-record claim in `NOTICE`.
+4. Archive the old fork rather than deleting it, leaving a README that points at
+   the new home. Deleting breaks existing links; archiving preserves them.
+5. Move the local checkout to `C:\repos\github\daniel-locatelli\meristema-zotero`
+   to match the `<provider>\<account>\<repo>` convention.
+
+`zotero-plugin.config.ts` needs no edit. Its `updateURL` and `xpiDownloadLink`
+use `{{owner}}/{{repo}}` templates resolved from the git remote, so they follow
+the move automatically.
+
+The move must happen **after** the rename commit, so the new repository's first
+push already says Meristema throughout and there is never a window where
+`meristema-zotero` contains a plugin called Citation Map.
+
+There are no published releases, so the move is free. Moving after a release
+would break auto-update for installed copies, because `update.json` lives at a
+release URL under the old owner and repo. This is the cheapest moment it will
+ever be.
 
 ### Tier 2, user-visible and wire-format
 
