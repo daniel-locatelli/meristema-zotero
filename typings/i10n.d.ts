@@ -7,7 +7,7 @@ export type FluentMessageId =
   | 'meristema-item-pane-header'
   | 'meristema-item-pane-sidenav'
   | 'new-focus-view-command'
-  | 'new-meristema-view-command'
+  | 'new-graph-view-command'
   | 'open-command'
   | 'open-existing-view-command'
   | 'open-focus-view-command'

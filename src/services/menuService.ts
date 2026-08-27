@@ -28,7 +28,7 @@ const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 const MENU_HINTS: Record<string, string> = {
   "show-items-command": "library only",
   "show-items-new-tab-command": "library only",
-  "new-meristema-view-command": "library only",
+  "new-graph-view-command": "library only",
   "open-focus-view-command": "fetches online",
   "open-focus-view-new-tab-command": "fetches online",
   "new-focus-view-command": "fetches online",
@@ -291,7 +291,7 @@ function commandItem(
 
 function openInSubmenu(resolve: MenuContextResolver): MenuData {
   const newMap = commandItem(
-    `${config.addonRef}-new-meristema-view-command`,
+    `${config.addonRef}-new-graph-view-command`,
     async (commandContext) => {
       await openInNewMap(
         await Promise.resolve(resolve(commandContext)),
@@ -431,7 +431,7 @@ function toolsSubmenu(): MenuData {
     l10nID: `${config.addonRef}-tools-submenu`,
     icon: ICON,
     menus: [
-      commandItem(`${config.addonRef}-new-meristema-view-command`, (context) =>
+      commandItem(`${config.addonRef}-new-graph-view-command`, (context) =>
         openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
       ),
       commandItem(`${config.addonRef}-new-focus-view-command`, (context) =>
