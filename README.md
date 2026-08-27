@@ -1,4 +1,4 @@
-# Zotero Citation Map:
+# Meristema
 
 > **This is a fork.** Zotero Citation Map was originally created by
 > [Alessandro Morandi (AlessMor)](https://github.com/AlessMor/zotero-citation-map).
@@ -6,20 +6,24 @@
 > and it is diverging from upstream. It is not endorsed by the original author.
 > See [NOTICE](NOTICE) for the full origin and modification statement.
 
-Zotero Citation Map is a plugin for Zotero 9 and 10 that brings citation
-networks, bibliometric data, and paper discovery directly into your Zotero
-library.
+Meristema is a plugin for Zotero 9 and 10 that brings citation networks,
+bibliometric data, and paper discovery directly into your Zotero library.
+
+A meristem is the tissue at a shoot or root tip where new growth originates.
+That is what this plugin does with a library: the Explore view grows outward
+from seed papers, following references and citing works to the frontier of what
+you already have.
 
 The upstream project began as a weekend experiment: its author wanted to explore
 the connections between a set of papers without moving repeatedly between Zotero
 and external tools such as ResearchRabbit or Litmaps, and built a way to inspect
 those relationships directly inside Zotero.
 
-![zotero-citation-map overview](docs/assets/Registrazione%202026-07-20%20231456.gif)
+![Meristema overview](docs/assets/Registrazione%202026-07-20%20231456.gif)
 
 ## Installation:
 
-1. Open the last [release](https://github.com/daniel-locatelli/zotero-citation-map/releases/latest) page.
+1. Open the last [release](https://github.com/daniel-locatelli/meristema-zotero/releases/latest) page.
 
 2. Under **Assets**, download the latest `.xpi` file.
 
@@ -92,6 +96,9 @@ by Alessandro Morandi, which is itself mainly inspired by other Zotero plugins:
 - [danieleongari/zotero-openalex](https://github.com/danieleongari/zotero-openalex)
 
 - [zotero-INSPIRE](https://github.com/fkguo/zotero-inspire)
+
+The plugin was renamed from Zotero Citation Map to Meristema when this fork
+diverged. See [NOTICE](NOTICE) for the full origin and modification statement.
 
 ## License
 

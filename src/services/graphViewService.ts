@@ -754,7 +754,7 @@ export function renderGraphView(
   }
   graphArea.appendChild(zoom);
 
-  // A Meristema only draws connections between papers already in the
+  // A graph view only draws connections between papers already in the
   // library, so opening one on a single item renders a single node. Without
   // this the view looks broken rather than empty by definition.
   const emptyState = element(document, "div", "cm-empty-state");

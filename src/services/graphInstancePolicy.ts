@@ -43,7 +43,7 @@ export function nextGraphViewTitle(
 }
 
 /**
- * Route ordinary commands to the selected Meristema when possible,
+ * Route ordinary commands to the selected graph view when possible,
  * otherwise to the most recently activated live instance.
  */
 export function selectReusableGraphInstance<T extends ViewInstanceDescriptor>(

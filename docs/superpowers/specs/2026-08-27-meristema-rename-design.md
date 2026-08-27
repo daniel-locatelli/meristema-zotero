@@ -1,7 +1,7 @@
 # Renaming the plugin to Meristema
 
 Date: 2026-08-27
-Status: approved, not yet implemented
+Status: implemented
 
 ## Context
 
@@ -207,15 +207,22 @@ What else needs editing:
 ### Dead CSS
 
 Cross-checking every class in `addon/content/*.css` against `src/` and the
-XHTML found 12 with no reference anywhere, also absent from the built bundle,
-so they are dead rules left by removed features:
+XHTML found 12 candidates with no reference anywhere, also absent from the
+built bundle. Two of those, `citation-map-options-locked` and
+`citation-map-update-library-option`, turned out to be live: they are used
+from `addon/content/preferences.js` (via `classList.toggle` and
+`label.className`) and styled by six and four rules respectively in
+`addon/content/preferences.css`. The initial analysis grepped `src/` and the
+XHTML but not `addon/content/*.js`, which ships as a static asset and is
+never compiled from `src/` — a blind spot worth remembering for any future
+sweep of this codebase. Those two classes were kept and renamed along with
+the rest; only the remaining 10 are dead rules left by removed features:
 
 `citation-map-add-relation-button`, `citation-map-dialog-close`,
 `citation-map-ignored-relation`, `citation-map-local-result`,
-`citation-map-local-results`, `citation-map-options-locked`,
-`citation-map-progress-bar`, `citation-map-progress-track`,
-`citation-map-relation-dialog`, `citation-map-relation-dialog-header`,
-`citation-map-relation-dialog-overlay`, `citation-map-update-library-option`.
+`citation-map-local-results`, `citation-map-progress-bar`,
+`citation-map-progress-track`, `citation-map-relation-dialog`,
+`citation-map-relation-dialog-header`, `citation-map-relation-dialog-overlay`.
 
 These are deleted rather than renamed. Carrying dead rules across a rename
 launders them into looking intentional.
