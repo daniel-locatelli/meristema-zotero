@@ -32,7 +32,7 @@
       class="meristema-danger-button"
       type="button"
       data-l10n-id="pref-clear-cache"
-      onclick="Zotero.Meristema.api.clearAllCachedData()"
+      onclick="Zotero.__addonInstance__.api.clearAllCachedData()"
     ></html:button>
   </hbox>
 </groupbox>
@@ -142,7 +142,7 @@
       class="meristema-primary-button"
       type="button"
       data-l10n-id="pref-refresh-all"
-      onclick="Zotero.Meristema.api.refreshAll()"
+      onclick="Zotero.__addonInstance__.api.refreshAll()"
     ></html:button>
   </hbox>
 </groupbox>
@@ -266,7 +266,7 @@
             data-l10n-id="pref-openalex-create-key"
             onclick="
               event.preventDefault();
-              Zotero.Meristema.api.openOpenAlexAccount();
+              Zotero.__addonInstance__.api.openOpenAlexAccount();
             "
           ></html:a>
         </description>

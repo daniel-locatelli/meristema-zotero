@@ -63,7 +63,7 @@
     if (notificationTimer !== null) clearTimeout(notificationTimer);
     notificationTimer = setTimeout(() => {
       notificationTimer = null;
-      Zotero.Meristema.api.providerSelectionChanged();
+      Zotero.__addonInstance__.api.providerSelectionChanged();
     }, 0);
   }
 
@@ -156,15 +156,17 @@
   }
 
   function saveUpdateLibrarySelection() {
-    Zotero.Meristema.api.setUpdateLibraryIDs(selectedUpdateLibraryIDs());
+    Zotero.__addonInstance__.api.setUpdateLibraryIDs(
+      selectedUpdateLibraryIDs(),
+    );
     updateLibraryStatus();
   }
 
   function renderUpdateLibraries() {
     const list = libraryList();
     if (!list) return;
-    const libraries = Zotero.Meristema.api.updateLibraries();
-    const selected = new Set(Zotero.Meristema.api.updateLibraryIDs());
+    const libraries = Zotero.__addonInstance__.api.updateLibraries();
+    const selected = new Set(Zotero.__addonInstance__.api.updateLibraryIDs());
     list.replaceChildren();
 
     for (const library of libraries) {
@@ -246,7 +248,7 @@
     const list = libraryList();
     const selectAll = librarySelectAll();
     const clearAll = libraryClearAll();
-    const api = Zotero.Meristema?.api;
+    const api = Zotero.__addonInstance__?.api;
     if (
       !parent ||
       !providers.length ||
