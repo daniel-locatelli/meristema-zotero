@@ -19,7 +19,7 @@ the connections between a set of papers without moving repeatedly between Zotero
 and external tools such as ResearchRabbit or Litmaps, and built a way to inspect
 those relationships directly inside Zotero.
 
-![Meristema overview](docs/assets/Registrazione%202026-07-20%20231456.gif)
+![Meristema overview](docs/assets/meristema-overview.gif)
 
 ## Installation:
 
@@ -40,7 +40,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
 ## Main Features
 
 - **See how papers in your library are connected (Collection Graph)**
-  Build an interactive citation map for a library, collection, or selectedpapers. Search and filter the graph, inspect a paper, and return directly toits Zotero item, notes, or PDF.
+  Build an interactive citation map for a library, collection, or selected papers. Search and filter the graph, inspect a paper, and return directly to its Zotero item, notes, or PDF.
   ![graph](docs/assets/FreeGraph.png)
 
 - **Explore outward from one or more papers**

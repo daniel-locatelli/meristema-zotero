@@ -1,3 +1,4 @@
+import { config, version } from "../../package.json";
 import type { CitationProviderID } from "../domain/citationTypes";
 import {
   getSemanticScholarAPIKey,
@@ -333,8 +334,7 @@ export async function requestJSON<T>(
               provider === "semantic-scholar" ? getSemanticScholarAPIKey() : "";
             const headers = {
               Accept: "application/json",
-              "User-Agent":
-                "Zotero-Meristema/0.2 (mailto omitted; public API pool)",
+              "User-Agent": `${config.addonName}/${version} (mailto omitted; public API pool)`,
               ...(semanticScholarAPIKey
                 ? { "x-api-key": semanticScholarAPIKey }
                 : {}),

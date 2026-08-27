@@ -215,7 +215,9 @@ from `addon/content/preferences.js` (via `classList.toggle` and
 `addon/content/preferences.css`. The initial analysis grepped `src/` and the
 XHTML but not `addon/content/*.js`, which ships as a static asset and is
 never compiled from `src/` — a blind spot worth remembering for any future
-sweep of this codebase. Those two classes were kept and renamed along with
+sweep of this codebase. The same blind spot also hid stale
+`Zotero.CitationMap` calls in `addon/content/preferences.js` through Phase 1,
+which were only caught later. Those two classes were kept and renamed along with
 the rest; only the remaining 10 are dead rules left by removed features:
 
 `citation-map-add-relation-button`, `citation-map-dialog-close`,
@@ -227,9 +229,13 @@ the rest; only the remaining 10 are dead rules left by removed features:
 These are deleted rather than renamed. Carrying dead rules across a rename
 launders them into looking intentional.
 
-Only one CSS class is composed at runtime, at
-`src/services/updateProgressService.ts:286`, and it builds both halves as
-literals, so a grep does find them. No hidden interpolation exists.
+Two CSS classes are composed at runtime. `src/services/updateProgressService.ts:286`
+builds both halves as literals, so a grep does find them; no hidden interpolation
+there. `src/services/uiIconService.ts:47` is different: it calls
+``svg.classList.add("cm-icon", `cm-icon-${name}`)``, so the composed class name
+is interpolated and a grep does not find it. It was harmless here only because
+the `cm-` prefix was outside this rename's scope; a future sweep of that
+namespace must account for it.
 
 ### Tier 3, internal symbols and filenames
 
