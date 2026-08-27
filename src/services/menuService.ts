@@ -471,8 +471,8 @@ function tabRenameItem(): MenuData {
       const tabType = String(
         safeContextValue(context, "tabType") ?? "",
       ).replace(/-unloaded$/, "");
-      context.setVisible(tabType === "citationmap");
-      context.setEnabled(tabType === "citationmap");
+      context.setVisible(tabType === config.addonRef);
+      context.setEnabled(tabType === config.addonRef);
     },
     onCommand: (_event: Event, context: any) => {
       const tabID = String(safeContextValue(context, "tabID") ?? "");

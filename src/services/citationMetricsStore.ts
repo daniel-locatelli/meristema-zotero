@@ -1,3 +1,4 @@
+import { config } from "../../package.json";
 import {
   CITATION_PROVIDER_IDS,
   type CitationMetricRecord,
@@ -468,7 +469,7 @@ export function initCitationMetricsStore(): Promise<void> {
   if (initialized) return Promise.resolve();
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    const connection = new Zotero.DBConnection("citationmap");
+    const connection = new Zotero.DBConnection(config.addonRef);
     for (const statement of SCHEMA.split(";")
       .map((part) => part.trim())
       .filter(Boolean)) {

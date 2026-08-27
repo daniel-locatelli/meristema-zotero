@@ -1,3 +1,4 @@
+import { config } from "../../package.json";
 import type { RelatedWorkMetadata } from "../domain/citationTypes";
 import {
   relationshipCandidateIdentity,
@@ -334,7 +335,7 @@ export function initExternalWorkCache(): Promise<void> {
   closing = false;
   writeQueue.reopen();
   initPromise = (async () => {
-    const connection = new Zotero.DBConnection("citationmap-external");
+    const connection = new Zotero.DBConnection(`${config.addonRef}-external`);
     try {
       for (const statement of SCHEMA.split(";")
         .map((part) => part.trim())

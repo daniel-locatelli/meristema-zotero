@@ -20,7 +20,7 @@ import {
 } from "./citationMapInstancePolicy";
 import { getAvailableCitationLibraries } from "./citationLibraryService";
 
-const TAB_TYPE = "citationmap";
+const TAB_TYPE = config.addonRef;
 const TAB_STATE_FILTER_MARKER = "__citationMapStateFilterInstalled";
 const TAB_HOOK_MARKER = "__citationMapTabHooksInstalled";
 const NETWORK_ICON_TYPE = "citation-map-network";
@@ -585,7 +585,7 @@ function activeOrRecentInstance(
 /**
  * Register custom-tab hooks as soon as the Zotero main window is available.
  * Zotero restores saved tabs during window startup, so delaying this until the
- * user first opens Citation Map can leave a stale citationmap tab without a
+ * user first opens Citation Map can leave a stale plugin tab without a
  * restoreState hook.
  */
 export function installCitationMapTabHooks(win: _ZoteroTypes.MainWindow): void {

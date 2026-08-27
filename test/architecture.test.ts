@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { config } from "../package.json";
 import type { RelatedWorkMetadata } from "../src/domain/citationTypes";
 import {
   CACHE_RELATED_WORK_MERGE,
@@ -326,12 +327,12 @@ describe("Architecture foundations", function () {
       isCitationMapTabDescriptor({ id: "tab-reader", type: "reader" }),
     ).to.equal(false);
     expect(
-      isCitationMapTabDescriptor({ id: "tab-map", type: "citationmap" }),
+      isCitationMapTabDescriptor({ id: "tab-map", type: config.addonRef }),
     ).to.equal(true);
     expect(
       isCitationMapTabDescriptor({
         id: "tab-map",
-        type: "citationmap-unloaded",
+        type: `${config.addonRef}-unloaded`,
       }),
     ).to.equal(true);
   });

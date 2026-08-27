@@ -1,3 +1,5 @@
+import { config } from "../../package.json";
+
 export type CitationMapViewKind = "map" | "focus";
 
 export interface CitationMapInstanceDescriptor {
@@ -16,7 +18,7 @@ export function isCitationMapTabDescriptor(
   tab: ZoteroTabDescriptor | null | undefined,
 ): boolean {
   if (!tab || tab.id === "zotero-pane") return false;
-  return String(tab.type ?? "").replace(/-unloaded$/, "") === "citationmap";
+  return String(tab.type ?? "").replace(/-unloaded$/, "") === config.addonRef;
 }
 
 export function citationMapViewBaseTitle(kind: CitationMapViewKind): string {
