@@ -67,38 +67,6 @@ not product name. `citationTypes.ts`, `citationMetricsStore.ts`, "citation data
 provider", citation counts and every similar use stay exactly as they are. Only
 the product-name uses of _Citation Map_ are in scope.
 
-## Scope
-
-Roughly 746 occurrences across 56 files under `src/` and `addon/`, in three
-tiers.
-
-### Tier 1, identity
-
-`package.json` `config` block:
-
-| Key             | From                            | To                            |
-| --------------- | ------------------------------- | ----------------------------- |
-| `addonName`     | `Zotero Citation Map`           | `Meristema`                   |
-| `addonID`       | `citation-map@alessmor`         | `meristema@daniel-locatelli`  |
-| `addonRef`      | `citationmap`                   | `meristema`                   |
-| `addonInstance` | `CitationMap`                   | `Meristema`                   |
-| `prefsPrefix`   | `extensions.zotero.citationmap` | `extensions.zotero.meristema` |
-
-Also in `package.json`, outside the `config` block:
-
-| Key              | From                                              | To                                                             |
-| ---------------- | ------------------------------------------------- | -------------------------------------------------------------- |
-| `name`           | `zotero-citation-map`                             | `meristema-zotero`                                             |
-| `description`    | "Citation and reference metrics ..."              | "Think with your literature, inside Zotero." plus feature text |
-| `repository.url` | `.../daniel-locatelli/zotero-citation-map.git`    | `.../daniel-locatelli/meristema-zotero.git`                    |
-| `bugs.url`       | `.../daniel-locatelli/zotero-citation-map/issues` | `.../daniel-locatelli/meristema-zotero/issues`                 |
-| `homepage`       | `.../daniel-locatelli/zotero-citation-map#readme` | `.../daniel-locatelli/meristema-zotero#readme`                 |
-
-And the README title, plus the release link in the installation section.
-
-Changing `addonID` makes Zotero treat this as a plugin distinct from upstream,
-which is the intent for a fork. Users could install both side by side.
-
 ## Repository
 
 The work moves to a new repository, `daniel-locatelli/meristema-zotero`, rather
@@ -149,6 +117,38 @@ There are no published releases, so the move is free. Moving after a release
 would break auto-update for installed copies, because `update.json` lives at a
 release URL under the old owner and repo. This is the cheapest moment it will
 ever be.
+
+## Scope
+
+Roughly 746 occurrences across 56 files under `src/` and `addon/`, in three
+tiers.
+
+### Tier 1, identity
+
+`package.json` `config` block:
+
+| Key             | From                            | To                            |
+| --------------- | ------------------------------- | ----------------------------- |
+| `addonName`     | `Zotero Citation Map`           | `Meristema`                   |
+| `addonID`       | `citation-map@alessmor`         | `meristema@daniel-locatelli`  |
+| `addonRef`      | `citationmap`                   | `meristema`                   |
+| `addonInstance` | `CitationMap`                   | `Meristema`                   |
+| `prefsPrefix`   | `extensions.zotero.citationmap` | `extensions.zotero.meristema` |
+
+Also in `package.json`, outside the `config` block:
+
+| Key              | From                                              | To                                                             |
+| ---------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| `name`           | `zotero-citation-map`                             | `meristema-zotero`                                             |
+| `description`    | "Citation and reference metrics ..."              | "Think with your literature, inside Zotero." plus feature text |
+| `repository.url` | `.../daniel-locatelli/zotero-citation-map.git`    | `.../daniel-locatelli/meristema-zotero.git`                    |
+| `bugs.url`       | `.../daniel-locatelli/zotero-citation-map/issues` | `.../daniel-locatelli/meristema-zotero/issues`                 |
+| `homepage`       | `.../daniel-locatelli/zotero-citation-map#readme` | `.../daniel-locatelli/meristema-zotero#readme`                 |
+
+And the README title, plus the release link in the installation section.
+
+Changing `addonID` makes Zotero treat this as a plugin distinct from upstream,
+which is the intent for a fork. Users could install both side by side.
 
 ### Tier 2, user-visible and wire-format
 
