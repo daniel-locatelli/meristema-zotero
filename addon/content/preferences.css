@@ -59,14 +59,6 @@
   margin-top: 16px;
 }
 
-.meristema-general-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: min(100%, 680px);
-  min-width: 0;
-}
-
 .meristema-pref-actions html|button {
   min-height: 32px;
   padding: 5px 12px;
@@ -298,15 +290,6 @@
 }
 
 @media (max-width: 560px) {
-  .meristema-general-actions {
-    flex-wrap: wrap;
-  }
-
-  .meristema-general-actions html|button {
-    flex: 1 1 220px;
-    justify-content: center;
-  }
-
   .meristema-update-library-option {
     grid-template-columns: 18px minmax(0, 1fr);
   }
