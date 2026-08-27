@@ -1,7 +1,7 @@
 pref-general-heading = General Settings
 pref-show-metric-tooltips =
     .label = Show metric explanations and data provenance on hover
-pref-show-metric-tooltips-help = Displays definitions, interpretation, sources, and update information for Citation Map metrics and values.
+pref-show-metric-tooltips-help = Displays definitions, interpretation, sources, and update information for Meristema metrics and values.
 pref-debug =
     .label = Enable debug logging
 pref-general-actions-help = Remove all provider metrics, relationship snapshots, and externally retrieved metadata from every library. Zotero items and manually created relationships are not deleted.

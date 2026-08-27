@@ -1,2 +1,2 @@
-meristema-item-pane-header = Citation Map
-meristema-item-pane-sidenav = Citation Map
+meristema-item-pane-header = Meristema
+meristema-item-pane-sidenav = Meristema

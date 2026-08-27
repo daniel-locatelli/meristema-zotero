@@ -1,5 +1,5 @@
 tools-submenu =
-    .label = Citation Map
+    .label = Meristema
 
 open-command =
     .label = Open Collection Graph (Current Library)
