@@ -152,14 +152,50 @@ ever be.
 
 ### Tier 2, user-visible and wire-format
 
-Much of this falls out of Tier 1 for free. The codebase is already largely
-config-driven: chrome URLs, `.ftl` filenames, preference keys, stylesheet ids
-and the global instance all derive from `config.addonRef`, `config.prefsPrefix`
-and `config.addonInstance` (`src/hooks.ts:63`,
+Only the TypeScript half falls out of Tier 1 for free. Under `src/`, chrome
+URLs, `.ftl` filenames, preference keys, stylesheet ids and the global instance
+all derive from `config.addonRef`, `config.prefsPrefix` and
+`config.addonInstance` (`src/hooks.ts:63`,
 `src/services/citationPreferences.ts:11`, `src/services/menuService.ts:20`).
-Those need no edit at all.
+Those need no edit.
 
-What does need editing:
+**Static assets under `addon/` are the opposite**, and this is the highest-risk
+part of the rename. They hardcode roughly 60 references that no compiler
+checks and that fail silently at runtime:
+
+| Kind                                             | Where                                                                                   | Silent failure if missed                  |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------- |
+| 5 x `chrome://citationmap/...`                   | `graph.css:78,80`, `preferences.css:123`, `tabIcon.css:4`, `citationMapWindow.xhtml:14` | icons and prefs stylesheet vanish         |
+| `windowtype="citationmap:window"`                | `citationMapWindow.xhtml:8`                                                             | detached-window identity breaks           |
+| `href="citationmap-preferences.ftl"`             | `preferences.xhtml:2`                                                                   | prefs pane loses every localized string   |
+| `PREF_PREFIX = "extensions.zotero.citationmap."` | `preferences.js:4`                                                                      | prefs pane reads and writes orphaned keys |
+| ~30 x `zotero-prefpane-citationmap-*` ids        | `preferences.xhtml`, `preferences.js`                                                   | `byID()` returns null, prefs pane dies    |
+| 21 pref keys                                     | `prefs.js`                                                                              | defaults never apply                      |
+
+The Fluent one is the sharpest. Scaffold prefixes built locale files with
+`addonRef`, verified in the build output as
+`.scaffold/build/addon/locale/en-US/citationmap-preferences.ftl`. Change
+`addonRef` without touching `preferences.xhtml:2` and the preferences pane
+silently renders nothing.
+
+**These become build placeholders rather than retyped literals.**
+`addon/bootstrap.js` and `addon/manifest.json` already use `__addonRef__` and
+`__addonInstance__`, which `zotero-plugin.config.ts` substitutes at build time
+from `build.define`, and that spreads all of `pkg.config`, so `__prefsPrefix__`
+is available too. So:
+
+- `chrome://citationmap/` becomes `chrome://__addonRef__/`
+- `citationmap-preferences.ftl` becomes `__addonRef__-preferences.ftl`
+- `extensions.zotero.citationmap.` becomes `__prefsPrefix__.`
+- `windowtype="citationmap:window"` becomes `windowtype="__addonRef__:window"`
+
+Element ids and CSS classes stay literal, renamed to the `meristema-` prefix,
+since they are internal and gain nothing from indirection.
+
+Making these config-driven is the durable win: this class of silent breakage
+stops recurring at any future rename.
+
+What else needs editing:
 
 - 95 distinct CSS classes, `citation-map-*` to `meristema-*`, across
   `addon/content/*.css`, `*.xhtml`, and the TypeScript that emits markup
@@ -167,9 +203,26 @@ What does need editing:
 - The user-facing strings themselves: `citation-map-item-pane-header`,
   `citation-map-item-pane-sidenav` and the `mainWindow.ftl` menu label all read
   "Citation Map" and become "Meristema"
-- 21 preference keys in `addon/prefs.js`
-- ~20 `zotero-prefpane-citationmap-*` element ids in
-  `addon/content/preferences.xhtml`, `preferences.js`, `preferences.css`
+
+### Dead CSS
+
+Cross-checking every class in `addon/content/*.css` against `src/` and the
+XHTML found 12 with no reference anywhere, also absent from the built bundle,
+so they are dead rules left by removed features:
+
+`citation-map-add-relation-button`, `citation-map-dialog-close`,
+`citation-map-ignored-relation`, `citation-map-local-result`,
+`citation-map-local-results`, `citation-map-options-locked`,
+`citation-map-progress-bar`, `citation-map-progress-track`,
+`citation-map-relation-dialog`, `citation-map-relation-dialog-header`,
+`citation-map-relation-dialog-overlay`, `citation-map-update-library-option`.
+
+These are deleted rather than renamed. Carrying dead rules across a rename
+launders them into looking intentional.
+
+Only one CSS class is composed at runtime, at
+`src/services/updateProgressService.ts:286`, and it builds both halves as
+literals, so a grep does find them. No hidden interpolation exists.
 
 ### Tier 3, internal symbols and filenames
 
@@ -228,6 +281,11 @@ Two are SQLite database names:
   `new Zotero.DBConnection("citationmap")`
 - `src/services/externalWorkCacheService.ts:337`,
   `DBConnection("citationmap-external")`
+
+`Zotero.DBConnection` is typed `new (dbNameOrPath: string)`, so the same code
+path handles both names and `"meristema"` yields `meristema.sqlite` exactly as
+`"citationmap"` yielded `citationmap.sqlite`. The profile-directory check stays
+in verification anyway, since it is free.
 
 These become `meristema` and `meristema-external`. **Cache loss is accepted**:
 the plugin has never been run, so the databases do not exist yet. No migration
