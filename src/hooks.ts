@@ -37,8 +37,8 @@ import {
 import { getShowMetricTooltipsEnabled } from "./services/citationPreferences";
 import { registerMenus, unregisterMenus } from "./services/menuService";
 import {
-  registerCitationMapPreferencePane,
-  unregisterCitationMapPreferenceObservers,
+  registerPreferencePane,
+  unregisterPreferenceObservers,
 } from "./services/preferencePaneService";
 import { clearCitationGraphSnapshots } from "./services/graphSnapshotStore";
 import { clearFocusGraphCaches } from "./services/focusGraphCacheService";
@@ -53,11 +53,11 @@ import {
 } from "./services/citationGraphService";
 import { yieldToUI } from "./services/backgroundTaskService";
 import {
-  cancelPendingCitationMapRefreshes,
-  closeCitationMapForWindow,
-  closeCitationMapWindow,
-  installCitationMapTabHooks,
-  refreshOpenCitationMapViews,
+  cancelPendingGraphRefreshes,
+  closeGraphForWindow,
+  closeGraphWindow,
+  installGraphTabHooks,
+  refreshOpenGraphViews,
 } from "./services/windowService";
 
 const MAIN_STYLESHEET_ID = `${config.addonRef}-main-stylesheet`;
@@ -196,10 +196,10 @@ function installUpdateRefreshListener(): void {
     }
     if (event.refreshGraph) {
       await withDeadline(
-        refreshOpenCitationMapViews(),
+        refreshOpenGraphViews(),
         VIEW_REFRESH_DEADLINE_MS,
         "Graph view refresh",
-        cancelPendingCitationMapRefreshes,
+        cancelPendingGraphRefreshes,
       );
     }
   });
@@ -218,10 +218,10 @@ function beginTeardown(closeGraphTab = true): void {
   clearWholeLibrarySnapshotCache();
   clearLocalCitationExtractionCache();
   unregisterLibrarySnapshotInvalidation();
-  cancelPendingCitationMapRefreshes();
+  cancelPendingGraphRefreshes();
   for (const action of [
     unregisterAutomaticCitationUpdates,
-    unregisterCitationMapPreferenceObservers,
+    unregisterPreferenceObservers,
     unregisterCitationItemPane,
     unregisterMenus,
     unregisterCitationColumns,
@@ -233,7 +233,7 @@ function beginTeardown(closeGraphTab = true): void {
     }
   }
   try {
-    closeCitationMapWindow(closeGraphTab);
+    closeGraphWindow(closeGraphTab);
   } catch (error) {
     Zotero.debug(`Citation Map: graph cleanup failed: ${String(error)}`);
   }
@@ -255,7 +255,7 @@ async function onStartup(): Promise<void> {
   for (const win of Zotero.getMainWindows()) await onMainWindowLoad(win);
   await registerCitationColumns();
   registerCitationItemPane();
-  await registerCitationMapPreferencePane();
+  await registerPreferencePane();
   registerMenus();
   registerAutomaticCitationUpdates();
   addon.data.initialized = true;
@@ -269,7 +269,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   // Install the custom tab hook immediately. Zotero may restore saved tabs
   // before the user has ever opened Citation Map in this session.
   try {
-    installCitationMapTabHooks(win);
+    installGraphTabHooks(win);
   } catch (error) {
     Zotero.debug(
       `Citation Map: tab-hook installation deferred: ${String(error)}`,
@@ -290,7 +290,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
             candidate !== win && !(candidate as any).closed,
         );
         if (!others.length) beginTeardown(false);
-        else closeCitationMapForWindow(win);
+        else closeGraphForWindow(win);
       },
       { once: true },
     );
@@ -303,7 +303,7 @@ async function onMainWindowUnload(win: _ZoteroTypes.MainWindow): Promise<void> {
       candidate !== win && !(candidate as any).closed,
   );
   if (!others.length) beginTeardown(false);
-  else closeCitationMapForWindow(win);
+  else closeGraphForWindow(win);
   uninstallCitationColumnTooltips(win);
   win.document.getElementById(MAIN_STYLESHEET_ID)?.remove();
   win.document.getElementById(TAB_ICON_STYLESHEET_ID)?.remove();

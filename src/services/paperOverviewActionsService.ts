@@ -1,5 +1,5 @@
 const HTML_NS = "http://www.w3.org/1999/xhtml";
-import { createCitationMapIcon } from "./uiIconService";
+import { createIcon } from "./uiIconService";
 
 type Action = () => void | Promise<void>;
 
@@ -195,7 +195,7 @@ export function createPaperOverviewActionBar(
   const similarButton = element(document, "button", primaryButtonClass);
   similarButton.type = "button";
   similarButton.append(
-    createCitationMapIcon(document, "similar"),
+    createIcon(document, "similar"),
     document.createTextNode("Similar"),
   );
   similarButton.title =
@@ -208,7 +208,7 @@ export function createPaperOverviewActionBar(
 
   const refreshButton = element(document, "button", secondaryButtonClass);
   refreshButton.type = "button";
-  refreshButton.appendChild(createCitationMapIcon(document, "refresh"));
+  refreshButton.appendChild(createIcon(document, "refresh"));
   refreshButton.style.width = "30px";
   refreshButton.style.minWidth = "30px";
   refreshButton.style.padding = "4px";

@@ -3,16 +3,16 @@ import { positiveInteger } from "../domain/valueNormalization";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import {
   getDefaultHostWindow,
-  getOpenCitationMapViews,
-  type OpenCitationMapViewInfo,
-  openCitationMapAndSelectItemsInNewTab,
-  openCitationMapAndSelectItemsInView,
-  openCitationMapFocusItemsInNewTab,
-  openCitationMapFocusItemsInView,
-  openCitationMapInView,
-  openNewCitationMapFocusWindow,
-  openNewCitationMapWindow,
-  renameCitationMapView,
+  getOpenGraphViews,
+  type OpenGraphViewInfo,
+  openGraphAndSelectItemsInNewTab,
+  openGraphAndSelectItemsInView,
+  openFocusItemsInNewTab,
+  openFocusItemsInView,
+  openGraphInView,
+  openNewFocusWindow,
+  openNewGraphWindow,
+  renameGraphView,
 } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 
@@ -184,7 +184,7 @@ function report(error: unknown): void {
   Zotero.logError(error instanceof Error ? error : new Error(String(error)));
 }
 
-function openCitationMapSettings(): void {
+function openSettings(): void {
   const internalUtilities = Zotero.Utilities.Internal as any;
   if (typeof internalUtilities?.openPreferences !== "function") {
     throw new Error("Zotero preferences could not be opened.");
@@ -215,17 +215,17 @@ async function openInNewMap(
   hostWindow: MainWindow,
 ): Promise<void> {
   if (command.itemIDs.length) {
-    await openCitationMapAndSelectItemsInNewTab(command.itemIDs, hostWindow);
+    await openGraphAndSelectItemsInNewTab(command.itemIDs, hostWindow);
     return;
   }
   if (command.collectionID) {
     const ids = await focusItemIDs(command);
     if (ids.length) {
-      await openCitationMapAndSelectItemsInNewTab(ids, hostWindow);
+      await openGraphAndSelectItemsInNewTab(ids, hostWindow);
       return;
     }
   }
-  await openNewCitationMapWindow(hostWindow, command.libraryID);
+  await openNewGraphWindow(hostWindow, command.libraryID);
 }
 
 async function openInNewFocusView(
@@ -234,22 +234,22 @@ async function openInNewFocusView(
 ): Promise<void> {
   const ids = await focusItemIDs(command);
   if (!ids.length) return;
-  await openCitationMapFocusItemsInNewTab(ids, hostWindow);
+  await openFocusItemsInNewTab(ids, hostWindow);
 }
 
 async function openInExistingView(
-  view: OpenCitationMapViewInfo,
+  view: OpenGraphViewInfo,
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
   if (view.kind === "focus") {
     const ids = await focusItemIDs(command);
     if (!ids.length) return;
-    await openCitationMapFocusItemsInView(view.instanceID, ids, hostWindow);
+    await openFocusItemsInView(view.instanceID, ids, hostWindow);
     return;
   }
   if (command.itemIDs.length) {
-    await openCitationMapAndSelectItemsInView(
+    await openGraphAndSelectItemsInView(
       view.instanceID,
       command.itemIDs,
       hostWindow,
@@ -259,15 +259,11 @@ async function openInExistingView(
   if (command.collectionID) {
     const ids = await focusItemIDs(command);
     if (ids.length) {
-      await openCitationMapAndSelectItemsInView(
-        view.instanceID,
-        ids,
-        hostWindow,
-      );
+      await openGraphAndSelectItemsInView(view.instanceID, ids, hostWindow);
       return;
     }
   }
-  await openCitationMapInView(view.instanceID, hostWindow, command.libraryID);
+  await openGraphInView(view.instanceID, hostWindow, command.libraryID);
 }
 
 function commandItem(
@@ -330,7 +326,7 @@ function openInSubmenu(resolve: MenuContextResolver): MenuData {
         .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}]`)
         .forEach((node) => node.remove());
       const hostWindow = contextWindow(context);
-      const openViews = getOpenCitationMapViews(hostWindow);
+      const openViews = getOpenGraphViews(hostWindow);
       if (!openViews.length) return;
 
       const document = popup.ownerDocument as any;
@@ -436,16 +432,10 @@ function toolsSubmenu(): MenuData {
     icon: ICON,
     menus: [
       commandItem(`${config.addonRef}-new-meristema-view-command`, (context) =>
-        openNewCitationMapWindow(
-          contextWindow(context),
-          activeLibraryID(context),
-        ),
+        openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
       ),
       commandItem(`${config.addonRef}-new-focus-view-command`, (context) =>
-        openNewCitationMapFocusWindow(
-          contextWindow(context),
-          activeLibraryID(context),
-        ),
+        openNewFocusWindow(contextWindow(context), activeLibraryID(context)),
       ),
       commandItem(
         `${config.addonRef}-refresh-library-command`,
@@ -455,7 +445,7 @@ function toolsSubmenu(): MenuData {
       ),
       { menuType: "separator" },
       commandItem(`${config.addonRef}-settings-command`, () => {
-        openCitationMapSettings();
+        openSettings();
       }),
     ],
   };
@@ -476,7 +466,7 @@ function tabRenameItem(): MenuData {
       const tabID = String(safeContextValue(context, "tabID") ?? "");
       if (!tabID || tabID === "zotero-pane") return;
       const hostWindow = contextWindow(context);
-      const current = getOpenCitationMapViews(hostWindow).find(
+      const current = getOpenGraphViews(hostWindow).find(
         (view) => view.tabID === tabID,
       );
       if (!current) return;
@@ -488,7 +478,7 @@ function tabRenameItem(): MenuData {
       const normalized = String(next).trim();
       if (!normalized) return;
       try {
-        renameCitationMapView(tabID, normalized, hostWindow);
+        renameGraphView(tabID, normalized, hostWindow);
       } catch (error) {
         report(error);
       }

@@ -1,8 +1,8 @@
 import { config } from "../../package.json";
 
-export type CitationMapViewKind = "map" | "focus";
+export type GraphViewKind = "map" | "focus";
 
-export interface CitationMapInstanceDescriptor {
+export interface ViewInstanceDescriptor {
   instanceID: string;
   tabID: string | null;
   lastActivatedAt: number;
@@ -14,14 +14,14 @@ export interface ZoteroTabDescriptor {
 }
 
 /** Only real Citation Map tabs may be promoted into the view-instance registry. */
-export function isCitationMapTabDescriptor(
+export function isGraphTabDescriptor(
   tab: ZoteroTabDescriptor | null | undefined,
 ): boolean {
   if (!tab || tab.id === "zotero-pane") return false;
   return String(tab.type ?? "").replace(/-unloaded$/, "") === config.addonRef;
 }
 
-export function citationMapViewBaseTitle(kind: CitationMapViewKind): string {
+export function graphViewBaseTitle(kind: GraphViewKind): string {
   return kind === "focus" ? "Explore" : "Collection Graph";
 }
 
@@ -30,11 +30,11 @@ export function citationMapViewBaseTitle(kind: CitationMapViewKind): string {
  * title. The first view keeps the unnumbered base name; later views use 2, 3,
  * and so on.
  */
-export function nextCitationMapViewTitle(
-  kind: CitationMapViewKind,
+export function nextGraphViewTitle(
+  kind: GraphViewKind,
   existingTitles: readonly string[],
 ): string {
-  const base = citationMapViewBaseTitle(kind);
+  const base = graphViewBaseTitle(kind);
   const occupied = new Set(existingTitles.map((title) => title.trim()));
   if (!occupied.has(base)) return base;
   let suffix = 2;
@@ -46,9 +46,10 @@ export function nextCitationMapViewTitle(
  * Route ordinary commands to the selected Citation Map when possible,
  * otherwise to the most recently activated live instance.
  */
-export function selectReusableCitationMapInstance<
-  T extends CitationMapInstanceDescriptor,
->(instances: readonly T[], selectedTabID: string | null | undefined): T | null {
+export function selectReusableGraphInstance<T extends ViewInstanceDescriptor>(
+  instances: readonly T[],
+  selectedTabID: string | null | undefined,
+): T | null {
   if (selectedTabID) {
     const selected = instances.find(
       (instance) => instance.tabID === selectedTabID,
@@ -63,7 +64,7 @@ export function selectReusableCitationMapInstance<
 }
 
 /** Hidden tabs keep shared data current but defer expensive canvas rebuilds. */
-export function citationMapInstanceShouldRender(
+export function graphInstanceShouldRender(
   hasDetachedWindow: boolean,
   isSelectedTab: boolean,
 ): boolean {

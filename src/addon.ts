@@ -2,25 +2,25 @@ import { config } from "../package.json";
 import type { CitationLibraryOption } from "./services/citationLibraryService";
 import hooks from "./hooks";
 
-export interface CitationMapCacheStatus {
+export interface GraphCacheStatus {
   metricRecords: number;
   manualRelations: number;
   ignoredRelations: number;
   lastUpdated: string | null;
 }
 
-export interface CitationMapAPI {
+export interface MeristemaAPI {
   refreshAll(): void;
   clearAllCachedData(): void;
   providerSelectionChanged(): void;
   openOpenAlexAccount(): void;
-  cacheStatus(): CitationMapCacheStatus;
+  cacheStatus(): GraphCacheStatus;
   updateLibraries(): CitationLibraryOption[];
   updateLibraryIDs(): number[];
   setUpdateLibraryIDs(libraryIDs: unknown): void;
 }
 
-function unavailableAPI(): CitationMapAPI {
+function unavailableAPI(): MeristemaAPI {
   const unavailable = (): never => {
     throw new Error("Citation Map API is not initialized.");
   };
@@ -46,7 +46,7 @@ class Addon {
   };
 
   public hooks: typeof hooks;
-  public api: CitationMapAPI;
+  public api: MeristemaAPI;
 
   constructor() {
     this.data = {
@@ -59,7 +59,7 @@ class Addon {
     this.api = unavailableAPI();
   }
 
-  public setAPI(api: CitationMapAPI): void {
+  public setAPI(api: MeristemaAPI): void {
     this.api = Object.freeze({ ...api });
   }
 }

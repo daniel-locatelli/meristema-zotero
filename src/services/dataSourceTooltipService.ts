@@ -709,7 +709,7 @@ function showTooltip(
   resolved: ResolvedTooltip,
   event?: MouseEvent,
 ): void {
-  resolved.target.dataset.citationMapTooltip = resolved.text;
+  resolved.target.dataset.meristemaTooltip = resolved.text;
   const currentTitle = resolved.target.getAttribute("title");
   if (currentTitle) {
     resolved.target.dataset.meristemaOriginalTitle ??= currentTitle;
@@ -766,10 +766,10 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
   // Only enhance the root Overview list. Advanced/Data-details lists use the
   // same CSS classes and must never be enhanced recursively.
   if (rows.closest("details")) return;
-  if (rows.dataset.citationMapRegistryEnhanced === "true") return;
+  if (rows.dataset.meristemaRegistryEnhanced === "true") return;
   const context = graphNodeForElement(document, rows);
   if (!context) return;
-  rows.dataset.citationMapRegistryEnhanced = "true";
+  rows.dataset.meristemaRegistryEnhanced = "true";
   const node = context.node;
   const isItemPane = rows.classList.contains("meristema-pane-metrics");
   const main = new Set(["citations", "references"]);
@@ -808,7 +808,7 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
     advanced.className = rows.className;
     details.appendChild(advanced);
   }
-  advanced.dataset.citationMapRegistryAdvanced = "true";
+  advanced.dataset.meristemaRegistryAdvanced = "true";
 
   const terms = Array.from(rows.querySelectorAll("dt"));
   for (const termNode of terms) {
@@ -905,7 +905,7 @@ function styleOpenAccessBadges(document: Document): void {
       element.style.backgroundColor = selected[0];
       element.style.color = selected[1];
     }
-    element.dataset.citationMapOaStatus = status;
+    element.dataset.meristemaOaStatus = status;
   }
 }
 
@@ -1030,7 +1030,7 @@ export function uninstallDataSourceHoverTooltips(document: Document): void {
     const title = element.dataset.meristemaOriginalTitle;
     if (title) element.setAttribute("title", title);
     delete element.dataset.meristemaOriginalTitle;
-    delete element.dataset.citationMapTooltip;
+    delete element.dataset.meristemaTooltip;
   }
   documentHandlers.delete(document);
 }

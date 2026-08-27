@@ -27,7 +27,7 @@ import {
   updateCitationDataForItems,
   waitForCitationUpdates,
 } from "./citationUpdateService";
-import { refreshOpenCitationMapViews } from "./windowService";
+import { refreshOpenGraphViews } from "./windowService";
 
 let registered = false;
 const observerIDs: Array<string | symbol> = [];
@@ -65,7 +65,7 @@ async function clearAllCachedData(): Promise<void> {
   resetCitationProviderSessionState();
   refreshCitationColumns();
   refreshCitationItemPanes();
-  await refreshOpenCitationMapViews();
+  await refreshOpenGraphViews();
 }
 
 async function runRefreshAllLoop(): Promise<void> {
@@ -118,7 +118,7 @@ function refreshProviderConfiguration(): void {
   resetCitationProviderSessionState();
   refreshCitationColumns();
   refreshCitationItemPanes();
-  void refreshOpenCitationMapViews().catch((error: unknown) => {
+  void refreshOpenGraphViews().catch((error: unknown) => {
     Zotero.logError(
       preferenceError("refresh after provider configuration change", error),
     );
@@ -160,7 +160,7 @@ function exposePreferenceActions(): void {
   });
 }
 
-export async function registerCitationMapPreferencePane(): Promise<void> {
+export async function registerPreferencePane(): Promise<void> {
   if (registered) return;
   exposePreferenceActions();
   normalizeCitationPreferences();
@@ -197,7 +197,7 @@ export async function registerCitationMapPreferencePane(): Promise<void> {
   registered = true;
 }
 
-export function unregisterCitationMapPreferenceObservers(): void {
+export function unregisterPreferenceObservers(): void {
   for (const id of observerIDs.splice(0)) {
     try {
       Zotero.Prefs.unregisterObserver(id as any);

@@ -2,9 +2,9 @@ import { config } from "../../package.json";
 import type { LibrarySnapshot } from "../domain/types";
 import { positiveInteger } from "../domain/valueNormalization";
 import {
-  destroyCitationMapView,
-  getCitationMapViewController,
-  renderCitationMapView,
+  destroyGraphView,
+  getGraphViewController,
+  renderGraphView,
 } from "./graphViewService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import {
@@ -12,25 +12,25 @@ import {
   uninstallDataSourceHoverTooltips,
 } from "./dataSourceTooltipService";
 import {
-  type CitationMapViewKind,
-  citationMapInstanceShouldRender,
-  isCitationMapTabDescriptor,
-  nextCitationMapViewTitle,
-  selectReusableCitationMapInstance,
-} from "./citationMapInstancePolicy";
+  type GraphViewKind,
+  graphInstanceShouldRender,
+  isGraphTabDescriptor,
+  nextGraphViewTitle,
+  selectReusableGraphInstance,
+} from "./graphInstancePolicy";
 import { getAvailableCitationLibraries } from "./citationLibraryService";
 
 const TAB_TYPE = config.addonRef;
-const TAB_STATE_FILTER_MARKER = "__citationMapStateFilterInstalled";
-const TAB_HOOK_MARKER = "__citationMapTabHooksInstalled";
+const TAB_STATE_FILTER_MARKER = "__meristemaStateFilterInstalled";
+const TAB_HOOK_MARKER = "__meristemaTabHooksInstalled";
 const NETWORK_ICON_TYPE = "meristema-network";
-const CONTEXT_HANDLER_MARKER = "__citationMapContextHandlerInstalled";
-const LIBRARY_FILTER_MARKER = "citationMapLibraryFilterInstalled";
-const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/citationMapWindow.xhtml`;
+const CONTEXT_HANDLER_MARKER = "__meristemaContextHandlerInstalled";
+const LIBRARY_FILTER_MARKER = "meristemaLibraryFilterInstalled";
+const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/graphWindow.xhtml`;
 interface GraphInstanceState {
   instanceID: string;
   title: string;
-  kind: CitationMapViewKind;
+  kind: GraphViewKind;
   customTitle: boolean;
   tabID: string | null;
   libraryID: number | null;
@@ -68,14 +68,14 @@ function graphState(win: _ZoteroTypes.MainWindow): GraphWindowState {
 function createGraphInstance(
   win: _ZoteroTypes.MainWindow,
   libraryID: number | null = null,
-  kind: CitationMapViewKind = "map",
+  kind: GraphViewKind = "map",
 ): GraphInstanceState {
   graphInstanceSequence += 1;
   const instanceID = `meristema-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
   const state = graphState(win);
   const created: GraphInstanceState = {
     instanceID,
-    title: nextCitationMapViewTitle(
+    title: nextGraphViewTitle(
       kind,
       [...state.instances.values()].map((instance) => instance.title),
     ),
@@ -329,7 +329,7 @@ function renderDetachedWindow(
   instance.lastActivatedAt = Date.now();
   instance.dirty = false;
   const host = liveHostWindow(hostWindow);
-  renderCitationMapView(popup.document, mount, snapshot, {
+  renderGraphView(popup.document, mount, snapshot, {
     mode: "window",
     initialViewKind: instance.kind,
     onViewKindChange: (kind) => setInstanceKind(host, instance, kind),
@@ -354,13 +354,13 @@ function renderDetachedWindow(
     mount,
     snapshot.libraryID,
     (libraryID) =>
-      openCitationMapWindow(host, libraryID, {
+      openGraphWindow(host, libraryID, {
         targetInstanceID: instance.instanceID,
       }),
   );
 }
 
-async function openDetachedCitationMapWindow(
+async function openDetachedGraphWindow(
   hostWindow: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   snapshot: LibrarySnapshot,
@@ -411,7 +411,7 @@ async function openDetachedCitationMapWindow(
     "unload",
     () => {
       if (instance.detachedWindow !== popup) return;
-      destroyCitationMapView(mount);
+      destroyGraphView(mount);
       uninstallDataSourceHoverTooltips(popup.document);
       instance.detachedWindow = null;
       instance.detachedMount = null;
@@ -447,9 +447,9 @@ function updateTabData(
 ): void {
   if (!tab || typeof tab !== "object") return;
   tab.data ??= {};
-  tab.data.citationMapInstanceID = instance.instanceID;
-  tab.data.citationMapTitle = instance.title;
-  tab.data.citationMapKind = instance.kind;
+  tab.data.graphInstanceID = instance.instanceID;
+  tab.data.graphTitle = instance.title;
+  tab.data.graphKind = instance.kind;
   tab.data.libraryID = snapshot.libraryID;
   tab.data.itemID = itemID ?? snapshot.papers[0]?.itemID ?? null;
 }
@@ -463,8 +463,8 @@ function syncInstanceTitle(
     const tab = manager.getTabInfo(instance.tabID);
     if (tab) {
       tab.data ??= {};
-      tab.data.citationMapTitle = instance.title;
-      tab.data.citationMapKind = instance.kind;
+      tab.data.graphTitle = instance.title;
+      tab.data.graphKind = instance.kind;
       void manager.rename(instance.tabID, instance.title);
     }
   }
@@ -476,12 +476,12 @@ function syncInstanceTitle(
 function setInstanceKind(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
-  kind: CitationMapViewKind,
+  kind: GraphViewKind,
 ): void {
   if (instance.kind === kind) return;
   instance.kind = kind;
   if (!instance.customTitle) {
-    instance.title = nextCitationMapViewTitle(
+    instance.title = nextGraphViewTitle(
       kind,
       [...graphState(win).instances.values()]
         .filter((candidate) => candidate.instanceID !== instance.instanceID)
@@ -495,9 +495,9 @@ function instanceForTab(
   win: _ZoteroTypes.MainWindow,
   tab: any,
 ): GraphInstanceState | null {
-  if (!isCitationMapTabDescriptor(tab)) return null;
+  if (!isGraphTabDescriptor(tab)) return null;
   const state = graphState(win);
-  const instanceID = String(tab?.data?.citationMapInstanceID ?? "").trim();
+  const instanceID = String(tab?.data?.graphInstanceID ?? "").trim();
   if (instanceID) {
     const existing = state.instances.get(instanceID);
     if (existing) {
@@ -511,16 +511,16 @@ function instanceForTab(
   const created = createGraphInstance(
     win,
     positiveInteger(tab?.data?.libraryID),
-    tab?.data?.citationMapKind === "focus" ? "focus" : "map",
+    tab?.data?.graphKind === "focus" ? "focus" : "map",
   );
-  const restoredTitle = String(tab?.data?.citationMapTitle ?? "").trim();
+  const restoredTitle = String(tab?.data?.graphTitle ?? "").trim();
   if (restoredTitle) {
     created.title = restoredTitle;
     created.customTitle = true;
   }
   created.tabID = tab.id;
   tab.data ??= {};
-  tab.data.citationMapInstanceID = created.instanceID;
+  tab.data.graphInstanceID = created.instanceID;
   return created;
 }
 
@@ -535,7 +535,7 @@ function instanceForTabID(
   }
   try {
     const tab = tabs(win).getTabInfo(tabID);
-    return isCitationMapTabDescriptor(tab) ? instanceForTab(win, tab) : null;
+    return isGraphTabDescriptor(tab) ? instanceForTab(win, tab) : null;
   } catch {
     return null;
   }
@@ -545,7 +545,7 @@ function liveInstances(win: _ZoteroTypes.MainWindow): GraphInstanceState[] {
   const state = graphState(win);
   const manager = tabs(win);
   for (const tab of manager._tabs ?? []) {
-    if (isCitationMapTabDescriptor(tab)) instanceForTab(win, tab);
+    if (isGraphTabDescriptor(tab)) instanceForTab(win, tab);
   }
   for (const [instanceID, instance] of [...state.instances.entries()]) {
     if (instance.tabID) {
@@ -571,7 +571,7 @@ function activeOrRecentInstance(
 ): GraphInstanceState | null {
   const manager = tabs(win);
   instanceForTabID(win, manager.selectedID);
-  return selectReusableCitationMapInstance(
+  return selectReusableGraphInstance(
     liveInstances(win).filter(
       (instance) => !libraryID || instance.libraryID === libraryID,
     ),
@@ -585,7 +585,7 @@ function activeOrRecentInstance(
  * user first opens Citation Map can leave a stale plugin tab without a
  * restoreState hook.
  */
-export function installCitationMapTabHooks(win: _ZoteroTypes.MainWindow): void {
+export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
   const manager = tabs(win);
   if (!manager[TAB_STATE_FILTER_MARKER]) {
     const originalGetState = manager.getState.bind(manager);
@@ -605,7 +605,7 @@ export function installCitationMapTabHooks(win: _ZoteroTypes.MainWindow): void {
   manager.tabHooks.moveToNewWindow ??= {};
   manager.tabHooks.restoreState[TAB_TYPE] = async () => ({ itemID: null });
   manager.tabHooks.getTitle[TAB_TYPE] = async (tab: any) =>
-    String(tab?.data?.citationMapTitle ?? "Collection Graph");
+    String(tab?.data?.graphTitle ?? "Collection Graph");
   const focus = (tab: any): void => {
     const container = manager.getTabContent(tab.id);
     (container?.querySelector(".cm-search") as HTMLElement | null)?.focus();
@@ -619,7 +619,7 @@ export function installCitationMapTabHooks(win: _ZoteroTypes.MainWindow): void {
       const libraryID = tabLibraryID(tab, win, instance);
       const snapshot = await loadWholeLibrary(libraryID);
       const request = consumePendingRequest(instance);
-      await openDetachedCitationMapWindow(win, instance, snapshot, request);
+      await openDetachedGraphWindow(win, instance, snapshot, request);
       instance.tabID = null;
       manager.close(tab.id);
     } catch (error) {
@@ -673,7 +673,7 @@ function prepareContainer(
       const selected = Boolean(
         (event as CustomEvent<{ selected?: boolean }>).detail?.selected,
       );
-      getCitationMapViewController(container)?.setActive(selected);
+      getGraphViewController(container)?.setActive(selected);
       if (selected) {
         instance.lastActivatedAt = Date.now();
         hideGlobalContextPane(win, container);
@@ -717,7 +717,7 @@ function renderTab(
       return;
     }
     const request = consumePendingRequest(instance);
-    renderCitationMapView(win.document, container, snapshot, {
+    renderGraphView(win.document, container, snapshot, {
       mode: "tab",
       initialViewKind: instance.kind,
       onViewKindChange: (kind) => setInstanceKind(win, instance, kind),
@@ -737,7 +737,7 @@ function renderTab(
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionID: request.collectionID,
     });
-    getCitationMapViewController(container)?.setActive(
+    getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
     );
     installGraphLibraryFilter(
@@ -745,7 +745,7 @@ function renderTab(
       container,
       snapshot.libraryID,
       (libraryID) =>
-        openCitationMapWindow(win, libraryID, {
+        openGraphWindow(win, libraryID, {
           targetInstanceID: instance.instanceID,
         }),
     );
@@ -785,7 +785,7 @@ function activateInstance(
   }
 }
 
-function activateCitationMapItems(
+function activateGraphItems(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   itemIDs: readonly number[],
@@ -793,7 +793,7 @@ function activateCitationMapItems(
 ): boolean {
   const mount = instanceMount(win, instance);
   if (!mount) return false;
-  const controller = getCitationMapViewController(mount);
+  const controller = getGraphViewController(mount);
   controller?.setActive(true);
   const result =
     action === "add-focus"
@@ -804,14 +804,14 @@ function activateCitationMapItems(
   return true;
 }
 
-function activateCitationMapCollection(
+function activateGraphCollection(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   collectionID: number,
 ): boolean {
   const mount = instanceMount(win, instance);
   if (!mount) return false;
-  const controller = getCitationMapViewController(mount);
+  const controller = getGraphViewController(mount);
   controller?.setActive(true);
   const result = controller?.openCollection(collectionID);
   if (!result || result === "not-found") return false;
@@ -819,23 +819,23 @@ function activateCitationMapCollection(
   return true;
 }
 
-interface OpenCitationMapOptions {
+interface OpenGraphOptions {
   newInstance?: boolean;
   targetInstanceID?: string | null;
-  initialKind?: CitationMapViewKind;
+  initialKind?: GraphViewKind;
   request?: PendingGraphRequest;
 }
 
 function requestViewKind(
   request: PendingGraphRequest | undefined,
-): CitationMapViewKind | null {
+): GraphViewKind | null {
   if (!request) return null;
   return request.focusItemIDs.length ? "focus" : "map";
 }
 
 function requestedInstance(
   win: _ZoteroTypes.MainWindow,
-  options: OpenCitationMapOptions,
+  options: OpenGraphOptions,
 ): GraphInstanceState | null {
   if (options.newInstance) return null;
   if (options.targetInstanceID) {
@@ -883,13 +883,13 @@ async function refreshGraphInstance(
   renderTab(win, instance, container, snapshot);
 }
 
-export async function openCitationMapWindow(
+export async function openGraphWindow(
   hostWindow?: _ZoteroTypes.MainWindow,
   libraryID?: number | null,
-  options: OpenCitationMapOptions = {},
+  options: OpenGraphOptions = {},
 ): Promise<void> {
   const win = hostWindow ?? defaultMainWindow();
-  installCitationMapTabHooks(win);
+  installGraphTabHooks(win);
   liveInstances(win);
   const targetLibraryID = requestedLibraryID(win, libraryID);
   const snapshot = await loadWholeLibrary(targetLibraryID);
@@ -920,7 +920,7 @@ export async function openCitationMapWindow(
   instance.lastActivatedAt = Date.now();
 
   if (instance.detachedWindow && !instance.detachedWindow.closed) {
-    await openDetachedCitationMapWindow(
+    await openDetachedGraphWindow(
       win,
       instance,
       snapshot,
@@ -963,15 +963,15 @@ export async function openCitationMapWindow(
     data: {
       itemID: firstRequestedItemID(request) ?? snapshot.papers[0].itemID,
       libraryID: snapshot.libraryID,
-      citationMap: true,
-      citationMapInstanceID: instance.instanceID,
-      citationMapTitle: instance.title,
-      citationMapKind: instance.kind,
+      graph: true,
+      graphInstanceID: instance.instanceID,
+      graphTitle: instance.title,
+      graphKind: instance.kind,
       icon: NETWORK_ICON_TYPE,
     },
     select: true,
     onClose: () => {
-      destroyCitationMapView(result.container);
+      destroyGraphView(result.container);
       if (instance.tabID === result.id) instance.tabID = null;
       instance.pendingSelectionItemIDs = [];
       instance.pendingSelectionMode = "replace";
@@ -995,35 +995,35 @@ export async function openCitationMapWindow(
   renderTab(win, instance, result.container, snapshot);
 }
 
-export async function openNewCitationMapWindow(
+export async function openNewGraphWindow(
   hostWindow?: _ZoteroTypes.MainWindow,
   libraryID?: number | null,
 ): Promise<void> {
-  await openCitationMapWindow(hostWindow, libraryID, { newInstance: true });
+  await openGraphWindow(hostWindow, libraryID, { newInstance: true });
 }
 
-export async function openNewCitationMapFocusWindow(
+export async function openNewFocusWindow(
   hostWindow?: _ZoteroTypes.MainWindow,
   libraryID?: number | null,
 ): Promise<void> {
-  await openCitationMapWindow(hostWindow, libraryID, {
+  await openGraphWindow(hostWindow, libraryID, {
     newInstance: true,
     initialKind: "focus",
   });
 }
 
-export interface OpenCitationMapViewInfo {
+export interface OpenGraphViewInfo {
   instanceID: string;
   title: string;
-  kind: CitationMapViewKind;
+  kind: GraphViewKind;
   tabID: string | null;
   active: boolean;
   detached: boolean;
 }
 
-export function getOpenCitationMapViews(
+export function getOpenGraphViews(
   hostWindow?: _ZoteroTypes.MainWindow,
-): OpenCitationMapViewInfo[] {
+): OpenGraphViewInfo[] {
   const win = hostWindow ?? defaultMainWindow();
   const selectedTabID = tabs(win).selectedID;
   return liveInstances(win)
@@ -1046,7 +1046,7 @@ export function getOpenCitationMapViews(
     }));
 }
 
-export function renameCitationMapView(
+export function renameGraphView(
   tabID: string,
   title: string,
   hostWindow?: _ZoteroTypes.MainWindow,
@@ -1063,12 +1063,12 @@ export function renameCitationMapView(
   syncInstanceTitle(win, instance);
 }
 
-export async function openCitationMapInView(
+export async function openGraphInView(
   instanceID: string,
   hostWindow?: _ZoteroTypes.MainWindow,
   libraryID?: number | null,
 ): Promise<void> {
-  await openCitationMapWindow(hostWindow, libraryID, {
+  await openGraphWindow(hostWindow, libraryID, {
     targetInstanceID: instanceID,
   });
 }
@@ -1097,7 +1097,7 @@ function regularItemsByID(itemIDs: readonly number[]): Zotero.Item[] {
     );
 }
 
-export async function openCitationMapAndSelectItems(
+export async function openGraphAndSelectItems(
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
   options: OpenItemViewOptions = {},
@@ -1114,11 +1114,11 @@ export async function openCitationMapAndSelectItems(
   const canExtendExistingScope = instance?.libraryID === libraryID;
   if (
     canExtendExistingScope &&
-    activateCitationMapItems(win, instance, ids, "add-map")
+    activateGraphItems(win, instance, ids, "add-map")
   ) {
     return;
   }
-  await openCitationMapWindow(win, libraryID, {
+  await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
     request: {
@@ -1129,33 +1129,33 @@ export async function openCitationMapAndSelectItems(
   });
 }
 
-export async function openCitationMapAndSelectItemsInNewTab(
+export async function openGraphAndSelectItemsInNewTab(
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
 ): Promise<void> {
-  await openCitationMapAndSelectItems(itemIDs, hostWindow, {
+  await openGraphAndSelectItems(itemIDs, hostWindow, {
     newInstance: true,
   });
 }
 
-export async function openCitationMapAndSelectItemsInView(
+export async function openGraphAndSelectItemsInView(
   instanceID: string,
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
 ): Promise<void> {
-  await openCitationMapAndSelectItems(itemIDs, hostWindow, {
+  await openGraphAndSelectItems(itemIDs, hostWindow, {
     targetInstanceID: instanceID,
   });
 }
 
-export async function openCitationMapFocusItem(
+export async function openFocusItem(
   itemID: number,
   hostWindow?: _ZoteroTypes.MainWindow,
 ): Promise<void> {
-  await openCitationMapFocusItems([itemID], hostWindow);
+  await openFocusItems([itemID], hostWindow);
 }
 
-export async function openCitationMapFocusItems(
+export async function openFocusItems(
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
   options: OpenItemViewOptions = {},
@@ -1171,11 +1171,11 @@ export async function openCitationMapFocusItems(
   const instance = itemCommandInstance(win, options);
   if (
     instance?.libraryID === libraryID &&
-    activateCitationMapItems(win, instance, ids, "add-focus")
+    activateGraphItems(win, instance, ids, "add-focus")
   ) {
     return;
   }
-  await openCitationMapWindow(win, libraryID, {
+  await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
     request: {
@@ -1185,26 +1185,26 @@ export async function openCitationMapFocusItems(
   });
 }
 
-export async function openCitationMapFocusItemsInNewTab(
+export async function openFocusItemsInNewTab(
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
 ): Promise<void> {
-  await openCitationMapFocusItems(itemIDs, hostWindow, {
+  await openFocusItems(itemIDs, hostWindow, {
     newInstance: true,
   });
 }
 
-export async function openCitationMapFocusItemsInView(
+export async function openFocusItemsInView(
   instanceID: string,
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
 ): Promise<void> {
-  await openCitationMapFocusItems(itemIDs, hostWindow, {
+  await openFocusItems(itemIDs, hostWindow, {
     targetInstanceID: instanceID,
   });
 }
 
-export async function openCitationMapCollection(
+export async function openGraphForCollection(
   collectionID: number,
   hostWindow?: _ZoteroTypes.MainWindow,
   options: OpenItemViewOptions = {},
@@ -1219,11 +1219,11 @@ export async function openCitationMapCollection(
   const instance = itemCommandInstance(win, options);
   if (
     instance?.libraryID === libraryID &&
-    activateCitationMapCollection(win, instance, collectionID)
+    activateGraphCollection(win, instance, collectionID)
   ) {
     return;
   }
-  await openCitationMapWindow(win, libraryID, {
+  await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
     request: {
@@ -1233,7 +1233,7 @@ export async function openCitationMapCollection(
   });
 }
 
-export async function refreshOpenCitationMapViews(): Promise<void> {
+export async function refreshOpenGraphViews(): Promise<void> {
   const generation = ++openViewRefreshGeneration;
   const snapshotByLibrary = new Map<number, Promise<LibrarySnapshot>>();
   const getSnapshot = (libraryID: number): Promise<LibrarySnapshot> => {
@@ -1262,7 +1262,7 @@ export async function refreshOpenCitationMapViews(): Promise<void> {
       const isSelectedTab = Boolean(
         instance.tabID && manager.selectedID === instance.tabID,
       );
-      if (!citationMapInstanceShouldRender(hasDetached, isSelectedTab)) {
+      if (!graphInstanceShouldRender(hasDetached, isSelectedTab)) {
         instance.dirty = true;
         continue;
       }
@@ -1288,11 +1288,11 @@ export async function refreshOpenCitationMapViews(): Promise<void> {
   }
 }
 
-export function cancelPendingCitationMapRefreshes(): void {
+export function cancelPendingGraphRefreshes(): void {
   openViewRefreshGeneration += 1;
 }
 
-export function closeCitationMapForWindow(
+export function closeGraphForWindow(
   win: _ZoteroTypes.MainWindow,
   closeTab = true,
 ): void {
@@ -1302,7 +1302,7 @@ export function closeCitationMapForWindow(
   for (const instance of [...state.instances.values()]) {
     if (instance.detachedWindow && !instance.detachedWindow.closed) {
       if (instance.detachedMount) {
-        destroyCitationMapView(instance.detachedMount);
+        destroyGraphView(instance.detachedMount);
       }
       instance.detachedWindow.close();
     }
@@ -1314,7 +1314,7 @@ export function closeCitationMapForWindow(
     try {
       if (!closeTab) {
         const container = manager.getTabContent(tabID);
-        if (container) destroyCitationMapView(container);
+        if (container) destroyGraphView(container);
       } else if (manager.getTabInfo(tabID)) {
         manager.close(tabID);
       }
@@ -1327,9 +1327,9 @@ export function closeCitationMapForWindow(
   graphStateByWindow.delete(win);
 }
 
-export function closeCitationMapWindow(closeTab = true): void {
+export function closeGraphWindow(closeTab = true): void {
   for (const win of [...graphStateByWindow.keys()]) {
-    closeCitationMapForWindow(win, closeTab);
+    closeGraphForWindow(win, closeTab);
   }
 }
 

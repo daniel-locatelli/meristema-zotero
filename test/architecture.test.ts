@@ -92,16 +92,16 @@ import {
   subscribeToCitationUpdates,
 } from "../src/services/citationUpdateEvents";
 import {
-  nextCitationMapViewTitle,
-  citationMapInstanceShouldRender,
-  isCitationMapTabDescriptor,
-  selectReusableCitationMapInstance,
-} from "../src/services/citationMapInstancePolicy";
+  nextGraphViewTitle,
+  graphInstanceShouldRender,
+  isGraphTabDescriptor,
+  selectReusableGraphInstance,
+} from "../src/services/graphInstancePolicy";
 import {
-  appendUniqueCitationMapKeys,
-  extendCitationMapItemScope,
-  replaceCitationMapItemScope,
-} from "../src/services/citationMapScopePolicy";
+  appendUniqueScopeKeys,
+  extendItemScope,
+  replaceItemScope,
+} from "../src/services/graphScopePolicy";
 import {
   cancellationRequested,
   createCancellationScope,
@@ -295,42 +295,42 @@ describe("Architecture foundations", function () {
       { instanceID: "newer", tabID: "tab-2", lastActivatedAt: 20 },
     ];
     expect(
-      selectReusableCitationMapInstance(instances, "tab-1")?.instanceID,
+      selectReusableGraphInstance(instances, "tab-1")?.instanceID,
     ).to.equal("older");
     expect(
-      selectReusableCitationMapInstance(instances, "other")?.instanceID,
+      selectReusableGraphInstance(instances, "other")?.instanceID,
     ).to.equal("newer");
   });
 
   it("replaces a new map scope and extends an existing scoped map", function () {
-    const initial = replaceCitationMapItemScope([3, 1, 3, 2]);
+    const initial = replaceItemScope([3, 1, 3, 2]);
     expect([...initial]).to.deep.equal([3, 1, 2]);
-    const extended = extendCitationMapItemScope(initial, [2, 4, 4]);
+    const extended = extendItemScope(initial, [2, 4, 4]);
     expect([...(extended ?? [])]).to.deep.equal([3, 1, 2, 4]);
   });
 
   it("keeps a full-library map unscoped when papers are opened into it", function () {
-    expect(extendCitationMapItemScope(null, [1, 2, 3])).to.equal(null);
+    expect(extendItemScope(null, [1, 2, 3])).to.equal(null);
   });
 
   it("adds only missing Focus seeds while preserving existing seed order", function () {
     expect(
-      appendUniqueCitationMapKeys(["seed-a", "seed-b"], ["seed-b", "seed-c"]),
+      appendUniqueScopeKeys(["seed-a", "seed-b"], ["seed-b", "seed-c"]),
     ).to.deep.equal(["seed-a", "seed-b", "seed-c"]);
   });
 
-  it("never promotes the reserved library tab into a Citation Map instance", function () {
+  it("never promotes the reserved library tab into a graph view instance", function () {
     expect(
-      isCitationMapTabDescriptor({ id: "zotero-pane", type: "library" }),
+      isGraphTabDescriptor({ id: "zotero-pane", type: "library" }),
     ).to.equal(false);
+    expect(isGraphTabDescriptor({ id: "tab-reader", type: "reader" })).to.equal(
+      false,
+    );
     expect(
-      isCitationMapTabDescriptor({ id: "tab-reader", type: "reader" }),
-    ).to.equal(false);
-    expect(
-      isCitationMapTabDescriptor({ id: "tab-map", type: config.addonRef }),
+      isGraphTabDescriptor({ id: "tab-map", type: config.addonRef }),
     ).to.equal(true);
     expect(
-      isCitationMapTabDescriptor({
+      isGraphTabDescriptor({
         id: "tab-map",
         type: `${config.addonRef}-unloaded`,
       }),
@@ -338,19 +338,19 @@ describe("Architecture foundations", function () {
   });
 
   it("assigns separate default names to Collection Graph and Explore views", function () {
-    expect(nextCitationMapViewTitle("map", [])).to.equal("Collection Graph");
-    expect(nextCitationMapViewTitle("map", ["Collection Graph"])).to.equal(
+    expect(nextGraphViewTitle("map", [])).to.equal("Collection Graph");
+    expect(nextGraphViewTitle("map", ["Collection Graph"])).to.equal(
       "Collection Graph 2",
     );
     expect(
-      nextCitationMapViewTitle("focus", ["Collection Graph", "Explore"]),
+      nextGraphViewTitle("focus", ["Collection Graph", "Explore"]),
     ).to.equal("Explore 2");
   });
 
   it("defers redraws for hidden Citation Map tabs", function () {
-    expect(citationMapInstanceShouldRender(false, false)).to.equal(false);
-    expect(citationMapInstanceShouldRender(false, true)).to.equal(true);
-    expect(citationMapInstanceShouldRender(true, false)).to.equal(true);
+    expect(graphInstanceShouldRender(false, false)).to.equal(false);
+    expect(graphInstanceShouldRender(false, true)).to.equal(true);
+    expect(graphInstanceShouldRender(true, false)).to.equal(true);
   });
 
   it("keeps fuzzy bibliographic evidence out of persistent identities", function () {

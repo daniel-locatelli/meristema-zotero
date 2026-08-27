@@ -12,7 +12,7 @@ import {
   publicationYearOrNull,
 } from "../domain/valueNormalization";
 import { normalizeDOI, normalizeExactTitle } from "../domain/workIdentity";
-import { createCitationMapIcon } from "./uiIconService";
+import { createIcon } from "./uiIconService";
 import {
   relationshipSortOptions,
   type RelationshipSortKey,
@@ -359,7 +359,7 @@ function configureIconButton(
   label: string,
   name: "sort" | "filter",
 ): void {
-  button.replaceChildren(createCitationMapIcon(button.ownerDocument, name));
+  button.replaceChildren(createIcon(button.ownerDocument, name));
   button.type = "button";
   button.title = label;
   button.setAttribute("aria-label", label);

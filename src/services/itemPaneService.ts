@@ -82,7 +82,7 @@ import { formatMetricValue, getMetricDefinition } from "./metricRegistry";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { createUpdateProgress } from "./updateProgressService";
 import { createCancellationScope } from "./cancellationScope";
-import { createCitationMapIcon } from "./uiIconService";
+import { createIcon } from "./uiIconService";
 import {
   buildCitationGraph,
   getCachedCitationGraph,
@@ -90,12 +90,12 @@ import {
 } from "./citationGraphService";
 import { ensureSourceMetricsForNodes } from "./sourceMetricsService";
 import {
-  getOpenCitationMapViews,
-  openCitationMapAndSelectItemsInNewTab,
-  openCitationMapAndSelectItemsInView,
-  openCitationMapFocusItemsInNewTab,
-  openCitationMapFocusItemsInView,
-  refreshOpenCitationMapViews,
+  getOpenGraphViews,
+  openGraphAndSelectItemsInNewTab,
+  openGraphAndSelectItemsInView,
+  openFocusItemsInNewTab,
+  openFocusItemsInView,
+  refreshOpenGraphViews,
 } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 
@@ -144,7 +144,7 @@ function configureIconButton(
   label: string,
   name: "refresh" | "sort" | "ascending" | "descending" = "refresh",
 ): void {
-  button.replaceChildren(createCitationMapIcon(button.ownerDocument, name));
+  button.replaceChildren(createIcon(button.ownerDocument, name));
   button.title = label;
   button.setAttribute("aria-label", label);
   button.style.width = "30px";
@@ -700,18 +700,17 @@ function renderOverview(
     getOpenInActions: () => {
       const itemID = Number(item.id);
       const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
-      const openViews = getOpenCitationMapViews(hostWindow);
+      const openViews = getOpenGraphViews(hostWindow);
       return [
         {
           label: "New Collection Graph",
           title: "Open this paper in a new Collection Graph tab.",
-          action: () =>
-            openCitationMapAndSelectItemsInNewTab([itemID], hostWindow),
+          action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
         },
         {
           label: "New Explore view",
           title: "Open this paper as the seed of a new Explore view.",
-          action: () => openCitationMapFocusItemsInNewTab([itemID], hostWindow),
+          action: () => openFocusItemsInNewTab([itemID], hostWindow),
         },
         ...openViews.map((view, index) => ({
           label: `${view.active ? "✓ " : ""}${view.title}`,
@@ -722,12 +721,8 @@ function renderOverview(
           separatorBefore: index === 0,
           action: () =>
             view.kind === "focus"
-              ? openCitationMapFocusItemsInView(
-                  view.instanceID,
-                  [itemID],
-                  hostWindow,
-                )
-              : openCitationMapAndSelectItemsInView(
+              ? openFocusItemsInView(view.instanceID, [itemID], hostWindow)
+              : openGraphAndSelectItemsInView(
                   view.instanceID,
                   [itemID],
                   hostWindow,
@@ -1064,7 +1059,7 @@ function renderRelationCard(
       runUIAction("removing a manual citation relation", async () => {
         removeManual.disabled = true;
         await removeManualRelation(manualRelation.id);
-        await refreshOpenCitationMapViews();
+        await refreshOpenGraphViews();
         rerender();
       });
     });

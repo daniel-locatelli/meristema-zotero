@@ -63,7 +63,7 @@
     if (notificationTimer !== null) clearTimeout(notificationTimer);
     notificationTimer = setTimeout(() => {
       notificationTimer = null;
-      Zotero.CitationMap.api.providerSelectionChanged();
+      Zotero.Meristema.api.providerSelectionChanged();
     }, 0);
   }
 
@@ -156,15 +156,15 @@
   }
 
   function saveUpdateLibrarySelection() {
-    Zotero.CitationMap.api.setUpdateLibraryIDs(selectedUpdateLibraryIDs());
+    Zotero.Meristema.api.setUpdateLibraryIDs(selectedUpdateLibraryIDs());
     updateLibraryStatus();
   }
 
   function renderUpdateLibraries() {
     const list = libraryList();
     if (!list) return;
-    const libraries = Zotero.CitationMap.api.updateLibraries();
-    const selected = new Set(Zotero.CitationMap.api.updateLibraryIDs());
+    const libraries = Zotero.Meristema.api.updateLibraries();
+    const selected = new Set(Zotero.Meristema.api.updateLibraryIDs());
     list.replaceChildren();
 
     for (const library of libraries) {
@@ -246,7 +246,7 @@
     const list = libraryList();
     const selectAll = librarySelectAll();
     const clearAll = libraryClearAll();
-    const api = Zotero.CitationMap?.api;
+    const api = Zotero.Meristema?.api;
     if (
       !parent ||
       !providers.length ||

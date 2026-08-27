@@ -2,7 +2,7 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-export type CitationMapIconName =
+export type IconName =
   | "add"
   | "search"
   | "similar"
@@ -13,7 +13,7 @@ export type CitationMapIconName =
   | "ascending"
   | "descending";
 
-const ICON_PATHS: Record<CitationMapIconName, string[]> = {
+const ICON_PATHS: Record<IconName, string[]> = {
   add: ["M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"],
   search: [
     "M10.5 4a6.5 6.5 0 1 0 3.95 11.66L20 21.2l1.2-1.2-5.55-5.55A6.5 6.5 0 0 0 10.5 4Zm0 1.8a4.7 4.7 0 1 1 0 9.4 4.7 4.7 0 0 1 0-9.4Z",
@@ -36,9 +36,9 @@ const ICON_PATHS: Record<CitationMapIconName, string[]> = {
   descending: ["M10 5v8H6l6 6 6-6h-4V5h-4Z"],
 };
 
-export function createCitationMapIcon(
+export function createIcon(
   document: Document,
-  name: CitationMapIconName,
+  name: IconName,
   size = 16,
 ): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");

@@ -24,10 +24,7 @@ import {
   nodeColorMetricDefinitions,
   nodeSizeMetricDefinitions,
 } from "./metricRegistry";
-import {
-  createCitationMapIcon,
-  type CitationMapIconName,
-} from "./uiIconService";
+import { createIcon, type IconName } from "./uiIconService";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
@@ -77,11 +74,8 @@ export function ensureStyles(document: Document): void {
   if (link.getAttribute("href") !== href) link.setAttribute("href", href);
 }
 
-export function icon(
-  document: Document,
-  name: CitationMapIconName,
-): SVGSVGElement {
-  return createCitationMapIcon(document, name);
+export function icon(document: Document, name: IconName): SVGSVGElement {
+  return createIcon(document, name);
 }
 
 export function networkLogo(document: Document): HTMLSpanElement {

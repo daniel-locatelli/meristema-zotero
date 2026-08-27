@@ -160,23 +160,23 @@ import {
   setGraphAppearance,
 } from "./citationPreferences";
 import {
-  appendUniqueCitationMapKeys,
-  extendCitationMapItemScope,
-  normalizedCitationMapItemIDs,
-  replaceCitationMapItemScope,
-} from "./citationMapScopePolicy";
+  appendUniqueScopeKeys,
+  extendItemScope,
+  normalizedScopeItemIDs,
+  replaceItemScope,
+} from "./graphScopePolicy";
 
-export type CitationMapFocusResult = "selected" | "revealed" | "not-found";
+export type GraphFocusResult = "selected" | "revealed" | "not-found";
 
-export interface CitationMapViewController {
-  revealItem(itemID: number): CitationMapFocusResult;
-  revealItems(itemIDs: readonly number[]): CitationMapFocusResult;
-  replaceMapItems(itemIDs: readonly number[]): CitationMapFocusResult;
-  addMapItems(itemIDs: readonly number[]): CitationMapFocusResult;
-  openFocusItem(itemID: number): CitationMapFocusResult;
-  openFocusItems(itemIDs: readonly number[]): CitationMapFocusResult;
-  addFocusItems(itemIDs: readonly number[]): CitationMapFocusResult;
-  openCollection(collectionID: number): CitationMapFocusResult;
+export interface GraphViewController {
+  revealItem(itemID: number): GraphFocusResult;
+  revealItems(itemIDs: readonly number[]): GraphFocusResult;
+  replaceMapItems(itemIDs: readonly number[]): GraphFocusResult;
+  addMapItems(itemIDs: readonly number[]): GraphFocusResult;
+  openFocusItem(itemID: number): GraphFocusResult;
+  openFocusItems(itemIDs: readonly number[]): GraphFocusResult;
+  addFocusItems(itemIDs: readonly number[]): GraphFocusResult;
+  openCollection(collectionID: number): GraphFocusResult;
   setActive(active: boolean): void;
 }
 
@@ -187,11 +187,11 @@ const LIBRARY_SEARCH_DEBOUNCE_MS = 180;
 const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
 const AUTOMATIC_FOCUS_REFRESH = automaticFocusSeedRefreshPlan();
 const cleanupByMount = new WeakMap<Element, () => void>();
-const controllerByMount = new WeakMap<Element, CitationMapViewController>();
+const controllerByMount = new WeakMap<Element, GraphViewController>();
 
-export function getCitationMapViewController(
+export function getGraphViewController(
   mount: Element,
-): CitationMapViewController | null {
+): GraphViewController | null {
   return controllerByMount.get(mount) ?? null;
 }
 
@@ -335,19 +335,19 @@ function createCollectionChooser(
   return { root, selected };
 }
 
-export function destroyCitationMapView(mount: Element): void {
+export function destroyGraphView(mount: Element): void {
   cleanupByMount.get(mount)?.();
   cleanupByMount.delete(mount);
   controllerByMount.delete(mount);
 }
 
-export function renderCitationMapView(
+export function renderGraphView(
   document: Document,
   mount: Element,
   snapshot: LibrarySnapshot,
   options: GraphViewOptions,
 ): HTMLElement {
-  destroyCitationMapView(mount);
+  destroyGraphView(mount);
   ensureStyles(document);
   clear(mount);
   const sharedGraphSnapshot = getCitationGraphSnapshot(snapshot);
@@ -376,9 +376,9 @@ export function renderCitationMapView(
   let currentViewKind: "map" | "focus" = initialViewKind;
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
   let mapScopeItemIDs = options.initialMapScopeItemIDs
-    ? replaceCitationMapItemScope(options.initialMapScopeItemIDs)
+    ? replaceItemScope(options.initialMapScopeItemIDs)
     : null;
-  let mapPinnedItemIDs = replaceCitationMapItemScope(
+  let mapPinnedItemIDs = replaceItemScope(
     options.initialMapPinnedItemIDs ?? [],
   );
   let selectedNode: CitationGraphNode | null = null;
@@ -907,9 +907,8 @@ export function renderCitationMapView(
   root.appendChild(main);
   mount.appendChild(root);
 
-  let addLibraryItemsToView = (
-    _itemIDs: readonly number[],
-  ): CitationMapFocusResult => "not-found";
+  let addLibraryItemsToView = (_itemIDs: readonly number[]): GraphFocusResult =>
+    "not-found";
   const selectedLibraryItemIDs = new Set<number>();
   const libraryPaperByID = new Map(
     snapshot.papers.map((paper) => [paper.itemID, paper]),
@@ -1973,7 +1972,7 @@ export function renderCitationMapView(
     updateNavigationButtons();
     for (const seed of missingSeeds) ensureFocusRelationships(seed);
     const state = focusStateFromControls(
-      appendUniqueCitationMapKeys(
+      appendUniqueScopeKeys(
         focusProjection.state.seedKeys,
         missingSeeds.map((seed) => seed.key),
       ),
@@ -4009,7 +4008,7 @@ export function renderCitationMapView(
   };
 
   const mapNodesForItems = (itemIDs: readonly number[]): CitationGraphNode[] =>
-    normalizedCitationMapItemIDs(itemIDs)
+    normalizedScopeItemIDs(itemIDs)
       .map((itemID) => {
         const libraryNode = libraryNodeForItem(itemID);
         if (!libraryNode) return null;
@@ -4028,7 +4027,7 @@ export function renderCitationMapView(
     itemIDs: readonly number[],
     mode: "replace" | "add",
     pinAdded: boolean,
-  ): CitationMapFocusResult => {
+  ): GraphFocusResult => {
     if (!renderer) return "not-found";
     if (focusProjection) exitFocus();
     const renderedNodes = mapNodesForItems(itemIDs);
@@ -4036,14 +4035,11 @@ export function renderCitationMapView(
     const normalizedIDs = renderedNodes.map((node) => node.itemID);
 
     if (mode === "replace") {
-      mapScopeItemIDs = replaceCitationMapItemScope(normalizedIDs);
+      mapScopeItemIDs = replaceItemScope(normalizedIDs);
       mapPinnedItemIDs = pinAdded ? new Set(normalizedIDs) : new Set();
       graphFilter.setCollectionID(null);
     } else {
-      mapScopeItemIDs = extendCitationMapItemScope(
-        mapScopeItemIDs,
-        normalizedIDs,
-      );
+      mapScopeItemIDs = extendItemScope(mapScopeItemIDs, normalizedIDs);
       if (pinAdded) {
         mapPinnedItemIDs = new Set([...mapPinnedItemIDs, ...normalizedIDs]);
       }
@@ -4071,21 +4067,20 @@ export function renderCitationMapView(
       : "revealed";
   };
 
-  const replaceMapItems = (
-    itemIDs: readonly number[],
-  ): CitationMapFocusResult => applyMapItems(itemIDs, "replace", false);
+  const replaceMapItems = (itemIDs: readonly number[]): GraphFocusResult =>
+    applyMapItems(itemIDs, "replace", false);
 
-  const addMapItems = (itemIDs: readonly number[]): CitationMapFocusResult =>
+  const addMapItems = (itemIDs: readonly number[]): GraphFocusResult =>
     applyMapItems(itemIDs, "add", true);
 
   const addMapItemsRespectingFilters = (
     itemIDs: readonly number[],
-  ): CitationMapFocusResult => applyMapItems(itemIDs, "add", false);
+  ): GraphFocusResult => applyMapItems(itemIDs, "add", false);
 
-  const revealItems = (itemIDs: readonly number[]): CitationMapFocusResult =>
+  const revealItems = (itemIDs: readonly number[]): GraphFocusResult =>
     addMapItems(itemIDs);
 
-  const revealItem = (itemID: number): CitationMapFocusResult =>
+  const revealItem = (itemID: number): GraphFocusResult =>
     addMapItems([itemID]);
 
   const reconcileInactiveView = (): void => {
@@ -4127,10 +4122,8 @@ export function renderCitationMapView(
     }
   };
 
-  const addFocusItems = (
-    itemIDs: readonly number[],
-  ): CitationMapFocusResult => {
-    const nodes = normalizedCitationMapItemIDs(itemIDs)
+  const addFocusItems = (itemIDs: readonly number[]): GraphFocusResult => {
+    const nodes = normalizedScopeItemIDs(itemIDs)
       .map((itemID) => libraryNodeForItem(itemID))
       .filter((node): node is CitationGraphNode => Boolean(node));
     return nodes.length && addFocusSeeds(nodes) ? "selected" : "not-found";
@@ -4144,7 +4137,7 @@ export function renderCitationMapView(
   syncMapPinnedKeys(false);
   applyFilters();
 
-  const controller: CitationMapViewController = {
+  const controller: GraphViewController = {
     revealItem,
     revealItems,
     replaceMapItems,
