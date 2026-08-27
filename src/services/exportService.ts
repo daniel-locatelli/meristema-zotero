@@ -7,7 +7,7 @@ function sanitizeFilename(value: string): string {
       .normalize("NFKD")
       .replace(/[^a-zA-Z0-9._-]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "citation-map"
+      .slice(0, 80) || "meristema"
   );
 }
 
@@ -69,7 +69,7 @@ export async function exportGraphJSON(
   const edges = model.edges.filter(
     (edge) => keys.has(edge.source) && keys.has(edge.target),
   );
-  const filename = `${sanitizeFilename(snapshot.libraryName)}-citation-map.json`;
+  const filename = `${sanitizeFilename(snapshot.libraryName)}-meristema.json`;
   await saveExport(
     document,
     {
@@ -80,7 +80,7 @@ export async function exportGraphJSON(
     },
     JSON.stringify(
       {
-        schema: "zotero-citation-map/1",
+        schema: "meristema/1",
         generatedAt: new Date().toISOString(),
         library: snapshot.libraryName,
         includeExternal,
@@ -165,7 +165,7 @@ export async function exportGraphPNG(
   canvas: HTMLCanvasElement,
   snapshot: LibrarySnapshot,
 ): Promise<void> {
-  const filename = `${sanitizeFilename(snapshot.libraryName)}-citation-map.png`;
+  const filename = `${sanitizeFilename(snapshot.libraryName)}-meristema.png`;
   const path = await chooseSavePath(document, {
     title: "Export as PNG",
     filename,

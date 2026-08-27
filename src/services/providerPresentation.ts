@@ -4,7 +4,7 @@ import type {
 } from "../domain/citationTypes";
 
 export type CitationDataSourceID =
-  CitationProviderID | "zotero" | "citation-map" | "manual";
+  CitationProviderID | "zotero" | "meristema" | "manual";
 
 const PROVIDER_LABELS: Record<CitationDataSourceID, string> = {
   crossref: "Crossref",
@@ -13,7 +13,7 @@ const PROVIDER_LABELS: Record<CitationDataSourceID, string> = {
   inspire: "INSPIRE-HEP",
   openalex: "OpenAlex",
   zotero: "Zotero",
-  "citation-map": "Meristema",
+  meristema: "Meristema",
   manual: "Manual",
 };
 

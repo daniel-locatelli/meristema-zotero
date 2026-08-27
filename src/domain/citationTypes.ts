@@ -117,7 +117,7 @@ export type RelatedWorkPropertyName =
   | "isRetracted";
 
 export type RelatedWorkPropertySource =
-  CitationProviderID | "citation-map" | "manual" | "zotero";
+  CitationProviderID | "meristema" | "manual" | "zotero";
 
 export interface RelatedWorkPropertyConflict {
   property: RelatedWorkPropertyName;

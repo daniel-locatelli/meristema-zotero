@@ -28,7 +28,7 @@ const PROPERTY_SOURCES = new Set<RelatedWorkPropertySource>([
   "opencitations",
   "inspire",
   "openalex",
-  "citation-map",
+  "meristema",
   "manual",
   "zotero",
 ]);

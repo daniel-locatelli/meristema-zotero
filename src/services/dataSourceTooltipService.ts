@@ -50,9 +50,7 @@ function providerID(value: unknown): DataSourceID | null {
   if (text === "inspire" || text === "inspire-hep") return "inspire";
   if (text === "openalex") return "openalex";
   if (text === "zotero") return "zotero";
-  if (text === "citation-map" || text === "citation map") {
-    return "citation-map";
-  }
+  if (text === "meristema") return "meristema";
   if (text === "manual") return "manual";
   return null;
 }
@@ -178,9 +176,9 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "last-update":
     case "lastupdate":
     case "data-age":
-      return normalizedSources(["citation-map", ...referenceSources(node)]);
+      return normalizedSources(["meristema", ...referenceSources(node)]);
     case "metadata-completeness":
-      return normalizedSources(["zotero", "citation-map"]);
+      return normalizedSources(["zotero", "meristema"]);
     case "year":
     case "title":
     case "authors":
@@ -204,7 +202,7 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "updated":
       return primarySource(node);
     case "local-manual-relations":
-      return normalizedSources(["manual", "citation-map"]);
+      return normalizedSources(["manual", "meristema"]);
     default:
       return primarySource(node);
   }
