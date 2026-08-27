@@ -129,7 +129,7 @@ function syncMetricTooltipPreference(): void {
   const enabled = getShowMetricTooltipsEnabled();
   for (const win of Zotero.getMainWindows()) {
     installCitationColumnTooltips(win);
-    win.document.documentElement.dataset.citationMapTooltips = enabled
+    win.document.documentElement.dataset.meristemaTooltips = enabled
       ? "enabled"
       : "disabled";
   }

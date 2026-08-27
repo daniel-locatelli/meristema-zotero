@@ -440,7 +440,7 @@ export function renderCitationMapView(
     }
   };
 
-  const root = element(document, "div", "citation-map-root");
+  const root = element(document, "div", "meristema-root");
   root.dataset.mode = options.mode;
   root.dataset.viewKind = currentViewKind;
 

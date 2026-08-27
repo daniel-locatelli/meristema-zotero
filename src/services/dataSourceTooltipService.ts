@@ -291,9 +291,7 @@ function graphNodeForElement(
   element: Element,
 ): { node: CitationGraphNode; item: Zotero.Item | null } | null {
   const item = activeRegularItem(document);
-  if (
-    element.closest(".citation-map-pane-metrics, .citation-map-relation-card")
-  ) {
+  if (element.closest(".meristema-pane-metrics, .meristema-relation-card")) {
     return item ? { node: createMetricNodeForItem(item), item } : null;
   }
 
@@ -392,7 +390,7 @@ function rowFromPath(path: HTMLElement[]): {
     const tag = elementTagName(candidate);
     return tag === "dt" || tag === "dd";
   });
-  if (!entry?.closest(".citation-map-pane-metrics, .cm-metric-list")) {
+  if (!entry?.closest(".meristema-pane-metrics, .cm-metric-list")) {
     return null;
   }
   const isLabel = elementTagName(entry) === "dt";
@@ -418,11 +416,11 @@ function selectedRelationshipDirection(
   element: Element,
 ): "references" | "cited-by" | null {
   const root =
-    element.closest(".citation-map-item-pane") ??
+    element.closest(".meristema-item-pane") ??
     element.closest(".cm-detail-panel") ??
     element.ownerDocument;
   const selected = root.querySelector(
-    ".citation-map-pane-tabs button[data-selected='true'], " +
+    ".meristema-pane-tabs button[data-selected='true'], " +
       ".cm-detail-tabs button[data-selected='true']",
   );
   const text = String(selected?.textContent ?? "").toLocaleLowerCase();
@@ -491,11 +489,11 @@ function cardWork(
 }
 
 function storedTitle(element: HTMLElement): string | null {
-  const stored = element.dataset.citationMapOriginalTitle;
+  const stored = element.dataset.meristemaOriginalTitle;
   if (stored) return stored;
   const current = element.getAttribute("title");
   if (!current) return null;
-  element.dataset.citationMapOriginalTitle = current;
+  element.dataset.meristemaOriginalTitle = current;
   element.removeAttribute("title");
   return current;
 }
@@ -568,7 +566,7 @@ function resolveExternalCardTooltip(
   }
   const card = path.find(
     (candidate) =>
-      candidate.classList?.contains("citation-map-relation-card") ||
+      candidate.classList?.contains("meristema-relation-card") ||
       candidate.classList?.contains("cm-external-card"),
   );
   if (!card) return null;
@@ -593,7 +591,7 @@ function resolveBadgeTooltip(
   path: HTMLElement[],
 ): ResolvedTooltip | null {
   const badge = path.find((candidate) =>
-    candidate.closest?.(".citation-map-pane-badges, .cm-badges"),
+    candidate.closest?.(".meristema-pane-badges, .cm-badges"),
   );
   if (!badge) return null;
   const label = String(badge.textContent ?? "").trim();
@@ -626,7 +624,7 @@ function resolveTooltip(
 
 function createTooltip(document: Document): HTMLElement {
   const tooltip = document.createElementNS(HTML_NS, "div");
-  tooltip.id = "citation-map-central-tooltip";
+  tooltip.id = "meristema-central-tooltip";
   tooltip.setAttribute("role", "tooltip");
   Object.assign(tooltip.style, {
     position: "fixed",
@@ -656,8 +654,8 @@ function tooltipHost(
     return root as ParentNode & Node;
   }
   const paneRoot =
-    target.closest(".cm-root, .citation-map-root") ??
-    target.closest(".citation-map-item-pane") ??
+    target.closest(".cm-root, .meristema-root") ??
+    target.closest(".meristema-item-pane") ??
     target.closest(".cm-detail-panel");
   return (
     paneRoot ??
@@ -714,7 +712,7 @@ function showTooltip(
   resolved.target.dataset.citationMapTooltip = resolved.text;
   const currentTitle = resolved.target.getAttribute("title");
   if (currentTitle) {
-    resolved.target.dataset.citationMapOriginalTitle ??= currentTitle;
+    resolved.target.dataset.meristemaOriginalTitle ??= currentTitle;
     resolved.target.removeAttribute("title");
   }
   attachTooltipToTarget(document, handlers.tooltip, resolved.target);
@@ -773,7 +771,7 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
   if (!context) return;
   rows.dataset.citationMapRegistryEnhanced = "true";
   const node = context.node;
-  const isItemPane = rows.classList.contains("citation-map-pane-metrics");
+  const isItemPane = rows.classList.contains("meristema-pane-metrics");
   const main = new Set(["citations", "references"]);
   const labels = new Set<string>();
   for (const termNode of Array.from(rows.querySelectorAll("dt"))) {
@@ -784,7 +782,7 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
   let details: HTMLDetailsElement | null = null;
   if (isItemPane) {
     const sibling = rows.nextElementSibling;
-    details = sibling?.matches("details.citation-map-data-details")
+    details = sibling?.matches("details.meristema-data-details")
       ? (sibling as HTMLDetailsElement)
       : null;
   }
@@ -794,7 +792,7 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
       "details",
     ) as HTMLDetailsElement;
     details.className = isItemPane
-      ? "citation-map-data-details"
+      ? "meristema-data-details"
       : "cm-advanced-details";
     const summary = document.createElementNS(HTML_NS, "summary");
     summary.textContent = "Advanced";
@@ -887,9 +885,7 @@ function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
 
 function styleOpenAccessBadges(document: Document): void {
   for (const badgeNode of Array.from(
-    document.querySelectorAll(
-      ".citation-map-pane-badges span, .cm-badges span",
-    ),
+    document.querySelectorAll(".meristema-pane-badges span, .cm-badges span"),
   )) {
     const element = badgeNode as HTMLElement;
     if (String(element.textContent ?? "").trim() !== "Open Access") continue;
@@ -913,8 +909,8 @@ function styleOpenAccessBadges(document: Document): void {
   }
 }
 
-const METRIC_PANEL_SELECTOR = "dl.citation-map-pane-metrics, dl.cm-metric-list";
-const BADGE_SELECTOR = ".citation-map-pane-badges, .cm-badges";
+const METRIC_PANEL_SELECTOR = "dl.meristema-pane-metrics, dl.cm-metric-list";
+const BADGE_SELECTOR = ".meristema-pane-badges, .cm-badges";
 
 function enhancePropertyPanels(document: Document): void {
   for (const rows of Array.from(
@@ -1028,12 +1024,12 @@ export function uninstallDataSourceHoverTooltips(document: Document): void {
   handlers.observer?.disconnect();
   handlers.tooltip.remove();
   for (const node of Array.from(
-    document.querySelectorAll("[data-citation-map-original-title]"),
+    document.querySelectorAll("[data-meristema-original-title]"),
   )) {
     const element = node as HTMLElement;
-    const title = element.dataset.citationMapOriginalTitle;
+    const title = element.dataset.meristemaOriginalTitle;
     if (title) element.setAttribute("title", title);
-    delete element.dataset.citationMapOriginalTitle;
+    delete element.dataset.meristemaOriginalTitle;
     delete element.dataset.citationMapTooltip;
   }
   documentHandlers.delete(document);

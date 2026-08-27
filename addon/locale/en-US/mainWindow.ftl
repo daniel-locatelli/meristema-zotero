@@ -58,7 +58,7 @@ open-focus-view-new-tab-command =
 open-in-submenu =
     .label = Open in
 
-new-citation-map-view-command =
+new-meristema-view-command =
     .label = New Collection Graph
 
 new-focus-view-command =

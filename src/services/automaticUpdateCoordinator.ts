@@ -166,7 +166,7 @@ export function registerAutomaticCitationUpdates(): void {
   notifierID = Zotero.Notifier.registerObserver(
     observer,
     ["item"],
-    "citation-map-visible-updates",
+    "meristema-visible-updates",
   );
 
   if (getAutomaticUpdatesEnabled() && getCheckStaleOnStartupEnabled()) {

@@ -229,7 +229,7 @@ function supplementaryData(
       ? nodeFieldDataSourceTooltip(node, spec.id, item)
       : "",
     spec.id === "retractionStatus" && value === true
-      ? "citation-map-column-warning"
+      ? "meristema-column-warning"
       : undefined,
   );
 }

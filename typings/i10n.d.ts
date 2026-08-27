@@ -4,10 +4,10 @@
 // @ts-nocheck
 export type FluentMessageId =
   | 'automatic-updates-command'
-  | 'citation-map-item-pane-header'
-  | 'citation-map-item-pane-sidenav'
-  | 'new-citation-map-view-command'
+  | 'meristema-item-pane-header'
+  | 'meristema-item-pane-sidenav'
   | 'new-focus-view-command'
+  | 'new-meristema-view-command'
   | 'open-command'
   | 'open-existing-view-command'
   | 'open-focus-view-command'

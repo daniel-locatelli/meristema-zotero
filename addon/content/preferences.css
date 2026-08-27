@@ -1,65 +1,65 @@
-.citation-map-preferences {
+.meristema-preferences {
   margin: 0 0 22px;
   padding: 0 0 18px;
 }
 
-.citation-map-settings-section:not(:last-of-type) {
+.meristema-settings-section:not(:last-of-type) {
   border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
 }
 
-.citation-map-preferences h2 {
+.meristema-preferences h2 {
   margin: 0 0 10px;
   font-size: 1.18rem;
 }
 
-.citation-map-preferences h3 {
+.meristema-preferences h3 {
   margin: 16px 0 7px;
   font-size: 1rem;
   font-weight: 600;
 }
 
-.citation-map-pref-row {
+.meristema-pref-row {
   gap: 12px;
   margin-block: 8px;
 }
 
-.citation-map-pref-row html|label {
+.meristema-pref-row html|label {
   min-width: 190px;
 }
 
-.citation-map-pref-row html|input[type="number"] {
+.meristema-pref-row html|input[type="number"] {
   width: 90px;
 }
 
-.citation-map-pref-row html|input[type="password"] {
+.meristema-pref-row html|input[type="password"] {
   width: min(380px, 55vw);
 }
 
-.citation-map-pref-help {
+.meristema-pref-help {
   max-width: 680px;
   margin: 4px 0 9px 26px;
   opacity: 0.75;
   line-height: 1.4;
 }
 
-.citation-map-pref-help-unindented {
+.meristema-pref-help-unindented {
   margin-left: 0;
 }
 
-.citation-map-pref-children {
+.meristema-pref-children {
   margin-left: 24px;
 }
 
-.citation-map-pref-actions {
+.meristema-pref-actions {
   gap: 8px;
   margin-top: 8px;
 }
 
-.citation-map-general-actions-help {
+.meristema-general-actions-help {
   margin-top: 16px;
 }
 
-.citation-map-general-actions {
+.meristema-general-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -67,31 +67,31 @@
   min-width: 0;
 }
 
-.citation-map-pref-actions html|button {
+.meristema-pref-actions html|button {
   min-height: 32px;
   padding: 5px 12px;
 }
 
-.citation-map-pref-actions html|button.citation-map-primary-button,
-.citation-map-pref-actions html|button.citation-map-danger-button {
+.meristema-pref-actions html|button.meristema-primary-button,
+.meristema-pref-actions html|button.meristema-danger-button {
   display: inline-flex;
   gap: 7px;
   align-items: center;
   font-weight: 600;
 }
 
-.citation-map-pref-actions html|button.citation-map-primary-button {
+.meristema-pref-actions html|button.meristema-primary-button {
   border-color: #0a66c2;
   background: #0a66c2;
   color: #fff;
 }
 
-.citation-map-pref-actions html|button.citation-map-primary-button:hover {
+.meristema-pref-actions html|button.meristema-primary-button:hover {
   border-color: #084f95;
   background: #084f95;
 }
 
-.citation-map-pref-actions html|button.citation-map-primary-button::before {
+.meristema-pref-actions html|button.meristema-primary-button::before {
   content: "↻";
   display: inline-flex;
   width: 16px;
@@ -103,18 +103,18 @@
   line-height: 16px;
 }
 
-.citation-map-pref-actions html|button.citation-map-danger-button {
+.meristema-pref-actions html|button.meristema-danger-button {
   border-color: #b42318;
   background: #b42318;
   color: #fff;
 }
 
-.citation-map-pref-actions html|button.citation-map-danger-button:hover {
+.meristema-pref-actions html|button.meristema-danger-button:hover {
   border-color: #912018;
   background: #912018;
 }
 
-.citation-map-pref-actions html|button.citation-map-danger-button::before {
+.meristema-pref-actions html|button.meristema-danger-button::before {
   content: "";
   display: inline-block;
   width: 16px;
@@ -125,14 +125,14 @@
   filter: brightness(0) invert(1);
 }
 
-.citation-map-provider-list {
+.meristema-provider-list {
   width: 100%;
   min-width: 0;
   max-width: 680px;
   box-sizing: border-box;
 }
 
-.citation-map-provider-option {
+.meristema-provider-option {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -141,35 +141,35 @@
   cursor: pointer;
 }
 
-.citation-map-provider-all {
+.meristema-provider-all {
   font-weight: 600;
 }
 
-.citation-map-provider-children {
+.meristema-provider-children {
   min-width: 0;
   margin: 3px 0 3px 26px;
 }
 
-.citation-map-provider-status {
+.meristema-provider-status {
   margin-left: 26px;
 }
 
-.citation-map-pref-help html|a {
+.meristema-pref-help html|a {
   cursor: pointer;
 }
 
-.citation-map-provider-entry {
+.meristema-provider-entry {
   width: 100%;
   min-width: 0;
   margin-block: 5px;
   box-sizing: border-box;
 }
 
-.citation-map-provider-entry-with-key {
+.meristema-provider-entry-with-key {
   padding-bottom: 3px;
 }
 
-.citation-map-provider-credential-row {
+.meristema-provider-credential-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
@@ -180,12 +180,12 @@
   box-sizing: border-box;
 }
 
-.citation-map-provider-key-label {
+.meristema-provider-key-label {
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.citation-map-provider-key-input {
+.meristema-provider-key-input {
   flex: 1 1 220px;
   width: auto;
   min-width: 130px;
@@ -193,7 +193,7 @@
   box-sizing: border-box;
 }
 
-.citation-map-provider-key-help {
+.meristema-provider-key-help {
   display: block;
   width: calc(100% - 26px);
   max-width: none;
@@ -204,12 +204,12 @@
   overflow-wrap: anywhere;
 }
 
-.citation-map-provider-key-help html|a {
+.meristema-provider-key-help html|a {
   cursor: pointer;
 }
 
-.citation-map-parent-option,
-.citation-map-child-option {
+.meristema-parent-option,
+.meristema-child-option {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -217,7 +217,7 @@
   cursor: pointer;
 }
 
-.citation-map-update-libraries {
+.meristema-update-libraries {
   width: min(100%, 640px);
   margin: 8px 0 4px;
   padding: 9px 10px;
@@ -226,7 +226,7 @@
   box-sizing: border-box;
 }
 
-.citation-map-update-library-header {
+.meristema-update-library-header {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
@@ -234,17 +234,17 @@
   justify-content: space-between;
 }
 
-.citation-map-update-library-actions {
+.meristema-update-library-actions {
   display: flex;
   gap: 6px;
 }
 
-.citation-map-update-library-actions html|button {
+.meristema-update-library-actions html|button {
   min-height: 26px;
   padding: 3px 8px;
 }
 
-.citation-map-update-library-list {
+.meristema-update-library-list {
   display: grid;
   gap: 3px;
   max-height: 180px;
@@ -252,7 +252,7 @@
   overflow: auto;
 }
 
-.citation-map-update-library-option {
+.meristema-update-library-option {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 7px;
@@ -261,59 +261,57 @@
   cursor: pointer;
 }
 
-.citation-map-update-library-option html|small {
+.meristema-update-library-option html|small {
   opacity: 0.65;
   white-space: nowrap;
 }
 
-.citation-map-update-library-status,
-.citation-map-update-library-help {
+.meristema-update-library-status,
+.meristema-update-library-help {
   margin-left: 0;
 }
 
-.citation-map-update-library-status {
+.meristema-update-library-status {
   margin-top: 7px;
   margin-bottom: 2px;
 }
 
-.citation-map-pref-children.citation-map-options-locked
-  .citation-map-child-option,
-.citation-map-provider-children.citation-map-options-locked
-  .citation-map-provider-option {
+.meristema-pref-children.meristema-options-locked .meristema-child-option,
+.meristema-provider-children.meristema-options-locked
+  .meristema-provider-option {
   opacity: 0.55;
 }
 
-.citation-map-pref-children.citation-map-options-locked
-  .citation-map-child-option,
-.citation-map-provider-children.citation-map-options-locked
-  .citation-map-provider-option {
+.meristema-pref-children.meristema-options-locked .meristema-child-option,
+.meristema-provider-children.meristema-options-locked
+  .meristema-provider-option {
   cursor: default;
 }
 
 /* Provider credentials remain fully interactive while provider selection is
    locked by Automatic mode. */
-.citation-map-provider-children.citation-map-options-locked
-  .citation-map-provider-credential-row,
-.citation-map-provider-children.citation-map-options-locked
-  .citation-map-provider-key-help {
+.meristema-provider-children.meristema-options-locked
+  .meristema-provider-credential-row,
+.meristema-provider-children.meristema-options-locked
+  .meristema-provider-key-help {
   opacity: 1;
 }
 
 @media (max-width: 560px) {
-  .citation-map-general-actions {
+  .meristema-general-actions {
     flex-wrap: wrap;
   }
 
-  .citation-map-general-actions html|button {
+  .meristema-general-actions html|button {
     flex: 1 1 220px;
     justify-content: center;
   }
 
-  .citation-map-update-library-option {
+  .meristema-update-library-option {
     grid-template-columns: 18px minmax(0, 1fr);
   }
 
-  .citation-map-update-library-option html|small {
+  .meristema-update-library-option html|small {
     grid-column: 2;
   }
 }

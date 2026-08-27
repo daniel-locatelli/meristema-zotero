@@ -416,9 +416,7 @@ function createPopupController(
   const isTaggedFilterSelect = (target: EventTarget | null): boolean => {
     const targetElement = target as Element | null;
     return Boolean(
-      targetElement?.closest?.(
-        'select[data-citation-map-filter-select="true"]',
-      ),
+      targetElement?.closest?.('select[data-meristema-filter-select="true"]'),
     );
   };
   menu.addEventListener(
@@ -716,32 +714,32 @@ function appendCheckbox(
 }
 
 function ensureDualRangeStyles(document: Document): void {
-  if (document.getElementById("citation-map-dual-range-styles")) return;
+  if (document.getElementById("meristema-dual-range-styles")) return;
   const style = element(document, "style");
-  style.id = "citation-map-dual-range-styles";
+  style.id = "meristema-dual-range-styles";
   style.textContent = `
-    .citation-map-dual-range {
+    .meristema-dual-range {
       position: relative;
       height: 28px;
       margin: 2px 5px;
     }
-    .citation-map-dual-range-track,
-    .citation-map-dual-range-fill {
+    .meristema-dual-range-track,
+    .meristema-dual-range-fill {
       position: absolute;
       top: 13px;
       height: 4px;
       border-radius: 999px;
       pointer-events: none;
     }
-    .citation-map-dual-range-track {
+    .meristema-dual-range-track {
       left: 0;
       right: 0;
       background: color-mix(in srgb, CanvasText 18%, Canvas);
     }
-    .citation-map-dual-range-fill {
+    .meristema-dual-range-fill {
       background: var(--accent-blue, Highlight);
     }
-    .citation-map-dual-range input[type="range"] {
+    .meristema-dual-range input[type="range"] {
       appearance: none;
       position: absolute;
       inset: 0;
@@ -751,16 +749,16 @@ function ensureDualRangeStyles(document: Document): void {
       background: transparent;
       pointer-events: none;
     }
-    .citation-map-dual-range input[type="range"]::-moz-range-track {
+    .meristema-dual-range input[type="range"]::-moz-range-track {
       height: 4px;
       border: 0;
       background: transparent;
     }
-    .citation-map-dual-range input[type="range"]::-moz-range-progress {
+    .meristema-dual-range input[type="range"]::-moz-range-progress {
       height: 4px;
       background: transparent;
     }
-    .citation-map-dual-range input[type="range"]::-moz-range-thumb {
+    .meristema-dual-range input[type="range"]::-moz-range-thumb {
       width: 14px;
       height: 14px;
       border: 2px solid Canvas;
@@ -770,7 +768,7 @@ function ensureDualRangeStyles(document: Document): void {
       pointer-events: auto;
       cursor: grab;
     }
-    .citation-map-dual-range input[type="range"]:focus-visible::-moz-range-thumb {
+    .meristema-dual-range input[type="range"]:focus-visible::-moz-range-thumb {
       outline: 2px solid var(--accent-blue, Highlight);
       outline-offset: 2px;
     }
@@ -813,7 +811,7 @@ export function createPaperFilterController(
 
     const collections = options.collections ?? [];
     const collectionSelect = element(document, "select");
-    collectionSelect.dataset.citationMapFilterSelect = "true";
+    collectionSelect.dataset.meristemaFilterSelect = "true";
     appendOption(document, collectionSelect, "Whole library", "");
     for (const collection of collections) {
       appendOption(
@@ -836,7 +834,7 @@ export function createPaperFilterController(
     appendLabelledControl(document, menu, "Collection", collectionSelect);
 
     const tagSelect = element(document, "select");
-    tagSelect.dataset.citationMapFilterSelect = "true";
+    tagSelect.dataset.meristemaFilterSelect = "true";
     appendOption(document, tagSelect, "All tags", "");
     const tags = [...new Set(latestDescriptors.flatMap((entry) => entry.tags))]
       .filter(Boolean)
@@ -921,9 +919,9 @@ export function createPaperFilterController(
     yearSection.appendChild(legend);
 
     ensureDualRangeStyles(document);
-    const rangeRoot = element(document, "div", "citation-map-dual-range");
-    const track = element(document, "div", "citation-map-dual-range-track");
-    const fill = element(document, "div", "citation-map-dual-range-fill");
+    const rangeRoot = element(document, "div", "meristema-dual-range");
+    const track = element(document, "div", "meristema-dual-range-track");
+    const fill = element(document, "div", "meristema-dual-range-fill");
     const minRange = element(document, "input");
     const maxRange = element(document, "input");
     for (const range of [minRange, maxRange]) {

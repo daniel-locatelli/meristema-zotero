@@ -23,7 +23,7 @@ import { getAvailableCitationLibraries } from "./citationLibraryService";
 const TAB_TYPE = config.addonRef;
 const TAB_STATE_FILTER_MARKER = "__citationMapStateFilterInstalled";
 const TAB_HOOK_MARKER = "__citationMapTabHooksInstalled";
-const NETWORK_ICON_TYPE = "citation-map-network";
+const NETWORK_ICON_TYPE = "meristema-network";
 const CONTEXT_HANDLER_MARKER = "__citationMapContextHandlerInstalled";
 const LIBRARY_FILTER_MARKER = "citationMapLibraryFilterInstalled";
 const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/citationMapWindow.xhtml`;
@@ -71,7 +71,7 @@ function createGraphInstance(
   kind: CitationMapViewKind = "map",
 ): GraphInstanceState {
   graphInstanceSequence += 1;
-  const instanceID = `citation-map-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
+  const instanceID = `meristema-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
   const state = graphState(win);
   const created: GraphInstanceState = {
     instanceID,
@@ -196,10 +196,7 @@ function injectGraphLibraryFilter(
   onSelectLibrary: (libraryID: number) => Promise<void>,
 ): void {
   const menu = graphFilterMenu(document);
-  if (
-    !menu ||
-    menu.querySelector('[data-citation-map-library-filter="true"]')
-  ) {
+  if (!menu || menu.querySelector('[data-meristema-library-filter="true"]')) {
     return;
   }
 
@@ -207,7 +204,7 @@ function injectGraphLibraryFilter(
     "http://www.w3.org/1999/xhtml",
     "label",
   );
-  wrapper.dataset.citationMapLibraryFilter = "true";
+  wrapper.dataset.meristemaLibraryFilter = "true";
   Object.assign(wrapper.style, {
     display: "grid",
     gridTemplateColumns: "105px minmax(0, 1fr)",
@@ -229,7 +226,7 @@ function injectGraphLibraryFilter(
     "http://www.w3.org/1999/xhtml",
     "select",
   ) as HTMLSelectElement;
-  select.dataset.citationMapFilterSelect = "true";
+  select.dataset.meristemaFilterSelect = "true";
   select.setAttribute("aria-label", "Graph library");
   for (const library of getAvailableCitationLibraries(currentLibraryID)) {
     const option = document.createElementNS(
@@ -394,7 +391,7 @@ async function openDetachedCitationMapWindow(
 
   await waitForWindowLoad(popup);
   const mount = popup.document.getElementById(
-    "citation-map-window-root",
+    "meristema-window-root",
   ) as HTMLElement | null;
   if (!mount) {
     popup.close();

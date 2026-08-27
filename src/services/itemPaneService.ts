@@ -100,7 +100,7 @@ import {
 import { loadWholeLibrary } from "./zoteroLibraryService";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
-const PANE_ID = "citation-map-item-pane";
+const PANE_ID = "meristema-item-pane";
 const RELATION_LIMIT = RELATIONSHIP_VIEW_LIMIT;
 type PaneTab = "overview" | "cited-by" | "references";
 interface PaneTabState {
@@ -329,7 +329,7 @@ function createTabs(
   referenceCount: number | null,
   onSelect: (tab: "overview" | "cited-by" | "references") => void,
 ): HTMLDivElement {
-  const tabs = el(document, "div", "citation-map-pane-tabs");
+  const tabs = el(document, "div", "meristema-pane-tabs");
   const labelFor = (
     direction: "cited-by" | "references",
     value: number | null,
@@ -373,7 +373,7 @@ function renderMatchConfirmation(
   );
   if (!record) return;
   if (record.identityConflict) {
-    const warning = el(document, "section", "citation-map-match-warning");
+    const warning = el(document, "section", "meristema-match-warning");
     warning.append(
       txt(document, "strong", "Scholarly identity conflict"),
       txt(
@@ -386,7 +386,7 @@ function renderMatchConfirmation(
     return;
   }
   if (!record.matchConfirmed && record.status === "success") {
-    const warning = el(document, "section", "citation-map-match-warning");
+    const warning = el(document, "section", "meristema-match-warning");
     warning.append(
       txt(document, "strong", "Confirm scholarly-record match"),
       txt(
@@ -395,7 +395,7 @@ function renderMatchConfirmation(
         `Citation data were matched using ${record.matchedBy ?? "a fallback identifier"}. Confirm that the provider record is the same work.`,
       ),
     );
-    const confirm = el(document, "button", "citation-map-primary-button");
+    const confirm = el(document, "button", "meristema-primary-button");
     confirm.type = "button";
     confirm.textContent = "Confirm match";
     confirm.addEventListener("click", () => {
@@ -409,7 +409,7 @@ function renderMatchConfirmation(
     container.appendChild(warning);
   }
   if (record.matchCandidates.length > 0) {
-    const warning = el(document, "section", "citation-map-match-warning");
+    const warning = el(document, "section", "meristema-match-warning");
     warning.append(
       txt(document, "strong", "Choose the matching scholarly record"),
       txt(
@@ -419,13 +419,13 @@ function renderMatchConfirmation(
       ),
     );
     for (const candidate of record.matchCandidates) {
-      const card = el(document, "article", "citation-map-candidate");
+      const card = el(document, "article", "meristema-candidate");
       card.append(
         txt(
           document,
           "div",
           candidate.title ?? "Untitled",
-          "citation-map-candidate-title",
+          "meristema-candidate-title",
         ),
         txt(
           document,
@@ -437,7 +437,7 @@ function renderMatchConfirmation(
           ]
             .filter(Boolean)
             .join(" · "),
-          "citation-map-secondary-text",
+          "meristema-secondary-text",
         ),
       );
       const use = el(document, "button");
@@ -479,36 +479,36 @@ function renderOverviewSimilarResults(
         document,
         "p",
         "No similar papers were returned by the available providers.",
-        "citation-map-secondary-text",
+        "meristema-secondary-text",
       ),
     );
     return;
   }
-  const list = el(document, "div", "citation-map-relation-list");
+  const list = el(document, "div", "meristema-relation-list");
   for (const work of works) {
-    const card = el(document, "article", "citation-map-relation-card");
+    const card = el(document, "article", "meristema-relation-card");
     card.append(
       txt(
         document,
         "h4",
         externalWorkTitle(work, Number(item.libraryID)),
-        "citation-map-relation-title",
+        "meristema-relation-title",
       ),
       txt(
         document,
         "p",
         externalWorkAuthorsText(work),
-        "citation-map-secondary-text",
+        "meristema-secondary-text",
       ),
     );
     const metadata = externalWorkMetadataText(work, undefined);
     if (metadata) {
       card.appendChild(
-        txt(document, "p", metadata, "citation-map-secondary-text"),
+        txt(document, "p", metadata, "meristema-secondary-text"),
       );
     }
 
-    const identity = el(document, "div", "citation-map-pane-actions");
+    const identity = el(document, "div", "meristema-pane-actions");
     identity.style.justifyContent = "space-between";
     identity.style.width = "100%";
     const url = externalWorkURL(work);
@@ -527,11 +527,11 @@ function renderOverviewSimilarResults(
       identity.appendChild(link);
     }
 
-    const buttons = el(document, "div", "citation-map-pane-actions");
+    const buttons = el(document, "div", "meristema-pane-actions");
     buttons.style.margin = "0";
     if (work.inLibraryItemKey) {
       const local = itemByKey(Number(item.libraryID), work.inLibraryItemKey);
-      const show = el(document, "button", "citation-map-primary-button");
+      const show = el(document, "button", "meristema-primary-button");
       show.type = "button";
       show.textContent = "Show in Zotero";
       show.addEventListener("click", () => {
@@ -539,7 +539,7 @@ function renderOverviewSimilarResults(
       });
       buttons.appendChild(show);
     } else {
-      const add = el(document, "button", "citation-map-primary-button");
+      const add = el(document, "button", "meristema-primary-button");
       add.type = "button";
       add.textContent = "Add to Zotero";
       add.addEventListener("click", () => {
@@ -561,7 +561,7 @@ function renderOverviewSimilarResults(
     identity.appendChild(buttons);
     card.appendChild(identity);
 
-    const badges = el(document, "div", "citation-map-pane-badges");
+    const badges = el(document, "div", "meristema-pane-badges");
     if (work.inLibraryItemKey)
       badges.append(txt(document, "span", "In Zotero"));
     if (work.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
@@ -569,7 +569,7 @@ function renderOverviewSimilarResults(
     if (badges.childElementCount) card.appendChild(badges);
 
     if (work.abstract) {
-      const disclosure = el(document, "details", "citation-map-data-details");
+      const disclosure = el(document, "details", "meristema-data-details");
       disclosure.append(
         txt(document, "summary", "Abstract"),
         txt(document, "p", work.abstract),
@@ -590,18 +590,18 @@ function renderOverview(
   const node = createMetricNodeForItem(item);
   renderMatchConfirmation(document, container, item, rerender);
   if (node.isRetracted) {
-    const warning = el(document, "div", "citation-map-retraction-warning");
+    const warning = el(document, "div", "meristema-retraction-warning");
     warning.textContent =
       "Retraction reported by a scholarly-data provider. Verify the current status with the publisher.";
     container.appendChild(warning);
   }
-  const badges = el(document, "div", "citation-map-pane-badges");
+  const badges = el(document, "div", "meristema-pane-badges");
   if (node.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
   if (node.isTop1Percent) badges.append(txt(document, "span", "Top 1%"));
   else if (node.isTop10Percent) badges.append(txt(document, "span", "Top 10%"));
   if (badges.childElementCount) container.appendChild(badges);
 
-  const metrics = el(document, "dl", "citation-map-pane-metrics");
+  const metrics = el(document, "dl", "meristema-pane-metrics");
   metrics.append(
     row(document, "Citations", count(node.citationCount)),
     row(document, "References", count(node.referenceCount)),
@@ -649,9 +649,9 @@ function renderOverview(
   );
   container.appendChild(metrics);
 
-  const details = el(document, "details", "citation-map-data-details");
+  const details = el(document, "details", "meristema-data-details");
   details.appendChild(txt(document, "summary", "Data details"));
-  const detailMetrics = el(document, "dl", "citation-map-pane-metrics");
+  const detailMetrics = el(document, "dl", "meristema-pane-metrics");
   detailMetrics.append(
     row(document, "Canonical provider", node.provider ?? "—"),
     row(document, "Match method", node.matchedBy ?? "—"),
@@ -692,8 +692,8 @@ function renderOverview(
   similarResults.style.marginTop = "8px";
   const overviewActions = createPaperOverviewActionBar({
     document,
-    actionsClass: "citation-map-pane-actions",
-    primaryButtonClass: "citation-map-primary-button",
+    actionsClass: "meristema-pane-actions",
+    primaryButtonClass: "meristema-primary-button",
     doi: node.doi,
     onShowInZotero: () =>
       Zotero.getActiveZoteroPane?.()?.selectItem?.(Number(item.id)),
@@ -742,7 +742,7 @@ function renderOverview(
           document,
           "p",
           "Finding similar papers…",
-          "citation-map-secondary-text",
+          "meristema-secondary-text",
         ),
       );
       try {
@@ -764,7 +764,7 @@ function renderOverview(
               document,
               "p",
               "Similar-paper search failed.",
-              "citation-map-secondary-text",
+              "meristema-secondary-text",
             ),
           );
         }
@@ -973,16 +973,16 @@ function renderRelationCard(
   let activeIgnoredRelation = ignoredRelation;
   let ignoredBadge: HTMLElement | null = null;
   let syncIgnoredControls = (): void => undefined;
-  const card = el(document, "article", "citation-map-relation-card");
+  const card = el(document, "article", "meristema-relation-card");
   card.dataset.key = relationKey(work);
   const title = txt(
     document,
     "h4",
     externalWorkTitle(work, Number(item.libraryID)),
-    "citation-map-relation-title",
+    "meristema-relation-title",
   );
   if (manualRelation) {
-    title.classList.add("citation-map-manual-relation-title");
+    title.classList.add("meristema-manual-relation-title");
     title.title =
       direction === "reference"
         ? "Reference added manually in Citation Map"
@@ -994,17 +994,15 @@ function renderRelationCard(
       document,
       "p",
       externalWorkAuthorsText(work),
-      "citation-map-secondary-text",
+      "meristema-secondary-text",
     ),
   );
   const metadata = externalWorkMetadataText(work, undefined);
   if (metadata) {
-    card.appendChild(
-      txt(document, "p", metadata, "citation-map-secondary-text"),
-    );
+    card.appendChild(txt(document, "p", metadata, "meristema-secondary-text"));
   }
 
-  const identityRow = el(document, "div", "citation-map-pane-actions");
+  const identityRow = el(document, "div", "meristema-pane-actions");
   identityRow.style.justifyContent = "space-between";
   identityRow.style.width = "100%";
   const url = externalWorkURL(work);
@@ -1025,11 +1023,11 @@ function renderRelationCard(
     identityRow.appendChild(txt(document, "span", "No DOI or URL"));
   }
 
-  const actionButtons = el(document, "div", "citation-map-pane-actions");
+  const actionButtons = el(document, "div", "meristema-pane-actions");
   actionButtons.style.margin = "0";
   if (work.inLibraryItemKey) {
     const related = itemByKey(Number(item.libraryID), work.inLibraryItemKey);
-    const show = el(document, "button", "citation-map-primary-button");
+    const show = el(document, "button", "meristema-primary-button");
     show.type = "button";
     show.textContent = "Show in Zotero";
     show.addEventListener("click", () => {
@@ -1037,7 +1035,7 @@ function renderRelationCard(
     });
     actionButtons.appendChild(show);
   } else {
-    const add = el(document, "button", "citation-map-primary-button");
+    const add = el(document, "button", "meristema-primary-button");
     add.type = "button";
     add.textContent = "Add to Zotero";
     add.addEventListener("click", () => {
@@ -1131,7 +1129,7 @@ function renderRelationCard(
   identityRow.appendChild(actionButtons);
   card.appendChild(identityRow);
 
-  const badges = el(document, "div", "citation-map-pane-badges");
+  const badges = el(document, "div", "meristema-pane-badges");
   if (manualRelation) badges.append(txt(document, "span", "Manual"));
   if (work.inLibraryItemKey) badges.append(txt(document, "span", "In Zotero"));
   if (work.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
@@ -1140,18 +1138,16 @@ function renderRelationCard(
     badges.append(ignoredBadge);
   }
   if (work.isRetracted) {
-    badges.append(
-      txt(document, "span", "Retracted", "citation-map-danger-badge"),
-    );
+    badges.append(txt(document, "span", "Retracted", "meristema-danger-badge"));
   }
   if (badges.childElementCount) card.appendChild(badges);
   syncIgnoredControls();
 
   if (work.abstract) {
-    const disclosure = el(document, "details", "citation-map-data-details");
+    const disclosure = el(document, "details", "meristema-data-details");
     disclosure.append(
       txt(document, "summary", "Abstract"),
-      txt(document, "p", work.abstract, "citation-map-secondary-text"),
+      txt(document, "p", work.abstract, "meristema-secondary-text"),
     );
     card.appendChild(disclosure);
   }
@@ -1173,7 +1169,7 @@ async function renderRelations(
       ? "Update reference papers"
       : "Update citing papers";
 
-  const loading = txt(document, "p", "Loading…", "citation-map-secondary-text");
+  const loading = txt(document, "p", "Loading…", "meristema-secondary-text");
   container.appendChild(loading);
   try {
     const { node, graph, snapshot } = await relationshipContextForItem(item);
@@ -1226,7 +1222,7 @@ async function renderRelations(
     let updateStatus = (): void => undefined;
     loading.remove();
 
-    const controls = el(document, "div", "citation-map-relation-controls");
+    const controls = el(document, "div", "meristema-relation-controls");
     controls.style.gridTemplateColumns = "minmax(0, 1fr) 30px 30px";
     const toolbar = createPaperListToolbar({
       document,
@@ -1235,7 +1231,7 @@ async function renderRelations(
           ? "Search references"
           : "Search citing papers",
       collections: snapshot.collections,
-      inputClassName: "citation-map-paper-search",
+      inputClassName: "meristema-paper-search",
       onChange: () => renderList(),
     });
 
@@ -1258,14 +1254,14 @@ async function renderRelations(
       subjectItemKey: String(item.key),
       direction,
       getAlreadyRelatedItemKeys: currentRelatedItemKeys,
-      inputClassName: "citation-map-paper-search",
+      inputClassName: "meristema-paper-search",
       onApplied: () => rerender(),
     });
 
     controls.append(toolbar.root, update, picker.button);
     container.append(controls, picker.overlay);
 
-    const status = txt(document, "p", "", "citation-map-secondary-text");
+    const status = txt(document, "p", "", "meristema-secondary-text");
     updateStatus = (): void => {
       const base = relationshipStatusText(
         relationshipSnapshot,
@@ -1275,7 +1271,7 @@ async function renderRelations(
       );
       status.textContent = updateOutcome ? `${base} · ${updateOutcome}` : base;
     };
-    const list = el(document, "div", "citation-map-relation-list");
+    const list = el(document, "div", "meristema-relation-list");
     container.append(status, list);
 
     renderList = (): void => {
@@ -1427,8 +1423,8 @@ function renderPane(
   const render = (): void => {
     setSectionSummary?.(summaryForItem(item));
     clear(body);
-    const shell = el(document, "div", "citation-map-item-pane");
-    const content = el(document, "div", "citation-map-pane-content");
+    const shell = el(document, "div", "meristema-item-pane");
+    const content = el(document, "div", "meristema-pane-content");
     const select = (tab: PaneTab): void => {
       active = tab;
       paneTabState.set(body, { itemKey, active });
@@ -1499,11 +1495,11 @@ export function registerCitationItemPane(): void {
     paneID: PANE_ID,
     pluginID: config.addonID,
     header: {
-      l10nID: "citation-map-item-pane-header",
+      l10nID: "meristema-item-pane-header",
       icon: `chrome://${config.addonRef}/content/icons/network.svg`,
     },
     sidenav: {
-      l10nID: "citation-map-item-pane-sidenav",
+      l10nID: "meristema-item-pane-sidenav",
       icon: `chrome://${config.addonRef}/content/icons/network.svg`,
     },
     onInit: ({

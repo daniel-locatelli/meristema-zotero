@@ -88,7 +88,7 @@ function installStyles(win: _ZoteroTypes.MainWindow): void {
 
 function syncMetricTooltipVisibility(win: _ZoteroTypes.MainWindow): void {
   const document = win.document;
-  document.documentElement.dataset.citationMapTooltips =
+  document.documentElement.dataset.meristemaTooltips =
     getShowMetricTooltipsEnabled() ? "enabled" : "disabled";
   const styleID = `${config.addonRef}-tooltip-visibility-style`;
   if (!document.getElementById(styleID)) {
@@ -98,7 +98,7 @@ function syncMetricTooltipVisibility(win: _ZoteroTypes.MainWindow): void {
     );
     style.id = styleID;
     style.textContent =
-      '[data-citation-map-tooltips="disabled"] #citation-map-central-tooltip { display: none !important; }';
+      '[data-meristema-tooltips="disabled"] #meristema-central-tooltip { display: none !important; }';
     document.documentElement.appendChild(style);
   }
 }
@@ -169,7 +169,7 @@ function registerLibrarySnapshotInvalidation(): void {
   librarySnapshotNotifierID = Zotero.Notifier.registerObserver(
     observer,
     ["item"],
-    "citation-map-library-snapshot-cache",
+    "meristema-library-snapshot-cache",
   );
 }
 

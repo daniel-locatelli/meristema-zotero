@@ -1,4 +1,4 @@
-.citation-map-root {
+.meristema-root {
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
   --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
@@ -20,9 +20,9 @@
   color: CanvasText;
   font: menu;
 }
-.citation-map-root *,
-.citation-map-root *::before,
-.citation-map-root *::after {
+.meristema-root *,
+.meristema-root *::before,
+.meristema-root *::after {
   box-sizing: border-box;
 }
 .cm-header {
@@ -273,7 +273,7 @@
 .cm-select,
 .cm-filter-select,
 .cm-collection-search,
-.citation-map-root input[type="search"] {
+.meristema-root input[type="search"] {
   min-height: 30px;
   min-width: 0;
   padding: 4px 8px;
@@ -290,7 +290,7 @@
 .cm-export-menu button,
 .cm-detail-tabs button,
 .cm-collection-choice,
-.citation-map-root button {
+.meristema-root button {
   min-height: 28px;
   padding: 4px 9px;
   border: 1px solid var(--cm-border);
@@ -303,11 +303,11 @@
   align-items: center;
   gap: 5px;
 }
-.citation-map-root button:hover:not(:disabled) {
+.meristema-root button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--cm-accent) 10%, Canvas);
   border-color: color-mix(in srgb, var(--cm-accent) 42%, var(--cm-border));
 }
-.citation-map-root button:disabled {
+.meristema-root button:disabled {
   cursor: default;
   opacity: 0.55;
 }
@@ -663,7 +663,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .citation-map-root {
+  .meristema-root {
     --cm-icon-color: #f2f2f2;
   }
 }

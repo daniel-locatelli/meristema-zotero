@@ -6,29 +6,29 @@
   let notificationTimer = null;
 
   const byID = (id) => document.getElementById(id);
-  const providerParent = () => byID("zotero-prefpane-citationmap-provider-all");
+  const providerParent = () => byID("zotero-prefpane-meristema-provider-all");
   const providerInputs = () =>
     Array.from(document.querySelectorAll("input[data-provider-pref]"));
   const providerChildren = () =>
-    document.querySelector(".citation-map-provider-children");
+    document.querySelector(".meristema-provider-children");
   const updateParent = () =>
-    byID("zotero-prefpane-citationmap-automatic-updates");
+    byID("zotero-prefpane-meristema-automatic-updates");
   const updateInputs = () =>
     Array.from(document.querySelectorAll("input[data-update-pref]"));
   const updateChildren = () =>
-    document.querySelector(".citation-map-pref-children");
+    document.querySelector(".meristema-pref-children");
   const libraryList = () =>
-    byID("zotero-prefpane-citationmap-update-library-list");
+    byID("zotero-prefpane-meristema-update-library-list");
   const libraryStatus = () =>
-    byID("zotero-prefpane-citationmap-update-library-status");
+    byID("zotero-prefpane-meristema-update-library-status");
   const librarySelectAll = () =>
-    byID("zotero-prefpane-citationmap-update-select-all");
+    byID("zotero-prefpane-meristema-update-select-all");
   const libraryClearAll = () =>
-    byID("zotero-prefpane-citationmap-update-clear-all");
+    byID("zotero-prefpane-meristema-update-clear-all");
   const libraryInputs = () =>
     Array.from(document.querySelectorAll("input[data-update-library-id]"));
   const refreshSelectedButton = () =>
-    byID("zotero-prefpane-citationmap-refresh-selected");
+    byID("zotero-prefpane-meristema-refresh-selected");
 
   function prefKey(name) {
     return PREF_PREFIX + name;
@@ -68,7 +68,7 @@
   }
 
   function updateProviderStatus(inputs, automatic) {
-    const status = byID("zotero-prefpane-citationmap-provider-status");
+    const status = byID("zotero-prefpane-meristema-provider-status");
     if (!status) return;
     const selected = inputs.filter((input) => input.checked).length;
     status.textContent = automatic
@@ -101,10 +101,7 @@
     }
 
     for (const input of inputs) input.disabled = automatic;
-    providerChildren()?.classList.toggle(
-      "citation-map-options-locked",
-      automatic,
-    );
+    providerChildren()?.classList.toggle("meristema-options-locked", automatic);
     updateProviderStatus(inputs, automatic);
   }
 
@@ -172,7 +169,7 @@
 
     for (const library of libraries) {
       const label = document.createElement("label");
-      label.className = "citation-map-update-library-option";
+      label.className = "meristema-update-library-option";
 
       const input = document.createElement("input");
       input.type = "checkbox";
@@ -219,10 +216,7 @@
     }
 
     for (const input of inputs) input.disabled = automatic;
-    updateChildren()?.classList.toggle(
-      "citation-map-options-locked",
-      automatic,
-    );
+    updateChildren()?.classList.toggle("meristema-options-locked", automatic);
   }
 
   function handleUpdateParentChange() {

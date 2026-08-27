@@ -18,7 +18,7 @@ import { loadWholeLibrary } from "./zoteroLibraryService";
 
 const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
-const OPEN_IN_DYNAMIC_ATTR = "data-citation-map-open-view";
+const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 
 // Menu labels do not convey the difference between the two views: a Citation
 // Map only draws connections between papers already in the library, while a
@@ -28,7 +28,7 @@ const OPEN_IN_DYNAMIC_ATTR = "data-citation-map-open-view";
 const MENU_HINTS: Record<string, string> = {
   "show-items-command": "library only",
   "show-items-new-tab-command": "library only",
-  "new-citation-map-view-command": "library only",
+  "new-meristema-view-command": "library only",
   "open-focus-view-command": "fetches online",
   "open-focus-view-new-tab-command": "fetches online",
   "new-focus-view-command": "fetches online",
@@ -295,7 +295,7 @@ function commandItem(
 
 function openInSubmenu(resolve: MenuContextResolver): MenuData {
   const newMap = commandItem(
-    `${config.addonRef}-new-citation-map-view-command`,
+    `${config.addonRef}-new-meristema-view-command`,
     async (commandContext) => {
       await openInNewMap(
         await Promise.resolve(resolve(commandContext)),
@@ -435,13 +435,11 @@ function toolsSubmenu(): MenuData {
     l10nID: `${config.addonRef}-tools-submenu`,
     icon: ICON,
     menus: [
-      commandItem(
-        `${config.addonRef}-new-citation-map-view-command`,
-        (context) =>
-          openNewCitationMapWindow(
-            contextWindow(context),
-            activeLibraryID(context),
-          ),
+      commandItem(`${config.addonRef}-new-meristema-view-command`, (context) =>
+        openNewCitationMapWindow(
+          contextWindow(context),
+          activeLibraryID(context),
+        ),
       ),
       commandItem(`${config.addonRef}-new-focus-view-command`, (context) =>
         openNewCitationMapFocusWindow(
@@ -501,25 +499,25 @@ function tabRenameItem(): MenuData {
 export function registerMenus(): void {
   if (registeredMenuIDs.length) return;
   register({
-    menuID: "citation-map-tools-menu",
+    menuID: "meristema-tools-menu",
     pluginID: config.addonID,
     target: "main/menubar/tools",
     menus: [toolsSubmenu()],
   });
   register({
-    menuID: "citation-map-item-context-menu",
+    menuID: "meristema-item-context-menu",
     pluginID: config.addonID,
     target: "main/library/item",
     menus: [itemSubmenu()],
   });
   register({
-    menuID: "citation-map-collection-context-menu",
+    menuID: "meristema-collection-context-menu",
     pluginID: config.addonID,
     target: "main/library/collection",
     menus: [collectionSubmenu()],
   });
   register({
-    menuID: "citation-map-tab-context-menu",
+    menuID: "meristema-tab-context-menu",
     pluginID: config.addonID,
     target: "main/tab",
     menus: [tabRenameItem()],

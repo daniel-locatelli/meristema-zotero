@@ -1,4 +1,4 @@
-.citation-map-progress {
+.meristema-progress {
   position: fixed !important;
   top: auto !important;
   right: 18px !important;
@@ -17,11 +17,11 @@
   font: menu;
   pointer-events: none;
 }
-.citation-map-column-warning {
+.meristema-column-warning {
   color: #dc2626;
   font-weight: 700;
 }
-.citation-map-item-pane {
+.meristema-item-pane {
   --cmp-border: color-mix(in srgb, CanvasText 14%, transparent);
   --cmp-muted: color-mix(in srgb, CanvasText 66%, transparent);
   --cmp-accent: var(--accent-blue, #2563eb);
@@ -32,17 +32,17 @@
   color: CanvasText;
   font: menu;
 }
-.citation-map-item-pane *,
-.citation-map-item-pane *::before,
-.citation-map-item-pane *::after {
+.meristema-item-pane *,
+.meristema-item-pane *::before,
+.meristema-item-pane *::after {
   box-sizing: border-box;
 }
-.citation-map-pane-tabs {
+.meristema-pane-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
 }
-.citation-map-pane-tabs > button {
+.meristema-pane-tabs > button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,9 +56,9 @@
   line-height: 1.2;
   text-align: center;
 }
-.citation-map-item-pane button,
-.citation-map-item-pane input,
-.citation-map-item-pane select {
+.meristema-item-pane button,
+.meristema-item-pane input,
+.meristema-item-pane select {
   min-height: 28px;
   padding: 4px 8px;
   border: 1px solid var(--cmp-border);
@@ -67,45 +67,45 @@
   color: CanvasText;
   font: inherit;
 }
-.citation-map-item-pane button {
+.meristema-item-pane button {
   cursor: pointer;
 }
-.citation-map-item-pane button:hover:not(:disabled) {
+.meristema-item-pane button:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--cmp-accent) 50%, var(--cmp-border));
   background: color-mix(in srgb, var(--cmp-accent) 8%, Canvas);
 }
-.citation-map-pane-tabs button[data-selected="true"] {
+.meristema-pane-tabs button[data-selected="true"] {
   border-color: var(--cmp-accent);
   background: color-mix(in srgb, var(--cmp-accent) 13%, Canvas);
   font-weight: 650;
 }
-.citation-map-primary-button {
+.meristema-primary-button {
   background: var(--cmp-accent) !important;
   border-color: var(--cmp-accent) !important;
   color: white !important;
 }
-.citation-map-pane-metrics {
+.meristema-pane-metrics {
   display: grid;
   grid-template-columns: minmax(125px, 1fr) auto;
   margin: 0;
 }
-.citation-map-pane-metrics dt,
-.citation-map-pane-metrics dd {
+.meristema-pane-metrics dt,
+.meristema-pane-metrics dd {
   margin: 0;
   padding: 5px 0;
   border-bottom: 1px solid var(--cmp-border);
 }
-.citation-map-pane-metrics dt {
+.meristema-pane-metrics dt {
   color: var(--cmp-muted);
 }
-.citation-map-pane-metrics dd {
+.meristema-pane-metrics dd {
   padding-left: 10px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.citation-map-pane-badges,
-.citation-map-pane-actions {
+.meristema-pane-badges,
+.meristema-pane-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -113,7 +113,7 @@
   min-width: 0;
   margin: 7px 0;
 }
-.citation-map-pane-actions > button {
+.meristema-pane-actions > button {
   min-width: 0;
   max-width: 100%;
   height: auto !important;
@@ -121,35 +121,35 @@
   white-space: normal;
   line-height: 1.2;
 }
-.citation-map-pane-badges span {
+.meristema-pane-badges span {
   padding: 2px 7px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--cmp-accent) 12%, Canvas);
   font-size: 10px;
   font-weight: 650;
 }
-.citation-map-danger-badge {
+.meristema-danger-badge {
   background: color-mix(in srgb, #dc2626 16%, Canvas) !important;
   color: #dc2626;
 }
-.citation-map-retraction-warning,
-.citation-map-match-warning {
+.meristema-retraction-warning,
+.meristema-match-warning {
   padding: 9px;
   border: 1px solid color-mix(in srgb, #dc2626 60%, var(--cmp-border));
   border-radius: 7px;
   background: color-mix(in srgb, #dc2626 7%, Canvas);
   line-height: 1.4;
 }
-.citation-map-match-warning {
+.meristema-match-warning {
   border-color: color-mix(in srgb, #b45309 60%, var(--cmp-border));
   background: color-mix(in srgb, #f59e0b 9%, Canvas);
 }
-.citation-map-match-warning p,
-.citation-map-candidate,
-.citation-map-secondary-text {
+.meristema-match-warning p,
+.meristema-candidate,
+.meristema-secondary-text {
   margin: 5px 0;
 }
-.citation-map-candidate {
+.meristema-candidate {
   display: grid;
   gap: 4px;
   padding: 7px;
@@ -157,40 +157,40 @@
   border-radius: 6px;
   background: Canvas;
 }
-.citation-map-candidate-title {
+.meristema-candidate-title {
   font-weight: 650;
 }
-.citation-map-secondary-text {
+.meristema-secondary-text {
   color: var(--cmp-muted);
   line-height: 1.35;
   font-size: 11px;
 }
-.citation-map-data-details {
+.meristema-data-details {
   margin-top: 8px;
 }
-.citation-map-data-details > summary {
+.meristema-data-details > summary {
   cursor: pointer;
   font-weight: 650;
 }
-.citation-map-relation-list {
+.meristema-relation-list {
   display: grid;
   gap: 7px;
 }
-.citation-map-relation-card {
+.meristema-relation-card {
   padding: 8px;
   border: 1px solid var(--cmp-border);
   border-radius: 7px;
   background: Canvas;
 }
-.citation-map-relation-card h4 {
+.meristema-relation-card h4 {
   margin: 0;
   font-size: 12px;
   line-height: 1.35;
 }
-.citation-map-manual-relation-title {
+.meristema-manual-relation-title {
   color: var(--cmp-manual-title);
 }
-.citation-map-relation-controls {
+.meristema-relation-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, auto) 30px;
   gap: 6px;

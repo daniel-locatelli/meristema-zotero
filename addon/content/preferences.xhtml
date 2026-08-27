@@ -6,30 +6,30 @@
   />
 </linkset>
 
-<groupbox class="citation-map-preferences citation-map-settings-section">
+<groupbox class="meristema-preferences meristema-settings-section">
   <label><html:h2 data-l10n-id="pref-general-heading"></html:h2></label>
   <checkbox
-    id="zotero-prefpane-citationmap-show-metric-tooltips"
+    id="zotero-prefpane-meristema-show-metric-tooltips"
     preference="showMetricTooltips"
     data-l10n-id="pref-show-metric-tooltips"
   />
   <description
-    class="citation-map-pref-help"
+    class="meristema-pref-help"
     data-l10n-id="pref-show-metric-tooltips-help"
   />
   <checkbox
-    id="zotero-prefpane-citationmap-debug"
+    id="zotero-prefpane-meristema-debug"
     preference="debugLogging"
     data-l10n-id="pref-debug"
   />
 
   <description
-    class="citation-map-pref-help citation-map-pref-help-unindented citation-map-general-actions-help"
+    class="meristema-pref-help meristema-pref-help-unindented meristema-general-actions-help"
     data-l10n-id="pref-general-actions-help"
   />
-  <hbox class="citation-map-pref-actions">
+  <hbox class="meristema-pref-actions">
     <html:button
-      class="citation-map-danger-button"
+      class="meristema-danger-button"
       type="button"
       data-l10n-id="pref-clear-cache"
       onclick="Zotero.CitationMap.api.clearAllCachedData()"
@@ -37,73 +37,73 @@
   </hbox>
 </groupbox>
 
-<groupbox class="citation-map-preferences citation-map-settings-section">
+<groupbox class="meristema-preferences meristema-settings-section">
   <label><html:h2 data-l10n-id="pref-field-update-heading"></html:h2></label>
 
   <html:h3 data-l10n-id="pref-update-libraries-heading"></html:h3>
   <html:div
-    id="zotero-prefpane-citationmap-update-libraries"
-    class="citation-map-update-libraries"
+    id="zotero-prefpane-meristema-update-libraries"
+    class="meristema-update-libraries"
   >
-    <html:div class="citation-map-update-library-header">
-      <html:div class="citation-map-update-library-actions">
+    <html:div class="meristema-update-library-header">
+      <html:div class="meristema-update-library-actions">
         <html:button
-          id="zotero-prefpane-citationmap-update-select-all"
+          id="zotero-prefpane-meristema-update-select-all"
           type="button"
           data-l10n-id="pref-update-libraries-select-all"
         ></html:button>
         <html:button
-          id="zotero-prefpane-citationmap-update-clear-all"
+          id="zotero-prefpane-meristema-update-clear-all"
           type="button"
           data-l10n-id="pref-update-libraries-clear-all"
         ></html:button>
       </html:div>
     </html:div>
     <html:div
-      id="zotero-prefpane-citationmap-update-library-list"
-      class="citation-map-update-library-list"
+      id="zotero-prefpane-meristema-update-library-list"
+      class="meristema-update-library-list"
     ></html:div>
     <html:div
-      id="zotero-prefpane-citationmap-update-library-status"
-      class="citation-map-pref-help citation-map-update-library-status"
+      id="zotero-prefpane-meristema-update-library-status"
+      class="meristema-pref-help meristema-update-library-status"
     ></html:div>
     <description
-      class="citation-map-pref-help citation-map-update-library-help"
+      class="meristema-pref-help meristema-update-library-help"
       data-l10n-id="pref-update-libraries-help"
     />
   </html:div>
 
   <html:h3 data-l10n-id="pref-update-behaviour-heading"></html:h3>
-  <html:label class="citation-map-parent-option">
+  <html:label class="meristema-parent-option">
     <html:input
-      id="zotero-prefpane-citationmap-automatic-updates"
+      id="zotero-prefpane-meristema-automatic-updates"
       type="checkbox"
       checked="checked"
     />
     <html:span data-l10n-id="pref-automatic-updates-text"></html:span>
   </html:label>
-  <vbox class="citation-map-pref-children">
-    <html:label class="citation-map-child-option">
+  <vbox class="meristema-pref-children">
+    <html:label class="meristema-child-option">
       <html:input
-        id="zotero-prefpane-citationmap-update-new-items"
+        id="zotero-prefpane-meristema-update-new-items"
         type="checkbox"
         checked="checked"
         data-update-pref="updateNewItems"
       />
       <html:span data-l10n-id="pref-update-new-items-text"></html:span>
     </html:label>
-    <html:label class="citation-map-child-option">
+    <html:label class="meristema-child-option">
       <html:input
-        id="zotero-prefpane-citationmap-update-modified-items"
+        id="zotero-prefpane-meristema-update-modified-items"
         type="checkbox"
         checked="checked"
         data-update-pref="updateModifiedItems"
       />
       <html:span data-l10n-id="pref-update-modified-items-text"></html:span>
     </html:label>
-    <html:label class="citation-map-child-option">
+    <html:label class="meristema-child-option">
       <html:input
-        id="zotero-prefpane-citationmap-check-stale-startup"
+        id="zotero-prefpane-meristema-check-stale-startup"
         type="checkbox"
         checked="checked"
         data-update-pref="checkStaleOnStartup"
@@ -113,13 +113,13 @@
   </vbox>
 
   <html:h3 data-l10n-id="pref-refresh-interval-heading"></html:h3>
-  <hbox class="citation-map-pref-row" align="center">
+  <hbox class="meristema-pref-row" align="center">
     <html:label
-      for="zotero-prefpane-citationmap-cache-days"
+      for="zotero-prefpane-meristema-cache-days"
       data-l10n-id="pref-cache-days"
     ></html:label>
     <html:input
-      id="zotero-prefpane-citationmap-cache-days"
+      id="zotero-prefpane-meristema-cache-days"
       type="number"
       min="1"
       max="3650"
@@ -128,18 +128,18 @@
     />
   </hbox>
   <description
-    class="citation-map-pref-help citation-map-pref-help-unindented"
+    class="meristema-pref-help meristema-pref-help-unindented"
     data-l10n-id="pref-cache-days-help"
   />
 
   <description
-    class="citation-map-pref-help citation-map-pref-help-unindented citation-map-update-action-help"
+    class="meristema-pref-help meristema-pref-help-unindented meristema-update-action-help"
     data-l10n-id="pref-update-all-help"
   />
-  <hbox class="citation-map-pref-actions">
+  <hbox class="meristema-pref-actions">
     <html:button
-      id="zotero-prefpane-citationmap-refresh-selected"
-      class="citation-map-primary-button"
+      id="zotero-prefpane-meristema-refresh-selected"
+      class="meristema-primary-button"
       type="button"
       data-l10n-id="pref-refresh-all"
       onclick="Zotero.CitationMap.api.refreshAll()"
@@ -147,25 +147,25 @@
   </hbox>
 </groupbox>
 
-<groupbox class="citation-map-preferences citation-map-settings-section">
+<groupbox class="meristema-preferences meristema-settings-section">
   <label><html:h2 data-l10n-id="pref-providers-heading"></html:h2></label>
 
   <html:h3 data-l10n-id="pref-selected-providers-heading"></html:h3>
-  <html:div class="citation-map-provider-list">
-    <html:label class="citation-map-provider-option citation-map-provider-all">
+  <html:div class="meristema-provider-list">
+    <html:label class="meristema-provider-option meristema-provider-all">
       <html:input
-        id="zotero-prefpane-citationmap-provider-all"
+        id="zotero-prefpane-meristema-provider-all"
         type="checkbox"
         checked="checked"
       />
       <html:span data-l10n-id="pref-provider-all"></html:span>
     </html:label>
 
-    <html:div class="citation-map-provider-children">
-      <html:div class="citation-map-provider-entry">
-        <html:label class="citation-map-provider-option">
+    <html:div class="meristema-provider-children">
+      <html:div class="meristema-provider-entry">
+        <html:label class="meristema-provider-option">
           <html:input
-            id="zotero-prefpane-citationmap-provider-crossref"
+            id="zotero-prefpane-meristema-provider-crossref"
             type="checkbox"
             checked="checked"
             data-provider-pref="providerCrossrefEnabled"
@@ -175,26 +175,26 @@
       </html:div>
 
       <html:div
-        class="citation-map-provider-entry citation-map-provider-entry-with-key"
+        class="meristema-provider-entry meristema-provider-entry-with-key"
       >
-        <html:label class="citation-map-provider-option">
+        <html:label class="meristema-provider-option">
           <html:input
-            id="zotero-prefpane-citationmap-provider-semantic-scholar"
+            id="zotero-prefpane-meristema-provider-semantic-scholar"
             type="checkbox"
             checked="checked"
             data-provider-pref="providerSemanticScholarEnabled"
           />
           <html:span data-l10n-id="pref-provider-semantic-scholar"></html:span>
         </html:label>
-        <html:div class="citation-map-provider-credential-row">
+        <html:div class="meristema-provider-credential-row">
           <html:label
-            class="citation-map-provider-key-label"
-            for="zotero-prefpane-citationmap-semantic-scholar-api-key"
+            class="meristema-provider-key-label"
+            for="zotero-prefpane-meristema-semantic-scholar-api-key"
             data-l10n-id="pref-semantic-scholar-api-key"
           ></html:label>
           <html:input
-            class="citation-map-provider-key-input"
-            id="zotero-prefpane-citationmap-semantic-scholar-api-key"
+            class="meristema-provider-key-input"
+            id="zotero-prefpane-meristema-semantic-scholar-api-key"
             type="password"
             preference="semanticScholarAPIKey"
             autocomplete="off"
@@ -202,15 +202,15 @@
           />
         </html:div>
         <description
-          class="citation-map-pref-help citation-map-provider-key-help"
+          class="meristema-pref-help meristema-provider-key-help"
           data-l10n-id="pref-semantic-scholar-api-key-help"
         />
       </html:div>
 
-      <html:div class="citation-map-provider-entry">
-        <html:label class="citation-map-provider-option">
+      <html:div class="meristema-provider-entry">
+        <html:label class="meristema-provider-option">
           <html:input
-            id="zotero-prefpane-citationmap-provider-opencitations"
+            id="zotero-prefpane-meristema-provider-opencitations"
             type="checkbox"
             checked="checked"
             data-provider-pref="providerOpenCitationsEnabled"
@@ -219,10 +219,10 @@
         </html:label>
       </html:div>
 
-      <html:div class="citation-map-provider-entry">
-        <html:label class="citation-map-provider-option">
+      <html:div class="meristema-provider-entry">
+        <html:label class="meristema-provider-option">
           <html:input
-            id="zotero-prefpane-citationmap-provider-inspire"
+            id="zotero-prefpane-meristema-provider-inspire"
             type="checkbox"
             checked="checked"
             data-provider-pref="providerInspireEnabled"
@@ -232,35 +232,33 @@
       </html:div>
 
       <html:div
-        class="citation-map-provider-entry citation-map-provider-entry-with-key"
+        class="meristema-provider-entry meristema-provider-entry-with-key"
       >
-        <html:label class="citation-map-provider-option">
+        <html:label class="meristema-provider-option">
           <html:input
-            id="zotero-prefpane-citationmap-provider-openalex"
+            id="zotero-prefpane-meristema-provider-openalex"
             type="checkbox"
             checked="checked"
             data-provider-pref="providerOpenAlexEnabled"
           />
           <html:span data-l10n-id="pref-provider-openalex"></html:span>
         </html:label>
-        <html:div class="citation-map-provider-credential-row">
+        <html:div class="meristema-provider-credential-row">
           <html:label
-            class="citation-map-provider-key-label"
-            for="zotero-prefpane-citationmap-openalex-api-key"
+            class="meristema-provider-key-label"
+            for="zotero-prefpane-meristema-openalex-api-key"
             data-l10n-id="pref-openalex-api-key"
           ></html:label>
           <html:input
-            class="citation-map-provider-key-input"
-            id="zotero-prefpane-citationmap-openalex-api-key"
+            class="meristema-provider-key-input"
+            id="zotero-prefpane-meristema-openalex-api-key"
             type="password"
             preference="openAlexAPIKey"
             autocomplete="off"
             spellcheck="false"
           />
         </html:div>
-        <description
-          class="citation-map-pref-help citation-map-provider-key-help"
-        >
+        <description class="meristema-pref-help meristema-provider-key-help">
           <html:span data-l10n-id="pref-openalex-api-key-help"></html:span>
           <html:span>&#160;</html:span>
           <html:a
@@ -276,23 +274,23 @@
     </html:div>
 
     <html:div
-      id="zotero-prefpane-citationmap-provider-status"
-      class="citation-map-pref-help citation-map-provider-status"
+      id="zotero-prefpane-meristema-provider-status"
+      class="meristema-pref-help meristema-provider-status"
     ></html:div>
     <description
-      class="citation-map-pref-help citation-map-provider-status"
+      class="meristema-pref-help meristema-provider-status"
       data-l10n-id="pref-provider-selection-help"
     />
   </html:div>
 
   <html:h3 data-l10n-id="pref-matching-heading"></html:h3>
   <checkbox
-    id="zotero-prefpane-citationmap-title-fallback"
+    id="zotero-prefpane-meristema-title-fallback"
     preference="exactTitleFallback"
     data-l10n-id="pref-title-fallback"
   />
   <description
-    class="citation-map-pref-help"
+    class="meristema-pref-help"
     data-l10n-id="pref-title-fallback-help"
   />
 </groupbox>

@@ -79,11 +79,11 @@ function ensureSpinnerStyle(document: Document): void {
   const style = element(document, "style");
   style.id = SPINNER_STYLE_ID;
   style.textContent = `
-    @keyframes citation-map-update-spin {
+    @keyframes meristema-update-spin {
       to { transform: rotate(360deg); }
     }
 
-    .citation-map-progress-spinner {
+    .meristema-progress-spinner {
       display: inline-block;
       width: 16px;
       height: 16px;
@@ -92,11 +92,11 @@ function ensureSpinnerStyle(document: Document): void {
       border-top-color: currentColor;
       border-radius: 50%;
       transform-origin: 50% 50%;
-      animation: citation-map-update-spin .78s linear infinite;
+      animation: meristema-update-spin .78s linear infinite;
       flex: 0 0 16px;
     }
 
-    .citation-map-progress-action {
+    .meristema-progress-action {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -113,29 +113,29 @@ function ensureSpinnerStyle(document: Document): void {
         transform 120ms ease;
     }
 
-    .citation-map-progress-action:hover {
+    .meristema-progress-action:hover {
       background: color-mix(in srgb, CanvasText 10%, transparent);
     }
 
-    .citation-map-progress-action:active {
+    .meristema-progress-action:active {
       transform: scale(.94);
     }
 
-    .citation-map-progress-action:focus-visible {
+    .meristema-progress-action:focus-visible {
       outline: 2px solid Highlight;
       outline-offset: 1px;
     }
 
-    .citation-map-progress-action-danger {
+    .meristema-progress-action-danger {
       color: #d70022;
     }
 
-    .citation-map-progress-action-danger:hover {
+    .meristema-progress-action-danger:hover {
       background: color-mix(in srgb, #d70022 14%, transparent);
       color: #e5484d;
     }
 
-    .citation-map-progress-action svg {
+    .meristema-progress-action svg {
       width: 17px;
       height: 17px;
       flex: 0 0 17px;
@@ -283,8 +283,8 @@ function makeButton(
 ): HTMLButtonElement {
   const button = element(document, "button");
   button.type = "button";
-  button.className = `citation-map-progress-action${
-    danger ? " citation-map-progress-action-danger" : ""
+  button.className = `meristema-progress-action${
+    danger ? " meristema-progress-action-danger" : ""
   }`;
   button.title = label;
   button.setAttribute("aria-label", label);
@@ -302,7 +302,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   }
 
   const root = element(document, "div");
-  root.className = "citation-map-progress-window";
+  root.className = "meristema-progress-window";
   root.setAttribute("role", "status");
   root.setAttribute("aria-live", "polite");
   Object.assign(root.style, {
@@ -346,7 +346,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   heading.textContent = "Updating Entries";
   heading.style.display = "block";
   const spinner = element(document, "span");
-  spinner.className = "citation-map-progress-spinner";
+  spinner.className = "meristema-progress-spinner";
   spinner.title = "Update in progress";
   spinner.setAttribute("role", "img");
   spinner.setAttribute("aria-label", spinner.title);
