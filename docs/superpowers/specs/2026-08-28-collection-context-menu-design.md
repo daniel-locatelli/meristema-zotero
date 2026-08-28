@@ -52,7 +52,7 @@ A row is a folder if and only if:
 context.collectionTreeRow?.isCollection?.() === true
 ```
 
-The collection is then `row.ref`. There is no fallback to the pane's selection,
+The collection ID is then read off `row.ref`. There is no fallback to the pane's selection,
 no chain of alternative candidate keys, and no attempt to recover a collection
 from a row that is not one. `Zotero.CollectionTreeRow` distinguishes
 `isCollection()` from `isLibrary()`, `isSearch()`, `isTrash()`, `isDuplicates()`,
@@ -136,9 +136,14 @@ two narrower seams:
 generic type parameters; net growth around 40 lines.
 
 The two context predicates move to a new `src/services/menuContext.ts`:
-`contextRegularItems(context)` and `contextCollection(context)`. They are pure
+`contextRegularItems(context)` and `contextCollectionID(context)`. They are pure
 functions of a menu context, they are where the bug lived, and separating them
 keeps `menuService.ts` about menu construction.
+
+`contextCollectionID` returns the numeric ID rather than a `Zotero.Collection`.
+`openGraphForCollection` looks the collection up itself, so returning the ID
+keeps `menuContext.ts` free of every Zotero global and leaves both predicates
+unit-testable against plain object literals.
 
 ## Testing
 
@@ -146,10 +151,10 @@ keeps `menuService.ts` about menu construction.
 fake contexts. The cases are the regression suite for "the menu showed up on
 everything":
 
-- `contextCollection` returns the collection for a row whose `isCollection()` is
-  true, and `null` for a library row, a saved-search row, a trash row, a
-  duplicates row, an absent `collectionTreeRow`, and a row whose `ref` carries no
-  usable ID.
+- `contextCollectionID` returns the ID for a row whose `isCollection()` is true,
+  and `null` for a library row, a saved-search row, a trash row, a duplicates
+  row, an absent `collectionTreeRow`, and a row whose `ref` carries no usable
+  ID.
 - `contextRegularItems` returns only regular, non-trashed items; `[]` for a note,
   an attachment, a trashed paper, an empty array, and a missing `items` key.
 - Neither function consults `ZoteroPane`. The fake contexts carry no pane, so a
