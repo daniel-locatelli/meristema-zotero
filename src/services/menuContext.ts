@@ -29,33 +29,37 @@ export function contextRegularItems(context: any): Zotero.Item[] {
 }
 
 /**
- * The ID of the collection the user right-clicked, or null when the row is
- * anything else: a library or group root, a saved search, Trash, Unfiled
- * Items, Duplicate Items, Publications, a feed.
+ * The IDs of the folders the user right-clicked, in selection order, or an
+ * empty list when the selection is anything else: a library or group root, a
+ * saved search, Trash, Unfiled Items, Duplicate Items, Publications, a feed.
  *
- * Zotero supplies the selected rows as `collectionTreeRows`, an array,
- * because the collection tree supports multi-select. Earlier builds supplied
- * a single `collectionTreeRow`, and current ones make that name THROW rather
- * than return undefined — so the singular is read second and only as a
- * fallback for older builds. Reading it first yields an exception on every
- * modern build, which `contextValue` turns into null and the menu into
- * silence.
+ * Zotero supplies the selected rows as `collectionTreeRows`, an array, because
+ * the collection tree supports multi-select. Earlier builds supplied a single
+ * `collectionTreeRow`, and current ones make that name THROW rather than
+ * return undefined — so the singular is read second and only as a fallback for
+ * older builds. Reading it first yields an exception on every modern build,
+ * which `contextValue` turns into null and the menu into silence.
  *
- * A multi-selection is not a match. There is no single right-clicked folder
- * to scope a graph to, and choosing one of several arbitrarily would open a
- * graph the user did not ask for.
+ * A mixed selection yields nothing rather than the folders it could find.
+ * Graphing two folders and quietly dropping the Trash row the user also
+ * selected would break the rule learned from the single-row case: the entry
+ * appears when what you right-clicked is folders.
  *
- * Returns the ID rather than the collection so this module needs no Zotero
- * globals. `openGraphForCollection` performs the lookup itself.
+ * Returns IDs rather than collections so this module needs no Zotero globals.
+ * `openGraphForCollections` performs the lookup itself.
  */
-export function contextCollectionID(context: any): number | null {
+export function contextCollectionIDs(context: any): number[] {
   const rows = contextValue(context, "collectionTreeRows");
-  const row = Array.isArray(rows)
-    ? rows.length === 1
-      ? rows[0]
-      : null
-    : contextValue(context, "collectionTreeRow");
-  if (row?.isCollection?.() !== true) return null;
-  const ref = contextValue(row, "ref");
-  return positiveInteger(ref?.id ?? ref?.collectionID);
+  const selected = Array.isArray(rows)
+    ? rows
+    : [contextValue(context, "collectionTreeRow")];
+  const ids: number[] = [];
+  for (const row of selected) {
+    if (row?.isCollection?.() !== true) return [];
+    const ref = contextValue(row, "ref");
+    const id = positiveInteger(ref?.id ?? ref?.collectionID);
+    if (id === null) return [];
+    ids.push(id);
+  }
+  return ids;
 }

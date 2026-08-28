@@ -39,6 +39,28 @@ export function collectionGraphTitle(name: unknown): string | null {
 }
 
 /**
+ * The name a graph scoped to several folders carries: the first folder, then
+ * how many more. "PhD" and "Reading" give "PhD +1 Graph".
+ *
+ * Listing every folder would outgrow a tab as soon as there were three, and
+ * truncating mid-name reads worse than a count. One folder is delegated to
+ * `collectionGraphTitle` so the single-folder wording is unchanged.
+ */
+export function multiCollectionGraphTitle(
+  names: readonly unknown[],
+): string | null {
+  const named = names.map((name) => String(name ?? "").trim()).filter(Boolean);
+  if (!named.length) return null;
+  if (named.length === 1) return collectionGraphTitle(named[0]);
+  const words = named[0].split(/\s+/);
+  const stem =
+    words.length > 1 && words.at(-1)?.toLowerCase() === "graph"
+      ? words.slice(0, -1).join(" ")
+      : named[0];
+  return `${stem} +${named.length - 1} Graph`;
+}
+
+/**
  * Return a stable, human-readable default title without reusing an existing
  * title. The first view keeps the unnumbered base name; later views use 2, 3,
  * and so on.

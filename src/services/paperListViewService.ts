@@ -43,7 +43,8 @@ export interface PaperListDescriptor {
 }
 
 export interface PaperListFilterState {
-  collectionID: number | null;
+  /** Folders the view is scoped to. Empty means the whole library. */
+  collectionIDs: number[];
   tag: string | null;
   relation: PaperRelationFilter;
   itemType: string | null;
@@ -84,7 +85,7 @@ export interface PaperFilterController {
   matches(descriptor: PaperListDescriptor): boolean;
   state(): PaperListFilterState;
   hasActiveFilters(): boolean;
-  setCollectionID(collectionID: number | null): void;
+  setCollectionIDs(collectionIDs: readonly number[]): void;
   reset(): void;
   destroy(): void;
 }
@@ -628,7 +629,7 @@ function descriptorSearchText(descriptor: PaperListDescriptor): string {
 
 function activeFilterCount(state: PaperListFilterState): number {
   return [
-    state.collectionID !== null,
+    state.collectionIDs.length > 0,
     Boolean(state.tag),
     state.relation !== "all",
     Boolean(state.itemType),
@@ -641,9 +642,49 @@ function activeFilterCount(state: PaperListFilterState): number {
   ].filter(Boolean).length;
 }
 
+/**
+ * The collection IDs a scope admits: every selected folder, plus every
+ * descendant of it that the library snapshot recorded.
+ *
+ * Several folders union rather than intersect. Scoping a graph to PhD and
+ * Reading asks for both bodies of work; the papers filed in both at once are
+ * usually none, which would draw an empty graph.
+ *
+ * A folder the snapshot does not know still admits itself, so a stale ID
+ * narrows the graph rather than emptying it. Empty in, empty out: an empty
+ * scope is the whole library, and callers skip the dimension entirely rather
+ * than matching against nothing.
+ */
+export function collectionScopeIDs(
+  collectionIDs: readonly number[],
+  collections: readonly LibraryCollectionFilter[],
+): Set<number> {
+  const scope = new Set<number>();
+  for (const collectionID of collectionIDs) {
+    const collection = collections.find(
+      (candidate) => candidate.collectionID === collectionID,
+    );
+    const included = collection?.includedCollectionIDs?.length
+      ? collection.includedCollectionIDs
+      : [collectionID];
+    for (const id of included) scope.add(id);
+  }
+  return scope;
+}
+
+/** Order-insensitive comparison, so reselecting the same folders is a no-op. */
+export function sameCollectionScope(
+  a: readonly number[],
+  b: readonly number[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const seen = new Set(a);
+  return b.every((id) => seen.has(id));
+}
+
 function defaultFilterState(): PaperListFilterState {
   return {
-    collectionID: null,
+    collectionIDs: [],
     tag: null,
     relation: "all",
     itemType: null,
@@ -662,11 +703,12 @@ function appendOption(
   select: HTMLSelectElement,
   label: string,
   value: string,
-): void {
+): HTMLOptionElement {
   const option = element(document, "option");
   option.value = value;
   option.textContent = label;
   select.appendChild(option);
+  return option;
 }
 
 function appendLabelledControl(
@@ -812,26 +854,40 @@ export function createPaperFilterController(
     const collections = options.collections ?? [];
     const collectionSelect = element(document, "select");
     collectionSelect.dataset.meristemaFilterSelect = "true";
-    appendOption(document, collectionSelect, "Whole library", "");
+    // Multi-select rather than a dropdown with a "Whole library" row: the
+    // scope is a set of folders, and selecting none already means the whole
+    // library. A "Whole library" option inside a multi-select would be a
+    // second, contradictory way to say the same thing.
+    collectionSelect.multiple = true;
+    collectionSelect.size = Math.min(Math.max(collections.length, 3), 8);
+    const scope = new Set(filters.collectionIDs);
     for (const collection of collections) {
-      appendOption(
+      const option = appendOption(
         document,
         collectionSelect,
         indentedCollectionLabel(collection),
         String(collection.collectionID),
       );
+      option.selected = scope.has(collection.collectionID);
     }
-    collectionSelect.value =
-      filters.collectionID === null ? "" : String(filters.collectionID);
     const commitCollection = (): void => {
-      const next = numberOrNull(collectionSelect.value);
-      if (next === filters.collectionID) return;
-      filters.collectionID = next;
+      const next = (
+        Array.from(collectionSelect.selectedOptions) as HTMLOptionElement[]
+      )
+        .map((option) => Number(option.value))
+        .filter((id) => Number.isInteger(id) && id > 0);
+      if (sameCollectionScope(next, filters.collectionIDs)) return;
+      filters.collectionIDs = next;
       updateFilterButton();
       options.onChange();
     };
     listenForSelectCommit(collectionSelect, commitCollection);
-    appendLabelledControl(document, menu, "Collection", collectionSelect);
+    appendLabelledControl(
+      document,
+      menu,
+      "Collections (none = whole library)",
+      collectionSelect,
+    );
 
     const tagSelect = element(document, "select");
     tagSelect.dataset.meristemaFilterSelect = "true";
@@ -1086,20 +1142,12 @@ export function createPaperFilterController(
   );
   updateFilterButton();
 
-  const collectionIDsForFilter = (collectionID: number): Set<number> => {
-    const collection = (options.collections ?? []).find(
-      (candidate) => candidate.collectionID === collectionID,
-    );
-    return new Set(
-      collection?.includedCollectionIDs?.length
-        ? collection.includedCollectionIDs
-        : [collectionID],
-    );
-  };
-
   const matches = (descriptor: PaperListDescriptor): boolean => {
-    if (filters.collectionID !== null) {
-      const allowedCollections = collectionIDsForFilter(filters.collectionID);
+    if (filters.collectionIDs.length) {
+      const allowedCollections = collectionScopeIDs(
+        filters.collectionIDs,
+        options.collections ?? [],
+      );
       if (!descriptor.collectionIDs.some((id) => allowedCollections.has(id))) {
         return false;
       }
@@ -1154,13 +1202,14 @@ export function createPaperFilterController(
     matches,
     state: () => ({ ...filters }),
     hasActiveFilters: () => activeFilterCount(filters) > 0,
-    setCollectionID: (collectionID) => {
-      const normalized =
-        collectionID !== null && Number.isInteger(collectionID)
-          ? collectionID
-          : null;
-      if (filters.collectionID === normalized) return;
-      filters.collectionID = normalized;
+    setCollectionIDs: (collectionIDs) => {
+      const normalized = [
+        ...new Set(
+          collectionIDs.filter((id) => Number.isInteger(id) && id > 0),
+        ),
+      ];
+      if (sameCollectionScope(filters.collectionIDs, normalized)) return;
+      filters.collectionIDs = normalized;
       updateFilterButton();
       filterPopup.close();
       options.onChange();

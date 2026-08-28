@@ -15,7 +15,7 @@ import {
   type GraphViewKind,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
-  collectionGraphTitle,
+  multiCollectionGraphTitle,
   nextGraphViewTitle,
   selectReusableGraphInstance,
 } from "./graphInstancePolicy";
@@ -38,7 +38,7 @@ interface GraphInstanceState {
   pendingSelectionItemIDs: number[];
   pendingSelectionMode: "replace" | "add";
   pendingFocusItemIDs: number[];
-  pendingCollectionID: number | null;
+  pendingCollectionIDs: number[];
   mapScopeItemIDs: number[] | null;
   mapPinnedItemIDs: number[];
   detachedWindow: Window | null;
@@ -89,7 +89,7 @@ function createGraphInstance(
     pendingSelectionItemIDs: [],
     pendingSelectionMode: "replace",
     pendingFocusItemIDs: [],
-    pendingCollectionID: null,
+    pendingCollectionIDs: [],
     mapScopeItemIDs: null,
     mapPinnedItemIDs: [],
     detachedWindow: null,
@@ -106,7 +106,7 @@ interface PendingGraphRequest {
   selectionItemIDs: number[];
   selectionMode: "replace" | "add";
   focusItemIDs: number[];
-  collectionID: number | null;
+  collectionIDs: number[];
 }
 
 function consumePendingRequest(state: GraphInstanceState): PendingGraphRequest {
@@ -114,12 +114,12 @@ function consumePendingRequest(state: GraphInstanceState): PendingGraphRequest {
     selectionItemIDs: [...state.pendingSelectionItemIDs],
     selectionMode: state.pendingSelectionMode,
     focusItemIDs: [...state.pendingFocusItemIDs],
-    collectionID: state.pendingCollectionID,
+    collectionIDs: [...state.pendingCollectionIDs],
   };
   state.pendingSelectionItemIDs = [];
   state.pendingSelectionMode = "replace";
   state.pendingFocusItemIDs = [];
-  state.pendingCollectionID = null;
+  state.pendingCollectionIDs = [];
   return request;
 }
 
@@ -322,7 +322,7 @@ function renderDetachedWindow(
     selectionItemIDs: [],
     selectionMode: "replace",
     focusItemIDs: [],
-    collectionID: null,
+    collectionIDs: [],
   },
 ): void {
   const popup = instance.detachedWindow;
@@ -350,7 +350,7 @@ function renderDetachedWindow(
       instance.mapPinnedItemIDs = [...pinnedItemIDs];
     },
     initialFocusItemIDs: request.focusItemIDs,
-    initialCollectionID: request.collectionID,
+    initialCollectionIDs: request.collectionIDs,
   });
   installGraphLibraryFilter(
     popup.document,
@@ -371,7 +371,7 @@ async function openDetachedGraphWindow(
     selectionItemIDs: [],
     selectionMode: "replace",
     focusItemIDs: [],
-    collectionID: null,
+    collectionIDs: [],
   },
 ): Promise<void> {
   if (
@@ -735,7 +735,7 @@ function renderTab(
         instance.mapPinnedItemIDs = [...pinnedItemIDs];
       },
       initialFocusItemIDs: request.focusItemIDs,
-      initialCollectionID: request.collectionID,
+      initialCollectionIDs: request.collectionIDs,
     });
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
@@ -807,13 +807,13 @@ function activateGraphItems(
 function activateGraphCollection(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
-  collectionID: number,
+  collectionIDs: readonly number[],
 ): boolean {
   const mount = instanceMount(win, instance);
   if (!mount) return false;
   const controller = getGraphViewController(mount);
   controller?.setActive(true);
-  const result = controller?.openCollection(collectionID);
+  const result = controller?.openCollections(collectionIDs);
   if (!result || result === "not-found") return false;
   activateInstance(win, instance);
   return true;
@@ -858,7 +858,7 @@ function setPendingRequest(
   instance.pendingSelectionItemIDs = [...request.selectionItemIDs];
   instance.pendingSelectionMode = request.selectionMode;
   instance.pendingFocusItemIDs = [...request.focusItemIDs];
-  instance.pendingCollectionID = request.collectionID;
+  instance.pendingCollectionIDs = [...request.collectionIDs];
 }
 
 function emptyRequest(): PendingGraphRequest {
@@ -866,7 +866,7 @@ function emptyRequest(): PendingGraphRequest {
     selectionItemIDs: [],
     selectionMode: "replace",
     focusItemIDs: [],
-    collectionID: null,
+    collectionIDs: [],
   };
 }
 
@@ -961,7 +961,7 @@ export async function openGraphWindow(
     selectionItemIDs: [...instance.pendingSelectionItemIDs],
     selectionMode: instance.pendingSelectionMode,
     focusItemIDs: [...instance.pendingFocusItemIDs],
-    collectionID: instance.pendingCollectionID,
+    collectionIDs: [...instance.pendingCollectionIDs],
   };
   const result: any = manager.add({
     id: instance.instanceID,
@@ -983,7 +983,7 @@ export async function openGraphWindow(
       instance.pendingSelectionItemIDs = [];
       instance.pendingSelectionMode = "replace";
       instance.pendingFocusItemIDs = [];
-      instance.pendingCollectionID = null;
+      instance.pendingCollectionIDs = [];
       instance.mapScopeItemIDs = null;
       instance.mapPinnedItemIDs = [];
       if (!instance.detachedWindow || instance.detachedWindow.closed) {
@@ -1201,32 +1201,39 @@ export async function openFocusItemsInView(
   });
 }
 
-export async function openGraphForCollection(
-  collectionID: number,
+export async function openGraphForCollections(
+  collectionIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
   options: OpenItemViewOptions = {},
 ): Promise<void> {
   const win = hostWindow ?? defaultMainWindow();
-  const collection = Zotero.Collections.get(collectionID) as any;
-  if (!collection) {
-    throw new Error("The selected Zotero collection is unavailable.");
+  const collections = collectionIDs.map(
+    (collectionID) => Zotero.Collections.get(collectionID) as any,
+  );
+  // All or nothing. Graphing the folders that happen to resolve would show a
+  // scope the user did not ask for, and silently at that.
+  if (!collections.length || collections.some((collection) => !collection)) {
+    throw new Error("The selected Zotero collections are unavailable.");
   }
   const libraryID =
-    positiveInteger(collection.libraryID) ?? selectedLibraryID(win);
+    positiveInteger(collections[0].libraryID) ?? selectedLibraryID(win);
   const instance = itemCommandInstance(win, options);
   if (
     instance?.libraryID === libraryID &&
-    activateGraphCollection(win, instance, collectionID)
+    activateGraphCollection(win, instance, collectionIDs)
   ) {
     return;
   }
   await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
-    titleBase: collectionGraphTitle(collection?.name) ?? undefined,
+    titleBase:
+      multiCollectionGraphTitle(
+        collections.map((collection) => collection?.name),
+      ) ?? undefined,
     request: {
       ...emptyRequest(),
-      collectionID,
+      collectionIDs: [...collectionIDs],
     },
   });
 }

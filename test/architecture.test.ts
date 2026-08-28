@@ -40,6 +40,7 @@ import {
   semanticScholarIdentifierForWork,
   shortOpenAlexID,
 } from "../src/providers/providerIdentifiers";
+import { collectionScopeIDs } from "../src/services/paperListViewService";
 import { getExternalWorkNodeLabel } from "../src/services/externalWorkMetricRegistry";
 import { decodeRelatedWorkMetadata } from "../src/services/cacheDecoders";
 import {
@@ -56,7 +57,7 @@ import {
   assignGraphCitationSequence,
 } from "../src/services/citationSequenceService";
 import {
-  contextCollectionID,
+  contextCollectionIDs,
   contextRegularItems,
 } from "../src/services/menuContext";
 import { getMetricDefinition } from "../src/services/metricRegistry";
@@ -97,6 +98,7 @@ import {
 } from "../src/services/citationUpdateEvents";
 import {
   collectionGraphTitle,
+  multiCollectionGraphTitle,
   nextGraphViewTitle,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
@@ -350,6 +352,63 @@ describe("Architecture foundations", function () {
     expect(
       nextGraphViewTitle("focus", ["Collection Graph", "Explore"]),
     ).to.equal("Explore 2");
+  });
+
+  it("names a multi-folder graph after the first folder and a count", function () {
+    // One folder reads exactly as it did before this feature existed.
+    expect(multiCollectionGraphTitle(["PhD"])).to.equal("PhD Graph");
+    // Several stay readable in a tab: the first name, then how many more.
+    expect(multiCollectionGraphTitle(["PhD", "Reading"])).to.equal(
+      "PhD +1 Graph",
+    );
+    expect(multiCollectionGraphTitle(["PhD", "Reading", "Archive"])).to.equal(
+      "PhD +2 Graph",
+    );
+    // A folder already named like a graph is not doubled, and the count still
+    // reflects the others.
+    expect(multiCollectionGraphTitle(["Reading Graph", "PhD"])).to.equal(
+      "Reading +1 Graph",
+    );
+    // Blank names are ignored rather than counted as folders.
+    expect(multiCollectionGraphTitle(["PhD", "   ", ""])).to.equal("PhD Graph");
+    expect(multiCollectionGraphTitle([])).to.equal(null);
+    expect(multiCollectionGraphTitle(["  "])).to.equal(null);
+  });
+
+  it("unions the folders a graph is scoped to", function () {
+    const collections = [
+      { collectionID: 1, includedCollectionIDs: [1, 11, 12] }, // PhD + children
+      { collectionID: 2, includedCollectionIDs: [2] }, // Reading, no children
+      { collectionID: 3, includedCollectionIDs: [] }, // no expansion recorded
+    ] as any;
+
+    // Several folders admit the union of their papers, not the intersection.
+    // Asking for PhD and Reading asks for both bodies of work; the papers filed
+    // in both at once are usually none.
+    expect(
+      [...collectionScopeIDs([1, 2], collections)].sort((a, b) => a - b),
+    ).to.deep.equal([1, 2, 11, 12]);
+
+    // Subcollections come along, for every selected folder.
+    expect(
+      [...collectionScopeIDs([1], collections)].sort((a, b) => a - b),
+    ).to.deep.equal([1, 11, 12]);
+
+    // A folder with no recorded expansion still admits itself.
+    expect([...collectionScopeIDs([3], collections)]).to.deep.equal([3]);
+
+    // An unknown folder admits itself rather than nothing, so a stale ID
+    // narrows the graph instead of emptying it.
+    expect([...collectionScopeIDs([99], collections)]).to.deep.equal([99]);
+
+    // Overlapping expansions are not double counted.
+    expect(
+      [...collectionScopeIDs([1, 1], collections)].sort((a, b) => a - b),
+    ).to.deep.equal([1, 11, 12]);
+
+    // Empty in, empty out. An empty scope is the whole library, and the caller
+    // skips the dimension rather than matching nothing.
+    expect([...collectionScopeIDs([], collections)]).to.deep.equal([]);
   });
 
   it("builds a folder's graph name from the folder name", function () {
@@ -1638,94 +1697,83 @@ describe("Architecture foundations", function () {
     expect(contextRegularItems(withPane)).to.deep.equal([]);
   });
 
-  it("reads folders from the multi-select collection rows Zotero supplies", function () {
+  it("reads every right-clicked folder from the collection rows", function () {
     // Zotero replaced the singular `collectionTreeRow` with a plural
     // `collectionTreeRows`, and made the old name THROW rather than return
     // undefined. A predicate that reads the singular name gets an exception,
     // not a value, so the menu silently never appears.
-    const collectionRow = {
+    const folder = (id: number) => ({
       isCollection: () => true,
-      ref: { id: 42, libraryID: 1 },
-    };
+      ref: { id, libraryID: 1 },
+    });
     const context = {
       get collectionTreeRow(): never {
         throw new Error(
           "collectionTreeRow was removed -- use collectionTreeRows",
         );
       },
-      collectionTreeRows: [collectionRow],
+      collectionTreeRows: [folder(42)],
     };
-    expect(contextCollectionID(context)).to.equal(42);
+    expect(contextCollectionIDs(context)).to.deep.equal([42]);
 
-    // Non-collection rows still fail, which is the original regression.
-    for (const row of [
-      { isCollection: () => false, ref: { libraryID: 1 } },
-      { isCollection: () => false, ref: { id: 7 } },
-      { isCollection: () => false, ref: {} },
-    ]) {
-      expect(contextCollectionID({ collectionTreeRows: [row] })).to.equal(null);
-    }
-
-    // A multi-selection has no single right-clicked folder to scope a graph
-    // to, so it is not a match. Picking one of several arbitrarily would open
-    // a graph the user did not ask for.
+    // Several folders come back in selection order, so the graph is named
+    // after the folder the user selected first.
     expect(
-      contextCollectionID({
-        collectionTreeRows: [collectionRow, collectionRow],
+      contextCollectionIDs({
+        collectionTreeRows: [folder(42), folder(7), folder(9)],
       }),
-    ).to.equal(null);
+    ).to.deep.equal([42, 7, 9]);
 
-    expect(contextCollectionID({ collectionTreeRows: [] })).to.equal(null);
-    expect(
-      contextCollectionID({ collectionTreeRows: "not an array" }),
-    ).to.equal(null);
-  });
-
-  it("treats only real collection rows as folders", function () {
-    const collectionRow = {
-      isCollection: () => true,
-      ref: { id: 42, libraryID: 1 },
-    };
-    expect(contextCollectionID({ collectionTreeRow: collectionRow })).to.equal(
-      42,
-    );
-
-    // Every other row type in the collection tree fails the predicate. These
-    // are the rows the menu used to appear on.
+    // Every other row type still fails, which is the original regression.
     for (const row of [
-      { isCollection: () => false, ref: { libraryID: 1 } }, // My Library / group root
+      { isCollection: () => false, ref: { libraryID: 1 } }, // My Library
       { isCollection: () => false, ref: { id: 7 } }, // saved search
       { isCollection: () => false, ref: {} }, // Trash, Unfiled, Duplicates
+      { isCollection: () => true, ref: {} }, // collection with no usable ID
+      { isCollection: () => true, ref: { id: 0 } },
+      {}, // not a tree row at all
     ]) {
-      expect(contextCollectionID({ collectionTreeRow: row })).to.equal(null);
+      expect(contextCollectionIDs({ collectionTreeRows: [row] })).to.deep.equal(
+        [],
+      );
     }
 
-    // A collection row with no usable ID is not a folder either.
+    // A MIXED selection is not a folder selection. Graphing the folders it
+    // could find and ignoring Trash would break the rule the user learned in
+    // the single-row case.
     expect(
-      contextCollectionID({
-        collectionTreeRow: { isCollection: () => true, ref: {} },
+      contextCollectionIDs({
+        collectionTreeRows: [
+          folder(42),
+          { isCollection: () => false, ref: {} },
+        ],
       }),
-    ).to.equal(null);
-    expect(
-      contextCollectionID({
-        collectionTreeRow: { isCollection: () => true, ref: { id: 0 } },
-      }),
-    ).to.equal(null);
+    ).to.deep.equal([]);
 
-    // A row that is not a tree row at all.
-    expect(contextCollectionID({ collectionTreeRow: {} })).to.equal(null);
-    expect(contextCollectionID({})).to.equal(null);
-    expect(contextCollectionID(null)).to.equal(null);
+    expect(contextCollectionIDs({ collectionTreeRows: [] })).to.deep.equal([]);
+    expect(contextCollectionIDs({ collectionTreeRows: "nope" })).to.deep.equal(
+      [],
+    );
+    expect(contextCollectionIDs({})).to.deep.equal([]);
+    expect(contextCollectionIDs(null)).to.deep.equal([]);
+
+    // Older builds supplied a single row under the singular name.
+    expect(
+      contextCollectionIDs({ collectionTreeRow: folder(42) }),
+    ).to.deep.equal([42]);
 
     // No pane fallback: a selected collection elsewhere must not make a
     // library row look like a folder.
-    const withPane = {
-      collectionTreeRow: { isCollection: () => false, ref: { libraryID: 1 } },
-      ZoteroPane: {
-        getSelectedCollection: () => ({ id: 42 }),
-        getCollectionTreeRow: () => collectionRow,
-      },
-    };
-    expect(contextCollectionID(withPane)).to.equal(null);
+    expect(
+      contextCollectionIDs({
+        collectionTreeRows: [
+          { isCollection: () => false, ref: { libraryID: 1 } },
+        ],
+        ZoteroPane: {
+          getSelectedCollection: () => ({ id: 42 }),
+          getCollectionTreeRow: () => folder(42),
+        },
+      }),
+    ).to.deep.equal([]);
   });
 });

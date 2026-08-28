@@ -1,8 +1,8 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
 import { updateCitationDataForItems } from "./citationUpdateService";
-import { collectionGraphTitle } from "./graphInstancePolicy";
-import { contextCollectionID, contextRegularItems } from "./menuContext";
+import { multiCollectionGraphTitle } from "./graphInstancePolicy";
+import { contextCollectionIDs, contextRegularItems } from "./menuContext";
 import {
   getDefaultHostWindow,
   getOpenGraphViews,
@@ -11,7 +11,7 @@ import {
   openGraphAndSelectItemsInView,
   openFocusItemsInNewTab,
   openFocusItemsInView,
-  openGraphForCollection,
+  openGraphForCollections,
   openNewFocusWindow,
   openNewGraphWindow,
   renameGraphView,
@@ -328,44 +328,60 @@ function itemMenus(): MenuData[] {
 // Explore views are left out. A focus view is seeded by item IDs and has no
 // collection to re-scope, so there is nothing coherent to offer.
 function collectionMenus(): MenuData[] {
-  // The label names the folder rather than the feature: right-clicking PhD
-  // offers "New PhD Graph", and an open graph offers "Show in PhD Graph". The
-  // folder name is only known while the menu is showing, so it arrives as an
-  // l10n argument rather than a fixed string.
-  const graphTitle = (context: any): string | null => {
-    const collectionID = contextCollectionID(context);
-    if (collectionID === null) return null;
-    const collection = Zotero.Collections.get(collectionID) as any;
-    return collectionGraphTitle(collection?.name);
+  // The label names the folders rather than the feature: right-clicking PhD
+  // offers "New PhD Graph", and three folders offer "New Graph from 3
+  // Folders". Which it is is only known while the menu is showing, so both the
+  // name and the count travel as l10n arguments.
+  const scope = (
+    context: any,
+  ): { collectionIDs: number[]; title: string } | null => {
+    const collectionIDs = contextCollectionIDs(context);
+    if (!collectionIDs.length) return null;
+    const title = multiCollectionGraphTitle(
+      collectionIDs.map(
+        (collectionID) => (Zotero.Collections.get(collectionID) as any)?.name,
+      ),
+    );
+    return title === null ? null : { collectionIDs, title };
   };
 
   return [
     contextCommandItem(
       `${config.addonRef}-collection-new-graph-command`,
-      (context) => graphTitle(context) !== null,
+      (context) => scope(context) !== null,
       async (context) => {
-        const collectionID = contextCollectionID(context);
-        if (collectionID === null) return;
-        await openGraphForCollection(collectionID, contextWindow(context), {
-          newInstance: true,
-        });
+        const target = scope(context);
+        if (!target) return;
+        await openGraphForCollections(
+          target.collectionIDs,
+          contextWindow(context),
+          { newInstance: true },
+        );
       },
       (context) => {
-        const collectionID = contextCollectionID(context);
-        const title = graphTitle(context);
-        if (collectionID === null || title === null) return;
-        context.setL10nArgs(JSON.stringify({ graph: title }));
+        const target = scope(context);
+        if (!target) return;
+        context.setL10nArgs(
+          JSON.stringify({
+            graph: target.title,
+            count: target.collectionIDs.length,
+          }),
+        );
         const hostWindow = contextWindow(context);
+        const folders = target.collectionIDs.length;
         injectViewItems(
           context,
           getOpenGraphViews(hostWindow).filter((view) => view.kind === "map"),
           "replaces contents",
           (view) => {
-            void openGraphForCollection(collectionID, hostWindow, {
+            void openGraphForCollections(target.collectionIDs, hostWindow, {
               targetInstanceID: view.instanceID,
             }).catch(report);
           },
-          (view) => `Show in ${view.title}`,
+          (view) =>
+            folders === 1
+              ? `Show in ${view.title}`
+              : `Show ${folders} folders in ${view.title}`,
         );
       },
     ),

@@ -176,7 +176,7 @@ export interface GraphViewController {
   openFocusItem(itemID: number): GraphFocusResult;
   openFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   addFocusItems(itemIDs: readonly number[]): GraphFocusResult;
-  openCollection(collectionID: number): GraphFocusResult;
+  openCollections(collectionIDs: readonly number[]): GraphFocusResult;
   setActive(active: boolean): void;
 }
 
@@ -211,7 +211,7 @@ export interface GraphViewOptions {
   ) => void;
   initialFocusItemID?: number | null;
   initialFocusItemIDs?: readonly number[] | null;
-  initialCollectionID?: number | null;
+  initialCollectionIDs?: readonly number[];
 }
 
 function localPaperByKey(snapshot: LibrarySnapshot): Map<string, ZoteroPaper> {
@@ -766,7 +766,7 @@ export function renderGraphView(
   let currentLayout = initialLayout;
   let libraryLayoutBeforeFocus: GraphLayoutOptions | null = null;
   let libraryViewBeforeFocus: GraphViewTransform | null = null;
-  let libraryCollectionFilterBeforeFocus: number | null | undefined;
+  let libraryCollectionFilterBeforeFocus: number[] | undefined;
   let cameraFrame = 0;
   let focusFitGeneration = 0;
   const focusPostRefreshFitSeeds = new Set<string>();
@@ -1891,12 +1891,12 @@ export function renderGraphView(
       }
       libraryLayoutBeforeFocus = { ...currentLayout };
       libraryViewBeforeFocus = renderer?.getViewTransform() ?? null;
-      libraryCollectionFilterBeforeFocus = graphFilter.state().collectionID;
+      libraryCollectionFilterBeforeFocus = graphFilter.state().collectionIDs;
       // A collection is a library-map scope, not a property of an external
       // neighbour. Keeping it active in Focus View hides every cited/citing
-      // paper that is not already filed in that Zotero collection.
-      if (libraryCollectionFilterBeforeFocus !== null) {
-        graphFilter.setCollectionID(null);
+      // paper that is not already filed in those Zotero collections.
+      if (libraryCollectionFilterBeforeFocus.length) {
+        graphFilter.setCollectionIDs([]);
       }
     }
     if (focusProjection && options.pushHistory !== false) {
@@ -1927,7 +1927,7 @@ export function renderGraphView(
         libraryLayoutBeforeFocus = null;
         libraryViewBeforeFocus = null;
         if (libraryCollectionFilterBeforeFocus !== undefined) {
-          graphFilter.setCollectionID(libraryCollectionFilterBeforeFocus);
+          graphFilter.setCollectionIDs(libraryCollectionFilterBeforeFocus);
           libraryCollectionFilterBeforeFocus = undefined;
         }
       }
@@ -2070,7 +2070,7 @@ export function renderGraphView(
     librarySelectedKeyBeforeFocus = null;
     if (restoreLayout) appearance.setLayout(restoreLayout, false);
     if (restoreCollectionFilter !== undefined) {
-      graphFilter.setCollectionID(restoreCollectionFilter);
+      graphFilter.setCollectionIDs(restoreCollectionFilter);
     }
     updateFocusBar();
     applyFilters();
@@ -3677,7 +3677,12 @@ export function renderGraphView(
     const focusScopeKeys = focusProjection
       ? new Set(focusProjection.nodes.map((node) => node.key))
       : null;
-    const activeCollectionID = graphFilter.state().collectionID;
+    // Inherited from the single-collection scope: an external Focus neighbour
+    // belongs to no Zotero collection, so an active collection filter would
+    // hide it. The descriptor below fabricates membership to exempt it. With a
+    // set scope, claiming the first selected folder preserves that behaviour
+    // exactly — it is a hack carried forward, not one introduced here.
+    const activeCollectionID = graphFilter.state().collectionIDs[0] ?? null;
     visibleKeys = new Set(
       model.nodes
         .filter((node) => {
@@ -4041,7 +4046,7 @@ export function renderGraphView(
     if (mode === "replace") {
       mapScopeItemIDs = replaceItemScope(normalizedIDs);
       mapPinnedItemIDs = pinAdded ? new Set(normalizedIDs) : new Set();
-      graphFilter.setCollectionID(null);
+      graphFilter.setCollectionIDs([]);
     } else {
       mapScopeItemIDs = extendItemScope(mapScopeItemIDs, normalizedIDs);
       if (pinAdded) {
@@ -4151,12 +4156,15 @@ export function renderGraphView(
     },
     openFocusItems: addFocusItems,
     addFocusItems,
-    openCollection(collectionID) {
-      if (
-        !snapshot.collections.some(
+    openCollections(collectionIDs: readonly number[]) {
+      const known = collectionIDs.filter((collectionID: number) =>
+        snapshot.collections.some(
           (entry) => entry.collectionID === collectionID,
-        )
-      ) {
+        ),
+      );
+      // Every requested folder must exist. Silently graphing the subset that
+      // happens to resolve would show a scope the user did not ask for.
+      if (!known.length || known.length !== collectionIDs.length) {
         return "not-found";
       }
       if (focusProjection) exitFocus();
@@ -4164,7 +4172,7 @@ export function renderGraphView(
       mapPinnedItemIDs = new Set();
       publishMapScope();
       syncMapPinnedKeys(false);
-      graphFilter.setCollectionID(collectionID);
+      graphFilter.setCollectionIDs(known);
       scheduleCameraAction(() => renderer?.fitVisibleNodes());
       return "selected";
     },
@@ -4184,8 +4192,8 @@ export function renderGraphView(
     controller.openFocusItems(options.initialFocusItemIDs);
   } else if (options.initialFocusItemID) {
     controller.openFocusItem(options.initialFocusItemID);
-  } else if (options.initialCollectionID) {
-    controller.openCollection(options.initialCollectionID);
+  } else if (options.initialCollectionIDs?.length) {
+    controller.openCollections(options.initialCollectionIDs);
   } else if (options.initialItemIDs?.length) {
     if (options.initialItemMode === "add") {
       controller.addMapItems(options.initialItemIDs);

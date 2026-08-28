@@ -65,9 +65,14 @@ open-existing-view-command =
     .label = { $name }
 
 # $graph is the whole graph name, e.g. "PhD Graph", so a folder already named
-# like a graph does not read "New PhD Graph Graph".
+# like a graph does not read "New PhD Graph Graph". $count is how many folders
+# were selected; several are named by count rather than listed.
 collection-new-graph-command =
-    .label = New { $graph }
+    .label =
+        { $count ->
+            [1] New { $graph }
+           *[other] New Graph from { $count } Folders
+        }
 
 rename-view-command =
     .label = Rename View…
