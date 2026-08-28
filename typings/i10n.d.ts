@@ -12,7 +12,6 @@ export type FluentMessageId =
   | 'open-existing-view-command'
   | 'open-focus-view-command'
   | 'open-focus-view-new-tab-command'
-  | 'open-in-submenu'
   | 'pref-automatic-updates'
   | 'pref-automatic-updates-text'
   | 'pref-cache-days'

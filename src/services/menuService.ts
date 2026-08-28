@@ -289,82 +289,48 @@ function commandItem(
   };
 }
 
-function openInSubmenu(resolve: MenuContextResolver): MenuData {
-  const newMap = commandItem(
-    `${config.addonRef}-new-graph-view-command`,
-    async (commandContext) => {
-      await openInNewMap(
-        await Promise.resolve(resolve(commandContext)),
-        contextWindow(commandContext),
-      );
-    },
-  );
-  const newFocus = commandItem(
-    `${config.addonRef}-new-focus-view-command`,
-    async (commandContext) => {
-      await openInNewFocusView(
-        await Promise.resolve(resolve(commandContext)),
-        contextWindow(commandContext),
-      );
-    },
-  );
-  const submenu: MenuData = {
-    menuType: "submenu",
-    l10nID: `${config.addonRef}-open-in-submenu`,
-    menus: [newMap, newFocus],
-  };
-  submenu.onShowing = (_event: Event, context: any) => {
-    const menuElem = safeContextValue(context, "menuElem") as
-      HTMLElement | undefined;
-    const popup = menuElem?.querySelector(
-      ":scope > menupopup",
-    ) as HTMLElement | null;
-    if (!popup) return;
-    const rebuild = (event: Event): void => {
-      if (event.target !== popup) return;
-      popup
-        .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}]`)
-        .forEach((node) => node.remove());
-      const hostWindow = contextWindow(context);
-      const openViews = getOpenGraphViews(hostWindow);
-      if (!openViews.length) return;
+function injectOpenViewItems(context: any, resolve: MenuContextResolver): void {
+  const anchor = safeContextValue(context, "menuElem") as
+    HTMLElement | undefined;
+  const popup = anchor?.parentElement as HTMLElement | null | undefined;
+  if (!anchor || !popup) return;
 
-      const document = popup.ownerDocument as any;
-      const separator = document.createXULElement("menuseparator");
-      separator.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
-      popup.appendChild(separator);
-      for (const view of openViews) {
-        const item = document.createXULElement("menuitem");
-        item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
-        item.setAttribute(
-          "label",
-          view.active ? `✓ ${view.title}` : view.title,
-        );
-        item.setAttribute(
-          "acceltext",
-          view.kind === "focus" ? "add as seeds" : "add to map",
-        );
-        item.addEventListener(
-          "command",
-          () => {
-            void Promise.resolve(resolve(context))
-              .then((command) => openInExistingView(view, command, hostWindow))
-              .catch(report);
-          },
-          { once: true },
-        );
-        popup.appendChild(item);
-      }
-    };
-    popup.addEventListener("popupshowing", rebuild);
-    const parentPopup = menuElem?.parentElement;
-    parentPopup?.addEventListener(
-      "popuphidden",
-      () => popup.removeEventListener("popupshowing", rebuild),
+  const clear = (): void => {
+    popup
+      .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}]`)
+      .forEach((node) => node.remove());
+  };
+  clear();
+
+  const hostWindow = contextWindow(context);
+  const openViews = getOpenGraphViews(hostWindow);
+  if (!openViews.length) return;
+
+  const document = popup.ownerDocument as any;
+  let previous: HTMLElement = anchor;
+  for (const view of openViews) {
+    const item = document.createXULElement("menuitem");
+    item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
+    item.setAttribute("class", "menuitem-iconic");
+    item.setAttribute("image", ICON);
+    item.setAttribute("label", view.active ? `✓ ${view.title}` : view.title);
+    item.setAttribute(
+      "acceltext",
+      view.kind === "focus" ? "add as seeds" : "add to map",
+    );
+    item.addEventListener(
+      "command",
+      () => {
+        void Promise.resolve(resolve(context))
+          .then((command) => openInExistingView(view, command, hostWindow))
+          .catch(report);
+      },
       { once: true },
     );
-  };
-  return submenu;
+    previous.after(item);
+    previous = item;
+  }
+  popup.addEventListener("popuphidden", clear, { once: true });
 }
 
 function itemResolver(context: any): MenuCommandContext {
@@ -386,43 +352,89 @@ function collectionResolver(context: any): MenuCommandContext {
   };
 }
 
-function itemSubmenu(): MenuData {
+function contextCommandItem(
+  l10nID: string,
+  run: (context: any) => Promise<void> | void,
+  isAvailable: (context: any) => boolean,
+  onShown?: (context: any) => void,
+): MenuData {
+  const hint = menuHint(l10nID);
   return {
-    menuType: "submenu",
-    l10nID: `${config.addonRef}-tools-submenu`,
+    menuType: "menuitem",
+    l10nID,
     icon: ICON,
     onShowing: (_event: Event, context: any) => {
-      const items = selectedRegularItems(context);
-      context.setVisible(items.length > 0);
-      context.setEnabled(items.length > 0);
+      const available = isAvailable(context);
+      context.setVisible(available);
+      context.setEnabled(available);
+      if (!available) return;
+      if (hint) applyHint(context, hint);
+      onShown?.(context);
     },
-    menus: [
-      openInSubmenu(itemResolver),
-      commandItem(`${config.addonRef}-refresh-command`, (context) => {
-        refreshItems(selectedRegularItems(context));
-      }),
-    ],
+    onCommand: (_event: Event, context: any) => {
+      void Promise.resolve(run(context)).catch(report);
+    },
   };
 }
 
-function collectionSubmenu(): MenuData {
-  return {
-    menuType: "submenu",
-    l10nID: `${config.addonRef}-tools-submenu`,
-    icon: ICON,
-    onShowing: (_event: Event, context: any) => {
-      const collection = selectedCollection(context);
-      context.setVisible(Boolean(collection));
-      context.setEnabled(Boolean(collection));
+// The context menus are deliberately flat: every Meristema action sits
+// directly in Zotero's own menu, identified by its icon rather than by a
+// parent labelled "Meristema". The open-view entries are injected as siblings
+// because their number is only known while the menu is showing.
+function contextMenus(
+  resolve: MenuContextResolver,
+  isAvailable: (context: any) => boolean,
+  refresh: (context: any) => Promise<void> | void,
+): MenuData[] {
+  return [
+    contextCommandItem(
+      `${config.addonRef}-show-items-new-tab-command`,
+      async (context) => {
+        await openInNewMap(
+          await Promise.resolve(resolve(context)),
+          contextWindow(context),
+        );
+      },
+      isAvailable,
+    ),
+    contextCommandItem(
+      `${config.addonRef}-open-focus-view-new-tab-command`,
+      async (context) => {
+        await openInNewFocusView(
+          await Promise.resolve(resolve(context)),
+          contextWindow(context),
+        );
+      },
+      isAvailable,
+      (context) => injectOpenViewItems(context, resolve),
+    ),
+    contextCommandItem(
+      `${config.addonRef}-refresh-command`,
+      refresh,
+      isAvailable,
+    ),
+  ];
+}
+
+function itemMenus(): MenuData[] {
+  return contextMenus(
+    itemResolver,
+    (context) => selectedRegularItems(context).length > 0,
+    (context) => {
+      refreshItems(selectedRegularItems(context));
     },
-    menus: [
-      openInSubmenu(collectionResolver),
-      commandItem(`${config.addonRef}-refresh-command`, async (context) => {
-        const collection = selectedCollection(context);
-        if (collection) refreshItems(await collectionRegularItems(collection));
-      }),
-    ],
-  };
+  );
+}
+
+function collectionMenus(): MenuData[] {
+  return contextMenus(
+    collectionResolver,
+    (context) => Boolean(selectedCollection(context)),
+    async (context) => {
+      const collection = selectedCollection(context);
+      if (collection) refreshItems(await collectionRegularItems(collection));
+    },
+  );
 }
 
 function toolsSubmenu(): MenuData {
@@ -498,13 +510,13 @@ export function registerMenus(): void {
     menuID: "meristema-item-context-menu",
     pluginID: config.addonID,
     target: "main/library/item",
-    menus: [itemSubmenu()],
+    menus: itemMenus(),
   });
   register({
     menuID: "meristema-collection-context-menu",
     pluginID: config.addonID,
     target: "main/library/collection",
-    menus: [collectionSubmenu()],
+    menus: collectionMenus(),
   });
   register({
     menuID: "meristema-tab-context-menu",

@@ -53,10 +53,7 @@ show-items-new-tab-command =
     .label = Open in New Collection Graph
 
 open-focus-view-new-tab-command =
-    .label = Open Explore in New Tab
-
-open-in-submenu =
-    .label = Open in
+    .label = Open in New Explore View
 
 new-graph-view-command =
     .label = New Collection Graph
