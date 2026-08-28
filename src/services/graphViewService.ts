@@ -1182,16 +1182,20 @@ export function renderGraphView(
     }
     emptyState.hidden = false;
     emptyStateTitle.textContent = visibleCount
-      ? "Only one paper in this map"
-      : "This map is empty";
+      ? "Only one paper in this graph"
+      : "This graph is empty";
     emptyStateBody.textContent = visibleCount
-      ? "A Collection Graph shows how papers you already have cite each other, " +
-        "so a single paper has nothing to connect to. Add more papers with " +
-        "“Open in”, or switch to Explore to fetch its references and " +
-        "citing works."
-      : "A Collection Graph shows how papers you already have cite each other. " +
-        "Add papers with “Open in”, or switch to Explore to look " +
-        "outward from a paper and find related work online.";
+      ? "A Collection Graph shows how papers you already have cite each " +
+        "other, so a single paper has nothing to connect to. Add more with " +
+        "the + button in the toolbar, or select several papers in your " +
+        "Zotero library, right-click, and choose this view by name to add " +
+        "them here. To look beyond your library, switch to Explore for this " +
+        "paper’s references and citing works."
+      : "A Collection Graph shows how papers you already have cite each " +
+        "other. Add papers with the + button in the toolbar, or select " +
+        "several in your Zotero library and right-click → “Open in " +
+        "New Collection Graph”. To find work you do not have yet, " +
+        "switch to Explore.";
   };
 
   const updateSummary = (): void => {

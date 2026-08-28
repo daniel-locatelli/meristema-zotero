@@ -316,7 +316,7 @@ function injectOpenViewItems(context: any, resolve: MenuContextResolver): void {
     item.setAttribute("label", view.active ? `✓ ${view.title}` : view.title);
     item.setAttribute(
       "acceltext",
-      view.kind === "focus" ? "add as seeds" : "add to map",
+      view.kind === "focus" ? "add as seeds" : "add to graph",
     );
     item.addEventListener(
       "command",
