@@ -198,7 +198,16 @@ function itemCommand(context: any): MenuCommandContext {
   };
 }
 
-function injectOpenViewItems(context: any): void {
+// Sibling menuitems, one per open view, inserted after the anchor entry while
+// the popup is showing. They cannot be declared up front because the number of
+// open views is only known at that moment. They are removed again on
+// popuphidden so the next opening rebuilds them.
+function injectViewItems(
+  context: any,
+  views: readonly OpenGraphViewInfo[],
+  hint: string | ((view: OpenGraphViewInfo) => string),
+  run: (view: OpenGraphViewInfo) => void,
+): void {
   const anchor = safeContextValue(context, "menuElem") as
     HTMLElement | undefined;
   const popup = anchor?.parentElement as HTMLElement | null | undefined;
@@ -210,14 +219,11 @@ function injectOpenViewItems(context: any): void {
       .forEach((node) => node.remove());
   };
   clear();
-
-  const hostWindow = contextWindow(context);
-  const openViews = getOpenGraphViews(hostWindow);
-  if (!openViews.length) return;
+  if (!views.length) return;
 
   const document = popup.ownerDocument as any;
   let previous: HTMLElement = anchor;
-  for (const view of openViews) {
+  for (const view of views) {
     const item = document.createXULElement("menuitem");
     item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
     item.setAttribute("class", "menuitem-iconic");
@@ -225,17 +231,9 @@ function injectOpenViewItems(context: any): void {
     item.setAttribute("label", view.active ? `✓ ${view.title}` : view.title);
     item.setAttribute(
       "acceltext",
-      view.kind === "focus" ? "add as seeds" : "add to graph",
+      typeof hint === "function" ? hint(view) : hint,
     );
-    item.addEventListener(
-      "command",
-      () => {
-        void openInExistingView(view, itemCommand(context), hostWindow).catch(
-          report,
-        );
-      },
-      { once: true },
-    );
+    item.addEventListener("command", () => run(view), { once: true });
     previous.after(item);
     previous = item;
   }
@@ -244,6 +242,7 @@ function injectOpenViewItems(context: any): void {
 
 function contextCommandItem(
   l10nID: string,
+  isAvailable: (context: any) => boolean,
   run: (context: any) => Promise<void> | void,
   onShown?: (context: any) => void,
 ): MenuData {
@@ -253,7 +252,7 @@ function contextCommandItem(
     l10nID,
     icon: ICON,
     onShowing: (_event: Event, context: any) => {
-      const available = contextRegularItems(context).length > 0;
+      const available = isAvailable(context);
       context.setVisible(available);
       context.setEnabled(available);
       if (!available) return;
@@ -268,26 +267,47 @@ function contextCommandItem(
 
 // The item context menu is deliberately flat: every Meristema action sits
 // directly in Zotero's own menu, identified by its icon rather than by a
-// parent labelled "Meristema". The open-view entries are injected as siblings
-// because their number is only known while the menu is showing.
+// parent labelled "Meristema".
 function itemMenus(): MenuData[] {
+  const hasItems = (context: any): boolean =>
+    contextRegularItems(context).length > 0;
   return [
     contextCommandItem(
       `${config.addonRef}-show-items-new-tab-command`,
+      hasItems,
       async (context) => {
         await openInNewMap(itemCommand(context), contextWindow(context));
       },
     ),
     contextCommandItem(
       `${config.addonRef}-open-focus-view-new-tab-command`,
+      hasItems,
       async (context) => {
         await openInNewFocusView(itemCommand(context), contextWindow(context));
       },
-      injectOpenViewItems,
+      (context) => {
+        const hostWindow = contextWindow(context);
+        injectViewItems(
+          context,
+          getOpenGraphViews(hostWindow),
+          (view) => (view.kind === "focus" ? "add as seeds" : "add to graph"),
+          (view) => {
+            void openInExistingView(
+              view,
+              itemCommand(context),
+              hostWindow,
+            ).catch(report);
+          },
+        );
+      },
     ),
-    contextCommandItem(`${config.addonRef}-refresh-command`, (context) => {
-      refreshItems(contextRegularItems(context));
-    }),
+    contextCommandItem(
+      `${config.addonRef}-refresh-command`,
+      hasItems,
+      (context) => {
+        refreshItems(contextRegularItems(context));
+      },
+    ),
   ];
 }
 
