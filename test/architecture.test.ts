@@ -96,6 +96,7 @@ import {
   subscribeToCitationUpdates,
 } from "../src/services/citationUpdateEvents";
 import {
+  collectionGraphTitle,
   nextGraphViewTitle,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
@@ -349,6 +350,35 @@ describe("Architecture foundations", function () {
     expect(
       nextGraphViewTitle("focus", ["Collection Graph", "Explore"]),
     ).to.equal("Explore 2");
+  });
+
+  it("builds a folder's graph name from the folder name", function () {
+    expect(collectionGraphTitle("PhD")).to.equal("PhD Graph");
+    expect(collectionGraphTitle("  PhD  ")).to.equal("PhD Graph");
+    // Already graph-named folders are left alone rather than doubled up.
+    expect(collectionGraphTitle("Reading Graph")).to.equal("Reading Graph");
+    expect(collectionGraphTitle("reading graph")).to.equal("reading graph");
+    // No name means no graph name; the caller falls back to the generic base.
+    expect(collectionGraphTitle("")).to.equal(null);
+    expect(collectionGraphTitle("   ")).to.equal(null);
+    expect(collectionGraphTitle(null)).to.equal(null);
+    expect(collectionGraphTitle(undefined)).to.equal(null);
+    // "Graphene" ends in graph-the-substring but not graph-the-word.
+    expect(collectionGraphTitle("Graphene")).to.equal("Graphene Graph");
+  });
+
+  it("names a folder's graph after the folder", function () {
+    // A graph opened from a folder is titled after it, so the tab says what it
+    // shows. Deduplication still applies: opening the same folder twice must
+    // not produce two tabs with one name.
+    expect(nextGraphViewTitle("map", [], "PhD Graph")).to.equal("PhD Graph");
+    expect(nextGraphViewTitle("map", ["PhD Graph"], "PhD Graph")).to.equal(
+      "PhD Graph 2",
+    );
+    // A blank or whitespace folder name falls back to the generic base rather
+    // than titling a tab with nothing.
+    expect(nextGraphViewTitle("map", [], "   ")).to.equal("Collection Graph");
+    expect(nextGraphViewTitle("map", [], "")).to.equal("Collection Graph");
   });
 
   it("defers redraws for hidden Meristema tabs", function () {

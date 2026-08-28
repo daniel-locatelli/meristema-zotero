@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
 import { updateCitationDataForItems } from "./citationUpdateService";
+import { collectionGraphTitle } from "./graphInstancePolicy";
 import { contextCollectionID, contextRegularItems } from "./menuContext";
 import {
   getDefaultHostWindow,
@@ -27,6 +28,7 @@ const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 // so the hint goes in acceltext, the only secondary text a menuitem will draw.
 const MENU_HINTS: Record<string, string> = {
   "show-items-new-tab-command": "library only",
+  "collection-new-graph-command": "library only",
   "new-graph-view-command": "library only",
   "open-focus-view-new-tab-command": "fetches online",
   "new-focus-view-command": "fetches online",
@@ -208,6 +210,7 @@ function injectViewItems(
   views: readonly OpenGraphViewInfo[],
   hint: string | ((view: OpenGraphViewInfo) => string),
   run: (view: OpenGraphViewInfo) => void,
+  label: (view: OpenGraphViewInfo) => string = (view) => view.title,
 ): void {
   const anchor = safeContextValue(context, "menuElem") as
     HTMLElement | undefined;
@@ -229,7 +232,8 @@ function injectViewItems(
     item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
     item.setAttribute("class", "menuitem-iconic");
     item.setAttribute("image", ICON);
-    item.setAttribute("label", view.active ? `✓ ${view.title}` : view.title);
+    const text = label(view);
+    item.setAttribute("label", view.active ? `✓ ${text}` : text);
     item.setAttribute(
       "acceltext",
       typeof hint === "function" ? hint(view) : hint,
@@ -317,15 +321,28 @@ function itemMenus(): MenuData[] {
 // the scope follows the folder as papers are added to it and subcollections
 // come along. That filter is a scope, not an addition — opening a folder in an
 // existing graph replaces what it was showing, which is why the injected
-// entries read "show this folder" and not the item menu's "add to graph".
+// entries read "Show in <graph>" and not the item menu's "add to graph". They
+// cannot honestly say "add": the filter holds one collection, so a second
+// folder would displace the first rather than join it.
 //
 // Explore views are left out. A focus view is seeded by item IDs and has no
 // collection to re-scope, so there is nothing coherent to offer.
 function collectionMenus(): MenuData[] {
+  // The label names the folder rather than the feature: right-clicking PhD
+  // offers "New PhD Graph", and an open graph offers "Show in PhD Graph". The
+  // folder name is only known while the menu is showing, so it arrives as an
+  // l10n argument rather than a fixed string.
+  const graphTitle = (context: any): string | null => {
+    const collectionID = contextCollectionID(context);
+    if (collectionID === null) return null;
+    const collection = Zotero.Collections.get(collectionID) as any;
+    return collectionGraphTitle(collection?.name);
+  };
+
   return [
     contextCommandItem(
-      `${config.addonRef}-show-items-new-tab-command`,
-      (context) => contextCollectionID(context) !== null,
+      `${config.addonRef}-collection-new-graph-command`,
+      (context) => graphTitle(context) !== null,
       async (context) => {
         const collectionID = contextCollectionID(context);
         if (collectionID === null) return;
@@ -335,17 +352,20 @@ function collectionMenus(): MenuData[] {
       },
       (context) => {
         const collectionID = contextCollectionID(context);
-        if (collectionID === null) return;
+        const title = graphTitle(context);
+        if (collectionID === null || title === null) return;
+        context.setL10nArgs(JSON.stringify({ graph: title }));
         const hostWindow = contextWindow(context);
         injectViewItems(
           context,
           getOpenGraphViews(hostWindow).filter((view) => view.kind === "map"),
-          "show this folder",
+          "replaces contents",
           (view) => {
             void openGraphForCollection(collectionID, hostWindow, {
               targetInstanceID: view.instanceID,
             }).catch(report);
           },
+          (view) => `Show in ${view.title}`,
         );
       },
     ),
@@ -378,6 +398,37 @@ function toolsSubmenu(): MenuData {
   };
 }
 
+// Zotero appends "Show in Library" to every tab context menu except the
+// library tab's, and wires it to ZoteroPane.selectItem(tab.data.itemID). A
+// graph tab carries no itemID, so the entry is inert — clicking it does
+// nothing. Hide it rather than leave a dead command sitting on our tabs.
+//
+// This runs from onShowing, which MenuManager calls after tabs.js has appended
+// the native entries, so they are present to be found. Nothing is restored
+// afterwards because nothing needs to be: tabs.js builds the popup fresh on
+// every open and removes it again on popuphidden.
+function hideInertTabEntries(context: any): void {
+  const anchor = safeContextValue(context, "menuElem") as
+    HTMLElement | undefined;
+  const popup = anchor?.parentElement as HTMLElement | null | undefined;
+  if (!popup) return;
+  let label: string;
+  try {
+    label = String((Zotero as any).getString("general.showInLibrary"));
+  } catch {
+    return;
+  }
+  for (const node of Array.from(popup.children)) {
+    const element = node as HTMLElement;
+    if (
+      element.localName === "menuitem" &&
+      element.getAttribute("label") === label
+    ) {
+      element.hidden = true;
+    }
+  }
+}
+
 function tabRenameItem(): MenuData {
   return {
     menuType: "menuitem",
@@ -386,8 +437,10 @@ function tabRenameItem(): MenuData {
       const tabType = String(
         safeContextValue(context, "tabType") ?? "",
       ).replace(/-unloaded$/, "");
-      context.setVisible(tabType === config.addonRef);
-      context.setEnabled(tabType === config.addonRef);
+      const isGraphTab = tabType === config.addonRef;
+      context.setVisible(isGraphTab);
+      context.setEnabled(isGraphTab);
+      if (isGraphTab) hideInertTabEntries(context);
     },
     onCommand: (_event: Event, context: any) => {
       const tabID = String(safeContextValue(context, "tabID") ?? "");

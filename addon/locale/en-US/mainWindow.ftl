@@ -64,6 +64,11 @@ new-focus-view-command =
 open-existing-view-command =
     .label = { $name }
 
+# $graph is the whole graph name, e.g. "PhD Graph", so a folder already named
+# like a graph does not read "New PhD Graph Graph".
+collection-new-graph-command =
+    .label = New { $graph }
+
 rename-view-command =
     .label = Rename View…
 

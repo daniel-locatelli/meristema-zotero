@@ -15,6 +15,7 @@ import {
   type GraphViewKind,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
+  collectionGraphTitle,
   nextGraphViewTitle,
   selectReusableGraphInstance,
 } from "./graphInstancePolicy";
@@ -69,6 +70,7 @@ function createGraphInstance(
   win: _ZoteroTypes.MainWindow,
   libraryID: number | null = null,
   kind: GraphViewKind = "map",
+  titleBase?: string,
 ): GraphInstanceState {
   graphInstanceSequence += 1;
   const instanceID = `meristema-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
@@ -78,6 +80,7 @@ function createGraphInstance(
     title: nextGraphViewTitle(
       kind,
       [...state.instances.values()].map((instance) => instance.title),
+      titleBase,
     ),
     kind,
     customTitle: false,
@@ -821,6 +824,12 @@ interface OpenGraphOptions {
   targetInstanceID?: string | null;
   initialKind?: GraphViewKind;
   request?: PendingGraphRequest;
+  /**
+   * Names a newly created view after what it shows, e.g. "PhD Graph" for a
+   * graph opened from the PhD folder. Ignored when an existing view is reused:
+   * re-scoping a graph does not rename the tab out from under the user.
+   */
+  titleBase?: string;
 }
 
 function requestViewKind(
@@ -903,6 +912,7 @@ export async function openGraphWindow(
       win,
       targetLibraryID,
       requestedKind ?? "map",
+      options.titleBase,
     );
   } else if (requestedKind) {
     setInstanceKind(win, instance, requestedKind);
@@ -1213,6 +1223,7 @@ export async function openGraphForCollection(
   await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
+    titleBase: collectionGraphTitle(collection?.name) ?? undefined,
     request: {
       ...emptyRequest(),
       collectionID,

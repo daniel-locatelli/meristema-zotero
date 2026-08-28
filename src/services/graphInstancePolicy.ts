@@ -26,15 +26,34 @@ export function graphViewBaseTitle(kind: GraphViewKind): string {
 }
 
 /**
+ * The name a folder's graph carries: "PhD" becomes "PhD Graph". A folder
+ * already named like a graph keeps its own name rather than becoming
+ * "PhD Graph Graph". An unnamed folder has no graph name, and callers fall
+ * back to the generic base.
+ */
+export function collectionGraphTitle(name: unknown): string | null {
+  const trimmed = String(name ?? "").trim();
+  if (!trimmed) return null;
+  const lastWord = trimmed.split(/\s+/).at(-1)?.toLowerCase();
+  return lastWord === "graph" ? trimmed : `${trimmed} Graph`;
+}
+
+/**
  * Return a stable, human-readable default title without reusing an existing
  * title. The first view keeps the unnumbered base name; later views use 2, 3,
  * and so on.
+ *
+ * `preferredBase` lets a caller name the view after what it shows — a graph
+ * opened from a folder is titled after the folder, so the tab says what is in
+ * it. A blank preference falls back to the generic base rather than titling a
+ * tab with nothing.
  */
 export function nextGraphViewTitle(
   kind: GraphViewKind,
   existingTitles: readonly string[],
+  preferredBase?: string,
 ): string {
-  const base = graphViewBaseTitle(kind);
+  const base = preferredBase?.trim() || graphViewBaseTitle(kind);
   const occupied = new Set(existingTitles.map((title) => title.trim()));
   if (!occupied.has(base)) return base;
   let suffix = 2;
