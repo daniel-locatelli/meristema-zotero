@@ -1608,6 +1608,49 @@ describe("Architecture foundations", function () {
     expect(contextRegularItems(withPane)).to.deep.equal([]);
   });
 
+  it("reads folders from the multi-select collection rows Zotero supplies", function () {
+    // Zotero replaced the singular `collectionTreeRow` with a plural
+    // `collectionTreeRows`, and made the old name THROW rather than return
+    // undefined. A predicate that reads the singular name gets an exception,
+    // not a value, so the menu silently never appears.
+    const collectionRow = {
+      isCollection: () => true,
+      ref: { id: 42, libraryID: 1 },
+    };
+    const context = {
+      get collectionTreeRow(): never {
+        throw new Error(
+          "collectionTreeRow was removed -- use collectionTreeRows",
+        );
+      },
+      collectionTreeRows: [collectionRow],
+    };
+    expect(contextCollectionID(context)).to.equal(42);
+
+    // Non-collection rows still fail, which is the original regression.
+    for (const row of [
+      { isCollection: () => false, ref: { libraryID: 1 } },
+      { isCollection: () => false, ref: { id: 7 } },
+      { isCollection: () => false, ref: {} },
+    ]) {
+      expect(contextCollectionID({ collectionTreeRows: [row] })).to.equal(null);
+    }
+
+    // A multi-selection has no single right-clicked folder to scope a graph
+    // to, so it is not a match. Picking one of several arbitrarily would open
+    // a graph the user did not ask for.
+    expect(
+      contextCollectionID({
+        collectionTreeRows: [collectionRow, collectionRow],
+      }),
+    ).to.equal(null);
+
+    expect(contextCollectionID({ collectionTreeRows: [] })).to.equal(null);
+    expect(
+      contextCollectionID({ collectionTreeRows: "not an array" }),
+    ).to.equal(null);
+  });
+
   it("treats only real collection rows as folders", function () {
     const collectionRow = {
       isCollection: () => true,
