@@ -9,12 +9,10 @@ import {
   openGraphAndSelectItemsInView,
   openFocusItemsInNewTab,
   openFocusItemsInView,
-  openGraphInView,
   openNewFocusWindow,
   openNewGraphWindow,
   renameGraphView,
 } from "./windowService";
-import { loadWholeLibrary } from "./zoteroLibraryService";
 
 const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
@@ -26,10 +24,8 @@ const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 // cannot be used for this — Gecko does not render them over an open menupopup —
 // so the hint goes in acceltext, the only secondary text a menuitem will draw.
 const MENU_HINTS: Record<string, string> = {
-  "show-items-command": "library only",
   "show-items-new-tab-command": "library only",
   "new-graph-view-command": "library only",
-  "open-focus-view-command": "fetches online",
   "open-focus-view-new-tab-command": "fetches online",
   "new-focus-view-command": "fetches online",
 };
@@ -49,13 +45,8 @@ type MenuData = Record<string, unknown>;
 
 interface MenuCommandContext {
   itemIDs: number[];
-  collectionID: number | null;
   libraryID: number;
 }
-
-type MenuContextResolver = (
-  context: any,
-) => Promise<MenuCommandContext> | MenuCommandContext;
 
 function register(definition: Record<string, unknown>): void {
   const manager = (Zotero as any).MenuManager;
@@ -104,40 +95,17 @@ function activeLibraryID(context?: any): number {
   return fromItem ?? Zotero.Libraries.userLibraryID;
 }
 
-function selectedRegularItems(context: any): Zotero.Item[] {
-  const contextual = Array.isArray(context?.items) ? context.items : [];
-  const selected = paneForContext(context)?.getSelectedItems?.() ?? [];
-  return (contextual.length ? contextual : selected).filter(
+// The right-clicked rows arrive on the menu context, and that is the only
+// place they may be read from. Falling back to the pane selection would answer
+// with whatever happened to be selected elsewhere, which is how these entries
+// ended up appearing on every row Zotero opens a context menu on — notes,
+// attachments, and rows that hold no items at all.
+function contextRegularItems(context: any): Zotero.Item[] {
+  const items = safeContextValue(context, "items");
+  if (!Array.isArray(items)) return [];
+  return items.filter(
     (item: Zotero.Item) => item?.isRegularItem?.() && !item.deleted,
   );
-}
-
-function selectedCollection(context?: any): any | null {
-  const pane = paneForContext(context);
-  const candidates = [
-    safeContextValue(context, "collection"),
-    safeContextValue(context, "collectionTreeRow"),
-    safeContextValue(context, "row"),
-    pane?.getCollectionTreeRow?.(),
-    pane?.getSelectedCollection?.(),
-  ];
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    if (
-      typeof candidate.isCollection === "function" &&
-      !candidate.isCollection()
-    ) {
-      continue;
-    }
-    const ref = candidate.ref ?? candidate.collection ?? candidate;
-    const collectionID = positiveInteger(
-      ref.collectionID ?? ref.id ?? candidate.collectionID ?? candidate.id,
-    );
-    if (!collectionID) continue;
-    const collection = Zotero.Collections.get(collectionID) as any;
-    if (collection) return collection;
-  }
-  return null;
 }
 
 async function activeLibraryRegularItems(
@@ -147,31 +115,6 @@ async function activeLibraryRegularItems(
     activeLibraryID(context),
   )) as Zotero.Item[];
   return items.filter((item) => item?.isRegularItem?.() && !item.deleted);
-}
-
-async function collectionRegularItems(collection: any): Promise<Zotero.Item[]> {
-  const collectionID = positiveInteger(
-    collection?.id ?? collection?.collectionID,
-  );
-  const libraryID = positiveInteger(collection?.libraryID);
-  if (!collectionID || !libraryID) return [];
-  const snapshot = await loadWholeLibrary(libraryID);
-  const descriptor = snapshot.collections.find(
-    (entry) => entry.collectionID === collectionID,
-  );
-  const included = new Set(
-    descriptor?.includedCollectionIDs?.length
-      ? descriptor.includedCollectionIDs
-      : [collectionID],
-  );
-  return snapshot.papers
-    .filter((paper) =>
-      paper.collectionIDs.some((candidate) => included.has(candidate)),
-    )
-    .map((paper) => Zotero.Items.get(paper.itemID) as Zotero.Item | null)
-    .filter((item): item is Zotero.Item =>
-      Boolean(item?.isRegularItem?.() && !item.deleted),
-    );
 }
 
 function itemIDs(items: readonly Zotero.Item[]): number[] {
@@ -203,38 +146,20 @@ function refreshItems(items: readonly Zotero.Item[]): void {
   }).catch(report);
 }
 
-async function focusItemIDs(command: MenuCommandContext): Promise<number[]> {
-  if (command.itemIDs.length) return command.itemIDs;
-  if (!command.collectionID) return [];
-  const collection = Zotero.Collections.get(command.collectionID) as any;
-  return collection ? itemIDs(await collectionRegularItems(collection)) : [];
-}
-
 async function openInNewMap(
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
-  if (command.itemIDs.length) {
-    await openGraphAndSelectItemsInNewTab(command.itemIDs, hostWindow);
-    return;
-  }
-  if (command.collectionID) {
-    const ids = await focusItemIDs(command);
-    if (ids.length) {
-      await openGraphAndSelectItemsInNewTab(ids, hostWindow);
-      return;
-    }
-  }
-  await openNewGraphWindow(hostWindow, command.libraryID);
+  if (!command.itemIDs.length) return;
+  await openGraphAndSelectItemsInNewTab(command.itemIDs, hostWindow);
 }
 
 async function openInNewFocusView(
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
-  const ids = await focusItemIDs(command);
-  if (!ids.length) return;
-  await openFocusItemsInNewTab(ids, hostWindow);
+  if (!command.itemIDs.length) return;
+  await openFocusItemsInNewTab(command.itemIDs, hostWindow);
 }
 
 async function openInExistingView(
@@ -242,28 +167,16 @@ async function openInExistingView(
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
+  if (!command.itemIDs.length) return;
   if (view.kind === "focus") {
-    const ids = await focusItemIDs(command);
-    if (!ids.length) return;
-    await openFocusItemsInView(view.instanceID, ids, hostWindow);
+    await openFocusItemsInView(view.instanceID, command.itemIDs, hostWindow);
     return;
   }
-  if (command.itemIDs.length) {
-    await openGraphAndSelectItemsInView(
-      view.instanceID,
-      command.itemIDs,
-      hostWindow,
-    );
-    return;
-  }
-  if (command.collectionID) {
-    const ids = await focusItemIDs(command);
-    if (ids.length) {
-      await openGraphAndSelectItemsInView(view.instanceID, ids, hostWindow);
-      return;
-    }
-  }
-  await openGraphInView(view.instanceID, hostWindow, command.libraryID);
+  await openGraphAndSelectItemsInView(
+    view.instanceID,
+    command.itemIDs,
+    hostWindow,
+  );
 }
 
 function commandItem(
@@ -289,7 +202,15 @@ function commandItem(
   };
 }
 
-function injectOpenViewItems(context: any, resolve: MenuContextResolver): void {
+function itemCommand(context: any): MenuCommandContext {
+  const items = contextRegularItems(context);
+  return {
+    itemIDs: itemIDs(items),
+    libraryID: positiveInteger(items[0]?.libraryID) ?? activeLibraryID(context),
+  };
+}
+
+function injectOpenViewItems(context: any): void {
   const anchor = safeContextValue(context, "menuElem") as
     HTMLElement | undefined;
   const popup = anchor?.parentElement as HTMLElement | null | undefined;
@@ -321,9 +242,9 @@ function injectOpenViewItems(context: any, resolve: MenuContextResolver): void {
     item.addEventListener(
       "command",
       () => {
-        void Promise.resolve(resolve(context))
-          .then((command) => openInExistingView(view, command, hostWindow))
-          .catch(report);
+        void openInExistingView(view, itemCommand(context), hostWindow).catch(
+          report,
+        );
       },
       { once: true },
     );
@@ -333,29 +254,9 @@ function injectOpenViewItems(context: any, resolve: MenuContextResolver): void {
   popup.addEventListener("popuphidden", clear, { once: true });
 }
 
-function itemResolver(context: any): MenuCommandContext {
-  const items = selectedRegularItems(context);
-  return {
-    itemIDs: itemIDs(items),
-    collectionID: null,
-    libraryID: positiveInteger(items[0]?.libraryID) ?? activeLibraryID(context),
-  };
-}
-
-function collectionResolver(context: any): MenuCommandContext {
-  const collection = selectedCollection(context);
-  return {
-    itemIDs: [],
-    collectionID: positiveInteger(collection?.id ?? collection?.collectionID),
-    libraryID:
-      positiveInteger(collection?.libraryID) ?? activeLibraryID(context),
-  };
-}
-
 function contextCommandItem(
   l10nID: string,
   run: (context: any) => Promise<void> | void,
-  isAvailable: (context: any) => boolean,
   onShown?: (context: any) => void,
 ): MenuData {
   const hint = menuHint(l10nID);
@@ -364,7 +265,7 @@ function contextCommandItem(
     l10nID,
     icon: ICON,
     onShowing: (_event: Event, context: any) => {
-      const available = isAvailable(context);
+      const available = contextRegularItems(context).length > 0;
       context.setVisible(available);
       context.setEnabled(available);
       if (!available) return;
@@ -377,64 +278,29 @@ function contextCommandItem(
   };
 }
 
-// The context menus are deliberately flat: every Meristema action sits
+// The item context menu is deliberately flat: every Meristema action sits
 // directly in Zotero's own menu, identified by its icon rather than by a
 // parent labelled "Meristema". The open-view entries are injected as siblings
 // because their number is only known while the menu is showing.
-function contextMenus(
-  resolve: MenuContextResolver,
-  isAvailable: (context: any) => boolean,
-  refresh: (context: any) => Promise<void> | void,
-): MenuData[] {
+function itemMenus(): MenuData[] {
   return [
     contextCommandItem(
       `${config.addonRef}-show-items-new-tab-command`,
       async (context) => {
-        await openInNewMap(
-          await Promise.resolve(resolve(context)),
-          contextWindow(context),
-        );
+        await openInNewMap(itemCommand(context), contextWindow(context));
       },
-      isAvailable,
     ),
     contextCommandItem(
       `${config.addonRef}-open-focus-view-new-tab-command`,
       async (context) => {
-        await openInNewFocusView(
-          await Promise.resolve(resolve(context)),
-          contextWindow(context),
-        );
+        await openInNewFocusView(itemCommand(context), contextWindow(context));
       },
-      isAvailable,
-      (context) => injectOpenViewItems(context, resolve),
+      injectOpenViewItems,
     ),
-    contextCommandItem(
-      `${config.addonRef}-refresh-command`,
-      refresh,
-      isAvailable,
-    ),
+    contextCommandItem(`${config.addonRef}-refresh-command`, (context) => {
+      refreshItems(contextRegularItems(context));
+    }),
   ];
-}
-
-function itemMenus(): MenuData[] {
-  return contextMenus(
-    itemResolver,
-    (context) => selectedRegularItems(context).length > 0,
-    (context) => {
-      refreshItems(selectedRegularItems(context));
-    },
-  );
-}
-
-function collectionMenus(): MenuData[] {
-  return contextMenus(
-    collectionResolver,
-    (context) => Boolean(selectedCollection(context)),
-    async (context) => {
-      const collection = selectedCollection(context);
-      if (collection) refreshItems(await collectionRegularItems(collection));
-    },
-  );
 }
 
 function toolsSubmenu(): MenuData {
@@ -511,12 +377,6 @@ export function registerMenus(): void {
     pluginID: config.addonID,
     target: "main/library/item",
     menus: itemMenus(),
-  });
-  register({
-    menuID: "meristema-collection-context-menu",
-    pluginID: config.addonID,
-    target: "main/library/collection",
-    menus: collectionMenus(),
   });
   register({
     menuID: "meristema-tab-context-menu",

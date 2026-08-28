@@ -1060,16 +1060,6 @@ export function renameGraphView(
   syncInstanceTitle(win, instance);
 }
 
-export async function openGraphInView(
-  instanceID: string,
-  hostWindow?: _ZoteroTypes.MainWindow,
-  libraryID?: number | null,
-): Promise<void> {
-  await openGraphWindow(hostWindow, libraryID, {
-    targetInstanceID: instanceID,
-  });
-}
-
 interface OpenItemViewOptions {
   newInstance?: boolean;
   targetInstanceID?: string | null;
