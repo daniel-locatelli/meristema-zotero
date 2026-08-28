@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "npm@11.18.0",
   "version": "0.5.3",
-  "description": "Think with your literature, inside Zotero. Citation networks, bibliometric data, and paper discovery for Zotero 9 and 10.",
+  "description": "Think with your literature: citation networks, bibliometric data, and paper discovery.",
   "keywords": [
     "zotero",
     "zotero-plugin",
