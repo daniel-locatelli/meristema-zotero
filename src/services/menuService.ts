@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
 import { updateCitationDataForItems } from "./citationUpdateService";
+import { contextRegularItems } from "./menuContext";
 import {
   getDefaultHostWindow,
   getOpenGraphViews,
@@ -93,19 +94,6 @@ function activeLibraryID(context?: any): number {
   const selected = pane?.getSelectedItems?.() ?? [];
   const fromItem = positiveInteger(selected[0]?.libraryID);
   return fromItem ?? Zotero.Libraries.userLibraryID;
-}
-
-// The right-clicked rows arrive on the menu context, and that is the only
-// place they may be read from. Falling back to the pane selection would answer
-// with whatever happened to be selected elsewhere, which is how these entries
-// ended up appearing on every row Zotero opens a context menu on — notes,
-// attachments, and rows that hold no items at all.
-function contextRegularItems(context: any): Zotero.Item[] {
-  const items = safeContextValue(context, "items");
-  if (!Array.isArray(items)) return [];
-  return items.filter(
-    (item: Zotero.Item) => item?.isRegularItem?.() && !item.deleted,
-  );
 }
 
 async function activeLibraryRegularItems(

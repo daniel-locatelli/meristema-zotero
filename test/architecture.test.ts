@@ -55,6 +55,10 @@ import {
   assignFocusCitationSequence,
   assignGraphCitationSequence,
 } from "../src/services/citationSequenceService";
+import {
+  contextCollectionID,
+  contextRegularItems,
+} from "../src/services/menuContext";
 import { getMetricDefinition } from "../src/services/metricRegistry";
 import {
   inverseScaleValue,
@@ -1569,5 +1573,86 @@ describe("Architecture foundations", function () {
     unsubscribe();
 
     expect(phases).to.deep.equal(["metadata-published", "refresh-finished"]);
+  });
+
+  it("reads right-clicked items only from the menu context", function () {
+    const paper = { isRegularItem: () => true, deleted: false, id: 11 };
+    const trashedPaper = { isRegularItem: () => true, deleted: true, id: 12 };
+    const note = { isRegularItem: () => false, deleted: false, id: 13 };
+
+    expect(
+      contextRegularItems({ items: [paper, note, trashedPaper] }),
+    ).to.deep.equal([paper]);
+    expect(contextRegularItems({ items: [note] })).to.deep.equal([]);
+    expect(contextRegularItems({ items: [] })).to.deep.equal([]);
+    expect(contextRegularItems({})).to.deep.equal([]);
+    expect(contextRegularItems(null)).to.deep.equal([]);
+
+    // A context that throws on property access must not take the menu down.
+    const hostile = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("context property is unavailable");
+        },
+      },
+    );
+    expect(contextRegularItems(hostile)).to.deep.equal([]);
+
+    // The predicate must never reach for the pane. A pane offering a paper
+    // must not rescue a context that was right-clicked on a note.
+    const withPane = {
+      items: [note],
+      ZoteroPane: { getSelectedItems: () => [paper] },
+    };
+    expect(contextRegularItems(withPane)).to.deep.equal([]);
+  });
+
+  it("treats only real collection rows as folders", function () {
+    const collectionRow = {
+      isCollection: () => true,
+      ref: { id: 42, libraryID: 1 },
+    };
+    expect(contextCollectionID({ collectionTreeRow: collectionRow })).to.equal(
+      42,
+    );
+
+    // Every other row type in the collection tree fails the predicate. These
+    // are the rows the menu used to appear on.
+    for (const row of [
+      { isCollection: () => false, ref: { libraryID: 1 } }, // My Library / group root
+      { isCollection: () => false, ref: { id: 7 } }, // saved search
+      { isCollection: () => false, ref: {} }, // Trash, Unfiled, Duplicates
+    ]) {
+      expect(contextCollectionID({ collectionTreeRow: row })).to.equal(null);
+    }
+
+    // A collection row with no usable ID is not a folder either.
+    expect(
+      contextCollectionID({
+        collectionTreeRow: { isCollection: () => true, ref: {} },
+      }),
+    ).to.equal(null);
+    expect(
+      contextCollectionID({
+        collectionTreeRow: { isCollection: () => true, ref: { id: 0 } },
+      }),
+    ).to.equal(null);
+
+    // A row that is not a tree row at all.
+    expect(contextCollectionID({ collectionTreeRow: {} })).to.equal(null);
+    expect(contextCollectionID({})).to.equal(null);
+    expect(contextCollectionID(null)).to.equal(null);
+
+    // No pane fallback: a selected collection elsewhere must not make a
+    // library row look like a folder.
+    const withPane = {
+      collectionTreeRow: { isCollection: () => false, ref: { libraryID: 1 } },
+      ZoteroPane: {
+        getSelectedCollection: () => ({ id: 42 }),
+        getCollectionTreeRow: () => collectionRow,
+      },
+    };
+    expect(contextCollectionID(withPane)).to.equal(null);
   });
 });
