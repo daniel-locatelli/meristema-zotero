@@ -36,6 +36,7 @@
   },
   "scripts": {
     "start": "zotero-plugin serve",
+    "dev:sync-library": "node scripts/sync-dev-library.mjs",
     "typecheck": "tsc --noEmit",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix && prettier --write .",
