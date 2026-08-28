@@ -1,7 +1,7 @@
 # Opening a folder in a Collection Graph
 
 Date: 2026-08-28
-Status: designed
+Status: implemented
 
 ## Context
 

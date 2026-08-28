@@ -4,6 +4,7 @@
 // @ts-nocheck
 export type FluentMessageId =
   | 'automatic-updates-command'
+  | 'collection-new-graph-command'
   | 'meristema-item-pane-header'
   | 'meristema-item-pane-sidenav'
   | 'new-focus-view-command'
