@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
 import { updateCitationDataForItems } from "./citationUpdateService";
-import { contextRegularItems } from "./menuContext";
+import { contextCollectionID, contextRegularItems } from "./menuContext";
 import {
   getDefaultHostWindow,
   getOpenGraphViews,
@@ -10,6 +10,7 @@ import {
   openGraphAndSelectItemsInView,
   openFocusItemsInNewTab,
   openFocusItemsInView,
+  openGraphForCollection,
   openNewFocusWindow,
   openNewGraphWindow,
   renameGraphView,
@@ -311,6 +312,46 @@ function itemMenus(): MenuData[] {
   ];
 }
 
+// A folder opens as a collection-scoped graph rather than as a bag of item
+// IDs: `openGraphForCollection` drives the graph's own collection filter, so
+// the scope follows the folder as papers are added to it and subcollections
+// come along. That filter is a scope, not an addition — opening a folder in an
+// existing graph replaces what it was showing, which is why the injected
+// entries read "show this folder" and not the item menu's "add to graph".
+//
+// Explore views are left out. A focus view is seeded by item IDs and has no
+// collection to re-scope, so there is nothing coherent to offer.
+function collectionMenus(): MenuData[] {
+  return [
+    contextCommandItem(
+      `${config.addonRef}-show-items-new-tab-command`,
+      (context) => contextCollectionID(context) !== null,
+      async (context) => {
+        const collectionID = contextCollectionID(context);
+        if (collectionID === null) return;
+        await openGraphForCollection(collectionID, contextWindow(context), {
+          newInstance: true,
+        });
+      },
+      (context) => {
+        const collectionID = contextCollectionID(context);
+        if (collectionID === null) return;
+        const hostWindow = contextWindow(context);
+        injectViewItems(
+          context,
+          getOpenGraphViews(hostWindow).filter((view) => view.kind === "map"),
+          "show this folder",
+          (view) => {
+            void openGraphForCollection(collectionID, hostWindow, {
+              targetInstanceID: view.instanceID,
+            }).catch(report);
+          },
+        );
+      },
+    ),
+  ];
+}
+
 function toolsSubmenu(): MenuData {
   return {
     menuType: "submenu",
@@ -385,6 +426,12 @@ export function registerMenus(): void {
     pluginID: config.addonID,
     target: "main/library/item",
     menus: itemMenus(),
+  });
+  register({
+    menuID: "meristema-collection-context-menu",
+    pluginID: config.addonID,
+    target: "main/library/collection",
+    menus: collectionMenus(),
   });
   register({
     menuID: "meristema-tab-context-menu",
