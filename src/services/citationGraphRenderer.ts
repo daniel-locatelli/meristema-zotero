@@ -59,6 +59,16 @@ import {
   type PlotAxisState,
   type PlotRect,
 } from "./graphPlotFrame";
+import {
+  arrivalDirection,
+  curveControlPoint,
+  curveSign,
+  edgeBaseOpacity,
+  reciprocalEdgeKeys,
+  shouldDrawArrowhead,
+  ARROWHEAD_SIZE_CSS,
+  EDGE_CURVE_APEX_CSS,
+} from "./graphEdgeStyle";
 
 interface Position {
   x: number;
@@ -750,24 +760,37 @@ export class CitationGraphRenderer {
     connection: "citation" | "reference" | null,
     dimmed: boolean,
     ghosted: boolean,
+    /** Device pixels the edge bows off its chord; zero draws a straight line. */
+    curveApex: number,
+    /** The alpha an unlit edge is drawn at, falling as the mesh thickens. */
+    baseOpacity: number,
   ): void {
     const context = this.context;
-    const dx = target.x - source.x;
-    const dy = target.y - source.y;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const ux = dx / length;
-    const uy = dy / length;
     const ratio = this.ratio;
-    const endX = target.x - ux * (targetRadius + 2 * ratio);
-    const endY = target.y - uy * (targetRadius + 2 * ratio);
     const edges = this.theme.edges;
     const connected =
       connection === "citation" ? edges.incoming : edges.outgoing;
+    // A reciprocal pair overdraws as one line when both are straight, so each
+    // bows to its own side of the chord. The arrowhead then has to follow the
+    // curve's tangent at the target rather than the chord's direction.
+    const control =
+      curveApex === 0
+        ? { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 }
+        : curveControlPoint(source, target, curveApex);
+    const arrival = arrivalDirection(control, target);
+    const inset = targetRadius + 2 * ratio;
+    const endX = target.x - arrival.x * inset;
+    const endY = target.y - arrival.y * inset;
+
     context.save();
-    if (ghosted) context.globalAlpha = 0.58;
+    // A lit edge keeps its full strength however dense the graph is — lighting
+    // it is the whole point of the selection.
+    context.globalAlpha =
+      (ghosted ? 0.58 : 1) * (connection ? 1 : Math.max(0, baseOpacity));
     context.beginPath();
     context.moveTo(source.x, source.y);
-    context.lineTo(endX, endY);
+    if (curveApex === 0) context.lineTo(endX, endY);
+    else context.quadraticCurveTo(control.x, control.y, endX, endY);
     context.strokeStyle = connection
       ? connected
       : dimmed
@@ -780,20 +803,25 @@ export class CitationGraphRenderer {
       context.shadowBlur = 3 * ratio;
     }
     context.stroke();
-    const size = (connection ? 6.25 : 5) * ratio;
-    context.beginPath();
-    context.moveTo(endX, endY);
-    context.lineTo(
-      endX - ux * size - uy * size * 0.7,
-      endY - uy * size + ux * size * 0.7,
-    );
-    context.lineTo(
-      endX - ux * size + uy * size * 0.7,
-      endY - uy * size - ux * size * 0.7,
-    );
-    context.closePath();
-    context.fillStyle = context.strokeStyle;
-    context.fill();
+
+    if (shouldDrawArrowhead(this.transform.scale, connection !== null)) {
+      const size = ARROWHEAD_SIZE_CSS * ratio;
+      const ux = arrival.x;
+      const uy = arrival.y;
+      context.beginPath();
+      context.moveTo(endX, endY);
+      context.lineTo(
+        endX - ux * size - uy * size * 0.7,
+        endY - uy * size + ux * size * 0.7,
+      );
+      context.lineTo(
+        endX - ux * size + uy * size * 0.7,
+        endY - uy * size - ux * size * 0.7,
+      );
+      context.closePath();
+      context.fillStyle = context.strokeStyle;
+      context.fill();
+    }
     context.restore();
   }
 
@@ -1127,6 +1155,8 @@ export class CitationGraphRenderer {
         return Number(a) - Number(b);
       });
 
+      const reciprocal = reciprocalEdgeKeys(edges);
+      const baseOpacity = edgeBaseOpacity(edges.length);
       for (const edge of edges) {
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
@@ -1139,6 +1169,11 @@ export class CitationGraphRenderer {
               : edge.source === selectedKey
                 ? "reference"
                 : null;
+        const curveApex = reciprocal.has(`${edge.source}>${edge.target}`)
+          ? curveSign(edge.source, edge.target) *
+            EDGE_CURVE_APEX_CSS *
+            this.ratio
+          : 0;
         this.drawArrow(
           source,
           target,
@@ -1150,6 +1185,8 @@ export class CitationGraphRenderer {
             !this.visibleKeys.has(selectedKey) &&
             (edge.source === selectedKey || edge.target === selectedKey),
           ),
+          curveApex,
+          baseOpacity,
         );
       }
 

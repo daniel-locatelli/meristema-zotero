@@ -19,6 +19,11 @@ import {
   scaleValue,
 } from "./graphMetricScale";
 import type { GraphTheme } from "./graphTheme";
+import {
+  createLabelBudget,
+  createRectangleIndex,
+  createTextWidthCache,
+} from "./graphLabelBudget";
 
 interface Position {
   x: number;
@@ -383,17 +388,13 @@ function relaxAnchoredNodes(
   }
 }
 
-function overlapArea(left: Rectangle, right: Rectangle): number {
-  const width = Math.max(
-    0,
-    Math.min(left.right, right.right) - Math.max(left.left, right.left),
-  );
-  const height = Math.max(
-    0,
-    Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top),
-  );
-  return width * height;
-}
+/**
+ * Measured label widths, kept between frames. The label font is fixed in screen
+ * space, so a width is valid until the string or the font changes and both are
+ * in the key — one cache for the module is enough, and it survives the pan that
+ * used to re-measure every visible label sixty times a second.
+ */
+const labelWidths = createTextWidthCache();
 
 /**
  * The label-placement bounds are a world rectangle around the plot, projected
@@ -562,57 +563,74 @@ export function drawRendererLabels(
 ): void {
   if (renderer.layout.nodeLabelMode === "none") return;
   const context = renderer.context;
-  const limited = nodes.length > 220;
-  const ordered = [...nodes]
-    .filter(
-      (node) =>
-        !limited ||
-        node.key === renderer.selectedKey ||
-        node.key === renderer.hoverKey,
-    )
-    .sort((left, right) => {
-      const priority = (node: CitationGraphNode): number =>
-        node.key === renderer.selectedKey
-          ? 3
-          : node.key === renderer.hoverKey
-            ? 2
-            : 1;
-      return (
-        priority(right) - priority(left) ||
-        (right.citationCount ?? -1) - (left.citationCount ?? -1) ||
-        left.key.localeCompare(right.key)
-      );
-    });
+  // No node-count cliff any more: every node is a candidate, ordered by
+  // importance, and the budget below decides where to stop. A 219-node graph
+  // and a 221-node one now differ by one label rather than by all of them.
+  const ordered = [...nodes].sort((left, right) => {
+    const priority = (node: CitationGraphNode): number =>
+      node.key === renderer.selectedKey
+        ? 3
+        : node.key === renderer.hoverKey
+          ? 2
+          : 1;
+    return (
+      priority(right) - priority(left) ||
+      (right.citationCount ?? -1) - (left.citationCount ?? -1) ||
+      left.key.localeCompare(right.key)
+    );
+  });
 
   const ratio = renderer.ratio;
   const bounds = labelBounds(renderer);
+  const font = `${11 * ratio}px ${renderer.fontStack}`;
   context.save();
-  context.font = `${11 * ratio}px ${renderer.fontStack}`;
+  context.font = font;
   context.textBaseline = "middle";
-  const nodeRectangles: Rectangle[] = nodes.flatMap((node) => {
+  // Node rectangles and placed labels share one spatial index — the loop used
+  // to concatenate both arrays and test all of them for each of eight
+  // candidates per label, which is the quadratic cost the 220-node cliff was
+  // hiding. A candidate now only meets the rectangles in its own cells.
+  const obstacles = createRectangleIndex();
+  for (const node of nodes) {
     const position = renderer.screenPositions.get(node.key);
-    if (!position) return [];
+    if (!position) continue;
     const radius = (radii.get(node.key) ?? 7 * ratio) + 3 * ratio;
-    return [
-      {
-        left: position.x - radius,
-        right: position.x + radius,
-        top: position.y - radius,
-        bottom: position.y + radius,
-      },
-    ];
-  });
-  const occupied: Rectangle[] = [];
+    obstacles.insert({
+      left: position.x - radius,
+      right: position.x + radius,
+      top: position.y - radius,
+      bottom: position.y + radius,
+    });
+  }
+  // The budget is a share of the plot that is actually on screen, so zooming
+  // in — which grows the visible plot without adding nodes — reveals more
+  // labels continuously rather than at a threshold.
+  const visible = {
+    left: Math.max(bounds.left, 0),
+    right: Math.min(bounds.right, renderer.canvas.width),
+    top: Math.max(bounds.top, 0),
+    bottom: Math.min(bounds.bottom, renderer.canvas.height),
+  };
+  const budget = createLabelBudget(
+    Math.max(0, visible.right - visible.left) *
+      Math.max(0, visible.bottom - visible.top),
+  );
 
   for (const node of ordered) {
     const position = renderer.screenPositions.get(node.key);
     if (!position) continue;
+    // Selected and hovered nodes are always labelled; they sort first, so the
+    // budget can stop the loop outright once it is spent.
+    const important =
+      node.key === renderer.selectedKey || node.key === renderer.hoverKey;
+    if (!important && !budget.hasRoom()) break;
     const label =
       renderer.layout.nodeLabelMode === "author-year"
         ? `${node.authors[0]?.split(/\s+/).at(-1) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
         : node.title;
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
-    const width = Math.ceil(context.measureText(shortened).width) + 4 * ratio;
+    const width =
+      Math.ceil(labelWidths.width(context, font, shortened)) + 4 * ratio;
     const height = 14 * ratio;
     const radius = radii.get(node.key) ?? 7 * ratio;
     const gap = radius + 6 * ratio;
@@ -648,10 +666,7 @@ export function drawRendererLabels(
         top: candidate.y - height / 2,
         bottom: candidate.y + height / 2,
       };
-      const overlap = [...nodeRectangles, ...occupied].reduce(
-        (sum, other) => sum + overlapArea(rectangle, other),
-        0,
-      );
+      const overlap = obstacles.overlap(rectangle);
       return {
         ...candidate,
         rectangle,
@@ -663,8 +678,6 @@ export function drawRendererLabels(
     const clearCandidate = evaluated.find(
       (candidate) => candidate.overlap === 0,
     );
-    const important =
-      node.key === renderer.selectedKey || node.key === renderer.hoverKey;
     const chosen =
       clearCandidate ??
       (important
@@ -672,9 +685,13 @@ export function drawRendererLabels(
             candidate.overlap < best.overlap ? candidate : best,
           )
         : null);
-    if (!chosen) continue;
+    if (!chosen) {
+      budget.failed();
+      continue;
+    }
 
-    occupied.push(chosen.rectangle);
+    obstacles.insert(chosen.rectangle);
+    if (!important) budget.placed(width * height);
     const defaultPlacement = chosen === evaluated[0];
     if (!defaultPlacement) {
       const labelEdgeX = clamp(
