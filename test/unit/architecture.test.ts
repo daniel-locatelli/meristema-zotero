@@ -27,6 +27,7 @@ import {
   ignoredRelationMatchesDescriptor,
 } from "../../src/domain/relationshipDescriptors";
 import { workIdentifiersForRelatedWork } from "../../src/domain/workIdentifiers";
+import { graphThemeFor } from "../../src/services/graphTheme";
 import { SerializedTaskQueue } from "../../src/services/serializedTaskQueue";
 import { RelationshipMetadataDependencyIndex } from "../../src/services/relationshipMetadataDependencyIndex";
 import { projectRelatedWorkSummary } from "../../src/services/relatedWorkHydrationState";
@@ -749,8 +750,9 @@ describe("Architecture foundations", function () {
       1e-12,
     );
     expect(niceStep(93, 5, true)).to.equal(20);
-    expect(numericColor(-1)).to.equal(numericColor(0));
-    expect(numericColor(2)).to.equal(numericColor(1));
+    const theme = graphThemeFor("light");
+    expect(numericColor(-1, theme)).to.equal(numericColor(0, theme));
+    expect(numericColor(2, theme)).to.equal(numericColor(1, theme));
   });
 
   it("bounds concurrent mapping and preserves result order", async function () {

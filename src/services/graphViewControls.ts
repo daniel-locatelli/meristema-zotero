@@ -11,11 +11,7 @@ import type {
   GraphScaleType,
   MetricID,
 } from "../domain/graphTypes";
-import type {
-  LibraryCollectionFilter,
-  LibrarySnapshot,
-  ZoteroPaper,
-} from "../domain/types";
+import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
 import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
 import {
   axisMetricDefinitions,
@@ -27,11 +23,6 @@ import {
 import { createIcon, type IconName } from "./uiIconService";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
-
-export interface CollectionVisuals {
-  colorsByNodeKey: Map<string, string[]>;
-  labelsByNodeKey: Map<string, string[]>;
-}
 
 export function element<K extends keyof HTMLElementTagNameMap>(
   document: Document,
@@ -157,43 +148,20 @@ export function externalWorkTitle(work: ExternalWork): string {
   return externalWorkDisplayTitle(work) ?? "Title unavailable";
 }
 
-function colorForCollection(id: number, depth: number): string {
-  const hue = (id * 47 + depth * 19) % 360;
-  return `hsl(${hue} ${Math.max(42, 65 - depth * 5)}% ${Math.min(67, 45 + depth * 7)}%)`;
-}
-
-export function buildCollectionVisuals(
+/**
+ * The folder names the graph shows for a collection colouring. Which folders get
+ * a swatch, and in what order, is decided by rank in `graphCategoryAssignment`,
+ * not here — this only supplies the display names.
+ */
+export function collectionLabelsByID(
   snapshot: LibrarySnapshot,
-  nodes: CitationGraphNode[],
-): CollectionVisuals {
-  const byID = new Map(
+): Map<number, string> {
+  return new Map(
     snapshot.collections.map((collection) => [
       collection.collectionID,
-      collection,
+      collection.path,
     ]),
   );
-  const colorsByNodeKey = new Map<string, string[]>();
-  const labelsByNodeKey = new Map<string, string[]>();
-  for (const node of nodes) {
-    const memberships = node.collectionIDs
-      .map((id) => byID.get(id))
-      .filter((entry): entry is LibraryCollectionFilter => Boolean(entry))
-      .sort((left, right) => right.depth - left.depth);
-    const shown = memberships.slice(0, 4);
-    colorsByNodeKey.set(
-      node.key,
-      shown.map((collection) =>
-        colorForCollection(collection.collectionID, collection.depth),
-      ),
-    );
-    labelsByNodeKey.set(
-      node.key,
-      memberships.length
-        ? memberships.map((collection) => collection.path)
-        : ["Unfiled"],
-    );
-  }
-  return { colorsByNodeKey, labelsByNodeKey };
 }
 
 function metricDescription(definition: {
@@ -342,7 +310,6 @@ export function createAxesAppearance(
   initial: GraphLayoutOptions,
   nodes: CitationGraphNode[],
   onChange: (layout: GraphLayoutOptions) => void,
-  onLegendChange: (visible: boolean) => void,
   persistLayout: (layout: GraphLayoutOptions) => void,
   resetLayout: () => GraphLayoutOptions,
 ): {
@@ -351,7 +318,6 @@ export function createAxesAppearance(
   panel: HTMLDivElement;
   setLayout: (layout: GraphLayoutOptions, persist?: boolean) => void;
   getLayout: () => GraphLayoutOptions;
-  getLegendVisible: () => boolean;
   close: () => void;
 } {
   const root = element(document, "div", "cm-appearance-control");
@@ -489,15 +455,6 @@ export function createAxesAppearance(
   }
   labels.value = initial.nodeLabelMode;
 
-  const legendPreferenceKey = `${config.prefsPrefix}.graphShowLegend`;
-  const storedLegend = Zotero.Prefs.get(legendPreferenceKey, true);
-  const showLegend = element(document, "input");
-  showLegend.type = "checkbox";
-  showLegend.checked =
-    storedLegend === undefined || storedLegend === null
-      ? true
-      : Boolean(storedLegend);
-
   const tabs = element(document, "div", "cm-detail-tabs");
   tabs.style.marginTop = "0";
   const panes = new Map<string, HTMLDivElement>();
@@ -573,9 +530,6 @@ export function createAxesAppearance(
     createMetricHelp(document, yMetric, "Choose vertical position."),
   );
   const nodesPane = makePane("nodes", "Nodes");
-  const legendLabel = element(document, "label", "cm-check-control");
-  legendLabel.style.whiteSpace = "nowrap";
-  legendLabel.append(showLegend, document.createTextNode("Show legend"));
   nodesPane.append(
     labelledLine("Label", labels),
     labelledLine("Size", sizeMetric),
@@ -584,7 +538,7 @@ export function createAxesAppearance(
       sizeMetric,
       "Visible minimum and maximum values map to the plugin minimum and maximum node sizes.",
     ),
-    labelledLine("Color", colorMetric, legendLabel),
+    labelledLine("Color", colorMetric),
     createMetricHelp(document, colorMetric, "Choose node colour."),
   );
 
@@ -621,17 +575,6 @@ export function createAxesAppearance(
       if (!enabled && scale.value === "log") scale.value = "linear";
       scale.disabled = selected === "free";
     }
-    const categoricalValues = new Set([
-      "collection",
-      "publication-type",
-      "provider",
-      "open-access",
-      "retraction",
-    ]);
-    showLegend.disabled = categoricalValues.has(colorMetric.value);
-    legendLabel.title = showLegend.disabled
-      ? "A numeric legend is available when Color uses a numeric metric."
-      : "Show or hide the numeric color legend on the graph.";
   };
   let last = JSON.stringify(read());
   const commit = (
@@ -661,11 +604,6 @@ export function createAxesAppearance(
     control.addEventListener("input", applySelection);
     control.addEventListener("change", applySelection);
   }
-  showLegend.addEventListener("change", () => {
-    Zotero.Prefs.set(legendPreferenceKey, showLegend.checked, true);
-    onLegendChange(showLegend.checked);
-  });
-
   const close = (): void => {
     panel.hidden = true;
     panel.style.display = "none";
@@ -696,9 +634,6 @@ export function createAxesAppearance(
     commit(read(), true, persist);
   };
   reset.addEventListener("click", () => {
-    showLegend.checked = true;
-    Zotero.Prefs.set(legendPreferenceKey, true, true);
-    onLegendChange(true);
     setLayout(resetLayout(), false);
   });
   updateAvailability();
@@ -714,7 +649,6 @@ export function createAxesAppearance(
     panel,
     setLayout,
     getLayout: read,
-    getLegendVisible: () => showLegend.checked,
     close,
   };
 }

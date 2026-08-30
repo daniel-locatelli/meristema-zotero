@@ -1,3 +1,10 @@
+/*
+ * The --cm-surface-*, --cm-ink-*, --cm-ramp-*, --cm-category-*, --cm-edge-* and
+ * --cm-state-* custom properties are written onto this element at runtime from
+ * src/services/graphTheme.ts, so the chrome and the canvas draw the same
+ * colours. Everything below is the quiet, Zotero-native chrome, which stays on
+ * system colours on purpose.
+ */
 .meristema-root {
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
   --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
@@ -360,13 +367,8 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 20% 15%,
-      color-mix(in srgb, var(--cm-accent) 5%, transparent),
-      transparent 30%
-    ),
-    Canvas;
+  /* The plot paints its own paper tone; the area behind it stays quiet. */
+  background: var(--cm-surface-panel, Canvas);
 }
 .cm-graph-canvas {
   display: block;
@@ -662,10 +664,14 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .meristema-root {
-    --cm-icon-color: #f2f2f2;
-  }
+/*
+ * The scheme is stamped on the root by applyGraphThemeToDocument, not read from
+ * a media query. Setting Zotero's appearance triggers no restyle of an open
+ * chrome document, so a `prefers-color-scheme` rule here would go stale exactly
+ * when the user changes the theme.
+ */
+.meristema-root[data-cm-scheme="dark"] {
+  --cm-icon-color: #f2f2f2;
 }
 
 .cm-focus-bar {

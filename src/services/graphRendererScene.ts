@@ -11,7 +11,6 @@ import {
   getExternalWorkNodeLabel,
 } from "./externalWorkMetricRegistry";
 import {
-  categoricalColor,
   clamp,
   hashString,
   metricExtent,
@@ -19,6 +18,7 @@ import {
   numericColor,
   scaleValue,
 } from "./graphMetricScale";
+import type { GraphTheme } from "./graphTheme";
 
 interface Position {
   x: number;
@@ -60,6 +60,7 @@ export interface RendererSceneContext {
   } | null;
   nodeRadius(node: CitationGraphNode, domain?: [number, number] | null): number;
   isDarkMode(): boolean;
+  getTheme(): GraphTheme;
   draw(): void;
 }
 
@@ -118,34 +119,32 @@ function ghostColor(
   preview: GhostPreview,
   nodes: CitationGraphNode[],
 ): string {
+  const theme = renderer.getTheme();
   const metric = renderer.layout.nodeColorMetric ?? "collection";
+  // A ghost is a preview of a paper that is not in the graph yet, so it belongs
+  // to none of the assigned categories. Only a numeric metric can place it.
+  if (
+    metric === "collection" ||
+    metric === "publication-type" ||
+    metric === "provider" ||
+    metric === "open-access"
+  ) {
+    return theme.categorical.noValue;
+  }
   const work = getExternalWorkMetadata(preview.key);
-  if (metric === "collection") return "rgba(148, 163, 184, .55)";
-  if (metric === "publication-type") {
-    return categoricalColor(work?.publicationType, "rgba(148, 163, 184, .55)");
-  }
-  if (metric === "provider") {
-    return categoricalColor(work?.provider, "rgba(148, 163, 184, .55)");
-  }
-  if (metric === "open-access") {
-    return work?.isOpenAccess
-      ? categoricalColor(
-          work.openAccessStatus ?? "open",
-          "rgba(148, 163, 184, .55)",
-        )
-      : "rgba(148, 163, 184, .55)";
-  }
   if (metric === "retraction") {
-    return work?.isRetracted ? "rgb(220 38 38)" : "rgba(148, 163, 184, .55)";
+    return work?.isRetracted
+      ? theme.states.retracted
+      : theme.categorical.noValue;
   }
   const value = getExternalWorkMetricValue(preview.key, metric);
   const domain = metricDomain(nodes, metric);
-  if (value === null || !domain) return "rgba(148, 163, 184, .55)";
+  if (value === null || !domain) return theme.categorical.noValue;
   const normalized =
     domain[0] === domain[1]
       ? 0.5
       : clamp((value - domain[0]) / (domain[1] - domain[0]), 0, 1);
-  return numericColor(normalized);
+  return numericColor(normalized, theme);
 }
 
 function maximumDisplacement(metric: GraphAxisMetric): number {
@@ -636,9 +635,7 @@ export function drawRendererLabels(
       context.beginPath();
       context.moveTo(position.x, position.y);
       context.lineTo(labelEdgeX, labelEdgeY);
-      context.strokeStyle = renderer.isDarkMode()
-        ? "rgba(148, 163, 184, .42)"
-        : "rgba(71, 85, 105, .38)";
+      context.strokeStyle = renderer.getTheme().inks.muted;
       context.lineWidth = 0.8;
       context.stroke();
     }
@@ -646,9 +643,7 @@ export function drawRendererLabels(
     const ghosted = renderer.isNodeGhosted(node);
     context.globalAlpha = ghosted ? 0.58 : 1;
     context.textAlign = chosen.align;
-    context.fillStyle = renderer.isDarkMode()
-      ? "rgba(248, 250, 252, .94)"
-      : "rgba(15, 23, 42, .9)";
+    context.fillStyle = renderer.getTheme().inks.primary;
     context.fillText(shortened, chosen.x, chosen.y);
     context.globalAlpha = 1;
   }
@@ -736,7 +731,7 @@ export function drawRendererGhost(
     context.beginPath();
     context.moveTo(source.x, source.y);
     context.lineTo(x, y);
-    context.strokeStyle = "rgba(100, 116, 139, .55)";
+    context.strokeStyle = renderer.getTheme().inks.muted;
     context.stroke();
   }
   context.beginPath();
@@ -746,13 +741,11 @@ export function drawRendererGhost(
   context.fill();
   context.globalAlpha = 1;
   context.lineWidth = 1.5;
-  context.strokeStyle = "rgba(203, 213, 225, .82)";
+  context.strokeStyle = renderer.getTheme().surfaces.hairline;
   context.stroke();
   context.setLineDash([]);
   if (missingX || missingY) {
-    context.fillStyle = renderer.isDarkMode()
-      ? "rgba(248,250,252,.94)"
-      : "rgba(30,41,59,.9)";
+    context.fillStyle = renderer.getTheme().inks.primary;
     context.font = "600 11px sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
@@ -767,9 +760,7 @@ export function drawRendererGhost(
   );
   if (label) {
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
-    context.fillStyle = renderer.isDarkMode()
-      ? "rgba(248,250,252,.94)"
-      : "rgba(30,41,59,.9)";
+    context.fillStyle = renderer.getTheme().inks.primary;
     context.font = "11px sans-serif";
     context.textAlign = "center";
     context.textBaseline = "alphabetic";

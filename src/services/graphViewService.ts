@@ -113,7 +113,7 @@ import {
 } from "./sourceMetricsService";
 import { clamp } from "./graphMetricScale";
 import {
-  buildCollectionVisuals,
+  collectionLabelsByID,
   clear,
   createAxesAppearance,
   element,
@@ -129,6 +129,12 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
+import {
+  applyGraphThemeToDocument,
+  graphThemeFor,
+  observeGraphScheme,
+  resolveGraphScheme,
+} from "./graphTheme";
 import {
   buildGraphFocusProjection,
   externalWorkToFocusNode,
@@ -367,7 +373,7 @@ export function renderGraphView(
     if (invalidateShared) invalidateCitationGraphSnapshot(snapshot.libraryID);
   };
   const paperByKey = localPaperByKey(snapshot);
-  const visuals = buildCollectionVisuals(snapshot, model.nodes);
+  const collectionLabels = collectionLabelsByID(snapshot);
   const initialViewKind =
     options.initialViewKind ??
     (options.initialFocusItemID || options.initialFocusItemIDs?.length
@@ -443,6 +449,21 @@ export function renderGraphView(
   const root = element(document, "div", "meristema-root");
   root.dataset.mode = options.mode;
   root.dataset.viewKind = currentViewKind;
+
+  // The chrome reads the same tokens the canvas draws with. The scheme is
+  // re-resolved on every change rather than read from a held media query,
+  // which goes stale in a chrome document — see graphTheme.ts.
+  const applyTheme = (): void => {
+    applyGraphThemeToDocument(
+      root,
+      graphThemeFor(resolveGraphScheme(document.defaultView)),
+    );
+  };
+  applyTheme();
+  const disposeThemeObserver = observeGraphScheme(
+    document.defaultView,
+    applyTheme,
+  );
 
   const header = element(document, "header", "cm-header");
   const identity = element(document, "div", "cm-header-identity");
@@ -874,7 +895,6 @@ export function renderGraphView(
       fitCurrentGraph();
       refreshSourceMetricsForLayout(layout);
     },
-    (visible) => renderer?.setLegendVisible(visible),
     (layout) => {
       if (focusProjection) setFocusGraphAppearance(layout);
       else setGraphAppearance(layout);
@@ -3643,8 +3663,7 @@ export function renderGraphView(
     canvas,
     model,
     layout: currentLayout,
-    collectionColorsByNodeKey: visuals.colorsByNodeKey,
-    collectionLabelsByNodeKey: visuals.labelsByNodeKey,
+    collectionLabels,
     onSelectionChange: handleGraphSelection,
     onOpenNode: (node) => {
       if (node.kind === "external" && node.externalWork) {
@@ -3656,7 +3675,6 @@ export function renderGraphView(
     },
     onBackgroundInteraction: appearance.close,
   });
-  renderer.setLegendVisible(appearance.getLegendVisible());
   renderOverview(null);
   updateNavigationButtons();
   refreshSourceMetricsForLayout(currentLayout);
@@ -4243,6 +4261,7 @@ export function renderGraphView(
     : 0;
   const cleanup = (): void => {
     cleaned = true;
+    disposeThemeObserver();
     if (localCitationWarmupTimer) {
       if (document.defaultView) {
         document.defaultView.clearTimeout(localCitationWarmupTimer);

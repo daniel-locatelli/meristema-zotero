@@ -5,25 +5,12 @@ import type {
   MetricID,
 } from "../domain/graphTypes";
 import { getMetricDefinition, metricValue } from "./metricRegistry";
+import type { GraphTheme } from "./graphTheme";
 
 export interface AxisScale {
   domain: [number, number];
   ticks: number[];
 }
-
-interface RGB {
-  r: number;
-  g: number;
-  b: number;
-}
-
-export const GRAPH_COLOR_GRADIENT_STOPS: ReadonlyArray<readonly [number, RGB]> =
-  [
-    [0, { r: 37, g: 99, b: 235 }],
-    [0.35, { r: 20, g: 184, b: 211 }],
-    [0.68, { r: 250, g: 204, b: 21 }],
-    [1, { r: 220, g: 38, b: 38 }],
-  ];
 
 export function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -38,28 +25,27 @@ export function hashString(value: string): number {
   return result >>> 0;
 }
 
-export function categoricalColor(
-  value: string | null | undefined,
-  missingColor = "hsl(220 7% 58%)",
-): string {
-  if (!value) return missingColor;
-  return `hsl(${hashString(value) % 360} 58% 52%)`;
+function channels(hex: string): [number, number, number] {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
-export function numericColor(value: number): string {
-  const t = clamp(value, 0, 1);
-  let left = GRAPH_COLOR_GRADIENT_STOPS[0];
-  let right = GRAPH_COLOR_GRADIENT_STOPS.at(-1)!;
-  for (let index = 1; index < GRAPH_COLOR_GRADIENT_STOPS.length; index += 1) {
-    if (t <= GRAPH_COLOR_GRADIENT_STOPS[index][0]) {
-      left = GRAPH_COLOR_GRADIENT_STOPS[index - 1];
-      right = GRAPH_COLOR_GRADIENT_STOPS[index];
-      break;
-    }
-  }
-  const local = (t - left[0]) / Math.max(1e-9, right[0] - left[0]);
-  const mix = (a: number, b: number): number => Math.round(a + (b - a) * local);
-  return `rgb(${mix(left[1].r, right[1].r)} ${mix(left[1].g, right[1].g)} ${mix(left[1].b, right[1].b)})`;
+/**
+ * Interpolate the theme's sequential ramp. The stops are evenly spaced and
+ * monotone in lightness, so a value reads as a position in an ordering rather
+ * than as one of a set of bands.
+ */
+export function numericColor(value: number, theme: GraphTheme): string {
+  const stops = theme.ramp;
+  const t = clamp(value, 0, 1) * (stops.length - 1);
+  const lower = Math.floor(t);
+  const upper = Math.min(stops.length - 1, lower + 1);
+  const local = t - lower;
+  const from = channels(stops[lower]);
+  const to = channels(stops[upper]);
+  const mix = (index: number): number =>
+    Math.round(from[index] + (to[index] - from[index]) * local);
+  return `rgb(${mix(0)} ${mix(1)} ${mix(2)})`;
 }
 
 export function scaleValue(

@@ -23,15 +23,23 @@ import {
 import { isFilteredPreservedNode, renderedGraphKeys } from "./graphVisibility";
 import {
   axisScaleForNodes,
-  categoricalColor,
   clamp,
-  GRAPH_COLOR_GRADIENT_STOPS,
   metricExtent,
   metricNumber,
   numericColor,
   scaleValue,
   type AxisScale,
 } from "./graphMetricScale";
+import {
+  graphThemeFor,
+  observeGraphScheme,
+  resolveGraphScheme,
+  type GraphTheme,
+} from "./graphTheme";
+import {
+  assignCategories,
+  type CategoryAssignment,
+} from "./graphCategoryAssignment";
 
 interface Position {
   x: number;
@@ -59,8 +67,8 @@ export interface CitationGraphRendererOptions {
   canvas: HTMLCanvasElement;
   model: CitationGraphModel;
   layout: GraphLayoutOptions;
-  collectionColorsByNodeKey: Map<string, string[]>;
-  collectionLabelsByNodeKey: Map<string, string[]>;
+  /** Display names for the collections a colouring can name. */
+  collectionLabels: ReadonlyMap<number, string>;
   onSelectionChange: (node: CitationGraphNode | null) => void;
   onOpenNode: (node: CitationGraphNode) => void;
   onBackgroundInteraction?: () => void;
@@ -92,8 +100,10 @@ export class CitationGraphRenderer {
   private readonly context: CanvasRenderingContext2D;
   private readonly model: CitationGraphModel;
   private readonly positions = new Map<string, Position>();
-  private readonly collectionColorsByNodeKey: Map<string, string[]>;
-  private readonly collectionLabelsByNodeKey: Map<string, string[]>;
+  private readonly collectionLabels: ReadonlyMap<number, string>;
+  private theme: GraphTheme = graphThemeFor("light");
+  private categoryAssignment: CategoryAssignment | null = null;
+  private categoryAssignmentKey = "";
   private readonly onSelectionChange: (node: CitationGraphNode | null) => void;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
@@ -118,11 +128,10 @@ export class CitationGraphRenderer {
     draggedKey: null as string | null,
   };
   private resizeObserver: ResizeObserver | null = null;
-  private colorSchemeQuery: MediaQueryList | null = null;
+  private disposeSchemeObserver: (() => void) | null = null;
   private initialFitFrame: number | null = null;
   private initialFitComplete = false;
   private canvasError = false;
-  private legendVisible = true;
   private canvasErrorLogged = false;
   private destroyed = false;
 
@@ -133,8 +142,7 @@ export class CitationGraphRenderer {
     this.context = context;
     this.model = options.model;
     this.layout = { ...options.layout };
-    this.collectionColorsByNodeKey = options.collectionColorsByNodeKey;
-    this.collectionLabelsByNodeKey = options.collectionLabelsByNodeKey;
+    this.collectionLabels = options.collectionLabels;
     this.onSelectionChange = options.onSelectionChange;
     this.onOpenNode = options.onOpenNode;
     this.onBackgroundInteraction =
@@ -145,12 +153,8 @@ export class CitationGraphRenderer {
     this.installEvents();
 
     const view = this.canvas.ownerDocument.defaultView;
-    this.colorSchemeQuery =
-      view?.matchMedia?.("(prefers-color-scheme: dark)") ?? null;
-    this.colorSchemeQuery?.addEventListener?.(
-      "change",
-      this.onColorSchemeChange,
-    );
+    this.theme = graphThemeFor(resolveGraphScheme(view));
+    this.disposeSchemeObserver = observeGraphScheme(view, this.onSchemeChange);
 
     const ResizeObserverConstructor = (view as any)?.ResizeObserver as
       typeof ResizeObserver | undefined;
@@ -532,12 +536,45 @@ export class CitationGraphRenderer {
     }
   };
 
-  private readonly onColorSchemeChange = (): void => {
+  private readonly onSchemeChange = (): void => {
     this.draw();
   };
 
+  /**
+   * Re-resolve the scheme from scratch. A `MediaQueryList` held across an
+   * appearance change keeps a stale `matches` in a chrome document, so the
+   * theme is never cached across frames.
+   */
+  private refreshTheme(): void {
+    this.theme = graphThemeFor(
+      resolveGraphScheme(this.canvas.ownerDocument.defaultView),
+    );
+  }
+
+  public getTheme(): GraphTheme {
+    return this.theme;
+  }
+
   private isDarkMode(): boolean {
-    return this.colorSchemeQuery?.matches ?? false;
+    return this.theme.scheme === "dark";
+  }
+
+  /**
+   * The rank-based assignment for the active colouring, rebuilt only when the
+   * metric, the node set or the scheme actually changes.
+   */
+  private categories(): CategoryAssignment {
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}`;
+    if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
+      this.categoryAssignment = assignCategories(
+        this.model.nodes,
+        this.layout.nodeColorMetric,
+        this.theme,
+        { labelFor: (id) => this.collectionLabels.get(id) ?? null },
+      );
+      this.categoryAssignmentKey = key;
+    }
+    return this.categoryAssignment;
   }
 
   private nodeColors(
@@ -545,21 +582,16 @@ export class CitationGraphRenderer {
     colorDomain: [number, number] | null,
   ): string[] {
     const metric = this.layout.nodeColorMetric;
-    if (metric === "collection") {
-      const colors = this.collectionColorsByNodeKey.get(node.key) ?? [];
-      return colors.length ? colors.slice(0, 4) : ["hsl(220 7% 58%)"];
-    }
-    if (metric === "publication-type")
-      return [categoricalColor(node.publicationType)];
-    if (metric === "provider") return [categoricalColor(node.provider)];
-    if (metric === "open-access")
-      return [node.isOpenAccess ? "hsl(145 62% 42%)" : "hsl(220 7% 58%)"];
-    if (metric === "retraction")
-      return [node.isRetracted ? "hsl(0 72% 51%)" : "hsl(145 35% 48%)"];
+    if (!isMetricID(metric)) return this.categories().colorsFor(node);
     const value = metricNumber(node, metric);
-    if (value === null || !colorDomain) return ["hsl(220 7% 58%)"];
+    if (value === null || !colorDomain) {
+      return [this.theme.categorical.noValue];
+    }
     return [
-      numericColor(scaleValue(value, colorDomain[0], colorDomain[1], "linear")),
+      numericColor(
+        scaleValue(value, colorDomain[0], colorDomain[1], "linear"),
+        this.theme,
+      ),
     ];
   }
 
@@ -593,17 +625,15 @@ export class CitationGraphRenderer {
     context.lineWidth = node.isRetracted ? 3 : 1.1;
     if (ghosted) context.setLineDash([4, 3]);
     context.strokeStyle = node.isRetracted
-      ? "rgb(220 38 38)"
-      : this.isDarkMode()
-        ? "rgba(226, 232, 240, .75)"
-        : "rgba(15, 23, 42, .78)";
+      ? this.theme.states.retracted
+      : this.theme.inks.primary;
     context.stroke();
     context.restore();
     if (this.searchMatches?.has(node.key)) {
       context.beginPath();
       context.arc(position.x, position.y, radius + 8.5, 0, Math.PI * 2);
       context.lineWidth = 2.5;
-      context.strokeStyle = "rgb(250 204 21)";
+      context.strokeStyle = this.theme.states.searchMatch;
       context.stroke();
     }
     if (this.seedKeys.has(node.key)) {
@@ -612,7 +642,7 @@ export class CitationGraphRenderer {
       context.arc(position.x, position.y, radius + 4, 0, Math.PI * 2);
       context.lineWidth = 2.4;
       if (ghosted) context.setLineDash([5, 3]);
-      context.strokeStyle = "rgb(124 58 237)";
+      context.strokeStyle = this.theme.states.seed;
       context.stroke();
       context.restore();
     }
@@ -622,14 +652,14 @@ export class CitationGraphRenderer {
       context.arc(position.x, position.y, radius + 5.5, 0, Math.PI * 2);
       context.lineWidth = 3;
       if (ghosted) context.setLineDash([6, 4]);
-      context.strokeStyle = "rgb(30 64 175)";
+      context.strokeStyle = this.theme.states.selected;
       context.stroke();
       context.restore();
     } else if (node.key === this.hoverKey) {
       context.beginPath();
       context.arc(position.x, position.y, radius + 3, 0, Math.PI * 2);
       context.lineWidth = 2;
-      context.strokeStyle = "rgba(30, 64, 175, .8)";
+      context.strokeStyle = this.theme.states.selected;
       context.stroke();
     }
   }
@@ -650,12 +680,9 @@ export class CitationGraphRenderer {
     const uy = dy / length;
     const endX = target.x - ux * (targetRadius + 2);
     const endY = target.y - uy * (targetRadius + 2);
-    const dark = this.isDarkMode();
-    const normal = dark ? "rgba(148, 163, 184, .28)" : "rgba(71, 85, 105, .32)";
+    const edges = this.theme.edges;
     const connected =
-      connection === "citation"
-        ? "rgba(249, 115, 22, .92)"
-        : "rgba(59, 130, 246, .92)";
+      connection === "citation" ? edges.incoming : edges.outgoing;
     context.save();
     if (ghosted) context.globalAlpha = 0.58;
     context.beginPath();
@@ -664,10 +691,8 @@ export class CitationGraphRenderer {
     context.strokeStyle = connection
       ? connected
       : dimmed
-        ? dark
-          ? "rgba(148, 163, 184, .07)"
-          : "rgba(71, 85, 105, .07)"
-        : normal;
+        ? edges.dimmed
+        : edges.base;
     context.lineWidth = connection ? 2.15 : 1;
     context.setLineDash(ghosted ? [6, 5] : []);
     if (connection) {
@@ -700,9 +725,7 @@ export class CitationGraphRenderer {
     const axisRight = this.canvas.width - 14 * ratio;
     const axisTop = 14 * ratio;
     const axisBottom = this.canvas.height - 42 * ratio;
-    const foreground = this.isDarkMode()
-      ? "rgba(226, 232, 240, .72)"
-      : "rgba(51, 65, 85, .72)";
+    const foreground = this.theme.inks.muted;
 
     context.save();
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -816,58 +839,20 @@ export class CitationGraphRenderer {
     drawRendererLabels(this as unknown as RendererSceneContext, nodes, radii);
   }
 
-  private drawLegend(colorDomain: [number, number] | null): void {
-    if (!this.legendVisible) return;
-    if (!isMetricID(this.layout.nodeColorMetric) || !colorDomain) return;
-    const context = this.context;
-    const x = WORLD_WIDTH - 250;
-    const y = 24;
-    const width = 190;
-    const gradient = context.createLinearGradient(x, y, x + width, y);
-    for (const [stop, rgb] of GRAPH_COLOR_GRADIENT_STOPS) {
-      gradient.addColorStop(stop, `rgb(${rgb.r} ${rgb.g} ${rgb.b})`);
-    }
-    context.fillStyle = gradient;
-    context.fillRect(x, y, width, 10);
-    context.fillStyle = this.isDarkMode()
-      ? "rgba(248,250,252,.94)"
-      : "rgba(30,41,59,.9)";
-    context.font = "11px sans-serif";
-    context.textBaseline = "top";
-    context.textAlign = "left";
-    context.fillText(
-      formatMetricValue(this.layout.nodeColorMetric, colorDomain[0]),
-      x,
-      y + 14,
-    );
-    context.textAlign = "right";
-    context.fillText(
-      formatMetricValue(this.layout.nodeColorMetric, colorDomain[1]),
-      x + width,
-      y + 14,
-    );
-    context.textAlign = "center";
-    context.font = "600 11px sans-serif";
-    context.fillText(
-      getMetricDefinition(this.layout.nodeColorMetric).label,
-      x + width / 2,
-      y - 16,
-    );
-  }
-
   private drawGhost(preview: GhostPreview): void {
     drawRendererGhost(this as unknown as RendererSceneContext, preview);
   }
 
   private draw(): void {
     if (this.destroyed || this.canvasError) return;
+    this.refreshTheme();
     try {
       if (this.destroyed) return;
       const context = this.context;
       context.save();
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      context.fillStyle = "rgba(255,255,255,.001)";
+      context.fillStyle = this.theme.surfaces.paper;
       context.fillRect(0, 0, this.canvas.width, this.canvas.height);
       context.translate(this.transform.x, this.transform.y);
       context.scale(this.transform.scale, this.transform.scale);
@@ -932,7 +917,6 @@ export class CitationGraphRenderer {
         );
       }
       this.drawLabels(nodes, radii);
-      this.drawLegend(colorDomain);
       if (this.ghostPreview) this.drawGhost(this.ghostPreview);
       context.restore();
       this.drawAxes(metricNodes);
@@ -950,7 +934,7 @@ export class CitationGraphRenderer {
   }
 
   private tooltipForNode(node: CitationGraphNode): string {
-    const collections = this.collectionLabelsByNodeKey.get(node.key) ?? [];
+    const collections = this.categories().labelsFor(node);
     return [
       node.title,
       node.authors.slice(0, 3).join(", "),
@@ -1093,15 +1077,6 @@ export class CitationGraphRenderer {
 
   public getLayout(): GraphLayoutOptions {
     return { ...this.layout };
-  }
-
-  public setLegendVisible(visible: boolean): void {
-    this.legendVisible = visible;
-    this.draw();
-  }
-
-  public getLegendVisible(): boolean {
-    return this.legendVisible;
   }
 
   public setGhostPreview(preview: GhostPreview | null): void {
@@ -1320,11 +1295,8 @@ export class CitationGraphRenderer {
       this.initialFitFrame = null;
     }
     this.resizeObserver?.disconnect();
-    this.colorSchemeQuery?.removeEventListener?.(
-      "change",
-      this.onColorSchemeChange,
-    );
-    this.colorSchemeQuery = null;
+    this.disposeSchemeObserver?.();
+    this.disposeSchemeObserver = null;
     const view = this.canvas.ownerDocument.defaultView;
     view?.removeEventListener("resize", this.resizeViewport);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
