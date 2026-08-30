@@ -1,12 +1,12 @@
 import {
   CITATION_PROVIDER_IDS,
   type CitationProviderID,
-  CitationYearCount,
-  RelatedWorkMetadata,
-  RelatedWorkPropertyConflict,
-  RelatedWorkPropertyName,
-  RelatedWorkPropertySource,
-  SourceMetrics,
+  type CitationYearCount,
+  type RelatedWorkMetadata,
+  type RelatedWorkPropertyConflict,
+  type RelatedWorkPropertyName,
+  type RelatedWorkPropertySource,
+  type SourceMetrics,
 } from "../domain/citationTypes";
 import { publicationYearOrNull } from "../domain/valueNormalization";
 

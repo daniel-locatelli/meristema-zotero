@@ -2,6 +2,7 @@
   "extends": "zotero-types/entries/sandbox/",
   "compilerOptions": {
     "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
     "noFallthroughCasesInSwitch": true,
     "useUnknownInCatchVariables": true
   },

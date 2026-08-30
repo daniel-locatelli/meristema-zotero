@@ -37,12 +37,13 @@
   "scripts": {
     "start": "zotero-plugin serve",
     "dev:sync-library": "node scripts/sync-dev-library.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix && prettier --write .",
-    "check": "npm run lint:check && npm run typecheck",
+    "check": "npm run lint:check && npm run typecheck && npm run test:unit",
     "build": "npm run check && zotero-plugin build",
     "release": "npm run check && zotero-plugin release",
+    "test:unit": "node --import ./test/nodeResolve.mjs --test \"test/unit/**/*.test.ts\"",
     "test": "zotero-plugin test --no-watch",
     "test:watch": "zotero-plugin test",
     "audit:runtime": "npm audit --omit=dev --audit-level=high"

@@ -1,5 +1,6 @@
+/// <reference types="mocha" />
 import { expect } from "chai";
-import { config } from "../package.json";
+import { config } from "../../package.json";
 
 describe("Meristema startup", function () {
   it("registers the plugin instance", function () {

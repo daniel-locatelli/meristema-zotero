@@ -1,10 +1,11 @@
+import { describe, it } from "node:test";
 import { expect } from "chai";
-import { config } from "../package.json";
-import type { RelatedWorkMetadata } from "../src/domain/citationTypes";
+import { config } from "../../package.json";
+import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
 import {
   CACHE_RELATED_WORK_MERGE,
   mergeRelatedWorkRecords,
-} from "../src/domain/relatedWorkMetadata";
+} from "../../src/domain/relatedWorkMetadata";
 import {
   createRelatedWorkLookupIndex,
   externalWorkLookupIdentity,
@@ -12,61 +13,61 @@ import {
   matchRelatedWorks,
   relationshipCandidateIdentity,
   stableExternalWorkIdentity,
-} from "../src/domain/workIdentity";
+} from "../../src/domain/workIdentity";
 import {
   comparePublicationYears,
   firstPublicationYear,
   publicationYearOrNull,
   uniquePositiveIntegers,
-} from "../src/domain/valueNormalization";
+} from "../../src/domain/valueNormalization";
 import {
   createIgnoredRelationIndex,
   findIgnoredRelation,
   ignoredRelationDescriptorForRelatedWork,
   ignoredRelationMatchesDescriptor,
-} from "../src/domain/relationshipDescriptors";
-import { workIdentifiersForRelatedWork } from "../src/domain/workIdentifiers";
-import { SerializedTaskQueue } from "../src/services/serializedTaskQueue";
-import { RelationshipMetadataDependencyIndex } from "../src/services/relationshipMetadataDependencyIndex";
-import { projectRelatedWorkSummary } from "../src/services/relatedWorkHydrationState";
+} from "../../src/domain/relationshipDescriptors";
+import { workIdentifiersForRelatedWork } from "../../src/domain/workIdentifiers";
+import { SerializedTaskQueue } from "../../src/services/serializedTaskQueue";
+import { RelationshipMetadataDependencyIndex } from "../../src/services/relationshipMetadataDependencyIndex";
+import { projectRelatedWorkSummary } from "../../src/services/relatedWorkHydrationState";
 import {
   mapBounded,
   mapCooperatively,
   settleBounded,
-} from "../src/services/backgroundTaskService";
+} from "../../src/services/backgroundTaskService";
 import {
   openAlexIdentifierForWork,
   semanticScholarIdentifierForIdentifiers,
   semanticScholarIdentifierForWork,
   shortOpenAlexID,
-} from "../src/providers/providerIdentifiers";
-import { collectionScopeIDs } from "../src/services/paperListViewService";
-import { getExternalWorkNodeLabel } from "../src/services/externalWorkMetricRegistry";
-import { decodeRelatedWorkMetadata } from "../src/services/cacheDecoders";
+} from "../../src/providers/providerIdentifiers";
+import { collectionScopeIDs } from "../../src/services/paperListViewService";
+import { getExternalWorkNodeLabel } from "../../src/services/externalWorkMetricRegistry";
+import { decodeRelatedWorkMetadata } from "../../src/services/cacheDecoders";
 import {
   isFilteredPreservedNode,
   renderedGraphKeys,
-} from "../src/services/graphVisibility";
+} from "../../src/services/graphVisibility";
 import {
   buildGraphFocusProjection,
   externalWorkToFocusNode,
   synchronizeExternalFocusNode,
-} from "../src/services/graphFocusService";
+} from "../../src/services/graphFocusService";
 import {
   assignFocusCitationSequence,
   assignGraphCitationSequence,
-} from "../src/services/citationSequenceService";
+} from "../../src/services/citationSequenceService";
 import {
   contextCollectionIDs,
   contextRegularItems,
-} from "../src/services/menuContext";
-import { getMetricDefinition } from "../src/services/metricRegistry";
+} from "../../src/services/menuContext";
+import { getMetricDefinition } from "../../src/services/metricRegistry";
 import {
   inverseScaleValue,
   niceStep,
   numericColor,
   scaleValue,
-} from "../src/services/graphMetricScale";
+} from "../../src/services/graphMetricScale";
 import {
   automaticFocusSeedRefreshPlan,
   orderRelationshipProviders,
@@ -76,26 +77,26 @@ import {
   relationshipRefreshRequiresFollowUp,
   relationshipRefreshPolicy,
   relationshipSnapshotIsFresh,
-} from "../src/services/relationshipRefreshPolicy";
-import { authoritativeReferenceCountAttribution } from "../src/services/citationCountPolicy";
+} from "../../src/services/relationshipRefreshPolicy";
+import { authoritativeReferenceCountAttribution } from "../../src/services/citationCountPolicy";
 import {
   prepareRelationshipSnapshots,
   selectRelationshipMembership,
-} from "../src/services/providerDispatcher";
-import { mergeRelatedWorkLists } from "../src/services/relationshipStoreService";
+} from "../../src/services/providerDispatcher";
+import { mergeRelatedWorkLists } from "../../src/services/relationshipStoreService";
 import {
   beginRelationshipPublicationBatch,
   endRelationshipPublicationBatch,
   getRelationshipPublicationState,
   publishRelationshipPublication,
   subscribeRelationshipPublications,
-} from "../src/services/relationshipEvents";
+} from "../../src/services/relationshipEvents";
 import {
   beginCitationUpdatePublicationBatch,
   endCitationUpdatePublicationBatch,
   publishCitationUpdateCompleted,
   subscribeToCitationUpdates,
-} from "../src/services/citationUpdateEvents";
+} from "../../src/services/citationUpdateEvents";
 import {
   collectionGraphTitle,
   multiCollectionGraphTitle,
@@ -103,26 +104,26 @@ import {
   graphInstanceShouldRender,
   isGraphTabDescriptor,
   selectReusableGraphInstance,
-} from "../src/services/graphInstancePolicy";
+} from "../../src/services/graphInstancePolicy";
 import {
   appendUniqueScopeKeys,
   extendItemScope,
   replaceItemScope,
-} from "../src/services/graphScopePolicy";
+} from "../../src/services/graphScopePolicy";
 import {
   cancellationRequested,
   createCancellationScope,
-} from "../src/services/cancellationScope";
+} from "../../src/services/cancellationScope";
 import {
   cloneCitationGraphModel,
   createCitationGraphIndex,
-} from "../src/services/graphSnapshotStore";
+} from "../../src/services/graphSnapshotStore";
 import {
   clearFocusGraphCaches,
   focusProjectionCacheKey,
   getFocusRelationshipFragment,
   setFocusRelationshipFragment,
-} from "../src/services/focusGraphCacheService";
+} from "../../src/services/focusGraphCacheService";
 
 function work(
   overrides: Partial<RelatedWorkMetadata> = {},
