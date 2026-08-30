@@ -40,6 +40,12 @@ import {
   assignCategories,
   type CategoryAssignment,
 } from "./graphCategoryAssignment";
+import {
+  devicePixelScale,
+  projectToScreen,
+  projectToWorld,
+  screenLengthToWorld,
+} from "./graphViewport";
 
 interface Position {
   x: number;
@@ -80,6 +86,12 @@ const PLOT_LEFT = 105;
 const PLOT_RIGHT = 1030;
 const PLOT_TOP = 60;
 const PLOT_BOTTOM = 675;
+/**
+ * Node radii are CSS pixels on screen, not world units: they are multiplied by
+ * the canvas's device pixel scale when drawn and stay that size at every zoom.
+ * The layout relaxation still spaces nodes by these numbers in world units,
+ * which is what keeps a fitted view roughly free of overlap.
+ */
 const MIN_NODE_RADIUS = 4;
 const MAX_NODE_RADIUS = 18;
 const MAX_CANVAS_DIMENSION = 8192;
@@ -100,6 +112,15 @@ export class CitationGraphRenderer {
   private readonly context: CanvasRenderingContext2D;
   private readonly model: CitationGraphModel;
   private readonly positions = new Map<string, Position>();
+  /**
+   * The world positions projected into canvas device pixels, refreshed once per
+   * frame. Every draw call reads this rather than applying the transform to the
+   * canvas context, so text, strokes and radii keep a fixed size as the view
+   * zooms.
+   */
+  private readonly screenPositions = new Map<string, Position>();
+  /** Device pixels per CSS pixel, refreshed once per frame. */
+  private ratio = 1;
   private readonly collectionLabels: ReadonlyMap<number, string>;
   private theme: GraphTheme = graphThemeFor("light");
   private categoryAssignment: CategoryAssignment | null = null;
@@ -355,15 +376,28 @@ export class CitationGraphRenderer {
     );
   }
 
+  private pixelRatio(): number {
+    return devicePixelScale(
+      this.canvas.width,
+      this.canvas.getBoundingClientRect().width,
+    );
+  }
+
+  /**
+   * The only bridge from world coordinates to the canvas. No draw call may read
+   * `this.transform` itself.
+   */
+  private projectToScreen(position: Position): Position {
+    return projectToScreen(position, this.transform);
+  }
+
   private screenToWorld(clientX: number, clientY: number): Position {
     const rect = this.canvas.getBoundingClientRect();
-    const ratio = this.canvas.width / Math.max(1, rect.width);
-    const x = (clientX - rect.left) * ratio;
-    const y = (clientY - rect.top) * ratio;
-    return {
-      x: (x - this.transform.x) / this.transform.scale,
-      y: (y - this.transform.y) / this.transform.scale,
-    };
+    const ratio = devicePixelScale(this.canvas.width, rect.width);
+    return projectToWorld(
+      { x: (clientX - rect.left) * ratio, y: (clientY - rect.top) * ratio },
+      this.transform,
+    );
   }
 
   private nodeRadius(
@@ -396,6 +430,15 @@ export class CitationGraphRenderer {
           (MAX_NODE_RADIUS * MAX_NODE_RADIUS -
             MIN_NODE_RADIUS * MIN_NODE_RADIUS),
     );
+  }
+
+  /**
+   * A CSS-pixel screen length expressed in world units at the current zoom.
+   * Hit testing stays in world space while what it must match — the drawn node
+   * — is now a fixed size on screen, so the two meet here.
+   */
+  private worldLengthForScreen(cssPixels: number): number {
+    return screenLengthToWorld(cssPixels * this.pixelRatio(), this.transform);
   }
 
   private hitTest(x: number, y: number): CitationGraphNode | null {
@@ -602,6 +645,7 @@ export class CitationGraphRenderer {
     colors: string[],
   ): void {
     const context = this.context;
+    const ratio = this.ratio;
     const ghosted = this.isNodeGhosted(node);
     context.save();
     if (ghosted) context.globalAlpha = 0.46;
@@ -622,8 +666,8 @@ export class CitationGraphRenderer {
     });
     context.beginPath();
     context.arc(position.x, position.y, radius, 0, Math.PI * 2);
-    context.lineWidth = node.isRetracted ? 3 : 1.1;
-    if (ghosted) context.setLineDash([4, 3]);
+    context.lineWidth = (node.isRetracted ? 3 : 1.1) * ratio;
+    if (ghosted) context.setLineDash([4 * ratio, 3 * ratio]);
     context.strokeStyle = node.isRetracted
       ? this.theme.states.retracted
       : this.theme.inks.primary;
@@ -631,17 +675,17 @@ export class CitationGraphRenderer {
     context.restore();
     if (this.searchMatches?.has(node.key)) {
       context.beginPath();
-      context.arc(position.x, position.y, radius + 8.5, 0, Math.PI * 2);
-      context.lineWidth = 2.5;
+      context.arc(position.x, position.y, radius + 8.5 * ratio, 0, Math.PI * 2);
+      context.lineWidth = 2.5 * ratio;
       context.strokeStyle = this.theme.states.searchMatch;
       context.stroke();
     }
     if (this.seedKeys.has(node.key)) {
       context.save();
       context.beginPath();
-      context.arc(position.x, position.y, radius + 4, 0, Math.PI * 2);
-      context.lineWidth = 2.4;
-      if (ghosted) context.setLineDash([5, 3]);
+      context.arc(position.x, position.y, radius + 4 * ratio, 0, Math.PI * 2);
+      context.lineWidth = 2.4 * ratio;
+      if (ghosted) context.setLineDash([5 * ratio, 3 * ratio]);
       context.strokeStyle = this.theme.states.seed;
       context.stroke();
       context.restore();
@@ -649,16 +693,16 @@ export class CitationGraphRenderer {
     if (node.key === this.selectedKey) {
       context.save();
       context.beginPath();
-      context.arc(position.x, position.y, radius + 5.5, 0, Math.PI * 2);
-      context.lineWidth = 3;
-      if (ghosted) context.setLineDash([6, 4]);
+      context.arc(position.x, position.y, radius + 5.5 * ratio, 0, Math.PI * 2);
+      context.lineWidth = 3 * ratio;
+      if (ghosted) context.setLineDash([6 * ratio, 4 * ratio]);
       context.strokeStyle = this.theme.states.selected;
       context.stroke();
       context.restore();
     } else if (node.key === this.hoverKey) {
       context.beginPath();
-      context.arc(position.x, position.y, radius + 3, 0, Math.PI * 2);
-      context.lineWidth = 2;
+      context.arc(position.x, position.y, radius + 3 * ratio, 0, Math.PI * 2);
+      context.lineWidth = 2 * ratio;
       context.strokeStyle = this.theme.states.selected;
       context.stroke();
     }
@@ -678,8 +722,9 @@ export class CitationGraphRenderer {
     const length = Math.max(1, Math.hypot(dx, dy));
     const ux = dx / length;
     const uy = dy / length;
-    const endX = target.x - ux * (targetRadius + 2);
-    const endY = target.y - uy * (targetRadius + 2);
+    const ratio = this.ratio;
+    const endX = target.x - ux * (targetRadius + 2 * ratio);
+    const endY = target.y - uy * (targetRadius + 2 * ratio);
     const edges = this.theme.edges;
     const connected =
       connection === "citation" ? edges.incoming : edges.outgoing;
@@ -693,14 +738,14 @@ export class CitationGraphRenderer {
       : dimmed
         ? edges.dimmed
         : edges.base;
-    context.lineWidth = connection ? 2.15 : 1;
-    context.setLineDash(ghosted ? [6, 5] : []);
+    context.lineWidth = (connection ? 2.15 : 1) * ratio;
+    context.setLineDash(ghosted ? [6 * ratio, 5 * ratio] : []);
     if (connection) {
       context.shadowColor = connected;
-      context.shadowBlur = 3;
+      context.shadowBlur = 3 * ratio;
     }
     context.stroke();
-    const size = connection ? 6.25 : 5;
+    const size = (connection ? 6.25 : 5) * ratio;
     context.beginPath();
     context.moveTo(endX, endY);
     context.lineTo(
@@ -719,8 +764,7 @@ export class CitationGraphRenderer {
 
   private drawAxes(nodes: CitationGraphNode[]): void {
     const context = this.context;
-    const rect = this.canvas.getBoundingClientRect();
-    const ratio = this.canvas.width / Math.max(1, rect.width);
+    const ratio = this.ratio;
     const axisLeft = 58 * ratio;
     const axisRight = this.canvas.width - 14 * ratio;
     const axisTop = 14 * ratio;
@@ -728,7 +772,6 @@ export class CitationGraphRenderer {
     const foreground = this.theme.inks.muted;
 
     context.save();
-    context.setTransform(1, 0, 0, 1, 0, 0);
     context.strokeStyle = foreground;
     context.fillStyle = foreground;
     context.lineWidth = Math.max(1, ratio);
@@ -751,7 +794,7 @@ export class CitationGraphRenderer {
               this.layout.xScale,
             ) *
               (PLOT_RIGHT - PLOT_LEFT);
-          const x = this.transform.x + worldX * this.transform.scale;
+          const x = this.projectToScreen({ x: worldX, y: 0 }).x;
           if (x < axisLeft || x > axisRight) continue;
           context.beginPath();
           context.moveTo(x, axisBottom);
@@ -801,7 +844,7 @@ export class CitationGraphRenderer {
               this.layout.yScale,
             ) *
               (PLOT_BOTTOM - PLOT_TOP);
-          const y = this.transform.y + worldY * this.transform.scale;
+          const y = this.projectToScreen({ x: 0, y: worldY }).y;
           if (y < axisTop || y > axisBottom) continue;
           context.beginPath();
           context.moveTo(axisLeft - 5 * ratio, y);
@@ -854,8 +897,11 @@ export class CitationGraphRenderer {
       context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       context.fillStyle = this.theme.surfaces.paper;
       context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      context.translate(this.transform.x, this.transform.y);
-      context.scale(this.transform.scale, this.transform.scale);
+      this.ratio = this.pixelRatio();
+      this.screenPositions.clear();
+      for (const [key, position] of this.positions) {
+        this.screenPositions.set(key, this.projectToScreen(position));
+      }
 
       const nodes = this.visibleNodes();
       const metricNodes = this.layoutNodes();
@@ -866,8 +912,13 @@ export class CitationGraphRenderer {
       const colorDomain = isMetricID(this.layout.nodeColorMetric)
         ? metricExtent(metricNodes, this.layout.nodeColorMetric)
         : null;
+      // Radii are device pixels from here down, so a node keeps its size as the
+      // view zooms.
       const radii = new Map(
-        nodes.map((node) => [node.key, this.nodeRadius(node, sizeDomain)]),
+        nodes.map((node) => [
+          node.key,
+          this.nodeRadius(node, sizeDomain) * this.ratio,
+        ]),
       );
       const selectedKey = this.selectedKey;
       const edges = [...this.visibleEdges()].sort((left, right) => {
@@ -881,8 +932,8 @@ export class CitationGraphRenderer {
       });
 
       for (const edge of edges) {
-        const source = this.positions.get(edge.source);
-        const target = this.positions.get(edge.target);
+        const source = this.screenPositions.get(edge.source);
+        const target = this.screenPositions.get(edge.target);
         if (!source || !target) continue;
         const connection =
           selectedKey === null
@@ -895,7 +946,7 @@ export class CitationGraphRenderer {
         this.drawArrow(
           source,
           target,
-          radii.get(edge.target) ?? 7,
+          radii.get(edge.target) ?? 7 * this.ratio,
           connection,
           selectedKey !== null && connection === null,
           Boolean(
@@ -907,19 +958,19 @@ export class CitationGraphRenderer {
       }
 
       for (const node of nodes) {
-        const position = this.positions.get(node.key);
+        const position = this.screenPositions.get(node.key);
         if (!position) continue;
         this.drawNode(
           node,
           position,
-          radii.get(node.key) ?? 7,
+          radii.get(node.key) ?? 7 * this.ratio,
           this.nodeColors(node, colorDomain),
         );
       }
       this.drawLabels(nodes, radii);
       if (this.ghostPreview) this.drawGhost(this.ghostPreview);
-      context.restore();
       this.drawAxes(metricNodes);
+      context.restore();
     } catch (error) {
       this.canvasError = true;
       if (!this.canvasErrorLogged) {

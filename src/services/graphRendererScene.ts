@@ -45,6 +45,12 @@ export interface RendererSceneContext {
     nodeLabelMode: "title" | "author-year" | "none";
   };
   positions: Map<string, Position>;
+  /** `positions` projected into canvas device pixels for the current frame. */
+  screenPositions: Map<string, Position>;
+  /** Device pixels per CSS pixel for the current frame. */
+  ratio: number;
+  projectToScreen(position: Position): Position;
+  worldLengthForScreen(cssPixels: number): number;
   selectedKey: string | null;
   hoverKey: string | null;
   ghostPreview: GhostPreview | null;
@@ -382,12 +388,33 @@ function overlapArea(left: Rectangle, right: Rectangle): number {
   return width * height;
 }
 
-function withinLabelBounds(rectangle: Rectangle): boolean {
+/**
+ * The label-placement bounds are a world rectangle around the plot, projected
+ * into device pixels so labels can be tested in the same space they are drawn.
+ */
+function labelBounds(renderer: RendererSceneContext): Rectangle {
+  const topLeft = renderer.projectToScreen({
+    x: PLOT_LEFT - 45,
+    y: PLOT_TOP - 25,
+  });
+  const bottomRight = renderer.projectToScreen({
+    x: PLOT_RIGHT + 115,
+    y: PLOT_BOTTOM + 40,
+  });
+  return {
+    left: topLeft.x,
+    right: bottomRight.x,
+    top: topLeft.y,
+    bottom: bottomRight.y,
+  };
+}
+
+function withinLabelBounds(rectangle: Rectangle, bounds: Rectangle): boolean {
   return (
-    rectangle.left >= PLOT_LEFT - 45 &&
-    rectangle.right <= PLOT_RIGHT + 115 &&
-    rectangle.top >= PLOT_TOP - 25 &&
-    rectangle.bottom <= PLOT_BOTTOM + 40
+    rectangle.left >= bounds.left &&
+    rectangle.right <= bounds.right &&
+    rectangle.top >= bounds.top &&
+    rectangle.bottom <= bounds.bottom
   );
 }
 
@@ -494,10 +521,19 @@ export function hitTestRenderer(
   for (const node of nodes) {
     const position = renderer.positions.get(node.key);
     if (!position) continue;
-    const radius = renderer.nodeRadius(node, sizeDomain);
+    // The node is drawn at a fixed size on screen, so its world-space reach
+    // shrinks as the view zooms in. Test against that, not against the raw
+    // radius, or the hit target drifts away from what the pointer can see.
+    const radius = renderer.worldLengthForScreen(
+      renderer.nodeRadius(node, sizeDomain),
+    );
+    const tolerance = renderer.worldLengthForScreen(6);
     const distance = Math.hypot(position.x - x, position.y - y);
-    if (distance > radius + 6) continue;
-    const score = distance / Math.max(1, radius);
+    if (distance > radius + tolerance) continue;
+    // A world radius is no longer bounded below by MIN_NODE_RADIUS — at 8x it
+    // is a fraction of a unit — so the ranking floor has to be an epsilon
+    // rather than 1, which would flatten the ordering when zoomed in.
+    const score = distance / Math.max(1e-6, radius);
     const priority =
       node.key === renderer.selectedKey
         ? -0.1
@@ -541,13 +577,15 @@ export function drawRendererLabels(
       );
     });
 
+  const ratio = renderer.ratio;
+  const bounds = labelBounds(renderer);
   context.save();
-  context.font = "11px sans-serif";
+  context.font = `${11 * ratio}px sans-serif`;
   context.textBaseline = "middle";
   const nodeRectangles: Rectangle[] = nodes.flatMap((node) => {
-    const position = renderer.positions.get(node.key);
+    const position = renderer.screenPositions.get(node.key);
     if (!position) return [];
-    const radius = (radii.get(node.key) ?? 7) + 3;
+    const radius = (radii.get(node.key) ?? 7 * ratio) + 3 * ratio;
     return [
       {
         left: position.x - radius,
@@ -560,22 +598,30 @@ export function drawRendererLabels(
   const occupied: Rectangle[] = [];
 
   for (const node of ordered) {
-    const position = renderer.positions.get(node.key);
+    const position = renderer.screenPositions.get(node.key);
     if (!position) continue;
     const label =
       renderer.layout.nodeLabelMode === "author-year"
         ? `${node.authors[0]?.split(/\s+/).at(-1) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
         : node.title;
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
-    const width = Math.ceil(context.measureText(shortened).width) + 4;
-    const height = 14;
-    const radius = radii.get(node.key) ?? 7;
-    const gap = radius + 6;
+    const width = Math.ceil(context.measureText(shortened).width) + 4 * ratio;
+    const height = 14 * ratio;
+    const radius = radii.get(node.key) ?? 7 * ratio;
+    const gap = radius + 6 * ratio;
     const candidates = [
       { x: position.x + gap, y: position.y, align: "left" as const },
       { x: position.x - gap, y: position.y, align: "right" as const },
-      { x: position.x, y: position.y - gap - 4, align: "center" as const },
-      { x: position.x, y: position.y + gap + 4, align: "center" as const },
+      {
+        x: position.x,
+        y: position.y - gap - 4 * ratio,
+        align: "center" as const,
+      },
+      {
+        x: position.x,
+        y: position.y + gap + 4 * ratio,
+        align: "center" as const,
+      },
       { x: position.x + gap, y: position.y - gap, align: "left" as const },
       { x: position.x + gap, y: position.y + gap, align: "left" as const },
       { x: position.x - gap, y: position.y - gap, align: "right" as const },
@@ -602,7 +648,9 @@ export function drawRendererLabels(
       return {
         ...candidate,
         rectangle,
-        overlap: withinLabelBounds(rectangle) ? overlap : overlap + 1_000_000,
+        overlap: withinLabelBounds(rectangle, bounds)
+          ? overlap
+          : overlap + 1_000_000,
       };
     });
     const clearCandidate = evaluated.find(
@@ -636,7 +684,7 @@ export function drawRendererLabels(
       context.moveTo(position.x, position.y);
       context.lineTo(labelEdgeX, labelEdgeY);
       context.strokeStyle = renderer.getTheme().inks.muted;
-      context.lineWidth = 0.8;
+      context.lineWidth = 0.8 * ratio;
       context.stroke();
     }
 
@@ -654,14 +702,22 @@ export function drawRendererGhost(
   renderer: RendererSceneContext,
   preview: GhostPreview,
 ): void {
+  const ratio = renderer.ratio;
   const sources = preview.sourceKeys
+    .map((key) => renderer.screenPositions.get(key))
+    .filter((position): position is Position => Boolean(position));
+  // The scatter placement below is world-space, like the axis scales it reads
+  // from; only the final position is projected.
+  const worldSources = preview.sourceKeys
     .map((key) => renderer.positions.get(key))
     .filter((position): position is Position => Boolean(position));
-  const centroidX = sources.length
-    ? sources.reduce((sum, source) => sum + source.x, 0) / sources.length
+  const centroidX = worldSources.length
+    ? worldSources.reduce((sum, source) => sum + source.x, 0) /
+      worldSources.length
     : (PLOT_LEFT + PLOT_RIGHT) / 2;
-  const centroidY = sources.length
-    ? sources.reduce((sum, source) => sum + source.y, 0) / sources.length
+  const centroidY = worldSources.length
+    ? worldSources.reduce((sum, source) => sum + source.y, 0) /
+      worldSources.length
     : (PLOT_TOP + PLOT_BOTTOM) / 2;
   const seed = hashString(preview.key);
   const angle = ((seed % 360) * Math.PI) / 180;
@@ -672,7 +728,7 @@ export function drawRendererGhost(
   // External previews use the same full-graph metric domains as local nodes.
   // This keeps previews aligned with stable axes while filters are active.
   const nodes = renderer.layoutNodes();
-  const displayedRadius = ghostRadius(renderer, preview, nodes);
+  const displayedRadius = ghostRadius(renderer, preview, nodes) * ratio;
   const displayedColor = ghostColor(renderer, preview, nodes);
   const xScale = renderer.axisScale(nodes, "x");
   const yScale = renderer.axisScale(nodes, "y");
@@ -724,32 +780,34 @@ export function drawRendererGhost(
     }
   }
 
+  const screen = renderer.projectToScreen({ x, y });
   const context = renderer.context;
   context.save();
-  context.setLineDash([6, 5]);
+  context.setLineDash([6 * ratio, 5 * ratio]);
+  context.lineWidth = ratio;
   for (const source of sources) {
     context.beginPath();
     context.moveTo(source.x, source.y);
-    context.lineTo(x, y);
+    context.lineTo(screen.x, screen.y);
     context.strokeStyle = renderer.getTheme().inks.muted;
     context.stroke();
   }
   context.beginPath();
-  context.arc(x, y, displayedRadius, 0, Math.PI * 2);
+  context.arc(screen.x, screen.y, displayedRadius, 0, Math.PI * 2);
   context.fillStyle = displayedColor;
   context.globalAlpha = 0.72;
   context.fill();
   context.globalAlpha = 1;
-  context.lineWidth = 1.5;
+  context.lineWidth = 1.5 * ratio;
   context.strokeStyle = renderer.getTheme().surfaces.hairline;
   context.stroke();
   context.setLineDash([]);
   if (missingX || missingY) {
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = "600 11px sans-serif";
+    context.font = `600 ${11 * ratio}px sans-serif`;
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText("?", x, y + 0.5);
+    context.fillText("?", screen.x, screen.y + 0.5 * ratio);
   }
   const label = getExternalWorkNodeLabel(
     preview.key,
@@ -761,10 +819,14 @@ export function drawRendererGhost(
   if (label) {
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = "11px sans-serif";
+    context.font = `${11 * ratio}px sans-serif`;
     context.textAlign = "center";
     context.textBaseline = "alphabetic";
-    context.fillText(shortened, x, y + displayedRadius + 13);
+    context.fillText(
+      shortened,
+      screen.x,
+      screen.y + displayedRadius + 13 * ratio,
+    );
   }
   context.restore();
 }

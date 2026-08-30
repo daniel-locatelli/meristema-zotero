@@ -186,9 +186,53 @@ follow in one step.
 **Test:** theme resolution returns distinct, complete token sets for both modes;
 every key present in one is present in the other.
 
-## Task 2: Draw in screen space — **NEXT**
+## Task 2: Draw in screen space — **DONE**, code landed; visual check pending
 
-The core change, and the one with the most blast radius.
+The coordinate change shipped. `draw()` no longer touches the canvas transform:
+it projects every world position into `screenPositions` once per frame through
+`projectToScreen`, and every size — radii, stroke widths, dashes, arrowheads,
+label text and gaps, the ghost — is authored in CSS pixels and multiplied by the
+frame's device pixel scale.
+
+**A new pure module carries the maths.** The plan's `**Test:**` line wanted a
+round-trip against `screenToWorld`, which is a private renderer method needing a
+canvas. `src/services/graphViewport.ts` holds `projectToScreen`,
+`projectToWorld`, `devicePixelScale` and `screenLengthToWorld` instead; the
+renderer delegates to all four, and `test/unit/graphViewport.test.ts` pins the
+round-trip across the full 0.15–8 zoom range.
+
+**Two consequences the plan flagged, both handled.** `hitTest` still works in
+world space, so it now converts through `worldLengthForScreen()` — a node's
+world reach shrinks as the view zooms in. Its ranking floor changed from
+`Math.max(1, radius)` to an epsilon: a world radius is no longer bounded below
+by `MIN_NODE_RADIUS`, and at 8x the old floor flattened the ordering between
+overlapping nodes.
+
+**`withinLabelBounds` became a projected rectangle.** It compared screen-space
+label rectangles against world constants; it now takes the plot bounds projected
+through `projectToScreen`, which preserves the previous behaviour exactly.
+
+**`drawAxes` no longer reads `this.transform`.** It projects its ticks through
+`projectToScreen` like everything else, and its `setTransform(1,0,0,1,0,0)` is
+gone — nothing applies a transform for it to reset.
+
+**Layout was not touched.** `relaxAnchoredNodes` still spaces nodes by
+`nodeRadius` in _world_ units, and `projectRendererPositions`, `fitView`,
+`fitKeys`, `screenToWorld`, the drag handler and the wheel handler are unchanged.
+`MIN_NODE_RADIUS`/`MAX_NODE_RADIUS` are therefore read two ways — CSS pixels
+when drawn, world units when packed — which is why nodes may overlap slightly
+more at fit than before. This is the trade the task asks for.
+
+**Found, not fixed:** `fitView` reserves flat device-pixel gutters
+(`screenLeft = 64`) while `drawAxes` draws its axis at `58 * ratio`. On a HiDPI
+display the fit under-reserves and nodes can land beneath the y-axis labels.
+This is pre-existing and predates the task; it was left alone because the plan
+says fit behaviour must not change, and altering what a fitted view looks like
+would muddy the visual pass below. Worth folding into Task 4 or 7.
+
+**Not yet verified:** the visual check below, and Task 1's — see the note there.
+
+Original brief:
 
 `drawLegend()`, `setLegendVisible()`, `getLegendVisible()`, the `graphShowLegend`
 pref and the appearance checkbox are **already gone** — they came forward with
@@ -198,7 +242,7 @@ Two notes for whoever picks this up. The canvas is device-pixel backed, so
 "screen space" here means canvas device pixels: every screen-space size needs the
 `canvas.width / rect.width` ratio applied, the way `drawAxes` already does.
 And `hitTest` compares against a radius — once radii are screen units, the
-world-space hit test has to divide by `transform.scale` or it will drift.
+world-space hit test has to divide by `transform.scale`.
 
 Delete the `translate`/`scale` pair from `draw()`. Add
 `projectToScreen(position): Position` and project every node position once per
@@ -211,11 +255,7 @@ Leave `screenToWorld`, `hitTest`, `fitView`, `fitKeys`, the drag handler and the
 wheel handler working in world space — they already do the projection maths
 themselves and must not change behaviour.
 
-Delete `drawLegend()`, `setLegendVisible()`, `getLegendVisible()`, the
-`graphShowLegend` pref reads and writes, and the legend checkbox in the
-appearance panel.
-
-Verify by zooming from fit to 8×: label size, outline weight and arrowhead size
+Verify by zooming from fit to 8x: label size, outline weight and arrowhead size
 stay constant, and node radii stay legible at fit.
 
 **Test:** `projectToScreen` round-trips against `screenToWorld` across a range of
