@@ -19,9 +19,10 @@ with Mocha + Chai via `zotero-plugin test`.
 ## Global constraints
 
 - Branch `graph-view-redesign`, based on `b79f1ff`.
-- `npm run check` is unusable while an untracked `prefs.js` sits in the tree
-  (Prettier fails on it). Run `npx prettier --check <touched files>`,
-  `npx eslint .` and `npm run typecheck` separately.
+- `npm run check` works again (`fd48e72`) and now runs prettier, eslint,
+  typecheck and the unit suite. The untracked `prefs.js`, the `.env` backup and
+  `.superpowers/` are ignored; five committed markdown files that had been
+  failing CI are formatted.
 - `npm test` launches the real Zotero and takes minutes. Only one scaffold
   process may drive Zotero at a time. `npm run test:unit` (Task 0) runs in under
   a second and is the loop to work in; reach for `npm test` at task boundaries.
@@ -30,8 +31,9 @@ with Mocha + Chai via `zotero-plugin test`.
   properties), and relative imports written with their `.ts` extension. A seam
   that cannot meet this belongs in `test/architecture.test.ts` instead.
 - **No colour literal may be added to a `.ts` file outside `graphTheme.ts`.**
-  This is the invariant the whole redesign rests on; an ESLint check guards it in
-  Task 1.
+  The ESLint guard is in place, scoped to the graph's drawing files rather than
+  all of `src/services` — the rest of the tree has long-standing literals in
+  tooltips and pickers that are not part of this work.
 - World coordinates stay the layout and hit-testing space. `projectToScreen()`
   is the only bridge; no draw call may read `this.transform` directly after
   Task 2.
@@ -61,13 +63,26 @@ with Mocha + Chai via `zotero-plugin test`.
 
 ---
 
-## Task 0: A fast unit suite
+## Task 0: A fast unit suite — **DONE** (`b905214`)
 
 Prerequisite for every `**Test:**` line below, and a repo-wide convention change
 rather than a graph concern — land and commit it on its own.
 
-Node 24 strips TypeScript natively, so this needs **no new dependency**: `tsx` is
-not required, and Chai 6 already imports under plain ESM. Add
+**What actually shipped.** Node 24 strips TypeScript natively, so this needed no
+new dependency — but the plan missed two gaps that only appear once a test
+imports `src/`. Relative imports there carry no file extension, which Node's ESM
+resolver rejects, and `package.json` is imported for named bindings, which Node's
+JSON modules do not provide. Rewriting 528 imports across 100 files was the
+alternative; instead `test/nodeResolve.mjs` closes both with module hooks and
+leaves every source file untouched. `verbatimModuleSyntax` is now on so a
+type-only import written as a value import cannot break the stripper again.
+
+All sixty-eight tests turned out to be free of `Zotero.*` and the DOM, so the
+whole file moved and only the startup test stayed behind — in `test/zotero/`,
+which the scaffold's `test.entries` now points at so it does not try to bundle
+the unit suite. `typecheck` covers the test tree for the first time.
+
+Original sketch, kept for the reasoning:
 
 ```json
 "test:unit": "node --test test/unit/",
@@ -90,7 +105,44 @@ notes if they name the test command.
 **Verify:** `npm run test:unit` passes and finishes in under a second;
 `npm test` still passes with the reduced file.
 
-## Task 1: The token layer
+## Task 1: The token layer — **DONE** (`1595d22`)
+
+**The pre-flight is answered, and the answer changed the design** (`b0efd5f`).
+Zotero's Appearance control is bound to `browser.theme.toolbar-theme`, and the
+override does reach `prefers-color-scheme` in a chrome document. But setting the
+pref triggers **no restyle of an open document**, so a `MediaQueryList` held
+across the change keeps its stale `matches` and never fires `change`. The
+listener at `citationGraphRenderer.ts:149` that this task was meant to ride on
+had never fired, and `isDarkMode()` was frozen at construction time. The scheme
+is now re-resolved from scratch on every draw, and re-application hangs off a
+**pref observer**. `test/zotero/colorScheme.test.ts` records the behaviour.
+
+**The palette was replaced.** Validated with the `dataviz` skill's checker, the
+spec's ten swatches failed four gates: four below the chroma floor (they read
+grey), moss/bark 5.1 apart under protanopia against a floor of 6, olive/humus
+14.5 apart under normal vision against a floor of 15, and carotene outside the
+dark lightness band. On the all-pairs test — the right one, since any two nodes
+can touch — the spec's palette caps at **one** colour. What shipped is the
+spec's own eight surviving hue families, re-stepped in OKLCH and re-ordered by
+exhaustive search: every gate passes, worst adjacent ΔE 16.9 light / 19.3 dark.
+The green-to-gold ramp is kept as specced; it is monotone in lightness, which is
+the property that matters.
+
+**The category cap is five, not nine.** No palette carries nine distinguishable
+node colours on a scatter; the best of the three caps at five. Assignment gives
+the five largest categories a swatch and collapses the rest into Other. The Key
+rail, the labels and hover emphasis are therefore the encoding's _required_
+second channel, not a convenience.
+
+**Two later pieces came forward**, because they were what still held colour
+literals: the canvas gradient legend and its greyed-out checkbox are deleted
+(from Task 2), and the decorative radial gradient is off `.cm-graph-area` (from
+Task 4). **Task 3 landed with this task** for the same reason — deleting
+`categoricalColor` and `colorForCollection` is what removed the last of them.
+
+**Not yet verified:** the visual check below. Nothing has been looked at running.
+
+Original brief:
 
 Create `graphTheme.ts` exporting a `GraphTheme` for each of light and dark:
 surfaces (panel, plot paper, hairline, grid), inks (primary, muted, emphasis),
@@ -134,9 +186,19 @@ follow in one step.
 **Test:** theme resolution returns distinct, complete token sets for both modes;
 every key present in one is present in the other.
 
-## Task 2: Draw in screen space
+## Task 2: Draw in screen space — **NEXT**
 
 The core change, and the one with the most blast radius.
+
+`drawLegend()`, `setLegendVisible()`, `getLegendVisible()`, the `graphShowLegend`
+pref and the appearance checkbox are **already gone** — they came forward with
+Task 1. What remains is the coordinate change itself.
+
+Two notes for whoever picks this up. The canvas is device-pixel backed, so
+"screen space" here means canvas device pixels: every screen-space size needs the
+`canvas.width / rect.width` ratio applied, the way `drawAxes` already does.
+And `hitTest` compares against a radius — once radii are screen units, the
+world-space hit test has to divide by `transform.scale` or it will drift.
 
 Delete the `translate`/`scale` pair from `draw()`. Add
 `projectToScreen(position): Position` and project every node position once per
@@ -159,7 +221,7 @@ stay constant, and node radii stay legible at fit.
 **Test:** `projectToScreen` round-trips against `screenToWorld` across a range of
 transforms.
 
-## Task 3: Rank-based categories
+## Task 3: Rank-based categories — **DONE**, landed with Task 1 (`1595d22`)
 
 Create `graphCategoryAssignment.ts` with
 `assignCategories(nodes, metric): CategoryAssignment` — categories ordered by node
@@ -180,6 +242,8 @@ category and beyond land in `other`; counts sum to the node total; a node with n
 value gets `noValue` rather than a swatch.
 
 ## Task 4: Plot furniture
+
+The decorative radial gradient is already off `.cm-graph-area`.
 
 Gridlines at every tick, beneath the nodes, in the theme's grid token. A hairline
 frame around the plot, and the plot painted in the paper tone. Dashed separators
