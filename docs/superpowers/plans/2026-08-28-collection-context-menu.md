@@ -22,12 +22,12 @@
 
 ## File Structure
 
-| File | Responsibility |
-| --- | --- |
-| `src/services/menuContext.ts` (**create**) | Pure predicates reading a Zotero menu context. No Zotero globals, no DOM. The single place that decides what was right-clicked. |
-| `src/services/menuService.ts` (**modify**) | Menu construction and registration only. Imports its predicates from `menuContext.ts`. |
-| `test/architecture.test.ts` (**modify**) | Unit tests for the predicates, appended as new `it(...)` blocks inside the existing `describe("Architecture foundations")`. |
-| `docs/superpowers/specs/2026-08-28-collection-context-menu-design.md` (**modify**, Task 4) | Status flips to `implemented`. |
+| File                                                                                       | Responsibility                                                                                                                  |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/menuContext.ts` (**create**)                                                 | Pure predicates reading a Zotero menu context. No Zotero globals, no DOM. The single place that decides what was right-clicked. |
+| `src/services/menuService.ts` (**modify**)                                                 | Menu construction and registration only. Imports its predicates from `menuContext.ts`.                                          |
+| `test/architecture.test.ts` (**modify**)                                                   | Unit tests for the predicates, appended as new `it(...)` blocks inside the existing `describe("Architecture foundations")`.     |
+| `docs/superpowers/specs/2026-08-28-collection-context-menu-design.md` (**modify**, Task 4) | Status flips to `implemented`.                                                                                                  |
 
 `src/services/windowService.ts` is **not** modified. `openGraphForCollection` is used exactly as it stands.
 
@@ -38,11 +38,13 @@
 This task moves existing behaviour into a testable module and adds the regression suite for the bug fixed in `9b0dc61`. It also adds `contextCollectionID`, which Task 3 consumes.
 
 **Files:**
+
 - Create: `src/services/menuContext.ts`
 - Modify: `src/services/menuService.ts` (delete the local `contextRegularItems`, currently lines 98–109, and import instead)
 - Test: `test/architecture.test.ts`
 
 **Interfaces:**
+
 - Consumes: `positiveInteger` from `../domain/valueNormalization` — signature `positiveInteger(value: unknown): number | null`, returning `null` for zero, negatives, non-integers and non-numbers.
 - Produces:
   - `contextRegularItems(context: any): Zotero.Item[]`
@@ -53,82 +55,86 @@ This task moves existing behaviour into a testable module and adds the regressio
 Append these two `it(...)` blocks to `test/architecture.test.ts`, immediately before the file's final `});` (currently line 1573, which closes `describe("Architecture foundations")`).
 
 ```typescript
-  it("reads right-clicked items only from the menu context", function () {
-    const paper = { isRegularItem: () => true, deleted: false, id: 11 };
-    const trashedPaper = { isRegularItem: () => true, deleted: true, id: 12 };
-    const note = { isRegularItem: () => false, deleted: false, id: 13 };
+it("reads right-clicked items only from the menu context", function () {
+  const paper = { isRegularItem: () => true, deleted: false, id: 11 };
+  const trashedPaper = { isRegularItem: () => true, deleted: true, id: 12 };
+  const note = { isRegularItem: () => false, deleted: false, id: 13 };
 
-    expect(contextRegularItems({ items: [paper, note, trashedPaper] })).to.deep.equal([
-      paper,
-    ]);
-    expect(contextRegularItems({ items: [note] })).to.deep.equal([]);
-    expect(contextRegularItems({ items: [] })).to.deep.equal([]);
-    expect(contextRegularItems({})).to.deep.equal([]);
-    expect(contextRegularItems(null)).to.deep.equal([]);
+  expect(
+    contextRegularItems({ items: [paper, note, trashedPaper] }),
+  ).to.deep.equal([paper]);
+  expect(contextRegularItems({ items: [note] })).to.deep.equal([]);
+  expect(contextRegularItems({ items: [] })).to.deep.equal([]);
+  expect(contextRegularItems({})).to.deep.equal([]);
+  expect(contextRegularItems(null)).to.deep.equal([]);
 
-    // A context that throws on property access must not take the menu down.
-    const hostile = new Proxy(
-      {},
-      {
-        get() {
-          throw new Error("context property is unavailable");
-        },
+  // A context that throws on property access must not take the menu down.
+  const hostile = new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("context property is unavailable");
       },
-    );
-    expect(contextRegularItems(hostile)).to.deep.equal([]);
+    },
+  );
+  expect(contextRegularItems(hostile)).to.deep.equal([]);
 
-    // The predicate must never reach for the pane. A pane offering a paper
-    // must not rescue a context that was right-clicked on a note.
-    const withPane = {
-      items: [note],
-      ZoteroPane: { getSelectedItems: () => [paper] },
-    };
-    expect(contextRegularItems(withPane)).to.deep.equal([]);
-  });
+  // The predicate must never reach for the pane. A pane offering a paper
+  // must not rescue a context that was right-clicked on a note.
+  const withPane = {
+    items: [note],
+    ZoteroPane: { getSelectedItems: () => [paper] },
+  };
+  expect(contextRegularItems(withPane)).to.deep.equal([]);
+});
 
-  it("treats only real collection rows as folders", function () {
-    const collectionRow = {
-      isCollection: () => true,
-      ref: { id: 42, libraryID: 1 },
-    };
-    expect(contextCollectionID({ collectionTreeRow: collectionRow })).to.equal(42);
+it("treats only real collection rows as folders", function () {
+  const collectionRow = {
+    isCollection: () => true,
+    ref: { id: 42, libraryID: 1 },
+  };
+  expect(contextCollectionID({ collectionTreeRow: collectionRow })).to.equal(
+    42,
+  );
 
-    // Every other row type in the collection tree fails the predicate. These
-    // are the rows the menu used to appear on.
-    for (const row of [
-      { isCollection: () => false, ref: { libraryID: 1 } }, // My Library / group root
-      { isCollection: () => false, ref: { id: 7 } }, // saved search
-      { isCollection: () => false, ref: {} }, // Trash, Unfiled, Duplicates
-    ]) {
-      expect(contextCollectionID({ collectionTreeRow: row })).to.equal(null);
-    }
+  // Every other row type in the collection tree fails the predicate. These
+  // are the rows the menu used to appear on.
+  for (const row of [
+    { isCollection: () => false, ref: { libraryID: 1 } }, // My Library / group root
+    { isCollection: () => false, ref: { id: 7 } }, // saved search
+    { isCollection: () => false, ref: {} }, // Trash, Unfiled, Duplicates
+  ]) {
+    expect(contextCollectionID({ collectionTreeRow: row })).to.equal(null);
+  }
 
-    // A collection row with no usable ID is not a folder either.
-    expect(
-      contextCollectionID({ collectionTreeRow: { isCollection: () => true, ref: {} } }),
-    ).to.equal(null);
-    expect(
-      contextCollectionID({
-        collectionTreeRow: { isCollection: () => true, ref: { id: 0 } },
-      }),
-    ).to.equal(null);
+  // A collection row with no usable ID is not a folder either.
+  expect(
+    contextCollectionID({
+      collectionTreeRow: { isCollection: () => true, ref: {} },
+    }),
+  ).to.equal(null);
+  expect(
+    contextCollectionID({
+      collectionTreeRow: { isCollection: () => true, ref: { id: 0 } },
+    }),
+  ).to.equal(null);
 
-    // A row that is not a tree row at all.
-    expect(contextCollectionID({ collectionTreeRow: {} })).to.equal(null);
-    expect(contextCollectionID({})).to.equal(null);
-    expect(contextCollectionID(null)).to.equal(null);
+  // A row that is not a tree row at all.
+  expect(contextCollectionID({ collectionTreeRow: {} })).to.equal(null);
+  expect(contextCollectionID({})).to.equal(null);
+  expect(contextCollectionID(null)).to.equal(null);
 
-    // No pane fallback: a selected collection elsewhere must not make a
-    // library row look like a folder.
-    const withPane = {
-      collectionTreeRow: { isCollection: () => false, ref: { libraryID: 1 } },
-      ZoteroPane: {
-        getSelectedCollection: () => ({ id: 42 }),
-        getCollectionTreeRow: () => collectionRow,
-      },
-    };
-    expect(contextCollectionID(withPane)).to.equal(null);
-  });
+  // No pane fallback: a selected collection elsewhere must not make a
+  // library row look like a folder.
+  const withPane = {
+    collectionTreeRow: { isCollection: () => false, ref: { libraryID: 1 } },
+    ZoteroPane: {
+      getSelectedCollection: () => ({ id: 42 }),
+      getCollectionTreeRow: () => collectionRow,
+    },
+  };
+  expect(contextCollectionID(withPane)).to.equal(null);
+});
 ```
 
 Add the import to the top of `test/architecture.test.ts`, alongside the other `src/services/*` imports (they sit around lines 28–36):
@@ -250,9 +256,11 @@ Include the two trailer lines from `git log -1 --format=%B HEAD` in the message 
 Pure refactor. The item menu must behave identically afterwards. This task exists as its own review gate because it changes shared helpers that Task 3 then depends on; a reviewer can reject the seam shape without rejecting the folder feature.
 
 **Files:**
+
 - Modify: `src/services/menuService.ts` (`injectOpenViewItems` at lines 213–255, `contextCommandItem` at lines 257–281, `itemMenus` at lines 283–307 — line numbers shift once Task 1 lands, locate by name)
 
 **Interfaces:**
+
 - Consumes: `contextRegularItems` from `./menuContext` (Task 1); `OpenGraphViewInfo` from `./windowService`, whose fields are `instanceID: string`, `title: string`, `kind: "map" | "focus"`, `tabID: string | null`, `active: boolean`, `detached: boolean`.
 - Produces:
   - `contextCommandItem(l10nID: string, isAvailable: (context: any) => boolean, run: (context: any) => Promise<void> | void, onShown?: (context: any) => void): MenuData`
@@ -274,8 +282,7 @@ function injectViewItems(
   run: (view: OpenGraphViewInfo) => void,
 ): void {
   const anchor = safeContextValue(context, "menuElem") as
-    | HTMLElement
-    | undefined;
+    HTMLElement | undefined;
   const popup = anchor?.parentElement as HTMLElement | null | undefined;
   if (!anchor || !popup) return;
 
@@ -418,9 +425,11 @@ Include the two trailer lines from `git log -1 --format=%B HEAD` in the message 
 ## Task 3: Register the folder menu
 
 **Files:**
+
 - Modify: `src/services/menuService.ts` (add `collectionMenus`, extend `registerMenus`)
 
 **Interfaces:**
+
 - Consumes: `contextCollectionID` from `./menuContext` (Task 1); `contextCommandItem` and `injectViewItems` (Task 2); `openGraphForCollection` from `./windowService`, signature `openGraphForCollection(collectionID: number, hostWindow?: _ZoteroTypes.MainWindow, options?: { newInstance?: boolean; targetInstanceID?: string | null }): Promise<void>`.
 - Produces: nothing consumed by later tasks.
 
@@ -489,12 +498,12 @@ function collectionMenus(): MenuData[] {
 In `registerMenus`, add a third `register(...)` call between the existing item and tab registrations:
 
 ```typescript
-  register({
-    menuID: "meristema-collection-context-menu",
-    pluginID: config.addonID,
-    target: "main/library/collection",
-    menus: collectionMenus(),
-  });
+register({
+  menuID: "meristema-collection-context-menu",
+  pluginID: config.addonID,
+  target: "main/library/collection",
+  menus: collectionMenus(),
+});
 ```
 
 `unregisterMenus` needs no change — it drains `registeredMenuIDs`, which `register()` appends to.
@@ -509,7 +518,7 @@ Expected: all clean.
 
 Run: `npm test`
 
-Expected: PASS. Note for the commit message and your report: these tests cover the folder *predicate*, not the folder *menu*. Whether the entry actually appears and opens a scoped graph is unverified until Task 4.
+Expected: PASS. Note for the commit message and your report: these tests cover the folder _predicate_, not the folder _menu_. Whether the entry actually appears and opens a scoped graph is unverified until Task 4.
 
 - [ ] **Step 6: Commit**
 
@@ -527,6 +536,7 @@ Include the two trailer lines from `git log -1 --format=%B HEAD` in the message 
 Everything automated is green by now, and none of it has opened a menu. This task is the only evidence that the feature works. Do not skip it and do not report the feature as working on the strength of Tasks 1–3.
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-08-28-collection-context-menu-design.md` (line 4, `Status:`)
 
 - [ ] **Step 1: Launch Zotero with the plugin**
@@ -542,7 +552,7 @@ Work through all six checks and record the actual result of each, not the expect
 1. Right-click a folder that contains papers → "Open in New Collection Graph" appears, with `library only` beside it. Clicking it opens a new graph tab whose filter button shows the folder's name and whose nodes are that folder's papers.
 2. Right-click a folder that has subcollections → the graph includes papers from the subcollections too.
 3. Right-click each of: My Library, Trash, Unfiled Items, Duplicate Items, a saved search, and a group library root → **no** Meristema entry on any of them. This is the regression that motivated the work.
-4. With a Collection Graph tab open, right-click a *different* folder → an entry named after that open graph appears below the first one, reading `show this folder`. Clicking it re-scopes the open graph to the new folder rather than opening a second tab.
+4. With a Collection Graph tab open, right-click a _different_ folder → an entry named after that open graph appears below the first one, reading `show this folder`. Clicking it re-scopes the open graph to the new folder rather than opening a second tab.
 5. With an Explore view open and no Collection Graph open, right-click a folder → only "Open in New Collection Graph" appears. The Explore view is **not** offered.
 6. Right-click a paper, then a note, then an attachment → the item menu is unchanged: three entries on the paper, nothing on the note or the attachment.
 

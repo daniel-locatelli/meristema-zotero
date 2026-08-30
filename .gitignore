@@ -3,9 +3,12 @@ node_modules/
 build/
 dist/
 .env
+.env.bak-*
 *.xpi
 *.tsbuildinfo
 FILE_MANIFEST.sha256
 .DS_Store
 TODO.md
 tsconfig.tsbuildinfo
+/prefs.js
+.superpowers/

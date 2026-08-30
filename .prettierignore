@@ -11,3 +11,5 @@ FILE_MANIFEST.sha256
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+/prefs.js
+.superpowers/

@@ -71,10 +71,10 @@ collection itself.
 
 Registered on target `main/library/collection`.
 
-| Entry | acceltext | Action |
-| --- | --- | --- |
-| Open in New Collection Graph | `library only` | `openGraphForCollection(id, win, { newInstance: true })` |
-| *(one injected per open map view)* | `show this folder` | `openGraphForCollection(id, win, { targetInstanceID })` |
+| Entry                              | acceltext          | Action                                                   |
+| ---------------------------------- | ------------------ | -------------------------------------------------------- |
+| Open in New Collection Graph       | `library only`     | `openGraphForCollection(id, win, { newInstance: true })` |
+| _(one injected per open map view)_ | `show this folder` | `openGraphForCollection(id, win, { targetInstanceID })`  |
 
 The injected entries are built while the popup is showing, because the number of
 open views is only known then — the same technique the item menu already uses.

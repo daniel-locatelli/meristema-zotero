@@ -27,7 +27,7 @@ So "add this folder too" cannot be expressed. The same limit is why the folder
 menu's existing-graph entry says "Show in PhD Graph" and not "Add to PhD Graph":
 a second folder displaces the first.
 
-One thing this is *not*: a persistence problem. The collection filter is never
+One thing this is _not_: a persistence problem. The collection filter is never
 written to `tab.data` — the tab stores only `graphInstanceID`, `graphTitle`,
 `graphKind` and friends (`src/services/windowService.ts:966`), and
 `pendingCollectionID` is transient in-memory state consumed on open. There are

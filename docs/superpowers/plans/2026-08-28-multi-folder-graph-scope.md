@@ -32,16 +32,16 @@ Mocha + Chai via `zotero-plugin test`.
 
 ## File structure
 
-| File | Responsibility |
-| --- | --- |
+| File                                   | Responsibility                                                                   |
+| -------------------------------------- | -------------------------------------------------------------------------------- |
 | `src/services/paperListViewService.ts` | Filter state, the union predicate, the multi-select control, `setCollectionIDs`. |
-| `src/services/graphViewService.ts` | Five call sites, the focus exemption, `openCollections`. |
-| `src/services/windowService.ts` | `pendingCollectionIDs`, the request field, `openGraphForCollections`, the title. |
-| `src/services/graphInstancePolicy.ts` | The multi-folder title rule. |
-| `src/services/menuContext.ts` | `contextCollectionIDs` — all right-clicked folders. |
-| `src/services/menuService.ts` | Menu wiring and labels. |
-| `addon/locale/en-US/mainWindow.ftl` | The plural label. |
-| `test/architecture.test.ts` | Unit tests for every pure seam above. |
+| `src/services/graphViewService.ts`     | Five call sites, the focus exemption, `openCollections`.                         |
+| `src/services/windowService.ts`        | `pendingCollectionIDs`, the request field, `openGraphForCollections`, the title. |
+| `src/services/graphInstancePolicy.ts`  | The multi-folder title rule.                                                     |
+| `src/services/menuContext.ts`          | `contextCollectionIDs` — all right-clicked folders.                              |
+| `src/services/menuService.ts`          | Menu wiring and labels.                                                          |
+| `addon/locale/en-US/mainWindow.ftl`    | The plural label.                                                                |
+| `test/architecture.test.ts`            | Unit tests for every pure seam above.                                            |
 
 ---
 
@@ -180,7 +180,7 @@ Record the actual result of each, not the expected one.
    without reopening it. **This is the live-scope claim; do not skip it.**
 4. Select three folders where one has subcollections → the subcollections'
    papers are included.
-5. Select a folder *and* Trash (or My Library) → **no** Meristema entry.
+5. Select a folder _and_ Trash (or My Library) → **no** Meristema entry.
 6. With that graph open, select two different folders and right-click → "Show 2
    folders in PhD +1 Graph"; clicking re-scopes the open graph rather than
    opening a tab.
@@ -192,7 +192,7 @@ Record the actual result of each, not the expected one.
    or an attachment.
 
 - [ ] **Step 3: Flip the spec to `implemented`** — only if all nine passed. If
-  one failed, leave it `designed`, write down what actually happened, and stop
-  for review rather than patching blind.
+      one failed, leave it `designed`, write down what actually happened, and stop
+      for review rather than patching blind.
 
 - [ ] **Step 4: Commit, then report which checks were run and by whom.**

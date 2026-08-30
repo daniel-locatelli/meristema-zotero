@@ -14,15 +14,15 @@ specced, planned, and is now half implemented.
 
 ## Commits on the branch
 
-| Commit | What |
-| --- | --- |
-| `cfa7af2` | Spec |
-| `9b0dc61` | The visibility bug fix |
-| `ecbb832` | Plan |
-| `d04e097` | This handoff, first version |
+| Commit    | What                                             |
+| --------- | ------------------------------------------------ |
+| `cfa7af2` | Spec                                             |
+| `9b0dc61` | The visibility bug fix                           |
+| `ecbb832` | Plan                                             |
+| `d04e097` | This handoff, first version                      |
 | `ad2e543` | **Task 1** — `menuContext.ts` + regression tests |
-| `f09b911` | **Task 2** — widened the two menu seams |
-| `d690cce` | Test harness fix (out of plan, see below) |
+| `f09b911` | **Task 2** — widened the two menu seams          |
+| `d690cce` | Test harness fix (out of plan, see below)        |
 
 Working tree clean apart from an untracked `prefs.js` at the repo root — a
 dev-profile artifact, not part of this work. It breaks `npm run check` at the
@@ -67,7 +67,7 @@ start a second while one is going.
 candidates ending in `ZoteroPane.getSelectedCollection()`,
 `getCollectionTreeRow()` and `getSelectedItems()`. When the right-clicked row was
 not a collection, or held no regular items, the chain fell through to whatever
-happened to be selected *elsewhere* and reported the entries available — hence
+happened to be selected _elsewhere_ and reported the entries available — hence
 their appearing on My Library, Trash, Unfiled, saved searches and group roots.
 
 Zotero 9's `MenuManager` hands the right-clicked rows in on the menu context
@@ -92,8 +92,8 @@ so subcollections come along. The folder feature is wiring around it.
   seeded by item IDs and would fire hundreds of provider calls for a large
   folder. No Refresh entry.
 - **Collection filter, not item-ID expansion.** Two accepted consequences: the
-  scope is *live* (papers added to the folder later appear), and opening a folder
-  in an existing graph *replaces* that graph's scope rather than merging. Hence
+  scope is _live_ (papers added to the folder later appear), and opening a folder
+  in an existing graph _replaces_ that graph's scope rather than merging. Hence
   the injected entries read `show this folder`, not `add to graph`.
 
 ## What is done
@@ -101,7 +101,7 @@ so subcollections come along. The folder feature is wiring around it.
 **Task 1 (`ad2e543`)** — `src/services/menuContext.ts` holds `contextRegularItems`
 and `contextCollectionID`, pure functions of a menu context with no Zotero
 globals. 85 lines of regression tests in `test/architecture.test.ts`; the fake
-contexts deliberately carry a `ZoteroPane` offering the *wrong* answer, so a
+contexts deliberately carry a `ZoteroPane` offering the _wrong_ answer, so a
 reintroduced fallback fails the test. 65/65 passing, independently confirmed.
 Review clean.
 
@@ -120,7 +120,7 @@ routing through `openGraphForCollection`, with open Explore views filtered out o
 the injected list. Complete code is in the plan. Base is `d690cce`.
 
 **Task 4** — the six manual checks in a running Zotero (`npm start`), then flip
-the spec's `Status:` to `implemented`. This is the *only* evidence the feature
+the spec's `Status:` to `implemented`. This is the _only_ evidence the feature
 works: Tasks 2 and 3 touch XUL menu glue that the automated suite does not
 exercise at all. Do not report the feature as working on the strength of a green
 `npm test`.
