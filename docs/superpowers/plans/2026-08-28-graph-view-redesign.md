@@ -54,6 +54,9 @@ with Mocha + Chai via `zotero-plugin test`.
 | `src/services/graphRendererScene.ts`      | Screen-space labels, the label budget, ghost drawing.                                            |
 | `src/services/graphMetricScale.ts`        | Ramp moves to the theme; `categoricalColor` is deleted.                                          |
 | `src/services/graphPlotFrame.ts`          | **New.** Plot insets, the fit gutters that must not undercut them, the type scale, tracked text. |
+| `src/services/graphViewport.ts`           | **New.** World/screen projection and the lengths that must survive the round trip.               |
+| `src/services/graphEdgeStyle.ts`          | **New.** Reciprocal curvature, count-scaled opacity, the arrowhead visibility rule.              |
+| `src/services/graphLabelBudget.ts`        | **New.** The label budget, the spatial index behind it, and the measured-width cache.            |
 | `src/services/graphViewControls.ts`       | Command-bar reflow, `colorForCollection` deleted, legend checkbox removed.                       |
 | `src/services/graphViewService.ts`        | Header/query-band collapse, rail mounting, control relocation.                                   |
 | `src/services/exportService.ts`           | Opaque background and a Key block in the PNG.                                                    |
@@ -360,7 +363,54 @@ collection containing a paper with no year shows the `NO DATA` lane — which
 disappears once every paper on screen has one. Check a scaled display: a fitted
 view must keep every node clear of the y-axis labels.
 
-## Task 5: Edges and labels
+## Task 5: Edges and labels — **DONE**, code landed; visual check pending
+
+Both halves shipped, each behind a pure module so the decisions are testable
+without a canvas.
+
+**`src/services/graphEdgeStyle.ts` is new.** `reciprocalEdgeKeys` finds the
+edges that have a partner running the other way, and only those curve —
+`curveSign` compares the two keys so `A>B` and `B>A` always bow to opposite
+sides. A lone edge stays straight: drawing it as an arc would say something the
+graph does not mean, which is a **deviation** from the plan's flat "quadratic
+curvature offset of 8px screen". The apex is 8 CSS pixels, so `curveControlPoint`
+places the control at twice that; `arrivalDirection` gives the arrowhead the
+curve's tangent at the target rather than the chord's direction.
+
+`edgeBaseOpacity` falls from 1 at 240 edges to a floor of 0.3 at 3200, linear in
+log space. **A lit edge bypasses it** and keeps full strength however dense the
+graph is — lighting it is the whole point of the selection. `shouldDrawArrowhead`
+drops an unlit head below 0.5 zoom. The arrowhead is now a flat 6 CSS px; the
+old 6.25/5 split between connected and ordinary edges is gone, since the
+connected edge already reads through colour, weight and shadow.
+
+**`src/services/graphLabelBudget.ts` is new**, and it carries both label changes.
+`createLabelBudget` replaces the `nodes.length > 220` cliff with two independent
+stops: an area share of the plot (18%), which catches a sparse graph whose
+labels would tile it, and a consecutive-failure count (14), which catches a
+dense cluster where the loop would grind through hundreds of buried candidates
+to place nothing. The area is measured against the plot **actually on screen**,
+which is what makes zooming in reveal more labels continuously.
+
+`createRectangleIndex` is the complexity fix. Node rectangles and placed labels
+go into one spatial hash keyed by 64px cells, so a candidate only meets the
+rectangles in its own cells instead of the concatenated array of all of them.
+A rectangle is filed under every cell it covers, so the query de-duplicates by
+index before summing — `test/unit/graphLabelBudget.test.ts` pins both that the
+index agrees with the brute-force sum across three cell sizes and that a
+rectangle spanning a hundred cells is counted once. `createTextWidthCache`
+memoizes `measureText` across frames keyed by font _and_ string, so a resize that
+changes the device pixel ratio starts a new generation rather than returning
+stale widths.
+
+**The `ctx.font` guard stays rejected**, as the plan says. It is set once per
+`drawRendererLabels` call, and that same string is now the cache key.
+
+**Not yet verified:** the visual check below — a 500-node graph, and a pan held
+long enough to judge frame rate. This is code and unit tests only, like Tasks
+1, 2 and 4.
+
+Original brief:
 
 Edges: screen-space widths, base opacity scaled down as edge count rises,
 quadratic curvature offset of 8px screen so reciprocal pairs separate, arrowheads
