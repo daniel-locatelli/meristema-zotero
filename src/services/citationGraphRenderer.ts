@@ -18,6 +18,8 @@ import {
   drawRendererLabels,
   hitTestRenderer,
   projectRendererPositions,
+  MISSING_X,
+  MISSING_Y,
   type RendererSceneContext,
 } from "./graphRendererScene";
 import { isFilteredPreservedNode, renderedGraphKeys } from "./graphVisibility";
@@ -46,6 +48,17 @@ import {
   projectToWorld,
   screenLengthToWorld,
 } from "./graphViewport";
+import {
+  axisInsets,
+  fillTrackedText,
+  fitInsets,
+  plotRect,
+  resolveChromeFontStack,
+  GRAPH_FALLBACK_FONT_STACK,
+  GRAPH_TYPE_SCALE,
+  type PlotAxisState,
+  type PlotRect,
+} from "./graphPlotFrame";
 
 interface Position {
   x: number;
@@ -121,6 +134,12 @@ export class CitationGraphRenderer {
   private readonly screenPositions = new Map<string, Position>();
   /** Device pixels per CSS pixel, refreshed once per frame. */
   private ratio = 1;
+  /**
+   * The chrome's own font stack. Read off the canvas rather than hard-coded so
+   * the axis furniture is set in the same face as the DOM around it; re-read on
+   * resize rather than per frame, because `getComputedStyle` forces a reflow.
+   */
+  private fontStack = GRAPH_FALLBACK_FONT_STACK;
   private readonly collectionLabels: ReadonlyMap<number, string>;
   private theme: GraphTheme = graphThemeFor("light");
   private categoryAssignment: CategoryAssignment | null = null;
@@ -373,6 +392,22 @@ export class CitationGraphRenderer {
       this as unknown as RendererSceneContext,
       preserveFreeX,
       preserveFreeY,
+    );
+  }
+
+  private axesState(): PlotAxisState {
+    return {
+      xFree: this.layout.xMetric === "free",
+      yFree: this.layout.yMetric === "free",
+    };
+  }
+
+  /** The paper rectangle, in canvas device pixels, for the current frame. */
+  private plotRect(): PlotRect {
+    return plotRect(
+      this.canvas.width,
+      this.canvas.height,
+      axisInsets(this.ratio, this.axesState()),
     );
   }
 
@@ -762,50 +797,205 @@ export class CitationGraphRenderer {
     context.restore();
   }
 
-  private drawAxes(nodes: CitationGraphNode[]): void {
+  /**
+   * The screen coordinate of a tick, in canvas device pixels. The tick's world
+   * position is the same one `projectRendererPositions` places nodes at, so a
+   * gridline lands exactly under the nodes that share its value.
+   */
+  private tickScreenPosition(
+    axis: "x" | "y",
+    scale: AxisScale,
+    tick: number,
+  ): number {
+    if (axis === "x") {
+      const worldX =
+        PLOT_LEFT +
+        scaleValue(tick, scale.domain[0], scale.domain[1], this.layout.xScale) *
+          (PLOT_RIGHT - PLOT_LEFT);
+      return this.projectToScreen({ x: worldX, y: 0 }).x;
+    }
+    const worldY =
+      PLOT_BOTTOM -
+      scaleValue(tick, scale.domain[0], scale.domain[1], this.layout.yScale) *
+        (PLOT_BOTTOM - PLOT_TOP);
+    return this.projectToScreen({ x: 0, y: worldY }).y;
+  }
+
+  /**
+   * Whether any node is actually parked in an axis's no-data lane. Mirrors the
+   * test `projectRendererPositions` makes when it places them, so the lane's
+   * separator and label appear only when there is something in the lane.
+   */
+  private hasParkedNodes(nodes: CitationGraphNode[], axis: "x" | "y"): boolean {
+    const metric = axis === "x" ? this.layout.xMetric : this.layout.yMetric;
+    if (metric === "free") return false;
+    const scale = axis === "x" ? this.layout.xScale : this.layout.yScale;
+    return nodes.some((node) => {
+      const value = metricNumber(node, metric);
+      return value === null || (scale === "log" && value <= 0);
+    });
+  }
+
+  /**
+   * The lane an axis parks its valueless nodes in: a dashed separator between
+   * the lane and the data, and a NO DATA label at the far end of the lane,
+   * away from the corner where the two lanes meet.
+   *
+   * The x lane is a narrow vertical strip, so its label is rotated to fit. The
+   * y lane is a wide horizontal one and reads horizontally; rotating it would
+   * cost legibility for nothing.
+   */
+  private drawNoDataLane(
+    plot: PlotRect,
+    axis: "x" | "y",
+    nodes: CitationGraphNode[],
+  ): void {
+    if (!this.hasParkedNodes(nodes, axis)) return;
     const context = this.context;
     const ratio = this.ratio;
-    const axisLeft = 58 * ratio;
-    const axisRight = this.canvas.width - 14 * ratio;
-    const axisTop = 14 * ratio;
-    const axisBottom = this.canvas.height - 42 * ratio;
-    const foreground = this.theme.inks.muted;
+    const size = Math.round(GRAPH_TYPE_SCALE.gutter * ratio);
+    const pad = 8 * ratio;
 
     context.save();
+    context.strokeStyle = this.theme.surfaces.hairline;
+    context.fillStyle = this.theme.inks.muted;
+    context.lineWidth = Math.max(1, ratio);
+    context.setLineDash([4 * ratio, 4 * ratio]);
+    context.font = `${size}px ${this.fontStack}`;
+
+    if (axis === "x") {
+      const separator = this.projectToScreen({
+        x: (MISSING_X + PLOT_LEFT) / 2,
+        y: 0,
+      }).x;
+      const lane = this.projectToScreen({ x: MISSING_X, y: 0 }).x;
+      if (separator > plot.left && separator < plot.right) {
+        context.beginPath();
+        context.moveTo(separator, plot.top);
+        context.lineTo(separator, plot.bottom);
+        context.stroke();
+      }
+      if (lane > plot.left && lane < plot.right) {
+        context.setLineDash([]);
+        context.save();
+        context.translate(lane, plot.top + pad);
+        context.rotate(-Math.PI / 2);
+        context.textAlign = "right";
+        context.textBaseline = "middle";
+        fillTrackedText(context, "No data", 0, 0, size);
+        context.restore();
+      }
+    } else {
+      const separator = this.projectToScreen({
+        x: 0,
+        y: (MISSING_Y + PLOT_BOTTOM) / 2,
+      }).y;
+      const lane = this.projectToScreen({ x: 0, y: MISSING_Y }).y;
+      if (separator > plot.top && separator < plot.bottom) {
+        context.beginPath();
+        context.moveTo(plot.left, separator);
+        context.lineTo(plot.right, separator);
+        context.stroke();
+      }
+      if (lane > plot.top && lane < plot.bottom) {
+        context.setLineDash([]);
+        context.textAlign = "right";
+        context.textBaseline = "middle";
+        fillTrackedText(context, "No data", plot.right - pad, lane, size);
+      }
+    }
+    context.restore();
+  }
+
+  /**
+   * Everything that belongs beneath the nodes: the paper the plot is printed
+   * on, a gridline at every tick, and the no-data lanes. The frame, the ticks
+   * and the axis titles go on top, in `drawAxes`.
+   */
+  private drawPlotBackdrop(
+    plot: PlotRect,
+    nodes: CitationGraphNode[],
+    xScale: AxisScale | null,
+    yScale: AxisScale | null,
+  ): void {
+    const context = this.context;
+    const ratio = this.ratio;
+
+    context.save();
+    context.fillStyle = this.theme.surfaces.paper;
+    context.fillRect(plot.left, plot.top, plot.width, plot.height);
+    context.beginPath();
+    context.rect(plot.left, plot.top, plot.width, plot.height);
+    context.clip();
+
+    context.strokeStyle = this.theme.surfaces.grid;
+    context.lineWidth = Math.max(1, ratio);
+    if (this.layout.xMetric !== "free" && xScale) {
+      for (const tick of xScale.ticks) {
+        const x = this.tickScreenPosition("x", xScale, tick);
+        if (x < plot.left || x > plot.right) continue;
+        context.beginPath();
+        context.moveTo(x, plot.top);
+        context.lineTo(x, plot.bottom);
+        context.stroke();
+      }
+    }
+    if (this.layout.yMetric !== "free" && yScale) {
+      for (const tick of yScale.ticks) {
+        const y = this.tickScreenPosition("y", yScale, tick);
+        if (y < plot.top || y > plot.bottom) continue;
+        context.beginPath();
+        context.moveTo(plot.left, y);
+        context.lineTo(plot.right, y);
+        context.stroke();
+      }
+    }
+
+    this.drawNoDataLane(plot, "x", nodes);
+    this.drawNoDataLane(plot, "y", nodes);
+    context.restore();
+  }
+
+  /**
+   * The frame around the plot, the ticks hanging outside it, and the axis
+   * titles. The frame replaces the two bare axis lines this used to draw: one
+   * hairline rectangle says the same thing and closes the figure.
+   */
+  private drawAxes(
+    plot: PlotRect,
+    xScale: AxisScale | null,
+    yScale: AxisScale | null,
+  ): void {
+    const context = this.context;
+    const ratio = this.ratio;
+    const foreground = this.theme.inks.muted;
+    const tickSize = Math.round(GRAPH_TYPE_SCALE.tick * ratio);
+    const titleSize = Math.round(GRAPH_TYPE_SCALE.axisTitle * ratio);
+
+    context.save();
+    context.strokeStyle = this.theme.surfaces.hairline;
+    context.lineWidth = Math.max(1, ratio);
+    context.strokeRect(plot.left, plot.top, plot.width, plot.height);
+
     context.strokeStyle = foreground;
     context.fillStyle = foreground;
-    context.lineWidth = Math.max(1, ratio);
-    context.font = `${Math.round(11 * ratio)}px sans-serif`;
+    context.font = `${tickSize}px ${this.fontStack}`;
 
     if (this.layout.xMetric !== "free") {
-      context.beginPath();
-      context.moveTo(axisLeft, axisBottom);
-      context.lineTo(axisRight, axisBottom);
-      context.stroke();
-      const scale = this.axisScale(nodes, "x");
-      if (scale) {
-        for (const tick of scale.ticks) {
-          const worldX =
-            PLOT_LEFT +
-            scaleValue(
-              tick,
-              scale.domain[0],
-              scale.domain[1],
-              this.layout.xScale,
-            ) *
-              (PLOT_RIGHT - PLOT_LEFT);
-          const x = this.projectToScreen({ x: worldX, y: 0 }).x;
-          if (x < axisLeft || x > axisRight) continue;
+      if (xScale) {
+        for (const tick of xScale.ticks) {
+          const x = this.tickScreenPosition("x", xScale, tick);
+          if (x < plot.left || x > plot.right) continue;
           context.beginPath();
-          context.moveTo(x, axisBottom);
-          context.lineTo(x, axisBottom + 5 * ratio);
+          context.moveTo(x, plot.bottom);
+          context.lineTo(x, plot.bottom + 5 * ratio);
           context.stroke();
           context.textAlign = "center";
           context.textBaseline = "top";
           context.fillText(
             formatMetricValue(this.layout.xMetric, tick),
             x,
-            axisBottom + 7 * ratio,
+            plot.bottom + 7 * ratio,
           );
         }
       } else {
@@ -813,63 +1003,58 @@ export class CitationGraphRenderer {
         context.textBaseline = "bottom";
         context.fillText(
           "No visible data",
-          (axisLeft + axisRight) / 2,
-          axisBottom - 7 * ratio,
+          (plot.left + plot.right) / 2,
+          plot.bottom - 7 * ratio,
         );
       }
-      context.font = `600 ${Math.round(12 * ratio)}px sans-serif`;
+      context.font = `600 ${titleSize}px ${this.fontStack}`;
       context.textAlign = "center";
       context.textBaseline = "bottom";
-      context.fillText(
+      fillTrackedText(
+        context,
         getMetricDefinition(this.layout.xMetric).label,
-        (axisLeft + axisRight) / 2,
+        (plot.left + plot.right) / 2,
         this.canvas.height - 3 * ratio,
+        titleSize,
       );
     }
 
     if (this.layout.yMetric !== "free") {
-      context.beginPath();
-      context.moveTo(axisLeft, axisTop);
-      context.lineTo(axisLeft, axisBottom);
-      context.stroke();
-      const scale = this.axisScale(nodes, "y");
-      if (scale) {
-        for (const tick of scale.ticks) {
-          const worldY =
-            PLOT_BOTTOM -
-            scaleValue(
-              tick,
-              scale.domain[0],
-              scale.domain[1],
-              this.layout.yScale,
-            ) *
-              (PLOT_BOTTOM - PLOT_TOP);
-          const y = this.projectToScreen({ x: 0, y: worldY }).y;
-          if (y < axisTop || y > axisBottom) continue;
+      context.font = `${tickSize}px ${this.fontStack}`;
+      if (yScale) {
+        for (const tick of yScale.ticks) {
+          const y = this.tickScreenPosition("y", yScale, tick);
+          if (y < plot.top || y > plot.bottom) continue;
           context.beginPath();
-          context.moveTo(axisLeft - 5 * ratio, y);
-          context.lineTo(axisLeft, y);
+          context.moveTo(plot.left - 5 * ratio, y);
+          context.lineTo(plot.left, y);
           context.stroke();
           context.textAlign = "right";
           context.textBaseline = "middle";
           context.fillText(
             formatMetricValue(this.layout.yMetric, tick),
-            axisLeft - 8 * ratio,
+            plot.left - 8 * ratio,
             y,
           );
         }
       } else {
         context.textAlign = "left";
         context.textBaseline = "top";
-        context.fillText("No visible data", axisLeft + 8 * ratio, axisTop);
+        context.fillText("No visible data", plot.left + 8 * ratio, plot.top);
       }
       context.save();
-      context.translate(13 * ratio, (axisTop + axisBottom) / 2);
+      context.translate(13 * ratio, (plot.top + plot.bottom) / 2);
       context.rotate(-Math.PI / 2);
-      context.font = `600 ${Math.round(12 * ratio)}px sans-serif`;
+      context.font = `600 ${titleSize}px ${this.fontStack}`;
       context.textAlign = "center";
       context.textBaseline = "top";
-      context.fillText(getMetricDefinition(this.layout.yMetric).label, 0, 0);
+      fillTrackedText(
+        context,
+        getMetricDefinition(this.layout.yMetric).label,
+        0,
+        0,
+        titleSize,
+      );
       context.restore();
     }
     context.restore();
@@ -895,9 +1080,17 @@ export class CitationGraphRenderer {
       context.save();
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      context.fillStyle = this.theme.surfaces.paper;
-      context.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.ratio = this.pixelRatio();
+      const axes = this.axesState();
+      // With no metric on either axis there is no plot to inset, so the paper
+      // stays edge to edge and no frame is drawn around a rectangle that means
+      // nothing. Otherwise the panel is the surround and the paper is the plot.
+      const framed = !axes.xFree || !axes.yFree;
+      const plot = this.plotRect();
+      context.fillStyle = framed
+        ? this.theme.surfaces.panel
+        : this.theme.surfaces.paper;
+      context.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.screenPositions.clear();
       for (const [key, position] of this.positions) {
         this.screenPositions.set(key, this.projectToScreen(position));
@@ -905,6 +1098,9 @@ export class CitationGraphRenderer {
 
       const nodes = this.visibleNodes();
       const metricNodes = this.layoutNodes();
+      const xScale = axes.xFree ? null : this.axisScale(metricNodes, "x");
+      const yScale = axes.yFree ? null : this.axisScale(metricNodes, "y");
+      if (framed) this.drawPlotBackdrop(plot, metricNodes, xScale, yScale);
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
           ? null
@@ -969,7 +1165,7 @@ export class CitationGraphRenderer {
       }
       this.drawLabels(nodes, radii);
       if (this.ghostPreview) this.drawGhost(this.ghostPreview);
-      this.drawAxes(metricNodes);
+      if (framed) this.drawAxes(plot, xScale, yScale);
       context.restore();
     } catch (error) {
       this.canvasError = true;
@@ -1177,6 +1373,7 @@ export class CitationGraphRenderer {
       this.canvas.width = width;
       this.canvas.height = height;
       this.canvasError = false;
+      this.fontStack = resolveChromeFontStack(this.canvas);
       this.projectPositionsToLayout(
         this.layout.xMetric === "free",
         this.layout.yMetric === "free",
@@ -1253,17 +1450,16 @@ export class CitationGraphRenderer {
     const maxY = Math.max(...yCoordinates) + bottomPadding;
     const width = Math.max(1, maxX - minX);
     const height = Math.max(1, maxY - minY);
-    const screenLeft = 64;
-    const screenRight = 32;
-    const screenTop = 28;
-    const screenBottom = this.layout.xMetric === "free" ? 32 : 72;
+    // Ratio-scaled, and defined as the axis furniture plus a margin, so a
+    // fitted node can never land beneath a tick label on a scaled display.
+    const gutters = fitInsets(this.pixelRatio(), this.axesState());
     const availableWidth = Math.max(
       1,
-      this.canvas.width - screenLeft - screenRight,
+      this.canvas.width - gutters.left - gutters.right,
     );
     const availableHeight = Math.max(
       1,
-      this.canvas.height - screenTop - screenBottom,
+      this.canvas.height - gutters.top - gutters.bottom,
     );
     const scale = clamp(
       Math.min(availableWidth / width, availableHeight / height),
@@ -1272,9 +1468,9 @@ export class CitationGraphRenderer {
     );
     this.transform.scale = scale;
     this.transform.x =
-      screenLeft + (availableWidth - width * scale) / 2 - minX * scale;
+      gutters.left + (availableWidth - width * scale) / 2 - minX * scale;
     this.transform.y =
-      screenTop + (availableHeight - height * scale) / 2 - minY * scale;
+      gutters.top + (availableHeight - height * scale) / 2 - minY * scale;
     this.draw();
   }
 
@@ -1307,17 +1503,16 @@ export class CitationGraphRenderer {
       Math.max(...positions.map((position) => position.y)) + bottomPadding;
     const width = Math.max(1, maxX - minX);
     const height = Math.max(1, maxY - minY);
-    const screenLeft = 64;
-    const screenRight = 32;
-    const screenTop = 28;
-    const screenBottom = this.layout.xMetric === "free" ? 32 : 72;
+    // Ratio-scaled, and defined as the axis furniture plus a margin, so a
+    // fitted node can never land beneath a tick label on a scaled display.
+    const gutters = fitInsets(this.pixelRatio(), this.axesState());
     const availableWidth = Math.max(
       1,
-      this.canvas.width - screenLeft - screenRight,
+      this.canvas.width - gutters.left - gutters.right,
     );
     const availableHeight = Math.max(
       1,
-      this.canvas.height - screenTop - screenBottom,
+      this.canvas.height - gutters.top - gutters.bottom,
     );
     const scale = clamp(
       Math.min(availableWidth / width, availableHeight / height),
@@ -1326,9 +1521,9 @@ export class CitationGraphRenderer {
     );
     this.transform.scale = scale;
     this.transform.x =
-      screenLeft + (availableWidth - width * scale) / 2 - minX * scale;
+      gutters.left + (availableWidth - width * scale) / 2 - minX * scale;
     this.transform.y =
-      screenTop + (availableHeight - height * scale) / 2 - minY * scale;
+      gutters.top + (availableHeight - height * scale) / 2 - minY * scale;
     this.draw();
   }
 

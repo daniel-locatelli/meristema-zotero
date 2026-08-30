@@ -49,6 +49,8 @@ export interface RendererSceneContext {
   screenPositions: Map<string, Position>;
   /** Device pixels per CSS pixel for the current frame. */
   ratio: number;
+  /** The chrome's own font stack, so canvas text matches the DOM around it. */
+  fontStack: string;
   projectToScreen(position: Position): Position;
   worldLengthForScreen(cssPixels: number): number;
   selectedKey: string | null;
@@ -76,8 +78,13 @@ const PLOT_LEFT = 105;
 const PLOT_RIGHT = 1030;
 const PLOT_TOP = 60;
 const PLOT_BOTTOM = 675;
-const MISSING_X = PLOT_LEFT - 35;
-const MISSING_Y = PLOT_BOTTOM + 35;
+/**
+ * Where a node whose value for the axis metric is missing is parked. The
+ * renderer draws the separator and the NO DATA label for these lanes, so the
+ * two have to agree about the world coordinate.
+ */
+export const MISSING_X = PLOT_LEFT - 35;
+export const MISSING_Y = PLOT_BOTTOM + 35;
 const NODE_GAP = 7;
 const GRID_CELL_SIZE = 48;
 
@@ -580,7 +587,7 @@ export function drawRendererLabels(
   const ratio = renderer.ratio;
   const bounds = labelBounds(renderer);
   context.save();
-  context.font = `${11 * ratio}px sans-serif`;
+  context.font = `${11 * ratio}px ${renderer.fontStack}`;
   context.textBaseline = "middle";
   const nodeRectangles: Rectangle[] = nodes.flatMap((node) => {
     const position = renderer.screenPositions.get(node.key);
@@ -804,7 +811,7 @@ export function drawRendererGhost(
   context.setLineDash([]);
   if (missingX || missingY) {
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = `600 ${11 * ratio}px sans-serif`;
+    context.font = `600 ${11 * ratio}px ${renderer.fontStack}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText("?", screen.x, screen.y + 0.5 * ratio);
@@ -819,7 +826,7 @@ export function drawRendererGhost(
   if (label) {
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = `${11 * ratio}px sans-serif`;
+    context.font = `${11 * ratio}px ${renderer.fontStack}`;
     context.textAlign = "center";
     context.textBaseline = "alphabetic";
     context.fillText(

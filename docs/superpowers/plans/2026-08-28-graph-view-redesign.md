@@ -44,22 +44,23 @@ with Mocha + Chai via `zotero-plugin test`.
 
 ## File structure
 
-| File                                      | Responsibility                                                                                |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `src/services/graphTheme.ts`              | **New.** Light/dark tokens, both palettes, the state grammar, CSS custom property mirroring.  |
-| `src/services/graphCategoryAssignment.ts` | **New.** Rank-based category → swatch assignment and counts for all five categorical metrics. |
-| `src/services/graphKeyModel.ts`           | **New.** Pure description of the active encoding, consumed by the rail and the export.        |
-| `src/services/graphKeyRail.ts`            | **New.** The DOM rail, its sections, hover/pin emphasis, collapse persistence.                |
-| `src/services/citationGraphRenderer.ts`   | Screen-space drawing, emphasis API, gridlines, gutters, edge curvature; loses `drawLegend`.   |
-| `src/services/graphRendererScene.ts`      | Screen-space labels, the label budget, ghost drawing.                                         |
-| `src/services/graphMetricScale.ts`        | Ramp moves to the theme; `categoricalColor` is deleted.                                       |
-| `src/services/graphViewControls.ts`       | Command-bar reflow, `colorForCollection` deleted, legend checkbox removed.                    |
-| `src/services/graphViewService.ts`        | Header/query-band collapse, rail mounting, control relocation.                                |
-| `src/services/exportService.ts`           | Opaque background and a Key block in the PNG.                                                 |
-| `src/services/windowService.ts`           | The `.cm-header-toolbar` selector follows the reflow.                                         |
-| `addon/content/graph.css`                 | Command bar, rail, tokens, furniture; the decorative radial gradient goes.                    |
-| `test/unit/*.test.ts`                     | **New.** Fast `node --test` suite for the four pure seams.                                    |
-| `test/architecture.test.ts`               | Existing pure-seam tests migrate out to `test/unit/`; the file keeps only Zotero-bound tests. |
+| File                                      | Responsibility                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/services/graphTheme.ts`              | **New.** Light/dark tokens, both palettes, the state grammar, CSS custom property mirroring.     |
+| `src/services/graphCategoryAssignment.ts` | **New.** Rank-based category → swatch assignment and counts for all five categorical metrics.    |
+| `src/services/graphKeyModel.ts`           | **New.** Pure description of the active encoding, consumed by the rail and the export.           |
+| `src/services/graphKeyRail.ts`            | **New.** The DOM rail, its sections, hover/pin emphasis, collapse persistence.                   |
+| `src/services/citationGraphRenderer.ts`   | Screen-space drawing, emphasis API, gridlines, gutters, edge curvature; loses `drawLegend`.      |
+| `src/services/graphRendererScene.ts`      | Screen-space labels, the label budget, ghost drawing.                                            |
+| `src/services/graphMetricScale.ts`        | Ramp moves to the theme; `categoricalColor` is deleted.                                          |
+| `src/services/graphPlotFrame.ts`          | **New.** Plot insets, the fit gutters that must not undercut them, the type scale, tracked text. |
+| `src/services/graphViewControls.ts`       | Command-bar reflow, `colorForCollection` deleted, legend checkbox removed.                       |
+| `src/services/graphViewService.ts`        | Header/query-band collapse, rail mounting, control relocation.                                   |
+| `src/services/exportService.ts`           | Opaque background and a Key block in the PNG.                                                    |
+| `src/services/windowService.ts`           | The `.cm-header-toolbar` selector follows the reflow.                                            |
+| `addon/content/graph.css`                 | Command bar, rail, tokens, furniture; the decorative radial gradient goes.                       |
+| `test/unit/*.test.ts`                     | **New.** Fast `node --test` suite for the four pure seams.                                       |
+| `test/architecture.test.ts`               | Existing pure-seam tests migrate out to `test/unit/`; the file keeps only Zotero-bound tests.    |
 
 ---
 
@@ -281,7 +282,66 @@ from `graphViewControls.ts`.
 category and beyond land in `other`; counts sum to the node total; a node with no
 value gets `noValue` rather than a swatch.
 
-## Task 4: Plot furniture
+## Task 4: Plot furniture — **DONE**, code landed; visual check pending
+
+The plot is now an inset figure rather than an edge-to-edge canvas: `draw()`
+fills the surround with `surfaces.panel`, fills the plot rectangle with
+`surfaces.paper`, lays a gridline at every tick in `surfaces.grid` beneath the
+nodes, and closes the figure with one hairline `strokeRect` on top.
+
+**The frame replaced the two bare axis lines.** `drawAxes` used to stroke an L
+in `inks.muted`; a full rectangle in `surfaces.hairline` says the same thing and
+reads as a figure. Ticks still hang outside it and keep their muted ink.
+
+**`src/services/graphPlotFrame.ts` is new**, and it is where the "found, not
+fixed" item from Task 2 got fixed. `fitView` reserved flat device-pixel gutters
+(`screenLeft = 64`) while `drawAxes` drew its axis at `58 * ratio`, so on a
+scaled display the fit under-reserved and nodes landed beneath the y-axis
+labels. The module now owns both: `axisInsets()` is what the furniture occupies,
+`fitInsets()` is that plus a margin, both in CSS pixels times the ratio.
+`test/unit/graphPlotFrame.test.ts` pins that a fit can never reserve less than
+the furniture at any ratio, and that at ratio 1 the fit lands on exactly the old
+literals — so fit behaviour is unchanged on a standard-DPI display, which is
+what the plan asked for.
+
+**A free axis now gets its gutter back.** `axisInsets` reserves 18 CSS pixels
+instead of 58/42 on a side that draws no ticks and no title. When _both_ axes
+are free there is no plot to inset at all, so the paper stays edge to edge and
+nothing is framed — a rectangle around a force layout would mean nothing.
+
+**The no-data lanes are drawn from `MISSING_X`/`MISSING_Y`**, which
+`graphRendererScene.ts` now exports so the separator and the parking decision
+cannot drift apart. `hasParkedNodes()` mirrors that decision exactly — a null
+value, or a non-positive one on a log scale — so a lane appears only when
+something is in it. Each lane gets a dashed hairline separator at the midpoint
+between the lane and the data, and a `NO DATA` label at the far end, away from
+the corner where the two lanes meet.
+
+**Only the x lane's label is rotated**, against the plan's "rotated `NO DATA`
+labels" for both. The x lane is a narrow vertical strip and has to be; the y
+lane is a wide horizontal one, and rotating its label would cost legibility for
+nothing.
+
+**Typography.** `resolveChromeFontStack()` reads the stack off the canvas's
+computed style rather than hard-coding one, so the canvas is set in whatever
+face Zotero's chrome is using; it is re-read on resize, not per frame, because
+`getComputedStyle` forces a reflow. `graphRendererScene.ts`'s three `ctx.font`
+assignments follow it through `RendererSceneContext.fontStack`. Axis titles and
+gutter labels go through `fillTrackedText()`, which uppercases and applies
+tracking via `ctx.letterSpacing`, compensating for the trailing step a centred
+run would otherwise pick up.
+
+**Tabular numerals were not applied to the canvas, because they cannot be.**
+Canvas 2D exposes `fontKerning`, `fontStretch`, `fontVariantCaps`,
+`letterSpacing` and `wordSpacing` — there is no `font-variant-numeric`. The tick
+labels are individually centred (x) and right-aligned (y), which is what the
+tabular setting would have bought here. `graph.css` keeps its `tabular-nums` for
+the DOM chrome.
+
+**Not yet verified:** the visual check below, and Tasks 1 and 2's — nothing has
+been looked at running for three tasks now.
+
+Original brief:
 
 The decorative radial gradient is already off `.cm-graph-area`.
 
@@ -293,6 +353,12 @@ actually parked there. Remove the decorative radial gradient from
 
 Apply the type scale: axis titles and gutter labels in uppercase with tracking,
 ticks in tabular numerals, all sharing the chrome's font stack.
+
+Verify by opening a graph with a metric on each axis: the plot reads as an inset
+figure on the panel, gridlines sit under the nodes rather than over them, and a
+collection containing a paper with no year shows the `NO DATA` lane — which
+disappears once every paper on screen has one. Check a scaled display: a fitted
+view must keep every node clear of the y-axis labels.
 
 ## Task 5: Edges and labels
 
