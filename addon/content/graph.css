@@ -796,3 +796,145 @@
   background: transparent !important;
   font-size: 16px;
 }
+
+/*
+ * The Key rail. It states the graph's whole active encoding — what the colours,
+ * sizes, links and states mean — and it is the element the redesign exists for.
+ *
+ * It emphasises and never filters, so nothing here hides a row or changes a
+ * count; a pressed entry is `aria-pressed`, not a checkbox. The marks carry
+ * their colours inline from `graphKeyModel.ts`, which reads them from the same
+ * theme the canvas draws with, so the rail can never name a colour the plot is
+ * not using.
+ */
+.cm-key-rail {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 194px;
+  min-width: 0;
+  height: 100%;
+  border-right: 1px solid var(--cm-border);
+  background: var(--cm-surface-raised);
+}
+.cm-key-rail[data-collapsed="true"] {
+  width: 28px;
+}
+.cm-key-rail[data-collapsed="true"] .cm-key-body {
+  display: none;
+}
+.cm-key-toggle {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  width: 26px;
+  height: 26px;
+  margin: 3px 1px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cm-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cm-key-toggle:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-key-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 8px 14px;
+}
+.cm-key-section + .cm-key-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cm-border-soft);
+}
+.cm-key-heading {
+  margin: 0;
+  color: var(--cm-muted);
+  font-size: 10px;
+  font-weight: 600;
+  /* Set in sentence case so a screen reader is not handed an acronym. */
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.cm-key-subheading {
+  margin: 1px 0 6px;
+  overflow: hidden;
+  color: CanvasText;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/*
+ * Zotero's chrome gives a bare `button` a raised chip. That made the pressable
+ * rows sit on a panel while the static ones did not, which reads as two kinds
+ * of thing rather than one list, so it is suppressed here and the hover and
+ * pressed states below carry the affordance instead.
+ */
+.meristema-root button.cm-key-entry {
+  appearance: none;
+  border: 0;
+  outline-offset: -2px;
+  box-shadow: none;
+  background-color: transparent;
+}
+.cm-key-entry {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: CanvasText;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.cm-key-entry:not(.cm-key-entry-static) {
+  cursor: pointer;
+}
+.cm-key-entry:not(.cm-key-entry-static):hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-key-entry[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--cm-accent) 18%, transparent);
+}
+.cm-key-entry svg {
+  flex: 0 0 auto;
+}
+.cm-key-entry-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-key-entry-detail,
+.cm-key-entry-count {
+  flex: 0 0 auto;
+  color: var(--cm-muted);
+  font-size: 11px;
+  /* Counts read as a column, so they line up rather than shimmer. */
+  font-variant-numeric: tabular-nums;
+}
+.cm-key-entry-detail {
+  overflow: hidden;
+  max-width: 96px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-key-note {
+  margin: 6px 0 0;
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}

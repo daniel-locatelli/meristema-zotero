@@ -62,7 +62,8 @@ with Mocha + Chai via `zotero-plugin test`.
 | `src/services/exportService.ts`           | Opaque background and a Key block in the PNG.                                                    |
 | `src/services/windowService.ts`           | The `.cm-header-toolbar` selector follows the reflow.                                            |
 | `addon/content/graph.css`                 | Command bar, rail, tokens, furniture; the decorative radial gradient goes.                       |
-| `test/zotero/visualHarness.ts`            | **New.** Opens a chrome window, mounts a canvas, builds corpora, writes frames to disk.          |
+| `src/services/citationPreferences.ts`     | The Key rail's collapse state.                                                                   |
+| `test/zotero/visualHarness.ts`            | **New.** Opens a chrome window, builds the view shell, builds corpora, writes frames to disk.    |
 | `test/zotero/graphVisual.test.ts`         | **New.** The twelve checks, driven against the real renderer inside Zotero.                      |
 | `test/unit/*.test.ts`                     | **New.** Fast `node --test` suite for the four pure seams.                                       |
 | `test/architecture.test.ts`               | Existing pure-seam tests migrate out to `test/unit/`; the file keeps only Zotero-bound tests.    |
@@ -553,7 +554,66 @@ covers the canvas half of "canvas and chrome must follow in one step" and not
 the DOM half. That needs the real `renderGraphView`, which needs a real library
 snapshot; Task 6 builds DOM chrome and is the natural place to close it.
 
-## Task 6: The Key model and the rail
+## Task 6: The Key model and the rail — **DONE**, verified
+
+The task that answers the original complaint, and it does: on the default
+collection colouring every swatch on the canvas now has a name and a count
+beside it. `13-key-rail.png` from the harness is the evidence.
+
+**`src/services/graphKeyModel.ts`** describes the active encoding as data, with
+no DOM in it, so the rail and later the PNG export read the same description.
+`buildKeyModel` takes an options object rather than the plan's four positional
+arguments — it also needs the theme and the edge count.
+
+The colour section takes its assignment from the renderer rather than assigning
+again (`getCategoryAssignment()` is new), because the rail agreeing with the
+canvas is the whole point; a rail that computed its own would name the right
+colours only for as long as the two computations stayed identical. Swatches are
+assigned across the whole graph so they never shuffle, but counts are recounted
+over the nodes handed in and a category with nothing left under it is dropped:
+"every colour on screen is named" has to hold in both directions.
+
+**`src/services/graphKeyRail.ts`** renders it. **`setEmphasis()`** on the
+renderer drops non-matching nodes _and their edges_ to 25% over a 120ms ease,
+skipped under `prefers-reduced-motion`. An edge counts as matching if either end
+does, so an emphasised group keeps its connections out into the graph.
+
+**The Key still only emphasises.** Nothing here touches `visibleKeys` or
+`PaperFilterController`; the harness pins it by checking the drawn edge count is
+identical before and after an emphasis.
+
+### Deviations
+
+- **Only an entry that stands for a set of papers is a button.** The plan says
+  entries are buttons with `aria-pressed`; a ramp stop and a link colour
+  describe how the graph draws rather than which papers it drew, so they render
+  as plain rows. A focusable control that does nothing when pressed is worse
+  than no control. Every entry that _can_ emphasise is a button with
+  `aria-pressed`, as specified.
+- **The ramp and size rows carry their range as the label**, not as a trailing
+  detail. The section subheading already names the metric, and repeating it
+  pushed the numbers off the end of a 194px rail — visible in the first frame of
+  the rail, which is what caught it.
+- **`No data` explains itself in the section note**, not in the row. Same reason.
+- The rail's collapse persists under `extensions.zotero.meristema.graphKeyRailCollapsed`.
+- Zotero's chrome paints a raised chip and a border on a bare `button`, which
+  made the pressable rows look like a different kind of thing from the static
+  ones. `graph.css` suppresses both and carries the affordance on hover and
+  `aria-pressed` instead.
+- A rebuild of the model releases any pinned emphasis: the entries are new
+  objects even when they describe the same thing, so a kept pin would leave the
+  canvas emphasising something the rail could no longer show as pressed.
+
+### Still not verified
+
+The rail was driven in the harness against the real renderer, real `graph.css`
+and the real theme, but mounted by hand rather than by `renderGraphView`. The
+wiring in `graphViewService.ts` — the rail rebuilding from `updateSummary`, the
+background click releasing a pin — is typechecked and lint-clean but has not
+been watched running in a real library. That is the same gap as check 3's chrome
+half, and it wants a snapshot-backed harness.
+
+## Task 6 brief (original)
 
 `graphKeyModel.ts`: `buildKeyModel(layout, assignment, nodes, states)` returning
 the sections the spec lists — colour, size, links, states — with only the active

@@ -182,6 +182,12 @@ export function getDetailPanelCollapsed(): boolean {
 export function setDetailPanelCollapsed(collapsed: boolean): void {
   Zotero.Prefs.set(key("detailPanelCollapsed"), collapsed, true);
 }
+export function getKeyRailCollapsed(): boolean {
+  return boolPref("graphKeyRailCollapsed", false);
+}
+export function setKeyRailCollapsed(collapsed: boolean): void {
+  Zotero.Prefs.set(key("graphKeyRailCollapsed"), collapsed, true);
+}
 
 const GRAPH_APPEARANCE_SCHEMA_VERSION = 4;
 const FOCUS_GRAPH_APPEARANCE_SCHEMA_VERSION = 1;

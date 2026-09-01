@@ -13,6 +13,7 @@ import type {
   CitationGraphNode,
   GraphLayoutOptions,
 } from "../../src/domain/graphTypes";
+import { element, ensureStyles } from "../../src/services/graphViewControls";
 
 declare const IOUtils: any;
 declare const PathUtils: any;
@@ -286,10 +287,20 @@ export const COLLECTION_LABELS = new Map<number, string>([
 export interface Stage {
   window: Window;
   canvas: HTMLCanvasElement;
+  /** The `.meristema-root` the theme's custom properties are written onto. */
+  root: HTMLElement;
+  /** The `.cm-main` row. A Key rail goes in here, before the graph area. */
+  main: HTMLElement;
+  graphArea: HTMLElement;
   close: () => void;
 }
 
-/** Opens the plugin's own chrome window and mounts a full-bleed canvas in it. */
+/**
+ * Opens the plugin's own chrome window and builds the view's real shell in it —
+ * `.meristema-root` > `.cm-main` > `.cm-graph-area` > the canvas — with
+ * `graph.css` loaded. Anything mounted beside the canvas therefore lands in the
+ * same box model and the same theme the product uses.
+ */
 export async function openStage(): Promise<Stage> {
   const host = Zotero.getMainWindows()[0] as any;
   const url = "chrome://meristema/content/graphWindow.xhtml";
@@ -307,21 +318,25 @@ export async function openStage(): Promise<Stage> {
   });
   await delay(250);
 
-  const mount = popup.document.getElementById("meristema-window-root")!;
-  const canvas = popup.document.createElementNS(
-    "http://www.w3.org/1999/xhtml",
-    "canvas",
-  ) as HTMLCanvasElement;
-  canvas.style.flex = "1 1 auto";
-  canvas.style.display = "block";
-  canvas.style.minWidth = "0";
-  canvas.style.minHeight = "0";
-  mount.appendChild(canvas);
-  await delay(150);
+  const document = popup.document;
+  ensureStyles(document);
+  const mount = document.getElementById("meristema-window-root")!;
+  const root = element(document, "div", "meristema-root");
+  const main = element(document, "main", "cm-main");
+  const graphArea = element(document, "section", "cm-graph-area");
+  const canvas = element(document, "canvas", "cm-graph-canvas");
+  graphArea.appendChild(canvas);
+  main.appendChild(graphArea);
+  root.appendChild(main);
+  mount.appendChild(root);
+  await delay(200);
 
   return {
     window: popup,
-    canvas,
+    canvas: canvas as HTMLCanvasElement,
+    root,
+    main,
+    graphArea,
     close: () => popup.close(),
   };
 }

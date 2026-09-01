@@ -112,6 +112,8 @@ import {
   graphLayoutUsesSourceMetrics,
 } from "./sourceMetricsService";
 import { clamp } from "./graphMetricScale";
+import { buildKeyModel } from "./graphKeyModel";
+import { createKeyRail } from "./graphKeyRail";
 import {
   collectionLabelsByID,
   clear,
@@ -435,6 +437,10 @@ export function renderGraphView(
   let viewActive = true;
   let inactiveRelationshipDirty = false;
   let applyFilters = (): void => undefined;
+  /** Rebuild the Key from the graph as it now stands. Assigned once the rail exists. */
+  let refreshKeyRail = (): void => undefined;
+  /** What the search is currently matching, so the Key can name that mark. */
+  let searchMatchKeys: Set<string> | null = null;
   const initialLayout = getGraphAppearance();
   const selectPaper = async (itemID: number): Promise<void> => {
     try {
@@ -923,7 +929,22 @@ export function renderGraphView(
   const collapsed = getDetailPanelCollapsed();
   detailShell.style.width = collapsed ? "8px" : `${initialWidth}px`;
   detailShell.dataset.collapsed = String(collapsed);
-  main.append(graphArea, detailShell);
+  const keyRail = createKeyRail({
+    document,
+    onEmphasise: (entry) => {
+      if (!renderer || !entry?.matches) {
+        renderer?.setEmphasis(null);
+        return;
+      }
+      const matches = entry.matches;
+      renderer.setEmphasis(
+        new Set(
+          model.nodes.filter((node) => matches(node)).map((node) => node.key),
+        ),
+      );
+    },
+  });
+  main.append(keyRail.root, graphArea, detailShell);
   root.appendChild(main);
   mount.appendChild(root);
 
@@ -1221,6 +1242,9 @@ export function renderGraphView(
   const updateSummary = (): void => {
     const renderedKeys = new Set(visibleKeys);
     updateEmptyState(renderedKeys.size);
+    // Every path that changes what the graph shows already ends here, so this
+    // is the one place the Key has to be rebuilt from.
+    refreshKeyRail();
     const base = `${formatCount(renderedKeys.size)} nodes - ${formatCount(
       renderer?.getVisibleEdgeCount() ?? 0,
     )} links`;
@@ -3675,6 +3699,30 @@ export function renderGraphView(
     },
     onBackgroundInteraction: appearance.close,
   });
+  refreshKeyRail = (): void => {
+    const active = renderer;
+    if (!active) return;
+    keyRail.render(
+      buildKeyModel({
+        layout: active.getLayout(),
+        assignment: active.getCategoryAssignment(),
+        // The whole graph, not just what survives the filter: the Key names the
+        // filtered-out mark too, and it can only count what it was given.
+        nodes: model.nodes,
+        theme: active.getTheme(),
+        edgeCount: active.getVisibleEdgeCount(),
+        states: {
+          selectedKey: selectedNode?.key ?? null,
+          seedKeys: focusProjection
+            ? new Set(focusProjection.state.seedKeys)
+            : new Set<string>(),
+          searchMatches: searchMatchKeys,
+          visibleKeys:
+            visibleKeys.size === model.nodes.length ? null : visibleKeys,
+        },
+      }),
+    );
+  };
   renderOverview(null);
   updateNavigationButtons();
   refreshSourceMetricsForLayout(currentLayout);
@@ -3682,6 +3730,8 @@ export function renderGraphView(
   const onGraphAreaPointerDown = (event: PointerEvent): void => {
     const target = event.target as Element | null;
     if (!target || appearance.root.contains(target)) return;
+    // A click on the canvas is the spec's background click: it releases a pin.
+    if (target === canvas) keyRail.release();
     if (target !== canvas) {
       // Graph controls, including zoom and appearance controls, must not
       // discard the currently selected paper.
@@ -3737,6 +3787,7 @@ export function renderGraphView(
     );
     renderer?.setVisibleKeys(visibleKeys, false);
     const matches = tokens.length ? new Set(visibleKeys) : null;
+    searchMatchKeys = matches;
     renderer?.setSearchMatches(matches);
     updateSummary();
   };
@@ -4316,6 +4367,7 @@ export function renderGraphView(
       true,
     );
     graphArea.removeEventListener("pointerdown", onGraphAreaPointerDown, true);
+    keyRail.destroy();
     renderer?.destroy();
     renderer = null;
   };

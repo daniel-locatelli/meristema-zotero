@@ -1,6 +1,9 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
 import { CitationGraphRenderer } from "../../src/services/citationGraphRenderer";
+import { buildKeyModel } from "../../src/services/graphKeyModel";
+import { createKeyRail } from "../../src/services/graphKeyRail";
+import { applyGraphThemeToDocument } from "../../src/services/graphTheme";
 import type {
   CitationGraphModel,
   CitationGraphNode,
@@ -388,5 +391,95 @@ describe("Graph view, looked at", function () {
     note(summary);
     expect(withLabels, summary).to.be.lessThan(33);
     await frame("12-labels-after-pan");
+  });
+
+  it("task 6 — the Key names every colour on screen, and emphasises without hiding", async function () {
+    this.timeout(60_000);
+    const model = makeCorpus({ nodes: 180, missingYearShare: 0.06 });
+    const instance = await mount(model);
+    applyGraphThemeToDocument(stage.root, instance.getTheme());
+
+    const rail = createKeyRail({
+      document: stage.window.document,
+      onEmphasise: (entry) => {
+        if (!entry?.matches) {
+          instance.setEmphasis(null);
+          return;
+        }
+        const matches = entry.matches;
+        instance.setEmphasis(
+          new Set(
+            model.nodes.filter((node) => matches(node)).map((node) => node.key),
+          ),
+        );
+      },
+    });
+    stage.main.insertBefore(rail.root, stage.graphArea);
+    try {
+      rail.render(
+        buildKeyModel({
+          layout: instance.getLayout(),
+          assignment: instance.getCategoryAssignment(),
+          nodes: model.nodes,
+          theme: instance.getTheme(),
+          edgeCount: instance.getVisibleEdgeCount(),
+          states: {
+            selectedKey: null,
+            seedKeys: new Set<string>(),
+            searchMatches: null,
+            visibleKeys: null,
+          },
+        }),
+      );
+      await settle(stage.window, 4);
+
+      // Every swatch drawn on the canvas has a name beside it, which is the
+      // complaint the whole redesign exists to answer.
+      const labels = [...rail.root.querySelectorAll(".cm-key-entry-label")].map(
+        (element) => (element as Element | null)?.textContent ?? "",
+      );
+      for (const entry of instance.getCategoryAssignment().entries) {
+        expect(labels, `${entry.label} is named`).to.include(entry.label);
+      }
+      written.push((await writeWindow(stage.window, "13-key-rail")) ?? "");
+
+      // Hovering emphasises. The count of what is drawn must not move: the Key
+      // dims, it never filters.
+      const before = instance.getVisibleEdgeCount();
+      const first = rail.root.querySelector(
+        "button.cm-key-entry",
+      ) as HTMLButtonElement;
+      expect(first, "a category entry is a button").to.exist;
+      first.dispatchEvent(
+        new (stage.window as any).PointerEvent("pointerenter", {
+          bubbles: false,
+        }),
+      );
+      await settle(stage.window, 8);
+      await frame("13-key-emphasis-hover");
+      expect(
+        instance.getVisibleEdgeCount(),
+        "emphasis removed nothing",
+      ).to.equal(before);
+
+      first.click();
+      await settle(stage.window, 8);
+      expect(first.getAttribute("aria-pressed"), "a click pins it").to.equal(
+        "true",
+      );
+      written.push(
+        (await writeWindow(stage.window, "13-key-rail-pinned")) ?? "",
+      );
+
+      rail.release();
+      await settle(stage.window, 8);
+      expect(first.getAttribute("aria-pressed"), "and releases it").to.equal(
+        "false",
+      );
+      await frame("13-key-emphasis-released");
+    } finally {
+      instance.setEmphasis(null);
+      rail.destroy();
+    }
   });
 });

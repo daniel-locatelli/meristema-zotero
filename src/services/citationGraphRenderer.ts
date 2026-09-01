@@ -116,6 +116,14 @@ const PLOT_BOTTOM = 675;
  * The layout relaxation still spaces nodes by these numbers in world units,
  * which is what keeps a fitted view roughly free of overlap.
  */
+/**
+ * What the Key rail's emphasis leaves a non-matching node at, and how long it
+ * takes to get there. Emphasis dims; it never hides, and it never removes — the
+ * counts, the exports and the filter panel all still see every paper.
+ */
+const EMPHASIS_ALPHA = 0.25;
+const EMPHASIS_EASE_MS = 120;
+
 const MIN_NODE_RADIUS = 4;
 const MAX_NODE_RADIUS = 18;
 const MAX_CANVAS_DIMENSION = 8192;
@@ -178,6 +186,11 @@ export class CitationGraphRenderer {
     moved: false,
     draggedKey: null as string | null,
   };
+  /** The keys the Key rail is emphasising, or null when it is emphasising none. */
+  private emphasisKeys: ReadonlySet<string> | null = null;
+  /** How far into the emphasis the ease has travelled: 0 none, 1 full. */
+  private emphasisAmount = 0;
+  private emphasisFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private disposeSchemeObserver: (() => void) | null = null;
   private initialFitFrame: number | null = null;
@@ -640,6 +653,18 @@ export class CitationGraphRenderer {
     );
   }
 
+  /**
+   * The category assignment the canvas is drawing with.
+   *
+   * The Key rail reads it from here rather than assigning again, because the
+   * two agreeing is the whole point: a rail that computed its own would name
+   * the right colours only for as long as the two computations stayed
+   * identical.
+   */
+  public getCategoryAssignment(): CategoryAssignment {
+    return this.categories();
+  }
+
   public getTheme(): GraphTheme {
     return this.theme;
   }
@@ -689,12 +714,16 @@ export class CitationGraphRenderer {
     position: Position,
     radius: number,
     colors: string[],
+    emphasis: number,
   ): void {
     const context = this.context;
     const ratio = this.ratio;
     const ghosted = this.isNodeGhosted(node);
+    // An outer state so the rings below fade with the disc they belong to.
     context.save();
-    if (ghosted) context.globalAlpha = 0.46;
+    context.globalAlpha = emphasis;
+    context.save();
+    if (ghosted) context.globalAlpha = 0.46 * emphasis;
     const slice = (Math.PI * 2) / Math.max(1, colors.length);
     colors.forEach((color, index) => {
       context.beginPath();
@@ -752,6 +781,7 @@ export class CitationGraphRenderer {
       context.strokeStyle = this.theme.states.selected;
       context.stroke();
     }
+    context.restore();
   }
 
   private drawArrow(
@@ -765,6 +795,8 @@ export class CitationGraphRenderer {
     curveApex: number,
     /** The alpha an unlit edge is drawn at, falling as the mesh thickens. */
     baseOpacity: number,
+    /** The Key rail's emphasis, 1 when this edge belongs to what is emphasised. */
+    emphasis: number,
   ): void {
     const context = this.context;
     const ratio = this.ratio;
@@ -803,7 +835,9 @@ export class CitationGraphRenderer {
     // A lit edge keeps its full strength however dense the graph is — lighting
     // it is the whole point of the selection.
     context.globalAlpha =
-      (ghosted ? 0.58 : 1) * (connection ? 1 : Math.max(0, baseOpacity));
+      (ghosted ? 0.58 : 1) *
+      (connection ? 1 : Math.max(0, baseOpacity)) *
+      emphasis;
     context.beginPath();
     context.moveTo(source.x, source.y);
     if (curveApex === 0) context.lineTo(endX, endY);
@@ -1204,6 +1238,12 @@ export class CitationGraphRenderer {
           ),
           curveApex,
           baseOpacity,
+          // An edge belongs to an emphasised group if either end does, so the
+          // group's connections out into the graph stay legible.
+          Math.max(
+            this.emphasisAlphaFor(edge.source),
+            this.emphasisAlphaFor(edge.target),
+          ),
         );
       }
 
@@ -1215,6 +1255,7 @@ export class CitationGraphRenderer {
           position,
           radii.get(node.key) ?? 7 * this.ratio,
           this.nodeColors(node, colorDomain),
+          this.emphasisAlphaFor(node.key),
         );
       }
       this.drawLabels(nodes, radii);
@@ -1315,6 +1356,66 @@ export class CitationGraphRenderer {
   public setSearchMatches(keys: Set<string> | null, draw = true): void {
     this.searchMatches = keys ? new Set(keys) : null;
     if (draw) this.draw();
+  }
+
+  /** How strongly a node — or an edge's endpoint — is drawn right now. */
+  private emphasisAlphaFor(key: string): number {
+    if (!this.emphasisKeys || this.emphasisAmount <= 0) return 1;
+    if (this.emphasisKeys.has(key)) return 1;
+    return 1 - (1 - EMPHASIS_ALPHA) * this.emphasisAmount;
+  }
+
+  /**
+   * Emphasise a set of nodes, or release the emphasis with null.
+   *
+   * This dims what does not match; it never hides it, and it never touches
+   * `visibleKeys`. Filtering has its own home in the filter panel, where it is
+   * reflected in the counts and in every export — a second, quieter way to make
+   * papers disappear would leave the two disagreeing about what is in the
+   * graph. The Key names the encoding and points at it. That is the whole job.
+   */
+  public setEmphasis(keys: ReadonlySet<string> | null): void {
+    const next = keys && keys.size ? new Set(keys) : null;
+    const sameKeys =
+      (next === null && this.emphasisKeys === null) ||
+      (next !== null &&
+        this.emphasisKeys !== null &&
+        next.size === this.emphasisKeys.size &&
+        [...next].every((key) => this.emphasisKeys!.has(key)));
+    if (sameKeys) return;
+    // The keys change immediately; only the strength eases, so releasing one
+    // entry and hovering the next does not flash the whole graph back to full.
+    this.emphasisKeys = next;
+    this.animateEmphasis(next ? 1 : 0);
+  }
+
+  private animateEmphasis(target: number): void {
+    const view = this.canvas.ownerDocument.defaultView;
+    if (this.emphasisFrame !== null) {
+      view?.cancelAnimationFrame(this.emphasisFrame);
+      this.emphasisFrame = null;
+    }
+    // A fresh query every time: Gecko does not restyle an open document when
+    // the underlying preference changes, so a cached one goes stale.
+    const reduced = Boolean(
+      view?.matchMedia("(prefers-reduced-motion: reduce)")?.matches,
+    );
+    const from = this.emphasisAmount;
+    if (reduced || !view || from === target) {
+      this.emphasisAmount = target;
+      this.draw();
+      return;
+    }
+    const start = Date.now();
+    const step = (): void => {
+      this.emphasisFrame = null;
+      if (this.destroyed) return;
+      const progress = Math.min(1, (Date.now() - start) / EMPHASIS_EASE_MS);
+      this.emphasisAmount = from + (target - from) * progress;
+      this.draw();
+      if (progress < 1) this.emphasisFrame = view.requestAnimationFrame(step);
+    };
+    this.emphasisFrame = view.requestAnimationFrame(step);
   }
 
   public clearSelection(): void {
@@ -1593,6 +1694,12 @@ export class CitationGraphRenderer {
         this.initialFitFrame,
       );
       this.initialFitFrame = null;
+    }
+    if (this.emphasisFrame !== null) {
+      this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
+        this.emphasisFrame,
+      );
+      this.emphasisFrame = null;
     }
     this.resizeObserver?.disconnect();
     this.disposeSchemeObserver?.();
