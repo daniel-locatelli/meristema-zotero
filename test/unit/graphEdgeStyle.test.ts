@@ -6,6 +6,7 @@ import {
   curveControlPoint,
   curveSign,
   edgeBaseOpacity,
+  edgeLineInset,
   reciprocalEdgeKeys,
   shouldDrawArrowhead,
   ARROWHEAD_MIN_ZOOM,
@@ -68,6 +69,28 @@ describe("Graph edge style", () => {
     const arrival = arrivalDirection(control, target);
     expect(arrival.y).to.not.equal(0);
     expect(Math.hypot(arrival.x, arrival.y)).to.be.closeTo(1, 1e-9);
+  });
+
+  it("stops the line at the head's base so the two never composite twice", () => {
+    // The bug this pins: the line ran to the head's tip, so its last six pixels
+    // lay under the triangle. Both are drawn at the edge's own alpha, so the
+    // shaft showed through the head as a darker streak.
+    const tip = 9;
+    const head = 6;
+    const line = edgeLineInset(tip, head, true, 0.5);
+    expect(line).to.be.above(tip);
+    // The head's base is `head` back from the tip; the line may reach it, and
+    // overlap by the seam allowance, but no further.
+    expect(line).to.be.at.most(tip + head);
+    expect(line).to.equal(tip + head - 0.5);
+  });
+
+  it("runs the line to the node's edge when no head is drawn", () => {
+    expect(edgeLineInset(9, 6, false, 0.5)).to.equal(9);
+  });
+
+  it("never pulls the line back past the node when the head is tiny", () => {
+    expect(edgeLineInset(9, 0.2, true, 0.5)).to.equal(9);
   });
 
   it("keeps a lit arrowhead at any zoom and drops an unlit one when small", () => {

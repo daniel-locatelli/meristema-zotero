@@ -136,3 +136,31 @@ export function arrivalDirection(
 export function shouldDrawArrowhead(zoom: number, lit: boolean): boolean {
   return lit || zoom > ARROWHEAD_MIN_ZOOM;
 }
+
+/**
+ * How far the line and the head overlap where they meet, in CSS pixels. Butting
+ * two antialiased edges together leaves a pale seam; a fraction of a pixel of
+ * overlap closes it, and is small enough that the double-composited band it
+ * costs is invisible under a head several times wider.
+ */
+export const ARROWHEAD_SEAM_OVERLAP_CSS = 0.5;
+
+/**
+ * How far back from the target the *line* stops, given where the head's tip
+ * goes.
+ *
+ * The line used to run to the tip, so its last six pixels lay underneath the
+ * head. Both are drawn at the same `globalAlpha` — an edge is translucent, and
+ * more so as the mesh thickens — so that overlap composited twice and the shaft
+ * showed through the head as a darker streak. Ending the line at the head's
+ * base instead means every pixel is painted once.
+ */
+export function edgeLineInset(
+  tipInset: number,
+  headSize: number,
+  headDrawn: boolean,
+  seamOverlap: number,
+): number {
+  if (!headDrawn) return tipInset;
+  return tipInset + Math.max(0, headSize - seamOverlap);
+}

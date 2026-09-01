@@ -64,8 +64,10 @@ import {
   curveControlPoint,
   curveSign,
   edgeBaseOpacity,
+  edgeLineInset,
   reciprocalEdgeKeys,
   shouldDrawArrowhead,
+  ARROWHEAD_SEAM_OVERLAP_CSS,
   ARROWHEAD_SIZE_CSS,
   EDGE_CURVE_APEX_CSS,
 } from "./graphEdgeStyle";
@@ -778,9 +780,25 @@ export class CitationGraphRenderer {
         ? { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 }
         : curveControlPoint(source, target, curveApex);
     const arrival = arrivalDirection(control, target);
-    const inset = targetRadius + 2 * ratio;
-    const endX = target.x - arrival.x * inset;
-    const endY = target.y - arrival.y * inset;
+    const headDrawn = shouldDrawArrowhead(
+      this.transform.scale,
+      connection !== null,
+    );
+    const headSize = ARROWHEAD_SIZE_CSS * ratio;
+    // The head's tip sits just off the node it points at; the line stops at the
+    // head's base rather than running under it to the tip, so the two never
+    // composite over each other through the edge's own transparency.
+    const tipInset = targetRadius + 2 * ratio;
+    const tipX = target.x - arrival.x * tipInset;
+    const tipY = target.y - arrival.y * tipInset;
+    const lineInset = edgeLineInset(
+      tipInset,
+      headSize,
+      headDrawn,
+      ARROWHEAD_SEAM_OVERLAP_CSS * ratio,
+    );
+    const endX = target.x - arrival.x * lineInset;
+    const endY = target.y - arrival.y * lineInset;
 
     context.save();
     // A lit edge keeps its full strength however dense the graph is — lighting
@@ -804,19 +822,19 @@ export class CitationGraphRenderer {
     }
     context.stroke();
 
-    if (shouldDrawArrowhead(this.transform.scale, connection !== null)) {
-      const size = ARROWHEAD_SIZE_CSS * ratio;
+    if (headDrawn) {
+      const size = headSize;
       const ux = arrival.x;
       const uy = arrival.y;
       context.beginPath();
-      context.moveTo(endX, endY);
+      context.moveTo(tipX, tipY);
       context.lineTo(
-        endX - ux * size - uy * size * 0.7,
-        endY - uy * size + ux * size * 0.7,
+        tipX - ux * size - uy * size * 0.7,
+        tipY - uy * size + ux * size * 0.7,
       );
       context.lineTo(
-        endX - ux * size + uy * size * 0.7,
-        endY - uy * size - ux * size * 0.7,
+        tipX - ux * size + uy * size * 0.7,
+        tipY - uy * size - ux * size * 0.7,
       );
       context.closePath();
       context.fillStyle = context.strokeStyle;
