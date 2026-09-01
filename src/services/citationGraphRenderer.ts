@@ -62,7 +62,6 @@ import {
 import {
   arrivalDirection,
   curveControlPoint,
-  curveSign,
   edgeBaseOpacity,
   edgeLineInset,
   reciprocalEdgeKeys,
@@ -1187,10 +1186,10 @@ export class CitationGraphRenderer {
               : edge.source === selectedKey
                 ? "reference"
                 : null;
+        // A positive apex, not a signed one: each half bows to its own chord's
+        // left, and the two halves traverse the chord in opposite directions.
         const curveApex = reciprocal.has(`${edge.source}>${edge.target}`)
-          ? curveSign(edge.source, edge.target) *
-            EDGE_CURVE_APEX_CSS *
-            this.ratio
+          ? EDGE_CURVE_APEX_CSS * this.ratio
           : 0;
         this.drawArrow(
           source,

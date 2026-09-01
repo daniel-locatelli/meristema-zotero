@@ -79,18 +79,16 @@ export function reciprocalEdgeKeys(edges: readonly EdgeLike[]): Set<string> {
 }
 
 /**
- * Which side of the chord an edge bows to. Comparing the two keys is what makes
- * the pair separate rather than overdraw: whichever order the edges arrive in,
- * `A>B` and `B>A` always disagree about the sign.
- */
-export function curveSign(source: string, target: string): number {
-  return source < target ? 1 : -1;
-}
-
-/**
  * The control point of the quadratic that bows an edge `apex` device pixels off
  * its chord. A quadratic passes through half its control offset at the midpoint,
  * so the control point is placed twice as far out as the apex we want.
+ *
+ * The offset is along the chord's *own* left-hand normal, which is what makes a
+ * reciprocal pair separate: `A>B` and `B>A` traverse the chord in opposite
+ * directions, so the same positive apex puts them on opposite sides. An earlier
+ * version multiplied the apex by a sign derived from comparing the two keys —
+ * the two negations cancelled, both halves bowed the same way, and the pair
+ * overdrew exactly as it had before. Pass a plain positive apex.
  */
 export function curveControlPoint(
   source: EdgeEndpoint,

@@ -4,7 +4,6 @@ import { expect } from "chai";
 import {
   arrivalDirection,
   curveControlPoint,
-  curveSign,
   edgeBaseOpacity,
   edgeLineInset,
   reciprocalEdgeKeys,
@@ -40,7 +39,22 @@ describe("Graph edge style", () => {
   });
 
   it("bows the two halves of a reciprocal pair to opposite sides", () => {
-    expect(curveSign("a", "b")).to.equal(-curveSign("b", "a"));
+    // Composed, not in pieces. This held for the sign function alone while the
+    // pair still overdrew on screen: the control offset runs along the chord's
+    // own normal, which reverses with the chord, so a sign derived from the two
+    // keys cancelled against it and put both halves on the same side.
+    const a = { x: 0, y: 0 };
+    const b = { x: 100, y: 40 };
+    const forward = curveControlPoint(a, b, 8);
+    const backward = curveControlPoint(b, a, 8);
+    const midpoint = { x: 50, y: 20 };
+    const side = (control: { x: number; y: number }): number =>
+      Math.sign(
+        (b.x - a.x) * (control.y - midpoint.y) -
+          (b.y - a.y) * (control.x - midpoint.x),
+      );
+    expect(side(forward)).to.not.equal(0);
+    expect(side(forward)).to.equal(-side(backward));
   });
 
   it("places the control point so the curve's apex sits at the asked-for offset", () => {

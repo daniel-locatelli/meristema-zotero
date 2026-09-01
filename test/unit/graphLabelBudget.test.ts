@@ -88,23 +88,25 @@ describe("Graph label budget", () => {
     expect(budget.hasRoom()).to.equal(false);
   });
 
-  it("stops after enough consecutive labels find nowhere to go", () => {
+  it("stops once it has considered enough candidates to bound the loop", () => {
     const budget = createLabelBudget(1_000_000, 0.5, 3);
     budget.failed();
-    budget.failed();
+    budget.placed(1);
     expect(budget.hasRoom()).to.equal(true);
     budget.failed();
     expect(budget.hasRoom()).to.equal(false);
   });
 
-  it("forgives failures once a label lands, so a crowded patch is not fatal", () => {
-    const budget = createLabelBudget(1_000_000, 0.5, 3);
-    budget.failed();
-    budget.failed();
-    budget.placed(1);
-    budget.failed();
-    budget.failed();
-    expect(budget.hasRoom()).to.equal(true);
+  it("walks past a crowded patch instead of treating it as the whole plot", () => {
+    // Labels are tried in citation order, and the most-cited papers sit heaped
+    // together; a run of misses among them says nothing about the empty half of
+    // the plot behind them. The old stop counted consecutive failures and ended
+    // the pass here, which left a 500-node graph with one label.
+    const budget = createLabelBudget(1_000_000, 0.5, 40);
+    for (let index = 0; index < 20; index += 1) budget.failed();
+    expect(budget.hasRoom(), "still looking after twenty misses").to.equal(
+      true,
+    );
   });
 
   it("labels a bounded number of nodes however many there are", () => {

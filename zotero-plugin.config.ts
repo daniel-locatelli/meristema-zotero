@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
 
@@ -54,6 +55,11 @@ export default defineConfig({
 
   test: {
     entries: "test/zotero",
+    // The visual harness writes its frames here rather than into Zotero's
+    // temp directory, so a run leaves something to look at next to the build.
+    prefs: {
+      [`${pkg.config.prefsPrefix}.visualOutDir`]: resolve(".scaffold/visual"),
+    },
     waitForPlugin: `() => Zotero.${pkg.config.addonInstance}.data.initialized`,
   },
 });

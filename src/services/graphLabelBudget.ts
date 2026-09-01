@@ -8,6 +8,10 @@
  * node count decides where to stop, and zooming in reveals more continuously
  * because the same labels occupy less of a larger plot.
  *
+ * The second stop is a cap on how many candidates get considered at all. It was
+ * a cap on *consecutive* failures until the graph was first looked at running;
+ * see `LABEL_ATTEMPT_LIMIT` for what that cost.
+ *
  * `createRectangleIndex` is what makes that affordable. The placement loop used
  * to build a fresh array of every node rectangle plus every placed label for
  * each of eight candidate positions per label, and test all of them — quadratic
@@ -113,8 +117,22 @@ export function createRectangleIndex(
 /** The share of the plot labels may cover before the budget calls it enough. */
 export const LABEL_AREA_FRACTION = 0.18;
 
-/** Consecutive labels that fail to find clear space before the budget stops. */
-export const LABEL_FAILURE_LIMIT = 14;
+/**
+ * Candidates the budget will consider before it stops, placed or not.
+ *
+ * This replaces a limit of 14 *consecutive* failures, which the first look at a
+ * running graph showed to be wrong: labels are tried in citation order, the
+ * most-cited papers are exactly the ones heaped together at the top of a
+ * citations axis, and so the first fourteen candidates were all buried and the
+ * pass ended having placed one label on a 500-node graph — with two thirds of
+ * the plot empty and willing. A run of misses in one dense corner is not
+ * evidence that the sparse corners are full.
+ *
+ * Counting every attempt instead keeps the bound the consecutive count was
+ * really there for — the loop is O(attempts), not O(nodes) — while letting the
+ * walk past a crowded neighbourhood reach the open space behind it.
+ */
+export const LABEL_ATTEMPT_LIMIT = 600;
 
 export interface LabelBudget {
   /** Whether an ordinary — unselected, unhovered — label may still be tried. */
@@ -128,28 +146,27 @@ export interface LabelBudget {
 /**
  * Two independent stops, because they catch different graphs. The area share
  * stops a sparse graph whose labels all find room but would tile the plot; the
- * consecutive-failure count stops a dense cluster where every remaining
- * candidate is buried and the loop would grind through hundreds of them to
- * place nothing.
+ * attempt count stops a dense one where most candidates are buried, before the
+ * loop grinds through thousands of them.
  */
 export function createLabelBudget(
   plotArea: number,
   areaFraction: number = LABEL_AREA_FRACTION,
-  failureLimit: number = LABEL_FAILURE_LIMIT,
+  attemptLimit: number = LABEL_ATTEMPT_LIMIT,
 ): LabelBudget {
   const allowance = Math.max(0, plotArea) * areaFraction;
   let used = 0;
-  let consecutiveFailures = 0;
+  let attempts = 0;
   return {
     hasRoom(): boolean {
-      return used < allowance && consecutiveFailures < failureLimit;
+      return used < allowance && attempts < attemptLimit;
     },
     placed(area: number): void {
       used += Math.max(0, area);
-      consecutiveFailures = 0;
+      attempts += 1;
     },
     failed(): void {
-      consecutiveFailures += 1;
+      attempts += 1;
     },
   };
 }

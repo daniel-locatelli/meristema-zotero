@@ -62,6 +62,8 @@ with Mocha + Chai via `zotero-plugin test`.
 | `src/services/exportService.ts`           | Opaque background and a Key block in the PNG.                                                    |
 | `src/services/windowService.ts`           | The `.cm-header-toolbar` selector follows the reflow.                                            |
 | `addon/content/graph.css`                 | Command bar, rail, tokens, furniture; the decorative radial gradient goes.                       |
+| `test/zotero/visualHarness.ts`            | **New.** Opens a chrome window, mounts a canvas, builds corpora, writes frames to disk.          |
+| `test/zotero/graphVisual.test.ts`         | **New.** The twelve checks, driven against the real renderer inside Zotero.                      |
 | `test/unit/*.test.ts`                     | **New.** Fast `node --test` suite for the four pure seams.                                       |
 | `test/architecture.test.ts`               | Existing pure-seam tests migrate out to `test/unit/`; the file keeps only Zotero-bound tests.    |
 
@@ -190,7 +192,7 @@ follow in one step.
 **Test:** theme resolution returns distinct, complete token sets for both modes;
 every key present in one is present in the other.
 
-## Task 2: Draw in screen space — **DONE**, code landed; visual check pending
+## Task 2: Draw in screen space — **DONE**, verified
 
 The coordinate change shipped. `draw()` no longer touches the canvas transform:
 it projects every world position into `screenPositions` once per frame through
@@ -285,7 +287,7 @@ from `graphViewControls.ts`.
 category and beyond land in `other`; counts sum to the node total; a node with no
 value gets `noValue` rather than a swatch.
 
-## Task 4: Plot furniture — **DONE**, code landed; visual check pending
+## Task 4: Plot furniture — **DONE**, verified
 
 The plot is now an inset figure rather than an edge-to-edge canvas: `draw()`
 fills the surround with `surfaces.panel`, fills the plot rectangle with
@@ -363,7 +365,7 @@ collection containing a paper with no year shows the `NO DATA` lane — which
 disappears once every paper on screen has one. Check a scaled display: a fitted
 view must keep every node clear of the y-axis labels.
 
-## Task 5: Edges and labels — **DONE**, code landed; visual check pending
+## Task 5: Edges and labels — **DONE**, verified, with two defects fixed
 
 Both halves shipped, each behind a pure module so the decisions are testable
 without a canvas.
@@ -446,6 +448,110 @@ zooming in reveals more continuously, and a sustained pan holds frame rate.
 **Test:** the budget labels a bounded number of nodes and always includes the
 selected key; the grid-indexed overlap test returns the same placements as the
 brute-force one on a fixed fixture.
+
+## The visual pass on Tasks 1–5 — **DONE**
+
+Five tasks had landed without anyone looking at the graph running. All twelve
+checks have now been run, and they found three defects that every unit test in
+the repo was happy with.
+
+**They were run by machine, not by eye.** `test/zotero/visualHarness.ts` opens
+the plugin's own chrome window, mounts a canvas in it, and drives the real
+`CitationGraphRenderer` over a deterministic synthetic corpus;
+`test/zotero/graphVisual.test.ts` puts it through each check and writes every
+frame to `.scaffold/visual` as a PNG. The frames are the evidence — the
+assertions only pin what a number can pin. `npm test` runs the whole thing, and
+the frames are gitignored along with the rest of `.scaffold`.
+
+### What the frames showed
+
+| Check                 | Outcome                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 2 — the ramp          | Passes. Dark green to gold, monotone in luminance, no rainbow.                                                         |
+| 3 — the theme         | Passes on the canvas, in one step, both directions.                                                                    |
+| 4 — the zoom          | Passes. Text, outlines and radii are identical on screen at fit and at 8x.                                             |
+| 5 — the pointer       | Passes. A synthesised click at 8x selects the node drawn under it.                                                     |
+| 6 — the figure        | Passes. Hairline frame, gridlines under the nodes, ticks outside.                                                      |
+| 7 — the lanes         | Passes, per axis: the x lane goes when every paper has a year, and the y lane stays while a log axis has zeroes in it. |
+| 8 — HiDPI             | Passes at a real 2x. No node reaches the tick labels.                                                                  |
+| 9 — the free axes     | Passes. One free axis widens the plot; two drop the frame entirely.                                                    |
+| 10 — reciprocal edges | **Failed.** Fixed below.                                                                                               |
+| 11 — the arrowheads   | Passes. Unlit heads go below half scale; a selection's stay.                                                           |
+| 12 — the labels       | **Failed on the label count.** Fixed below. Frame rate passes: 17.4 ms per draw at 500 nodes.                          |
+
+### Defect 1: the reciprocal pair still overdrew
+
+Task 5's whole point, and it never worked. `curveControlPoint` offsets along the
+chord's _own_ left-hand normal, which reverses when the chord does, and
+`curveSign` multiplied that by a sign derived from comparing the two keys. The
+two negations cancelled: both halves bowed the same way and lay exactly on top
+of each other, as they had before Task 5.
+
+The unit test passed throughout, because it asserted
+`curveSign("a", "b") === -curveSign("b", "a")` — the sign in isolation, never
+composed with the geometry it feeds. `curveSign` is deleted; a positive apex on
+each half's own normal separates the pair by construction. The test now takes
+two control points from `curveControlPoint` and asserts they fall on opposite
+sides of the chord.
+
+### Defect 2: the label budget stopped almost immediately
+
+A 500-node graph drew **one** label at fit, with two thirds of the plot empty.
+The area share was nowhere near spent; the stop that fired was the limit of 14
+consecutive placement failures. Labels are tried in citation order, and the
+most-cited papers are exactly the ones heaped together at the top of a citations
+axis, so the first fourteen candidates were all buried and the pass ended there.
+A run of misses in one dense corner is not evidence that the sparse corners are
+full.
+
+`LABEL_FAILURE_LIMIT` becomes `LABEL_ATTEMPT_LIMIT` — 600 candidates considered,
+placed or not. That keeps the bound the consecutive count was really there for,
+since the loop is O(attempts) either way, and lets the walk reach the open space
+behind the crowd. The same graph now labels about seventy papers, and the labels
+cost 2.4 ms of the 17.4 ms frame.
+
+### Defect 3: `colorScheme.test.ts`'s known flake, now frequent
+
+It failed five runs in seven. As the handoff predicted, the fix was to assert
+what the renderer actually depends on — that a query created after the pref flip
+reports the new value — and to stop asserting the negative, that the cached
+query has _not_ been restyled yet. A negative about a restyle that has not
+happened is only true until the machine is slow enough to let it happen. The
+cached query's behaviour is logged instead of asserted.
+
+### One thing tried and reverted: batching the edge draws
+
+An early reading blamed the edge loop for a 45 ms frame, so the loop was
+rewritten to bucket edges by style and stroke each bucket as a single path.
+Measured properly it was **five times slower** — 86 ms against 17 ms — and it
+was reverted whole. Two lessons worth keeping:
+
+- Cross-process timings on this graph swing by a factor of three. The only
+  comparison worth making is interleaved, in one process, taking the minimum of
+  several runs. Every conclusion drawn from separate `npm test` runs was wrong.
+- Gecko strokes many small paths faster than one path with many subpaths. Do not
+  reach for that batching again without an in-process A/B.
+
+The per-edge draw is not the bottleneck it looked like: 500 nodes and 900 edges
+come to 17.4 ms a frame, which is the 57 fps the check wanted.
+
+### Harness notes for whoever runs it next
+
+- `requestAnimationFrame` does not fire in an occluded window, so every frame
+  wait is raced against a deadline and `mount()` calls `fitView()` itself. An
+  unraced wait let mocha time out and start the next case into the same canvas.
+- Zoom through the harness's `zoomTo`, never by setting `scale` alone — that
+  leaves the pan offset behind and flings the graph off screen. The first `8x`
+  frame it produced was blank.
+- `browsingContext.overrideDPPX` is a no-op here. Shadow
+  `window.devicePixelRatio` instead, and assert the canvas actually grew.
+
+### Still not verified
+
+The chrome _around_ the canvas. The harness mounts a bare canvas, so check 3
+covers the canvas half of "canvas and chrome must follow in one step" and not
+the DOM half. That needs the real `renderGraphView`, which needs a real library
+snapshot; Task 6 builds DOM chrome and is the natural place to close it.
 
 ## Task 6: The Key model and the rail
 
