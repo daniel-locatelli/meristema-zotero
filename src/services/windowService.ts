@@ -262,7 +262,7 @@ function installGraphLibraryFilter(
   currentLibraryID: number,
   onSelectLibrary: (libraryID: number) => Promise<void>,
 ): void {
-  const buttons = mount.querySelectorAll(".cm-header-toolbar button");
+  const buttons = mount.querySelectorAll(".cm-command-actions button");
   let button: HTMLButtonElement | null = null;
   for (let index = 0; index < buttons.length; index += 1) {
     const candidate = buttons.item(index) as HTMLButtonElement | null;

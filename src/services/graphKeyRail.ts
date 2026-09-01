@@ -132,6 +132,13 @@ export interface KeyRailOptions {
 
 export interface KeyRail {
   root: HTMLElement;
+  /**
+   * Where the view's own controls live. The zoom and appearance buttons used to
+   * float over the plot's corners, covering the graph they were there to
+   * adjust; the rail already owns the column beside it, and it collapses with
+   * the rail when the reader wants the whole width for the graph.
+   */
+  footer: HTMLElement;
   render(model: KeyModel): void;
   /** Drop any pinned emphasis — a background click, or Escape. */
   release(): void;
@@ -146,7 +153,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   const toggle = element(document, "button", "cm-key-toggle");
   toggle.type = "button";
   const body = element(document, "div", "cm-key-body");
-  root.append(toggle, body);
+  const footer = element(document, "div", "cm-key-footer");
+  root.append(toggle, body, footer);
 
   let collapsed = getKeyRailCollapsed();
   /** The entry whose emphasis is pinned, if any. Hover is transient; this is not. */
@@ -267,6 +275,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   return {
     root,
+    footer,
     render(model: KeyModel): void {
       // A rebuild throws away the pinned entry's identity — the model is new
       // even when it describes the same thing — so the pin goes with it rather
@@ -276,7 +285,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       for (const section of model.sections) {
         body.appendChild(sectionElement(section));
       }
-      root.hidden = model.sections.length === 0;
+      // The rail carries the view's controls in its footer now, so an empty
+      // Key empties the body and leaves the column standing. Hiding the whole
+      // rail would take the zoom and appearance buttons off screen with it.
+      body.hidden = model.sections.length === 0;
     },
     release,
     destroy(): void {

@@ -65,6 +65,7 @@ with Mocha + Chai via `zotero-plugin test`.
 | `src/services/citationPreferences.ts`     | The Key rail's collapse state.                                                                   |
 | `test/zotero/visualHarness.ts`            | **New.** Opens a chrome window, builds the view shell, builds corpora, writes frames to disk.    |
 | `test/zotero/graphVisual.test.ts`         | **New.** The twelve checks, driven against the real renderer inside Zotero.                      |
+| `test/zotero/graphViewVisual.test.ts`     | **New.** The view as `renderGraphView` builds it: chrome, rail wiring, command bar.              |
 | `test/unit/*.test.ts`                     | **New.** Fast `node --test` suite for the four pure seams.                                       |
 | `test/architecture.test.ts`               | Existing pure-seam tests migrate out to `test/unit/`; the file keeps only Zotero-bound tests.    |
 
@@ -636,7 +637,77 @@ on the default collection colouring: every colour on screen is now named.
 metric produces a ramp section with the visible domain, a categorical one
 produces swatches summing to the node count.
 
-## Task 7: Command bar and control relocation
+## The view harness — **DONE** (`a16aced`)
+
+Task 6 left three things typechecked and unwatched, all for the same reason: the
+harness built its own shell beside the canvas, so nothing `renderGraphView`
+wires was ever running. `openViewStage` calls the product's entry point instead.
+The substitution is the graph and only the graph — `storeCitationGraphSnapshot`
+seeds the shared cache so a corpus reaches a view whose papers were never saved
+to a library, and every other path stays in the product's hands. All three gaps
+are now covered: the rail rebuilding from `updateSummary`, a background click
+releasing a pinned entry, and the DOM half of check 3.
+
+### What it found
+
+- **A ResizeObserver feedback loop.** The renderer reassigned the canvas bitmap
+  inside the observer callback, which is layout-affecting, so the observer
+  delivered a second notification for the same frame and Gecko put an uncaught
+  error on the window. Coalescing onto a frame ends it. It was invisible before
+  because it takes the real chrome in the layout to provoke.
+- **Check 12's budget was measuring the machine.** An absolute 33 ms sat either
+  side of the line with nothing changed — it was 17 ms when written. It now
+  compares against the labels-off run beside it, in the same process, which is
+  the discipline the earlier reverted optimisation should have used.
+
+### What it cannot see, and why
+
+**The arriving camera.** The initial fit waits on animation frames, and Gecko
+does not service `requestAnimationFrame` in an occluded window, so it never
+lands in the harness — deterministically, not flakily. The stage presses the
+view's own Fit button to get a comparable frame. A first version of this read the
+un-fitted frame as a product defect; it is not, and the same starvation stops
+`ResizeObserver` firing at all, which is why the canvas in the narrow-width
+frames keeps its old bitmap and looks squashed. Do not chase either.
+
+**Uncaught errors are read, not ignored.** Mocha blames whichever test is running
+when one arrives and reports it with no message, so a real fault shows up as a
+silently red test. The suite collects them from the view's window and from the
+host, and asserts there were none. Both faults above surfaced only that way.
+
+## Task 7: Command bar and control relocation — DONE, verified
+
+`.cm-header` and `.cm-query-band` are one 40px `.cm-command-bar`, measured at
+1200, 900, 720 and 560px and in tab mode: one row, 40px, at every width. The
+`<h1>` is `.cm-visually-hidden` — out of the flow, still in the tree, checked by
+computed style rather than by reading the class name. The zoom and appearance
+controls sit in a new `.cm-key-footer`, and the harness proves they still work
+there rather than merely that they moved. `windowService.ts` follows the rename
+to `.cm-command-actions`.
+
+### Deviations, so they are not "fixed" back
+
+- **There is no view switcher.** The plan's bar order names one, and no such
+  control exists in the view; map and focus are entered through the graph, not
+  through a switch. The identity block — logo, hidden heading, counts — took its
+  place. Building a switcher is a feature, not a relocation, and it is not here.
+- **Add Node was not in the plan's list** and has not been dropped; it sits with
+  the other actions.
+- **The rail no longer hides itself when the Key is empty**, because it now
+  carries the view's controls: `render()` empties the body and leaves the column.
+- **A narrow bar drops the counts** rather than wrapping. Below 760px the counts
+  are `display: none`; the search absorbs every other narrowing, since it is the
+  bar's only elastic item.
+- **`.cm-overlay-button` is deleted.** Both floating controls left the plot, so
+  the frosted-glass treatment had no callers; the appearance button takes the
+  rail's `.cm-rail-button`.
+
+### Not verified
+
+The focus bar. It is hidden outside Explore, and the harness has no way to seed a
+focus projection over a synthetic library. Its own row is untouched by this task.
+
+### The original brief
 
 Collapse `.cm-header` and `.cm-query-band` into one 40px `.cm-command-bar`:
 history, view switcher, counts in tabular numerals, search, then filter, similar,

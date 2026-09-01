@@ -3,6 +3,7 @@ import { expect } from "chai";
 import {
   BASE_LAYOUT,
   delay,
+  frameDifference,
   makeCorpus,
   note,
   openViewStage,
@@ -242,6 +243,151 @@ describe("Graph view, as the product builds it", function () {
       "and a click on the graph lets it go",
     ).to.equal("false");
     await shot("view-03-released");
+  });
+
+  it("view 5 — the command bar is one row, and stays one row when narrow", async function () {
+    this.timeout(60_000);
+    const active = await open(200);
+    const bar = active.root.querySelector(".cm-command-bar") as HTMLElement;
+    const view = active.window as any;
+
+    expect(bar, "there is a command bar").to.not.equal(null);
+    expect(
+      active.root.querySelector(".cm-header"),
+      "and the header it replaced is gone",
+    ).to.equal(null);
+    expect(
+      active.root.querySelector(".cm-query-band"),
+      "along with the query band",
+    ).to.equal(null);
+
+    // The heading left the layout but not the document.
+    const heading = active.root.querySelector("h1") as HTMLElement;
+    expect(heading, "the view still has a heading").to.not.equal(null);
+    expect(heading.textContent).to.contain("Collection Graph");
+    expect(
+      view.getComputedStyle(heading).getPropertyValue("position"),
+      "taken out of the flow rather than out of the tree",
+    ).to.equal("absolute");
+    expect(
+      heading.hidden,
+      "and never hidden from assistive technology",
+    ).to.equal(false);
+
+    /**
+     * How many rows the bar's children occupy, counted by vertical overlap
+     * rather than by matching tops: items of different heights on the same row
+     * are centred differently, and comparing tops read that as a wrap.
+     */
+    const rows = (): number => {
+      const bands: Array<{ top: number; bottom: number }> = [];
+      for (const child of [...bar.children]) {
+        const rect = (child as HTMLElement).getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        const band = bands.find(
+          (candidate) =>
+            rect.top < candidate.bottom && rect.bottom > candidate.top,
+        );
+        if (band) {
+          band.top = Math.min(band.top, rect.top);
+          band.bottom = Math.max(band.bottom, rect.bottom);
+        } else {
+          bands.push({ top: rect.top, bottom: rect.bottom });
+        }
+      }
+      return bands.length;
+    };
+
+    // The bar's geometry is the claim here, and that is DOM. The canvas in
+    // these frames is not: Gecko delivers ResizeObserver notifications during
+    // the same rendering step it starves in an occluded window, so the canvas
+    // keeps its old bitmap and the graph appears squashed into the narrower
+    // box. That is the harness's window being covered, not the view.
+    const heights: string[] = [];
+    for (const width of [1200, 900, 720, 560]) {
+      active.window.resizeTo(width, 820);
+      await settle(active.window, 8);
+      const height = bar.getBoundingClientRect().height;
+      heights.push(
+        `${width}px wide: bar ${height.toFixed(0)}px, ${rows()} row`,
+      );
+      expect(rows(), `the bar wrapped at ${width}px`).to.equal(1);
+      expect(height, `the bar grew past one row at ${width}px`).to.be.lessThan(
+        56,
+      );
+      await shot(`view-05-bar-${width}`);
+    }
+    notes.push(`view 5 ${heights.join(" | ")}`);
+
+    // A tab differs from a window only by `root.dataset.mode`, with nothing
+    // keyed off it — but the plan asks for both, so both get looked at.
+    stage!.close();
+    stage = await openViewStage(makeCorpus({ nodes: 200 }), { mode: "tab" });
+    await settle(stage.window, 12);
+    const tabBar = stage.root.querySelector(".cm-command-bar") as HTMLElement;
+    expect(stage.root.dataset.mode).to.equal("tab");
+    expect(
+      tabBar.getBoundingClientRect().height,
+      "the bar is the same one row in a tab",
+    ).to.be.lessThan(56);
+    await shot("view-05-bar-tab");
+  });
+
+  it("view 6 — the zoom and appearance controls live in the rail", async function () {
+    this.timeout(60_000);
+    const active = await open(200);
+    const rail = active.root.querySelector(".cm-key-rail") as HTMLElement;
+    const zoom = active.root.querySelector(".cm-zoom-controls") as HTMLElement;
+    const appearance = active.root.querySelector(
+      ".cm-appearance-control",
+    ) as HTMLElement;
+
+    expect(
+      rail.contains(zoom),
+      "the zoom controls moved into the rail",
+    ).to.equal(true);
+    expect(
+      rail.contains(appearance),
+      "and so did the appearance control",
+    ).to.equal(true);
+    const graphArea = active.root.querySelector(
+      ".cm-graph-area",
+    ) as HTMLElement;
+    expect(
+      graphArea.contains(zoom) || graphArea.contains(appearance),
+      "neither is left floating over the plot",
+    ).to.equal(false);
+
+    // Relocating them must not unwire them: the click listener sits on the
+    // container, so it travels, but the graph has to actually respond.
+    const pixels = (): Uint8ClampedArray =>
+      active.canvas
+        .getContext("2d")!
+        .getImageData(0, 0, active.canvas.width, active.canvas.height).data;
+    const before = pixels();
+    (
+      zoom.querySelector('button[data-action="in"]') as HTMLButtonElement
+    ).click();
+    await settle(active.window, 8);
+    expect(
+      frameDifference(before, pixels()),
+      "zooming in from the rail still moves the graph",
+    ).to.be.greaterThan(0.02);
+    await shot("view-06-rail-controls");
+
+    const button = appearance.querySelector("button") as HTMLButtonElement;
+    button.click();
+    await settle(active.window, 8);
+    const panel = appearance.querySelector(
+      ".cm-appearance-panel",
+    ) as HTMLElement;
+    expect(panel.hidden, "the appearance panel still opens").to.equal(false);
+    const rect = panel.getBoundingClientRect();
+    expect(rect.width, "with room to be read").to.be.greaterThan(200);
+    expect(rect.top, "and it opens on screen, not off the top").to.be.at.least(
+      0,
+    );
+    await shot("view-06-appearance-open");
   });
 
   it("view 4 — the chrome follows Zotero's appearance in one step", async function () {

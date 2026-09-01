@@ -324,7 +324,7 @@ export function createAxesAppearance(
   const button = element(
     document,
     "button",
-    "cm-overlay-button cm-appearance-button",
+    "cm-rail-button cm-appearance-button",
   );
   button.type = "button";
   button.textContent = "⚙";

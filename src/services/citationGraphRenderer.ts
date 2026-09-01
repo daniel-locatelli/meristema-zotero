@@ -235,7 +235,7 @@ export class CitationGraphRenderer {
         if (this.resizeFrame !== null) return;
         const frameView = this.canvas.ownerDocument.defaultView;
         const run = (): void => {
-          this.resizeFrame = null;
+          this.cancelScheduledResize();
           this.resizeViewport();
           if (!this.initialFitComplete) this.scheduleInitialFit();
         };
@@ -301,6 +301,15 @@ export class CitationGraphRenderer {
         this.axisTickTarget(axis),
       ),
     };
+  }
+
+  /** Drop the pending coalesced resize, if one is waiting. */
+  private cancelScheduledResize(): void {
+    if (this.resizeFrame === null) return;
+    this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
+      this.resizeFrame,
+    );
+    this.resizeFrame = null;
   }
 
   private scheduleInitialFit(): void {
@@ -1718,12 +1727,7 @@ export class CitationGraphRenderer {
       this.emphasisFrame = null;
     }
     this.resizeObserver?.disconnect();
-    if (this.resizeFrame !== null) {
-      this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
-        this.resizeFrame,
-      );
-      this.resizeFrame = null;
-    }
+    this.cancelScheduledResize();
     this.disposeSchemeObserver?.();
     this.disposeSchemeObserver = null;
     const view = this.canvas.ownerDocument.defaultView;

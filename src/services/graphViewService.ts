@@ -471,8 +471,11 @@ export function renderGraphView(
     applyTheme,
   );
 
-  const header = element(document, "header", "cm-header");
-  const identity = element(document, "div", "cm-header-identity");
+  // One bar, not two. The header and the query band below it spent 101px of a
+  // window on a title the window already carries, and pushed the graph — the
+  // thing the view is for — down past the fold on a laptop.
+  const commandBar = element(document, "header", "cm-command-bar");
+  const identity = element(document, "div", "cm-command-identity");
   const titleRow = element(document, "div", "cm-title-row");
   const historyControls = element(document, "div", "cm-history-controls");
   const historyBackButton = element(document, "button", "cm-secondary-button");
@@ -490,10 +493,14 @@ export function renderGraphView(
   historyForwardButton.title = "Go forward";
   historyForwardButton.setAttribute("aria-label", "Go forward");
   historyControls.append(historyBackButton, historyForwardButton);
+  // The heading names the view for anyone navigating by headings, and the tab
+  // or window title already says it on screen, so it is taken out of the
+  // layout rather than out of the document.
   const viewTitle = text(
     document,
     "h1",
     currentViewKind === "focus" ? "Explore" : "Collection Graph",
+    "cm-visually-hidden",
   );
   titleRow.append(historyControls, networkLogo(document), viewTitle);
   const summary = text(
@@ -503,9 +510,9 @@ export function renderGraphView(
     "cm-library-summary",
   );
   identity.append(titleRow, summary);
-  header.appendChild(identity);
+  commandBar.appendChild(identity);
 
-  const toolbar = element(document, "div", "cm-header-toolbar");
+  const toolbar = element(document, "div", "cm-command-actions");
   const addNodeWrap = element(document, "div", "cm-add-node-wrap");
   const addNodeButton = element(document, "button", "cm-toolbar-button");
   addNodeButton.type = "button";
@@ -638,11 +645,6 @@ export function renderGraphView(
   refreshButton.append(iconButtonContent(document, "refresh", "Refresh"));
   refreshButton.title =
     "Refresh metadata and citation counts for the currently visible papers.";
-  toolbar.append(addNodeWrap, similarButton, exportWrap, refreshButton);
-  header.appendChild(toolbar);
-  root.appendChild(header);
-
-  const queryBand = element(document, "section", "cm-query-band");
   const searchWrap = element(document, "label", "cm-search-wrap");
   searchWrap.appendChild(icon(document, "search"));
   const search = element(document, "input", "cm-search");
@@ -650,8 +652,19 @@ export function renderGraphView(
   search.placeholder = "Search all fields";
   search.setAttribute("aria-label", "Search all fields in the current view");
   searchWrap.appendChild(search);
-  queryBand.append(searchWrap, graphFilter.root);
-  root.appendChild(queryBand);
+
+  // History and identity, then the counts, then the search, then the things
+  // that act on what the search left. The search is the only elastic item, so
+  // it takes the slack and everything else keeps its size.
+  toolbar.append(
+    graphFilter.root,
+    addNodeWrap,
+    similarButton,
+    exportWrap,
+    refreshButton,
+  );
+  commandBar.append(searchWrap, toolbar);
+  root.appendChild(commandBar);
 
   const setViewKind = (kind: "map" | "focus", notify = true): void => {
     const changed = currentViewKind !== kind;
@@ -772,14 +785,16 @@ export function renderGraphView(
     ["out", "−", "Zoom out"],
     ["fit", "⌖", "Fit graph to view"],
   ]) {
-    const button = element(document, "button", "cm-overlay-button");
+    const button = element(document, "button", "cm-rail-button");
     button.type = "button";
     button.dataset.action = action;
     button.textContent = label;
     button.title = description;
+    button.setAttribute("aria-label", description);
     zoom.appendChild(button);
   }
-  graphArea.appendChild(zoom);
+  // Mounted into the rail's footer further down, once the rail exists. It stays
+  // out of the plot's corner, where it sat on top of the graph.
 
   // A graph view only draws connections between papers already in the
   // library, so opening one on a single item renders a single node. Without
@@ -913,7 +928,6 @@ export function renderGraphView(
         : resetGraphAppearance(),
   );
   currentLayout = appearance.getLayout();
-  graphArea.appendChild(appearance.root);
 
   const detailShell = element(document, "div", "cm-detail-shell");
   const resizer = element(document, "div", "cm-detail-resizer");
@@ -944,6 +958,10 @@ export function renderGraphView(
       );
     },
   });
+  // The two controls that used to float over the plot's corners. The
+  // appearance panel opens upward from the footer, so it still has the whole
+  // window's height to open into.
+  keyRail.footer.append(zoom, appearance.root);
   main.append(keyRail.root, graphArea, detailShell);
   root.appendChild(main);
   mount.appendChild(root);

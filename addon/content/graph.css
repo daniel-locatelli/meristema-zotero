@@ -32,21 +32,46 @@
 .meristema-root *::after {
   box-sizing: border-box;
 }
-.cm-header {
+/*
+ * One row, 40px tall, holding what the header and the query band used to say
+ * between them across 101px. Nothing here wraps: the search is the only elastic
+ * item and everything beside it keeps its own width, so a narrow window
+ * shortens the search rather than starting a second row.
+ */
+.cm-command-bar {
   position: relative;
   z-index: 12;
   display: flex;
-  gap: 12px 18px;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  min-height: 58px;
-  padding: 9px 14px;
+  flex-wrap: nowrap;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--cm-border-soft);
   background: var(--cm-surface-raised);
 }
-.cm-header-identity {
-  flex: 0 1 auto;
-  min-width: 180px;
+.cm-command-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+/*
+ * Out of the layout, still in the accessible tree. The window and the tab
+ * already carry the view's name on screen; a screen reader navigating by
+ * heading would have nothing without this.
+ */
+.cm-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .cm-title-row {
   display: flex;
@@ -59,9 +84,10 @@
   flex: 0 0 auto;
 }
 .cm-history-controls button {
-  min-width: 30px;
-  width: 30px;
-  height: 30px;
+  min-width: 26px;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
   padding: 0;
   justify-content: center;
 }
@@ -75,6 +101,9 @@
 .cm-title-row h1 {
   font-size: 20px;
   line-height: 1.1;
+}
+.cm-title-row {
+  flex: 0 0 auto;
 }
 .cm-network-logo {
   display: inline-block;
@@ -96,34 +125,36 @@
   line-height: 1.35;
 }
 .cm-library-summary {
+  /* Tabular figures so the counts do not jitter as the filter changes them. */
+  margin: 0;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
-.cm-header-toolbar {
+.cm-command-actions {
   display: flex;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 7px;
+  gap: 6px;
   align-items: center;
-  min-width: 0;
 }
-.cm-query-band {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 43px;
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--cm-border);
-  background: var(--cm-surface);
-}
-.cm-query-band .cm-search-wrap {
+.cm-command-bar .cm-search-wrap {
+  /* The one elastic item in the bar; it absorbs every narrowing. */
   flex: 1 1 auto;
+  min-width: 90px;
   max-width: none;
 }
-.cm-query-band > :last-child {
-  flex: 0 0 auto;
+.cm-command-bar .cm-toolbar-button,
+.cm-command-bar .cm-secondary-button {
+  min-height: 28px;
+  height: 28px;
+}
+.cm-command-bar .cm-search,
+.cm-command-bar .cm-search-wrap {
+  min-height: 28px;
+  height: 28px;
 }
 .cm-search-wrap {
   position: relative;
@@ -293,7 +324,6 @@
 .cm-primary-button,
 .cm-secondary-button,
 .cm-toolbar-button,
-.cm-overlay-button,
 .cm-export-menu button,
 .cm-detail-tabs button,
 .cm-collection-choice,
@@ -377,10 +407,8 @@
   touch-action: none;
   cursor: grab;
 }
+/* In the rail's footer now, in normal flow — no longer over the plot. */
 .cm-zoom-controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
   gap: 6px;
 }
@@ -412,22 +440,15 @@
   font-size: 11px;
   line-height: 1.45;
 }
-.cm-overlay-button {
-  background: color-mix(in srgb, Canvas 76%, transparent);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 10px color-mix(in srgb, black 16%, transparent);
-  opacity: 0.8;
-}
 .cm-appearance-control {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
+  position: relative;
   z-index: 6;
 }
 .cm-appearance-panel {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
+  z-index: 30;
   width: min(360px, calc(100vw - 38px));
   max-height: min(720px, calc(100vh - 130px));
   overflow: auto;
@@ -654,10 +675,14 @@
   color: #15803d;
   font-weight: 650;
 }
+/*
+ * A narrow window drops the counts before it lets anything wrap. The bar is a
+ * single 40px row at every width; the alternative was a second row appearing
+ * under it, which is the two-bar layout this task removed.
+ */
 @media (max-width: 760px) {
-  .cm-header-toolbar {
-    justify-content: flex-start;
-    flex-basis: 100%;
+  .cm-command-bar .cm-library-summary {
+    display: none;
   }
   .cm-search-wrap {
     max-width: none;
@@ -847,6 +872,46 @@
   min-height: 0;
   overflow-y: auto;
   padding: 2px 8px 14px;
+}
+.cm-key-body[hidden] {
+  display: none;
+}
+/*
+ * The view's own controls, at the foot of the rail. Pinned to the bottom so
+ * they sit in the same place whether the Key above them is long or empty.
+ */
+.cm-key-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+  padding: 7px 8px;
+  border-top: 1px solid var(--cm-border-soft);
+}
+.cm-key-rail[data-collapsed="true"] .cm-key-footer {
+  display: none;
+}
+.meristema-root .cm-rail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 1px solid var(--cm-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cm-ink);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.meristema-root .cm-rail-button:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
 }
 .cm-key-section + .cm-key-section {
   margin-top: 14px;
