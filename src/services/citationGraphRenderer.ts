@@ -192,6 +192,7 @@ export class CitationGraphRenderer {
   private emphasisAmount = 0;
   private emphasisFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private resizeFrame: number | null = null;
   private disposeSchemeObserver: (() => void) | null = null;
   private initialFitFrame: number | null = null;
   private initialFitComplete = false;
@@ -223,9 +224,24 @@ export class CitationGraphRenderer {
     const ResizeObserverConstructor = (view as any)?.ResizeObserver as
       typeof ResizeObserver | undefined;
     if (ResizeObserverConstructor) {
+      // Resizing the viewport reassigns the canvas bitmap and redraws, which
+      // is layout-affecting work; doing it synchronously inside the callback
+      // makes the observer deliver a second notification for the same frame,
+      // and Gecko reports that as an uncaught "ResizeObserver loop completed
+      // with undelivered notifications" on the window. Coalescing onto the
+      // next frame ends the loop and collapses a drag-resize's flood of
+      // callbacks into one resize per frame.
       this.resizeObserver = new ResizeObserverConstructor(() => {
-        this.resizeViewport();
-        if (!this.initialFitComplete) this.scheduleInitialFit();
+        if (this.resizeFrame !== null) return;
+        const frameView = this.canvas.ownerDocument.defaultView;
+        const run = (): void => {
+          this.resizeFrame = null;
+          this.resizeViewport();
+          if (!this.initialFitComplete) this.scheduleInitialFit();
+        };
+        this.resizeFrame = frameView
+          ? frameView.requestAnimationFrame(run)
+          : (setTimeout(run, 0) as unknown as number);
       });
       this.resizeObserver.observe(this.canvas.parentElement ?? this.canvas);
     } else {
@@ -1702,6 +1718,12 @@ export class CitationGraphRenderer {
       this.emphasisFrame = null;
     }
     this.resizeObserver?.disconnect();
+    if (this.resizeFrame !== null) {
+      this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
+        this.resizeFrame,
+      );
+      this.resizeFrame = null;
+    }
     this.disposeSchemeObserver?.();
     this.disposeSchemeObserver = null;
     const view = this.canvas.ownerDocument.defaultView;

@@ -13,7 +13,19 @@ import type {
   CitationGraphNode,
   GraphLayoutOptions,
 } from "../../src/domain/graphTypes";
+import type {
+  LibraryCollectionFilter,
+  LibrarySnapshot,
+  ZoteroPaper,
+} from "../../src/domain/types";
+import type { CitationMetricSummary } from "../../src/domain/citationTypes";
 import { element, ensureStyles } from "../../src/services/graphViewControls";
+import {
+  destroyGraphView,
+  renderGraphView,
+  type GraphViewOptions,
+} from "../../src/services/graphViewService";
+import { storeCitationGraphSnapshot } from "../../src/services/graphSnapshotStore";
 
 declare const IOUtils: any;
 declare const PathUtils: any;
@@ -81,10 +93,13 @@ export function note(message: string): void {
 }
 
 /** A machine-readable trail, so the run is inspectable after Zotero exits. */
-export async function writeReport(entries: unknown): Promise<string> {
+export async function writeReport(
+  entries: unknown,
+  name = "report",
+): Promise<string> {
   const directory = outputDirectory();
   await IOUtils.makeDirectory(directory, { ignoreExisting: true });
-  const path = PathUtils.join(directory, "report.json");
+  const path = PathUtils.join(directory, `${name}.json`);
   await IOUtils.writeUTF8(path, JSON.stringify(entries, null, 2));
   return path;
 }
@@ -361,4 +376,247 @@ export async function settle(win: Window, frames = 12): Promise<void> {
     ]);
   }
   await delay(80);
+}
+
+/**
+ * A metric summary with nothing in it. The graph reads `paper.metrics` for
+ * every number it can draw, so a corpus that wants a citations axis has to fill
+ * this in rather than leave the item to speak for itself.
+ */
+export function emptyMetrics(): CitationMetricSummary {
+  return {
+    citationCount: null,
+    citationCountProvider: null,
+    referenceCount: null,
+    referenceCountProvider: null,
+    resolvedReferenceCount: 0,
+    provider: null,
+    matchedBy: null,
+    matchConfidence: null,
+    matchConfirmed: false,
+    identityConflict: false,
+    fwci: null,
+    citationPercentile: null,
+    isTop1Percent: null,
+    isTop10Percent: null,
+    citationsLastYear: null,
+    citationVelocity: null,
+    citationAcceleration: null,
+    influentialCitationCount: null,
+    isRetracted: null,
+    openAccessStatus: null,
+    isOpenAccess: null,
+    publicationType: null,
+    sourceMetrics: null,
+    updatedAt: null,
+    dataAgeDays: null,
+    status: "success",
+  };
+}
+
+/**
+ * The library the view thinks it is showing, derived from the graph model so
+ * the two cannot drift. Every node becomes a paper carrying the same metrics
+ * the node does, because `renderGraphView` reads some things from the model and
+ * others — the counts in the header, the filter's collection list — from here.
+ */
+export function makeSnapshot(
+  model: CitationGraphModel,
+  libraryID: number,
+): LibrarySnapshot {
+  const papers: ZoteroPaper[] = model.nodes.map((node) => ({
+    itemID: node.itemID,
+    itemKey: node.itemKey,
+    libraryID,
+    title: node.title,
+    authors: node.authors,
+    year: node.year,
+    publicationDate: node.publicationDate,
+    doi: node.doi,
+    abstract: node.abstract,
+    sourceTitle: node.sourceTitle,
+    tags: node.tags,
+    collectionIDs: node.collectionIDs,
+    metadataCompleteness: node.metadataCompleteness,
+    metrics: {
+      ...emptyMetrics(),
+      citationCount: node.citationCount,
+      referenceCount: node.referenceCount,
+      resolvedReferenceCount: node.resolvedReferenceCount,
+      isRetracted: node.isRetracted,
+    },
+  }));
+
+  const used = new Set(papers.flatMap((paper) => paper.collectionIDs));
+  const collections: LibraryCollectionFilter[] = [...used]
+    .sort((a, b) => a - b)
+    .map((collectionID, index) => ({
+      collectionID,
+      parentCollectionID: null,
+      key: `COLL${collectionID}`,
+      name: COLLECTION_LABELS.get(collectionID) ?? `Collection ${collectionID}`,
+      path: COLLECTION_LABELS.get(collectionID) ?? `Collection ${collectionID}`,
+      depth: 0,
+      orderIndex: index,
+      includedCollectionIDs: [collectionID],
+    }));
+
+  return {
+    libraryID,
+    libraryName: "Harness library",
+    generatedAt: new Date().toISOString(),
+    papers,
+    collections,
+    tags: [...new Set(papers.flatMap((paper) => paper.tags))].sort(),
+    statistics: {
+      totalPapers: papers.length,
+      withoutYear: papers.filter((paper) => paper.year === null).length,
+      withoutDOI: papers.filter((paper) => paper.doi === null).length,
+      withoutCitationData: papers.filter(
+        (paper) => paper.metrics.citationCount === null,
+      ).length,
+      withoutReferenceData: papers.filter(
+        (paper) => paper.metrics.referenceCount === null,
+      ).length,
+    },
+  };
+}
+
+export interface ViewStage {
+  window: Window;
+  document: Document;
+  /** What `renderGraphView` was handed — the mount it cleared and filled. */
+  mount: HTMLElement;
+  /** The `.meristema-root` the view built for itself. */
+  root: HTMLElement;
+  canvas: HTMLCanvasElement;
+  snapshot: LibrarySnapshot;
+  model: CitationGraphModel;
+  /** Every paper the view was asked to select, in order. */
+  selected: number[];
+  /**
+   * Anything the window threw that nobody caught. A view that rejects a promise
+   * in the background fails the test that happened to be running, with no
+   * message attached to it, so the harness keeps the message.
+   */
+  errors: string[];
+  close: () => void;
+}
+
+let nextHarnessLibraryID = 900_000;
+
+/**
+ * The whole view, built by the product's own entry point.
+ *
+ * The previous stage assembled `.meristema-root` by hand, which was enough to
+ * look at the canvas but left everything `renderGraphView` wires — the header,
+ * the query band, the Key rail's refresh, the theme observer — unwatched. This
+ * calls the real function instead.
+ *
+ * The one substitution is the graph itself. `renderGraphView` asks
+ * `getCitationGraphSnapshot` for a model, which builds one out of the metrics
+ * store, Zotero item relations and the relationship store — none of which know
+ * anything about papers that were never saved to a library. Seeding the shared
+ * cache through `storeCitationGraphSnapshot` hands the view the corpus the
+ * check meant to show it, and leaves every other path in the product's hands.
+ * A fresh library ID per stage keeps that cache entry from colliding with the
+ * previous case's.
+ */
+export async function openViewStage(
+  model: CitationGraphModel,
+  options: Partial<GraphViewOptions> = {},
+): Promise<ViewStage> {
+  const libraryID = nextHarnessLibraryID++;
+  const snapshot = makeSnapshot(model, libraryID);
+  storeCitationGraphSnapshot(snapshot, model);
+
+  const host = Zotero.getMainWindows()[0] as any;
+  const popup = host.openDialog(
+    "chrome://meristema/content/graphWindow.xhtml",
+    "meristema-visual-view",
+    "chrome,dialog=no,resizable,centerscreen,width=1200,height=820",
+  ) as Window;
+  await new Promise<void>((resolve) => {
+    if (popup.document?.readyState === "complete") {
+      resolve();
+      return;
+    }
+    popup.addEventListener("load", () => resolve(), { once: true });
+  });
+  await delay(250);
+
+  const document = popup.document;
+  const mount = document.getElementById("meristema-window-root") as HTMLElement;
+  const selected: number[] = [];
+  const errors: string[] = [];
+  popup.addEventListener("error", (event: any) => {
+    errors.push(`error: ${event?.message ?? String(event)}`);
+  });
+  popup.addEventListener("unhandledrejection", (event: any) => {
+    const reason = event?.reason;
+    errors.push(
+      `unhandled rejection: ${reason?.message ?? String(reason)}
+${reason?.stack ?? ""}`,
+    );
+  });
+  const root = renderGraphView(document, mount, snapshot, {
+    mode: "window",
+    onSelectPaper: (itemID: number) => {
+      selected.push(itemID);
+    },
+    ...options,
+  });
+  await delay(200);
+
+  return {
+    window: popup,
+    document,
+    mount,
+    root,
+    canvas: root.querySelector("canvas.cm-graph-canvas") as HTMLCanvasElement,
+    snapshot,
+    model,
+    selected,
+    errors,
+    close: () => {
+      try {
+        destroyGraphView(mount);
+      } catch {
+        /* the view may already be gone */
+      }
+      popup.close();
+    },
+  };
+}
+
+/**
+ * How many of the sampled pixels differ between two frames, as a fraction. Two
+ * captures of the same view come out identical; a different camera moves most
+ * of the plot.
+ */
+export function frameDifference(
+  a: Uint8ClampedArray,
+  b: Uint8ClampedArray,
+): number {
+  const length = Math.min(a.length, b.length);
+  let differing = 0;
+  let sampled = 0;
+  for (let index = 0; index < length; index += 160) {
+    sampled += 1;
+    if (
+      a[index] !== b[index] ||
+      a[index + 1] !== b[index + 1] ||
+      a[index + 2] !== b[index + 2]
+    ) {
+      differing += 1;
+    }
+  }
+  return sampled ? differing / sampled : 0;
+}
+
+/** The rail's entries, as the text a reader would see. */
+export function railEntries(root: HTMLElement): string[] {
+  return [...root.querySelectorAll(".cm-key-entry")].map((entry) =>
+    ((entry as Element | null)?.textContent ?? "").replace(/\s+/g, " ").trim(),
+  );
 }
