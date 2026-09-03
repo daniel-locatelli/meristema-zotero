@@ -116,10 +116,21 @@ does. For `item`, assign `ZoteroPane.itemPane.collapsed`. When expanding
 either side, write the last known width afterwards so a pane Zotero reset to
 its minimum comes back at the width the graph had.
 
-Echo suppression: the binding remembers the last width it wrote and drops an
-incoming observation within 0.5px of it. A collapse it set itself is not
-re-notified. Listeners therefore only hear about changes that came from
-Zotero or from another graph.
+Echo suppression, two layers. First, the graph tells the binding when a drag
+starts and ends (`beginLocalChange()` / `endLocalChange()`, called by the drag
+helper); while a local change is open the binding performs writes but does not
+notify. Second, outside a drag the binding drops an incoming observation within
+0.5px of the last width it wrote, and does not re-notify a collapse it set
+itself. Listeners therefore only hear about changes that came from Zotero or
+from another graph. No animation-frame batching on the write side: pointer
+moves already arrive at most once per frame, and Zotero's splitter writes the
+same attribute the same way.
+
+Last known width when the pane is already collapsed at bind time: the item pane
+drops its `width` attribute on collapse, so there may be nothing to read. The
+binding then takes the value in `pane.persist` for that element id, and if that
+is absent too, Zotero's own reopen widths: 200 for the collections pane, 337
+for the item pane. `read().width` is never 0 or undefined.
 
 Zotero's persist step is untouched. Because the binding writes the `width`
 attribute, `serializePersist` picks the graph's drags up on window close.
@@ -168,6 +179,13 @@ Each graph view creates two bindings on mount and disposes them on cleanup.
 Several open graphs each hold their own binding on the same element; a drag in
 one reaches the others through the observers, not through any shared state.
 
+Subscribers set the pane's width and nothing else. The renderer already
+watches its own container with a `ResizeObserver` coalesced to one
+`resizeViewport()` per animation frame (`citationGraphRenderer.ts`), so a
+flood of observations during a drag in another window costs each graph one
+resize per frame, and the explicit `renderer.resizeViewport()` calls in the
+detail pane's drag code are dropped rather than duplicated.
+
 ### Failure handling
 
 If the pane element, the splitter, `ZoteroPane`, or
@@ -190,8 +208,14 @@ splitter elements, a stub `ZoteroPane`, and hand-driven `ResizeObserver` and
   `setCollapsed(false)` restores the last width.
 - A `collapsed` mutation from outside notifies with `collapsed: true` and the
   last open width.
+- A pane collapsed at bind time with no width attribute reads its width from
+  `pane.persist`, then from Zotero's reopen default.
+- Observations arriving between `beginLocalChange()` and `endLocalChange()`
+  do not notify; the first one after does.
 - With no pane element, `read()` comes from `pane.persist` and writes stay
   local.
+- With `updateLayoutConstraints` missing, `write()` still sets the element and
+  does not throw.
 - `dispose()` disconnects both observers.
 
 Unit tests for `attachPaneResizer`: width follows the pointer with the right
@@ -199,8 +223,10 @@ sign for each edge, clamps to min and max, releases below the threshold as a
 collapse and above it as a commit, and double-click toggles.
 
 Manual check in Zotero, in a tab and in a detached window: drag each Zotero
-splitter and confirm the graph follows; drag each graph handle and confirm the
-library follows; collapse and reopen each pane from both sides; close and
+splitter and confirm the graph follows; drag each graph handle quickly back and
+forth and confirm the library follows without jitter; collapse and reopen each
+pane from both sides, including reopening from the graph's collapsed strip
+while Zotero's pane is hidden; open two graphs and drag in one; close and
 reopen Zotero and confirm both views come back at the same widths.
 
 ## Deliberate exclusions
