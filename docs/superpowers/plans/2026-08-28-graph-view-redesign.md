@@ -843,6 +843,28 @@ The toggle also says **"Collapse sidebar"**, not "Hide the key": since Task 7 th
 rail carries the view's zoom and appearance controls too, so the button takes
 more than the Key with it.
 
+### The specificity trap, which bit three times
+
+The stylesheet has broad rules written as `.meristema-root button` and
+`.meristema-root input[type="search"]`. Both are _more_ specific than a
+one-class component rule, and the second is more specific than a two-class one.
+Everything a component tries to override there loses silently:
+
+| The component said                             | What actually applied | What it looked like                                   |
+| ---------------------------------------------- | --------------------- | ----------------------------------------------------- |
+| `.cm-key-toggle { padding: 0 }`                | `padding: 4px 9px`    | chevron against the left edge                         |
+| `.cm-history-controls button { padding: 0 }`   | same, by source order | 16px glyph in a 6px box                               |
+| `.cm-plot-toolbar .cm-search { height: 28px }` | `min-height: 30px`    | field 30px in a 28px slot, hanging 4px below its wrap |
+
+The last one was reported as "the magnifier is aligned to the top". It was not:
+the icon was centred in its wrap to the pixel, and the _field_ had grown past
+the wrap and taken the text down with it. Measuring the DOM said so in one run —
+`icon 12.1..28.1 h16 | wrap 6.1..34.1 h28 | field 8.1..38.1 h30` — after two
+wrong guesses from the rendered pixels.
+
+**Anything overriding those shared rules must be written
+`.meristema-root .name`, and must repeat `min-height` as well as `height`.**
+
 ### A bug this uncovered
 
 `--material-panedivider` is **not a colour**. It is `1px solid

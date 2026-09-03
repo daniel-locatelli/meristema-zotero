@@ -455,6 +455,42 @@ describe("Graph view, as the product builds it", function () {
       }
     }
 
+    // The search icon sits inside the field, so it lines up with the text in
+    // it rather than with the field's box.
+    const searchIcon = active.root.querySelector(
+      ".cm-plot-toolbar .cm-search-wrap > .cm-icon",
+    ) as SVGElement;
+    const searchField = active.root.querySelector(
+      ".cm-plot-toolbar .cm-search",
+    ) as HTMLElement;
+    const iconRect = searchIcon.getBoundingClientRect();
+    const fieldRect = searchField.getBoundingClientRect();
+    notes.push(
+      `view 9 search icon ${iconRect.top.toFixed(1)}–${iconRect.bottom.toFixed(1)} in field ${fieldRect.top.toFixed(1)}–${fieldRect.bottom.toFixed(1)}`,
+    );
+    expect(
+      Math.abs(
+        (iconRect.top + iconRect.bottom) / 2 -
+          (fieldRect.top + fieldRect.bottom) / 2,
+      ),
+      "the search icon is centred against the text beside it",
+    ).to.be.lessThan(0.6);
+    /*
+     * And the field is the toolbar's 28px, which is what the icon was really
+     * reporting: `.meristema-root input[type="search"]` carries a
+     * `min-height: 30px` that outranks a two-class rule, so the field grew
+     * past its wrap and hung below the toolbar's row while the icon stayed
+     * centred in the wrap.
+     */
+    expect(
+      Math.round(fieldRect.height),
+      "and the field is the toolbar's own height, not the shared field height",
+    ).to.equal(28);
+    expect(
+      Math.round(fieldRect.bottom),
+      "so it ends inside the toolbar rather than hanging below it",
+    ).to.be.at.most(Math.round(plotRect.bottom));
+
     const toggle = active.root.querySelector(".cm-key-toggle") as HTMLElement;
     expect(
       toggle.getAttribute("aria-label"),

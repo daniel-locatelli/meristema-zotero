@@ -226,17 +226,27 @@
   min-width: 90px;
   max-width: 430px;
 }
-/* Zotero sizes the buttons in both of these toolbars at 28px square. */
-.cm-plot-toolbar .cm-toolbar-button,
-.cm-plot-toolbar .cm-secondary-button,
-.cm-plot-toolbar .cm-search,
-.cm-plot-toolbar .cm-search-wrap {
+/*
+ * Zotero sizes everything in these toolbars 28px tall. `min-height` is not
+ * redundant beside `height`, and neither is the `.meristema-root` prefix: the
+ * shared field rule is `.meristema-root input[type="search"]`, which carries a
+ * `min-height: 30px` and outranks a two-class selector. The search box was
+ * therefore 30px inside a 28px slot, hanging 4px below its own wrap — so the
+ * magnifier, correctly centred in the wrap, sat 3px above the text beside it.
+ * The icon was never the thing that was wrong.
+ */
+.meristema-root .cm-plot-toolbar .cm-toolbar-button,
+.meristema-root .cm-plot-toolbar .cm-secondary-button,
+.meristema-root .cm-plot-toolbar .cm-search,
+.meristema-root .cm-plot-toolbar .cm-search-wrap {
   min-height: 28px;
   height: 28px;
 }
 .cm-search-wrap {
   position: relative;
   display: flex;
+  /* The field fills the wrap rather than being stretched past it. */
+  align-items: center;
   flex: 1 1 230px;
   max-width: 430px;
   min-width: 180px;
