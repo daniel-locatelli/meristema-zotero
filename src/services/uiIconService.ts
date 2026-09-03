@@ -95,6 +95,15 @@ const ICON_PATHS: Record<IconName, string[]> = {
   ],
 };
 
+/**
+ * The chevron in a pane's collapse toggle. The Key rail's and the detail
+ * pane's flank the plot and are read as a pair, so they take their size from
+ * one name rather than from two literals — which is how the rail's ended up at
+ * 14 and the detail pane's at the 16px default, visibly larger in the same
+ * 26px box.
+ */
+export const PANE_TOGGLE_ICON_SIZE = 14;
+
 export function createIcon(
   document: Document,
   name: IconName,

@@ -21,7 +21,7 @@ import {
   setKeyRailCollapsed,
 } from "./citationPreferences";
 import { element, text } from "./graphViewControls";
-import { createIcon } from "./uiIconService";
+import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -188,7 +188,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     toggle.title = label;
     toggle.setAttribute("aria-label", label);
     toggle.replaceChildren(
-      createIcon(document, collapsed ? "chevron-right" : "chevron-left", 14),
+      createIcon(
+        document,
+        collapsed ? "chevron-right" : "chevron-left",
+        PANE_TOGGLE_ICON_SIZE,
+      ),
     );
   };
 

@@ -1136,7 +1136,7 @@ disclosure. The visual harness calls `renderGraphView` directly and never
 installed it, so every earlier round was iterating on a flat ten-row list the
 user never sees.
 
-Worse than a fidelity gap: that service resolved *which paper* the Advanced
+Worse than a fidelity gap: that service resolved _which paper_ the Advanced
 rows described by reading the panel's `<h2>` and matching the text against a
 cached graph, falling back to whatever item the Zotero library happened to have
 selected. A near-miss on the title match put one paper's metrics under another
@@ -1172,3 +1172,8 @@ paper's name.
 and 16.8px from the plot's edges, strip `FWCI | Citations / year | Percentile =
 4.21 | 183.4 | 99.2%`, actions `Find similar papers`, nothing overflowing or
 past the pane at 360px or 260px.
+
+- The two toggles now take their glyph size from one name
+  (`PANE_TOGGLE_ICON_SIZE`). The rail's was drawn at 14px and the detail
+  pane's at `createIcon`'s 16px default, which is visibly larger in the same
+  26px box once the pair flanks the plot. `view 10` asserts they match.

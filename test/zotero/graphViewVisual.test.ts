@@ -880,6 +880,16 @@ describe("Graph view, as the product builds it", function () {
     notes.push(
       `view 10 toggles: rail ${railGap.toFixed(1)}px from the plot, detail ${detailGap.toFixed(1)}px`,
     );
+    // And they are the same size. The rail's chevron was drawn at 14px and the
+    // detail pane's at createIcon's 16px default, which is visibly larger in
+    // the same 26px box when the two are read as a pair across one window.
+    const glyphs = [railToggle, detailToggle].map((toggle) => {
+      const svg = toggle.querySelector("svg") as SVGSVGElement;
+      const rect = svg.getBoundingClientRect();
+      return `${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`;
+    });
+    notes.push(`view 10 toggle glyphs: ${glyphs.join(" and ")}`);
+    expect(glyphs[1], "both toggles draw the same chevron").to.equal(glyphs[0]);
     for (const gap of [railGap, detailGap]) {
       expect(
         gap,

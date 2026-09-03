@@ -135,6 +135,7 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
+import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { IconName } from "./uiIconService";
 import {
   applyGraphThemeToDocument,
@@ -4261,7 +4262,11 @@ export function renderGraphView(
     detailToggle.setAttribute("aria-label", label);
     detailToggle.setAttribute("aria-expanded", String(!isCollapsed));
     detailToggle.replaceChildren(
-      icon(document, isCollapsed ? "chevron-left" : "chevron-right"),
+      createIcon(
+        document,
+        isCollapsed ? "chevron-left" : "chevron-right",
+        PANE_TOGGLE_ICON_SIZE,
+      ),
     );
   }
 
