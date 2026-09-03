@@ -115,10 +115,10 @@ import {
   ensureSourceMetricsForNodes,
   graphLayoutUsesSourceMetrics,
 } from "./sourceMetricsService";
-import { clamp } from "./graphMetricScale";
 import { buildKeyModel } from "./graphKeyModel";
 import { createKeyRail } from "./graphKeyRail";
 import {
+  attachPaneResizer,
   collectionLabelsByID,
   clear,
   createAxesAppearance,
@@ -162,14 +162,10 @@ import {
   setFocusRelationshipFragment,
 } from "./focusGraphCacheService";
 import {
-  getDetailPanelCollapsed,
-  getDetailPanelWidth,
   getFocusGraphAppearance,
   getGraphAppearance,
   resetFocusGraphAppearance,
   resetGraphAppearance,
-  setDetailPanelCollapsed,
-  setDetailPanelWidth,
   setFocusGraphAppearance,
   setGraphAppearance,
 } from "./citationPreferences";
@@ -179,6 +175,11 @@ import {
   normalizedScopeItemIDs,
   replaceItemScope,
 } from "./graphScopePolicy";
+import {
+  bindZoteroPane,
+  PANE_MINIMUM,
+  type ZoteroPaneState,
+} from "./zoteroPaneSync";
 
 export type GraphFocusResult = "selected" | "revealed" | "not-found";
 
@@ -1061,16 +1062,20 @@ export function renderGraphView(
   const detailBody = element(document, "div", "cm-detail-body");
   detail.append(detailToolbar, detailHeader, detailBody);
   detailShell.append(resizer, detail);
-  const initialWidth = clamp(
-    getDetailPanelWidth(),
-    260,
-    Math.max(260, (mount.getBoundingClientRect().width || 900) * 0.7),
-  );
-  const collapsed = getDetailPanelCollapsed();
-  detailShell.style.width = collapsed
-    ? COLLAPSED_DETAIL_WIDTH
-    : `${initialWidth}px`;
-  detailShell.dataset.collapsed = String(collapsed);
+  // Width and collapse for both side panes belong to Zotero's own panes: the
+  // collections pane on the left, the item pane on the right. The graph draws
+  // what they say and writes back what its handles do.
+  const hostWindow = document.defaultView as Window;
+  const collectionsPane = bindZoteroPane("collections", hostWindow);
+  const itemPane = bindZoteroPane("item", hostWindow);
+
+  const applyDetailState = (state: ZoteroPaneState): void => {
+    detailShell.dataset.collapsed = String(state.collapsed);
+    detailShell.style.width = state.collapsed
+      ? COLLAPSED_DETAIL_WIDTH
+      : `${Math.round(state.width)}px`;
+  };
+  applyDetailState(itemPane.read());
   const keyRail = createKeyRail({
     document,
     onEmphasise: (entry) => {
@@ -1085,6 +1090,20 @@ export function renderGraphView(
         ),
       );
     },
+    onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
+  });
+  {
+    const state = collectionsPane.read();
+    keyRail.setWidth(state.width);
+    keyRail.setCollapsed(state.collapsed);
+  }
+  const unsubscribeCollectionsPane = collectionsPane.subscribe((state) => {
+    keyRail.setWidth(state.width);
+    keyRail.setCollapsed(state.collapsed);
+  });
+  const unsubscribeItemPane = itemPane.subscribe((state) => {
+    applyDetailState(state);
+    syncDetailToggle();
   });
   // The two controls that used to float over the plot's corners. The
   // appearance panel opens upward from the footer, so it still has the whole
@@ -4271,45 +4290,69 @@ export function renderGraphView(
   }
 
   function setDetailCollapsed(next: boolean): void {
-    detailShell.dataset.collapsed = String(next);
-    detailShell.style.width = next
-      ? COLLAPSED_DETAIL_WIDTH
-      : `${getDetailPanelWidth()}px`;
-    setDetailPanelCollapsed(next);
+    applyDetailState({ width: itemPane.read().width, collapsed: next });
+    itemPane.setCollapsed(next);
     syncDetailToggle();
-    renderer?.resizeViewport();
   }
 
-  let resizing = false;
-  const resize = (event: PointerEvent): void => {
-    if (!resizing) return;
-    const bounds = root.getBoundingClientRect();
-    const width = clamp(bounds.right - event.clientX, 260, bounds.width * 0.7);
-    detailShell.style.width = `${width}px`;
-    detailShell.dataset.collapsed = "false";
-    renderer?.resizeViewport();
-  };
-  resizer.addEventListener("pointerdown", (event) => {
-    resizing = true;
-    resizer.setPointerCapture?.(event.pointerId);
-  });
-  resizer.addEventListener("pointermove", resize);
-  resizer.addEventListener("pointerup", (event) => {
-    resizing = false;
-    resizer.releasePointerCapture?.(event.pointerId);
-    const width = detailShell.getBoundingClientRect().width;
-    if (width <= 44) {
-      setDetailCollapsed(true);
-    } else {
-      setDetailPanelWidth(width);
-      setDetailPanelCollapsed(false);
-    }
-  });
-  resizer.addEventListener("dblclick", () => {
-    setDetailCollapsed(detailShell.dataset.collapsed !== "true");
+  const detachDetailResizer = attachPaneResizer({
+    handle: resizer,
+    edge: "end",
+    minimum: PANE_MINIMUM.item,
+    maximum: () =>
+      Math.max(PANE_MINIMUM.item, root.getBoundingClientRect().width * 0.7),
+    collapseThreshold: 60,
+    origin: () => root.getBoundingClientRect().right,
+    onBegin: () => itemPane.beginLocalChange(),
+    onMove: (width) => {
+      applyDetailState({ width, collapsed: false });
+      itemPane.write(width);
+    },
+    onRelease: (release) => {
+      if (release.kind === "collapse") setDetailCollapsed(true);
+      else itemPane.write(release.width);
+    },
+    onEnd: () => {
+      itemPane.endLocalChange();
+      syncDetailToggle();
+    },
+    onToggle: () =>
+      setDetailCollapsed(detailShell.dataset.collapsed !== "true"),
   });
   detailToggle.addEventListener("click", () => {
     setDetailCollapsed(detailShell.dataset.collapsed !== "true");
+  });
+
+  const detachRailResizer = attachPaneResizer({
+    handle: keyRail.resizer,
+    edge: "start",
+    minimum: PANE_MINIMUM.collections,
+    maximum: () =>
+      Math.max(
+        PANE_MINIMUM.collections,
+        root.getBoundingClientRect().width * 0.5,
+      ),
+    collapseThreshold: 60,
+    origin: () => keyRail.root.getBoundingClientRect().left,
+    onBegin: () => collectionsPane.beginLocalChange(),
+    onMove: (width) => {
+      keyRail.setWidth(width);
+      collectionsPane.write(width);
+    },
+    onRelease: (release) => {
+      if (release.kind === "collapse") {
+        keyRail.setCollapsed(true);
+        collectionsPane.setCollapsed(true);
+      } else {
+        collectionsPane.write(release.width);
+      }
+    },
+    onEnd: () => collectionsPane.endLocalChange(),
+    onToggle: () => {
+      const next = !keyRail.isCollapsed();
+      keyRail.setCollapsed(next);
+      collectionsPane.setCollapsed(next);
+    },
   });
   syncDetailToggle();
 
@@ -4661,6 +4704,12 @@ export function renderGraphView(
       true,
     );
     graphArea.removeEventListener("pointerdown", onGraphAreaPointerDown, true);
+    detachRailResizer();
+    detachDetailResizer();
+    unsubscribeCollectionsPane();
+    unsubscribeItemPane();
+    collectionsPane.dispose();
+    itemPane.dispose();
     keyRail.destroy();
     renderer?.destroy();
     renderer = null;

@@ -165,30 +165,6 @@ export function getDebugLoggingEnabled(): boolean {
   return boolPref("debugLogging", false);
 }
 
-export function getDetailPanelWidth(): number {
-  const value = Number(Zotero.Prefs.get(key("detailPanelWidth"), true));
-  return Number.isFinite(value) && value >= 260 ? value : 360;
-}
-export function setDetailPanelWidth(width: number): void {
-  Zotero.Prefs.set(
-    key("detailPanelWidth"),
-    Math.max(260, Math.round(width)),
-    true,
-  );
-}
-export function getDetailPanelCollapsed(): boolean {
-  return boolPref("detailPanelCollapsed", false);
-}
-export function setDetailPanelCollapsed(collapsed: boolean): void {
-  Zotero.Prefs.set(key("detailPanelCollapsed"), collapsed, true);
-}
-export function getKeyRailCollapsed(): boolean {
-  return boolPref("graphKeyRailCollapsed", false);
-}
-export function setKeyRailCollapsed(collapsed: boolean): void {
-  Zotero.Prefs.set(key("graphKeyRailCollapsed"), collapsed, true);
-}
-
 const GRAPH_APPEARANCE_SCHEMA_VERSION = 4;
 const FOCUS_GRAPH_APPEARANCE_SCHEMA_VERSION = 1;
 

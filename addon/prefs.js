@@ -15,7 +15,5 @@ pref("__prefsPrefix__.updateLibraryIDs", "");
 pref("__prefsPrefix__.cacheDays", 30);
 pref("__prefsPrefix__.exactTitleFallback", true);
 pref("__prefsPrefix__.debugLogging", false);
-pref("__prefsPrefix__.detailPanelWidth", 360);
-pref("__prefsPrefix__.detailPanelCollapsed", false);
 pref("__prefsPrefix__.graphAppearance", "");
 pref("__prefsPrefix__.graphAppearanceVersion", 0);
