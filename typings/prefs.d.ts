@@ -24,8 +24,6 @@ declare namespace _ZoteroTypes {
       "cacheDays": number;
       "exactTitleFallback": boolean;
       "debugLogging": boolean;
-      "detailPanelWidth": number;
-      "detailPanelCollapsed": boolean;
       "graphAppearance": string;
       "graphAppearanceVersion": number;
     };
