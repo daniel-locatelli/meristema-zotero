@@ -82,12 +82,12 @@ away.
 
 ```ts
 interface ZoteroPaneState {
-  width: number;       // the pane's open width; last known when collapsed
+  width: number; // the pane's open width; last known when collapsed
   collapsed: boolean;
 }
 interface ZoteroPaneBinding {
   read(): ZoteroPaneState;
-  write(width: number): void;        // clamps to the side's minimum
+  write(width: number): void; // clamps to the side's minimum
   setCollapsed(collapsed: boolean): void;
   subscribe(listener: (state: ZoteroPaneState) => void): () => void;
   dispose(): void;

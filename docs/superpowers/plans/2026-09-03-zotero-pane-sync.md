@@ -32,32 +32,37 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa
 
 ## File map
 
-| File | Responsibility |
-| --- | --- |
-| `src/services/zoteroPaneSync.ts` (new) | Bind a graph pane to a Zotero pane: read, write, collapse, observe, echo suppression, detached fallback. |
-| `test/unit/zoteroPaneSync.test.ts` (new) | Unit tests against a fake window. |
-| `src/services/graphViewControls.ts` | Gains `attachPaneResizer` and its two pure helpers. |
-| `test/unit/paneResizer.test.ts` (new) | Unit tests for the drag helper. |
-| `src/services/graphKeyRail.ts` | Rail gets a resizer handle, `setWidth`, `setCollapsed`, `isCollapsed`; drops the pref. |
-| `src/services/graphViewService.ts` | Creates the two bindings, wires rail and detail pane to them, disposes on cleanup. |
-| `src/services/citationPreferences.ts`, `addon/prefs.js` | Remove `detailPanelWidth`, `detailPanelCollapsed`, `graphKeyRailCollapsed`. |
-| `addon/content/graph.css` | Rail resizer strip; rail width no longer a fixed variable. |
+| File                                                    | Responsibility                                                                                           |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `src/services/zoteroPaneSync.ts` (new)                  | Bind a graph pane to a Zotero pane: read, write, collapse, observe, echo suppression, detached fallback. |
+| `test/unit/zoteroPaneSync.test.ts` (new)                | Unit tests against a fake window.                                                                        |
+| `src/services/graphViewControls.ts`                     | Gains `attachPaneResizer` and its two pure helpers.                                                      |
+| `test/unit/paneResizer.test.ts` (new)                   | Unit tests for the drag helper.                                                                          |
+| `src/services/graphKeyRail.ts`                          | Rail gets a resizer handle, `setWidth`, `setCollapsed`, `isCollapsed`; drops the pref.                   |
+| `src/services/graphViewService.ts`                      | Creates the two bindings, wires rail and detail pane to them, disposes on cleanup.                       |
+| `src/services/citationPreferences.ts`, `addon/prefs.js` | Remove `detailPanelWidth`, `detailPanelCollapsed`, `graphKeyRailCollapsed`.                              |
+| `addon/content/graph.css`                               | Rail resizer strip; rail width no longer a fixed variable.                                               |
 
 ---
 
 ### Task 1: `zoteroPaneSync.ts` binding with unit tests
 
 **Files:**
+
 - Create: `src/services/zoteroPaneSync.ts`
 - Create: `test/unit/zoteroPaneSync.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing from other tasks.
 - Produces:
 
 ```ts
 export type ZoteroPaneSide = "collections" | "item";
-export interface ZoteroPaneState { width: number; collapsed: boolean }
+export interface ZoteroPaneState {
+  width: number;
+  collapsed: boolean;
+}
 export interface ZoteroPaneBinding {
   read(): ZoteroPaneState;
   write(width: number): void;
@@ -72,9 +77,13 @@ export interface ZoteroPaneSyncDeps {
   persistPref(): string | null;
   debug(message: string): void;
 }
-export const PANE_MINIMUM: Record<ZoteroPaneSide, number>;   // { collections: 200, item: 320 }
+export const PANE_MINIMUM: Record<ZoteroPaneSide, number>; // { collections: 200, item: 320 }
 export const PANE_REOPEN_WIDTH: Record<ZoteroPaneSide, number>; // { collections: 200, item: 337 }
-export function bindZoteroPane(side: ZoteroPaneSide, host: Window, deps?: ZoteroPaneSyncDeps): ZoteroPaneBinding;
+export function bindZoteroPane(
+  side: ZoteroPaneSide,
+  host: Window,
+  deps?: ZoteroPaneSyncDeps,
+): ZoteroPaneBinding;
 ```
 
 - [ ] **Step 1: Write the failing tests**
@@ -156,7 +165,9 @@ interface Fixture {
   debugLines: string[];
 }
 
-function fixture(options: { itemPaneSetter?: boolean; layout?: boolean } = {}): Fixture {
+function fixture(
+  options: { itemPaneSetter?: boolean; layout?: boolean } = {},
+): Fixture {
   const pane = new FakePane();
   const splitter = new FakePane();
   const observers = new FakeObserverRegistry();
@@ -208,7 +219,9 @@ function fixture(options: { itemPaneSetter?: boolean; layout?: boolean } = {}): 
   return state;
 }
 
-function collect(binding: { subscribe(l: (s: ZoteroPaneState) => void): () => void }): ZoteroPaneState[] {
+function collect(binding: {
+  subscribe(l: (s: ZoteroPaneState) => void): () => void;
+}): ZoteroPaneState[] {
   const seen: ZoteroPaneState[] = [];
   binding.subscribe((s) => seen.push({ ...s }));
   return seen;
@@ -324,18 +337,23 @@ describe("bindZoteroPane", function () {
   it("follows the first main window when the host has no Zotero pane", function () {
     const f = fixture();
     f.pane.rectWidth = 270;
-    const host = { document: { getElementById: () => null } } as unknown as Window;
+    const host = {
+      document: { getElementById: () => null },
+    } as unknown as Window;
     f.deps.mainWindows = () => [f.win];
     const binding = bindZoteroPane("collections", host, f.deps);
     expect(binding.read().width).to.equal(270);
   });
 
   it("falls back to a detached binding when no pane exists anywhere", function () {
-    const host = { document: { getElementById: () => null } } as unknown as Window;
+    const host = {
+      document: { getElementById: () => null },
+    } as unknown as Window;
     const debugLines: string[] = [];
     const binding = bindZoteroPane("collections", host, {
       mainWindows: () => [],
-      persistPref: () => JSON.stringify({ "zotero-collections-pane": { width: "222" } }),
+      persistPref: () =>
+        JSON.stringify({ "zotero-collections-pane": { width: "222" } }),
       debug: (line) => debugLines.push(line),
     });
     const seen = collect(binding);
@@ -466,7 +484,10 @@ interface Target {
   };
 }
 
-function findTarget(side: ZoteroPaneSide, win: Window | undefined): Target | null {
+function findTarget(
+  side: ZoteroPaneSide,
+  win: Window | undefined,
+): Target | null {
   if (!win) return null;
   try {
     const document = win.document;
@@ -518,7 +539,9 @@ function safely(deps: ZoteroPaneSyncDeps, what: string, run: () => void): void {
 }
 
 function sameState(a: ZoteroPaneState, b: ZoteroPaneState): boolean {
-  return a.collapsed === b.collapsed && Math.abs(a.width - b.width) < ECHO_TOLERANCE;
+  return (
+    a.collapsed === b.collapsed && Math.abs(a.width - b.width) < ECHO_TOLERANCE
+  );
 }
 
 function detachedBinding(
@@ -536,7 +559,10 @@ function detachedBinding(
   return {
     read: () => ({ ...state }),
     write(width) {
-      state = { ...state, width: Math.max(PANE_MINIMUM[side], Math.round(width)) };
+      state = {
+        ...state,
+        width: Math.max(PANE_MINIMUM[side], Math.round(width)),
+      };
       notify();
     },
     setCollapsed(collapsed) {
@@ -634,13 +660,18 @@ export function bindZoteroPane(
   };
 
   const view = target.win as unknown as {
-    ResizeObserver?: new (cb: () => void) => { observe(el: Element): void; disconnect(): void };
+    ResizeObserver?: new (cb: () => void) => {
+      observe(el: Element): void;
+      disconnect(): void;
+    };
     MutationObserver?: new (cb: () => void) => {
       observe(el: Element, init: MutationObserverInit): void;
       disconnect(): void;
     };
   };
-  const resizeObserver = view.ResizeObserver ? new view.ResizeObserver(onObservation) : null;
+  const resizeObserver = view.ResizeObserver
+    ? new view.ResizeObserver(onObservation)
+    : null;
   resizeObserver?.observe(pane);
   const mutationObserver = view.MutationObserver
     ? new view.MutationObserver(onObservation)
@@ -719,18 +750,30 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 2: `attachPaneResizer` drag helper with unit tests
 
 **Files:**
+
 - Modify: `src/services/graphViewControls.ts` (append at end of file)
 - Create: `test/unit/paneResizer.test.ts`
 
 **Interfaces:**
+
 - Consumes: `clamp` from `src/services/graphMetricScale.ts` (`clamp(value, minimum, maximum): number`).
 - Produces:
 
 ```ts
 export type PaneEdge = "start" | "end";
-export type PaneRelease = { kind: "commit"; width: number } | { kind: "collapse" };
-export function paneWidthFromPointer(edge: PaneEdge, origin: number, clientX: number): number;
-export function paneRelease(raw: number, minimum: number, maximum: number, collapseThreshold: number): PaneRelease;
+export type PaneRelease =
+  { kind: "commit"; width: number } | { kind: "collapse" };
+export function paneWidthFromPointer(
+  edge: PaneEdge,
+  origin: number,
+  clientX: number,
+): number;
+export function paneRelease(
+  raw: number,
+  minimum: number,
+  maximum: number,
+  collapseThreshold: number,
+): PaneRelease;
 export interface PaneResizerOptions {
   handle: HTMLElement;
   edge: PaneEdge;
@@ -801,11 +844,20 @@ describe("paneWidthFromPointer", function () {
 
 describe("paneRelease", function () {
   it("commits the clamped width inside the range", function () {
-    expect(paneRelease(250, 200, 600, 60)).to.deep.equal({ kind: "commit", width: 250 });
-    expect(paneRelease(900, 200, 600, 60)).to.deep.equal({ kind: "commit", width: 600 });
+    expect(paneRelease(250, 200, 600, 60)).to.deep.equal({
+      kind: "commit",
+      width: 250,
+    });
+    expect(paneRelease(900, 200, 600, 60)).to.deep.equal({
+      kind: "commit",
+      width: 600,
+    });
   });
   it("commits the minimum just under it, and collapses past the threshold", function () {
-    expect(paneRelease(150, 200, 600, 60)).to.deep.equal({ kind: "commit", width: 200 });
+    expect(paneRelease(150, 200, 600, 60)).to.deep.equal({
+      kind: "commit",
+      width: 200,
+    });
     expect(paneRelease(139, 200, 600, 60)).to.deep.equal({ kind: "collapse" });
   });
 });
@@ -898,8 +950,7 @@ Then append:
 export type PaneEdge = "start" | "end";
 
 export type PaneRelease =
-  | { kind: "commit"; width: number }
-  | { kind: "collapse" };
+  { kind: "commit"; width: number } | { kind: "collapse" };
 
 /** The raw width the pointer asks for: distance from the pane's far edge. */
 export function paneWidthFromPointer(
@@ -952,7 +1003,11 @@ export function attachPaneResizer(options: PaneResizerOptions): () => void {
   };
   const onPointerMove = (event: PointerEvent): void => {
     if (!dragging) return;
-    lastRaw = paneWidthFromPointer(options.edge, options.origin(), event.clientX);
+    lastRaw = paneWidthFromPointer(
+      options.edge,
+      options.origin(),
+      event.clientX,
+    );
     options.onMove(clamp(lastRaw, options.minimum, options.maximum()));
   };
   const onPointerUp = (event: PointerEvent): void => {
@@ -1012,10 +1067,12 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 3: The Key rail gets a handle and stops owning its collapse pref
 
 **Files:**
+
 - Modify: `src/services/graphKeyRail.ts` (imports at top; `KeyRailOptions`, `KeyRail` interface, `createKeyRail` body)
 - Modify: `addon/content/graph.css:1274-1290` (rail block) and add a `.cm-rail-resizer` rule
 
 **Interfaces:**
+
 - Consumes: `element` from `graphViewControls.ts` (already imported).
 - Produces, on `KeyRail`:
 
@@ -1025,6 +1082,7 @@ setWidth(width: number): void;     // open width in px; stored while collapsed, 
 setCollapsed(collapsed: boolean): void;
 isCollapsed(): boolean;
 ```
+
 and on `KeyRailOptions`: `onCollapsedChange?: (collapsed: boolean) => void`, called only when the rail's own toggle flips it.
 
 This task has no unit test: the rail needs a DOM and the repo's unit tests run without one (see `test/nodeResolve.mjs`). It is verified by the type checker here and by the manual check in Task 5.
@@ -1085,64 +1143,64 @@ Replace the `KeyRail` interface's `render`/`release`/`destroy` block so it reads
 Replace, inside `createKeyRail`, the block from `const body = element(document, "div", "cm-key-body");` down to the end of the `toggle.addEventListener("click", …)` handler with:
 
 ```ts
-  const body = element(document, "div", "cm-key-body");
-  const footer = element(document, "div", "cm-key-footer");
-  const resizer = element(document, "div", "cm-rail-resizer");
-  resizer.tabIndex = 0;
-  resizer.setAttribute("role", "separator");
-  resizer.setAttribute("aria-orientation", "vertical");
-  resizer.setAttribute("aria-label", "Resize sidebar");
-  root.append(toolbar, body, footer, resizer);
+const body = element(document, "div", "cm-key-body");
+const footer = element(document, "div", "cm-key-footer");
+const resizer = element(document, "div", "cm-rail-resizer");
+resizer.tabIndex = 0;
+resizer.setAttribute("role", "separator");
+resizer.setAttribute("aria-orientation", "vertical");
+resizer.setAttribute("aria-label", "Resize sidebar");
+root.append(toolbar, body, footer, resizer);
 
-  // Width and collapse belong to Zotero's collections pane; the view sets
-  // them here from its binding, and the rail only draws what it is told.
-  let collapsed = false;
-  let width = 200;
-  /** The entry whose emphasis is pinned, if any. Hover is transient; this is not. */
-  let pinned: KeyEntry | null = null;
-  let pinnedButton: HTMLButtonElement | null = null;
+// Width and collapse belong to Zotero's collections pane; the view sets
+// them here from its binding, and the rail only draws what it is told.
+let collapsed = false;
+let width = 200;
+/** The entry whose emphasis is pinned, if any. Hover is transient; this is not. */
+let pinned: KeyEntry | null = null;
+let pinnedButton: HTMLButtonElement | null = null;
 
-  const applyLayout = (): void => {
-    root.dataset.collapsed = String(collapsed);
-    // Inline width would beat the stylesheet's 28px collapsed rule, so it is
-    // only set while open.
-    root.style.width = collapsed ? "" : `${Math.round(width)}px`;
-    resizer.hidden = collapsed;
-    toggle.setAttribute("aria-expanded", String(!collapsed));
-    // "Sidebar", not "key": the rail carries the view's controls as well as
-    // the Key now, and the button takes the whole column with it.
-    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
-    toggle.title = label;
-    toggle.setAttribute("aria-label", label);
-    toggle.replaceChildren(
-      createIcon(
-        document,
-        collapsed ? "chevron-right" : "chevron-left",
-        PANE_TOGGLE_ICON_SIZE,
-      ),
-    );
-  };
+const applyLayout = (): void => {
+  root.dataset.collapsed = String(collapsed);
+  // Inline width would beat the stylesheet's 28px collapsed rule, so it is
+  // only set while open.
+  root.style.width = collapsed ? "" : `${Math.round(width)}px`;
+  resizer.hidden = collapsed;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  // "Sidebar", not "key": the rail carries the view's controls as well as
+  // the Key now, and the button takes the whole column with it.
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  toggle.title = label;
+  toggle.setAttribute("aria-label", label);
+  toggle.replaceChildren(
+    createIcon(
+      document,
+      collapsed ? "chevron-right" : "chevron-left",
+      PANE_TOGGLE_ICON_SIZE,
+    ),
+  );
+};
 
-  const release = (): void => {
-    if (!pinned) return;
-    pinned = null;
-    pinnedButton?.setAttribute("aria-pressed", "false");
-    pinnedButton = null;
-    onEmphasise(null);
-  };
+const release = (): void => {
+  if (!pinned) return;
+  pinned = null;
+  pinnedButton?.setAttribute("aria-pressed", "false");
+  pinnedButton = null;
+  onEmphasise(null);
+};
 
-  const setCollapsed = (next: boolean): void => {
-    if (next === collapsed) return;
-    collapsed = next;
-    applyLayout();
-    // A collapsed rail cannot show what is pinned, so it cannot hold a pin.
-    if (collapsed) release();
-  };
+const setCollapsed = (next: boolean): void => {
+  if (next === collapsed) return;
+  collapsed = next;
+  applyLayout();
+  // A collapsed rail cannot show what is pinned, so it cannot hold a pin.
+  if (collapsed) release();
+};
 
-  toggle.addEventListener("click", () => {
-    setCollapsed(!collapsed);
-    options.onCollapsedChange?.(collapsed);
-  });
+toggle.addEventListener("click", () => {
+  setCollapsed(!collapsed);
+  options.onCollapsedChange?.(collapsed);
+});
 ```
 
 Then replace the call `applyCollapsed();` near the bottom of `createKeyRail` with `applyLayout();`, and in the returned object add the new members after `footer,`:
@@ -1208,11 +1266,13 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 4: Wire both panes to Zotero in the graph view and remove the prefs
 
 **Files:**
+
 - Modify: `src/services/graphViewService.ts` (imports at ~118-172; detail pane setup ~1034-1097; toggle/resizer block ~4254-4313; cleanup ~4660-4667)
 - Modify: `src/services/citationPreferences.ts:168-190`
 - Modify: `addon/prefs.js:18-19`
 
 **Interfaces:**
+
 - Consumes: `bindZoteroPane`, `PANE_MINIMUM`, `ZoteroPaneState` (Task 1); `attachPaneResizer` (Task 2); `KeyRail.resizer/setWidth/setCollapsed/isCollapsed`, `KeyRailOptions.onCollapsedChange` (Task 3).
 - Produces: nothing new for later tasks.
 
@@ -1249,20 +1309,20 @@ import {
 Replace the block from `const initialWidth = clamp(` through `detailShell.dataset.collapsed = String(collapsed);` (~1064-1073) with:
 
 ```ts
-  // Width and collapse for both side panes belong to Zotero's own panes: the
-  // collections pane on the left, the item pane on the right. The graph draws
-  // what they say and writes back what its handles do.
-  const hostWindow = document.defaultView as Window;
-  const collectionsPane = bindZoteroPane("collections", hostWindow);
-  const itemPane = bindZoteroPane("item", hostWindow);
+// Width and collapse for both side panes belong to Zotero's own panes: the
+// collections pane on the left, the item pane on the right. The graph draws
+// what they say and writes back what its handles do.
+const hostWindow = document.defaultView as Window;
+const collectionsPane = bindZoteroPane("collections", hostWindow);
+const itemPane = bindZoteroPane("item", hostWindow);
 
-  const applyDetailState = (state: ZoteroPaneState): void => {
-    detailShell.dataset.collapsed = String(state.collapsed);
-    detailShell.style.width = state.collapsed
-      ? COLLAPSED_DETAIL_WIDTH
-      : `${Math.round(state.width)}px`;
-  };
-  applyDetailState(itemPane.read());
+const applyDetailState = (state: ZoteroPaneState): void => {
+  detailShell.dataset.collapsed = String(state.collapsed);
+  detailShell.style.width = state.collapsed
+    ? COLLAPSED_DETAIL_WIDTH
+    : `${Math.round(state.width)}px`;
+};
+applyDetailState(itemPane.read());
 ```
 
 Then change `createKeyRail({ document, onEmphasise: … })` to also pass:
@@ -1274,19 +1334,19 @@ Then change `createKeyRail({ document, onEmphasise: … })` to also pass:
 and right after `const keyRail = createKeyRail({ … });` add:
 
 ```ts
-  {
-    const state = collectionsPane.read();
-    keyRail.setWidth(state.width);
-    keyRail.setCollapsed(state.collapsed);
-  }
-  const unsubscribeCollectionsPane = collectionsPane.subscribe((state) => {
-    keyRail.setWidth(state.width);
-    keyRail.setCollapsed(state.collapsed);
-  });
-  const unsubscribeItemPane = itemPane.subscribe((state) => {
-    applyDetailState(state);
-    syncDetailToggle();
-  });
+{
+  const state = collectionsPane.read();
+  keyRail.setWidth(state.width);
+  keyRail.setCollapsed(state.collapsed);
+}
+const unsubscribeCollectionsPane = collectionsPane.subscribe((state) => {
+  keyRail.setWidth(state.width);
+  keyRail.setCollapsed(state.collapsed);
+});
+const unsubscribeItemPane = itemPane.subscribe((state) => {
+  applyDetailState(state);
+  syncDetailToggle();
+});
 ```
 
 `syncDetailToggle` is a function declaration later in the same function body, so it is hoisted and callable here.
@@ -1296,66 +1356,70 @@ and right after `const keyRail = createKeyRail({ … });` add:
 Replace the block from `function setDetailCollapsed(next: boolean): void {` through the `detailToggle.addEventListener("click", …)` call (~4273-4312) with:
 
 ```ts
-  function setDetailCollapsed(next: boolean): void {
-    applyDetailState({ width: itemPane.read().width, collapsed: next });
-    itemPane.setCollapsed(next);
+function setDetailCollapsed(next: boolean): void {
+  applyDetailState({ width: itemPane.read().width, collapsed: next });
+  itemPane.setCollapsed(next);
+  syncDetailToggle();
+}
+
+const detachDetailResizer = attachPaneResizer({
+  handle: resizer,
+  edge: "end",
+  minimum: PANE_MINIMUM.item,
+  maximum: () =>
+    Math.max(PANE_MINIMUM.item, root.getBoundingClientRect().width * 0.7),
+  collapseThreshold: 60,
+  origin: () => root.getBoundingClientRect().right,
+  onBegin: () => itemPane.beginLocalChange(),
+  onMove: (width) => {
+    applyDetailState({ width, collapsed: false });
+    itemPane.write(width);
+  },
+  onRelease: (release) => {
+    if (release.kind === "collapse") setDetailCollapsed(true);
+    else itemPane.write(release.width);
+  },
+  onEnd: () => {
+    itemPane.endLocalChange();
     syncDetailToggle();
-  }
+  },
+  onToggle: () => setDetailCollapsed(detailShell.dataset.collapsed !== "true"),
+});
+detailToggle.addEventListener("click", () => {
+  setDetailCollapsed(detailShell.dataset.collapsed !== "true");
+});
 
-  const detachDetailResizer = attachPaneResizer({
-    handle: resizer,
-    edge: "end",
-    minimum: PANE_MINIMUM.item,
-    maximum: () => Math.max(PANE_MINIMUM.item, root.getBoundingClientRect().width * 0.7),
-    collapseThreshold: 60,
-    origin: () => root.getBoundingClientRect().right,
-    onBegin: () => itemPane.beginLocalChange(),
-    onMove: (width) => {
-      applyDetailState({ width, collapsed: false });
-      itemPane.write(width);
-    },
-    onRelease: (release) => {
-      if (release.kind === "collapse") setDetailCollapsed(true);
-      else itemPane.write(release.width);
-    },
-    onEnd: () => {
-      itemPane.endLocalChange();
-      syncDetailToggle();
-    },
-    onToggle: () => setDetailCollapsed(detailShell.dataset.collapsed !== "true"),
-  });
-  detailToggle.addEventListener("click", () => {
-    setDetailCollapsed(detailShell.dataset.collapsed !== "true");
-  });
-
-  const detachRailResizer = attachPaneResizer({
-    handle: keyRail.resizer,
-    edge: "start",
-    minimum: PANE_MINIMUM.collections,
-    maximum: () =>
-      Math.max(PANE_MINIMUM.collections, root.getBoundingClientRect().width * 0.5),
-    collapseThreshold: 60,
-    origin: () => keyRail.root.getBoundingClientRect().left,
-    onBegin: () => collectionsPane.beginLocalChange(),
-    onMove: (width) => {
-      keyRail.setWidth(width);
-      collectionsPane.write(width);
-    },
-    onRelease: (release) => {
-      if (release.kind === "collapse") {
-        keyRail.setCollapsed(true);
-        collectionsPane.setCollapsed(true);
-      } else {
-        collectionsPane.write(release.width);
-      }
-    },
-    onEnd: () => collectionsPane.endLocalChange(),
-    onToggle: () => {
-      const next = !keyRail.isCollapsed();
-      keyRail.setCollapsed(next);
-      collectionsPane.setCollapsed(next);
-    },
-  });
+const detachRailResizer = attachPaneResizer({
+  handle: keyRail.resizer,
+  edge: "start",
+  minimum: PANE_MINIMUM.collections,
+  maximum: () =>
+    Math.max(
+      PANE_MINIMUM.collections,
+      root.getBoundingClientRect().width * 0.5,
+    ),
+  collapseThreshold: 60,
+  origin: () => keyRail.root.getBoundingClientRect().left,
+  onBegin: () => collectionsPane.beginLocalChange(),
+  onMove: (width) => {
+    keyRail.setWidth(width);
+    collectionsPane.write(width);
+  },
+  onRelease: (release) => {
+    if (release.kind === "collapse") {
+      keyRail.setCollapsed(true);
+      collectionsPane.setCollapsed(true);
+    } else {
+      collectionsPane.write(release.width);
+    }
+  },
+  onEnd: () => collectionsPane.endLocalChange(),
+  onToggle: () => {
+    const next = !keyRail.isCollapsed();
+    keyRail.setCollapsed(next);
+    collectionsPane.setCollapsed(next);
+  },
+});
 ```
 
 Keep the `syncDetailToggle();` call that followed the old block. Delete the old `let resizing = false;` / `const resize = …` code and the four `resizer.addEventListener` calls; nothing else should reference `resizing`. The `renderer?.resizeViewport()` calls that were in `setDetailCollapsed` and `resize` are gone on purpose: the renderer's own `ResizeObserver` on the plot container already coalesces to one resize per frame.
@@ -1367,12 +1431,12 @@ Grep for remaining uses: `grep -n "getDetailPanelWidth\|setDetailPanelWidth\|Det
 In the `cleanup` function, before `keyRail.destroy();` add:
 
 ```ts
-    detachRailResizer();
-    detachDetailResizer();
-    unsubscribeCollectionsPane();
-    unsubscribeItemPane();
-    collectionsPane.dispose();
-    itemPane.dispose();
+detachRailResizer();
+detachDetailResizer();
+unsubscribeCollectionsPane();
+unsubscribeItemPane();
+collectionsPane.dispose();
+itemPane.dispose();
 ```
 
 - [ ] **Step 6: Typecheck, lint, tests**
@@ -1395,6 +1459,7 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 5: Manual check in Zotero and rail width audit
 
 **Files:**
+
 - Possibly modify: `addon/content/graph.css` (identity row overflow at narrow and wide rails)
 
 **Interfaces:** none.
