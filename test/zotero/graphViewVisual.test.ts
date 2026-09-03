@@ -15,6 +15,7 @@ import {
   type ViewStage,
 } from "./visualHarness";
 import { setGraphAppearance } from "../../src/services/citationPreferences";
+import { getGraphViewController } from "../../src/services/graphViewService";
 
 const APPEARANCE_PREF = "browser.theme.toolbar-theme";
 
@@ -388,6 +389,73 @@ describe("Graph view, as the product builds it", function () {
       0,
     );
     await shot("view-06-appearance-open");
+  });
+
+  it("view 7 — the Key names the folders in scope and no others", async function () {
+    this.timeout(60_000);
+    const active = await open(220);
+    const controller = getGraphViewController(active.mount)!;
+
+    // Every folder in the corpus, because nothing is filtered yet.
+    const wide = railEntries(active.root);
+    const named = (entries: string[], label: string): boolean =>
+      entries.some((entry) => entry.startsWith(label));
+    expect(
+      named(wide, "Auxin transport"),
+      "the whole library names it",
+    ).to.equal(true);
+    expect(named(wide, "Flowering"), "and names the rest too").to.equal(true);
+    await shot("view-07-key-whole-library");
+
+    // The context menu's "graph this folder" arrives here. It is a filter over
+    // a library-wide model, which is exactly why the Key used to go on naming
+    // folders that were no longer on screen.
+    expect(controller.openCollections([3])).to.equal("selected");
+    await settle(active.window, 10);
+
+    const scoped = railEntries(active.root);
+    notes.push(`view 7 rail in scope: ${scoped.join(" | ")}`);
+    expect(
+      named(scoped, "Auxin transport"),
+      "the folder the graph was opened on is still named",
+    ).to.equal(true);
+    for (const absent of [
+      "Meristem structure",
+      "Phyllotaxis",
+      "Stem cells",
+      "Root apical meristem",
+      "Flowering",
+      "Methods",
+    ]) {
+      expect(
+        named(scoped, absent),
+        `${absent} has no papers on screen, so the Key must not name it`,
+      ).to.equal(false);
+    }
+    await shot("view-07-key-one-folder");
+  });
+
+  it("view 8 — the rail is Zotero's own left pane", async function () {
+    this.timeout(60_000);
+    const active = await open(120);
+    const view = active.window as any;
+    const rail = active.root.querySelector(".cm-key-rail") as HTMLElement;
+    const style = view.getComputedStyle(rail);
+    const width = rail.getBoundingClientRect().width;
+    notes.push(
+      `view 8 rail: ${width}px background ${style.backgroundColor} border ${style.borderRightColor}`,
+    );
+    // #zotero-collections-pane is 200px wide and painted --material-sidepane.
+    expect(width, "the rail matches Zotero's collections pane").to.equal(200);
+    expect(
+      style.backgroundColor,
+      "and is painted, not left transparent",
+    ).to.not.equal("rgba(0, 0, 0, 0)");
+    expect(
+      style.backgroundColor,
+      "in the sidepane colour rather than the window's own",
+    ).to.not.equal(view.getComputedStyle(active.root).backgroundColor);
+    await shot("view-08-rail-chrome");
   });
 
   it("view 4 — the chrome follows Zotero's appearance in one step", async function () {

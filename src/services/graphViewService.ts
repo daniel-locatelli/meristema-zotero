@@ -383,6 +383,8 @@ export function renderGraphView(
       : "map");
   let currentViewKind: "map" | "focus" = initialViewKind;
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
+  /** What the filter admits, before the search box. See `applyFilters`. */
+  let scopeKeys = new Set(visibleKeys);
   let mapScopeItemIDs = options.initialMapScopeItemIDs
     ? replaceItemScope(options.initialMapScopeItemIDs)
     : null;
@@ -3724,9 +3726,14 @@ export function renderGraphView(
       buildKeyModel({
         layout: active.getLayout(),
         assignment: active.getCategoryAssignment(),
-        // The whole graph, not just what survives the filter: the Key names the
-        // filtered-out mark too, and it can only count what it was given.
-        nodes: model.nodes,
+        // What the filter admits — not the whole library. A graph opened on a
+        // folder is the library with a filter over it, so handing the Key every
+        // node made it name folders whose papers are nowhere on screen.
+        nodes: active.getScopeNodes(),
+        // The ramp and the radii are still derived from the whole model, so
+        // filtering moves nothing; the Key reads its ranges from the same set
+        // the canvas did, or it would print a scale the plot is not using.
+        scaleNodes: model.nodes,
         theme: active.getTheme(),
         edgeCount: active.getVisibleEdgeCount(),
         states: {
@@ -3769,40 +3776,49 @@ export function renderGraphView(
     // set scope, claiming the first selected folder preserves that behaviour
     // exactly — it is a hack carried forward, not one introduced here.
     const activeCollectionID = graphFilter.state().collectionIDs[0] ?? null;
-    visibleKeys = new Set(
-      model.nodes
-        .filter((node) => {
-          if (currentViewKind === "focus" && !focusProjection) return false;
-          if (focusScopeKeys && !focusScopeKeys.has(node.key)) return false;
-          if (
-            !focusProjection &&
-            mapScopeItemIDs &&
-            !mapScopeItemIDs.has(node.itemID)
-          ) {
-            return false;
-          }
-          const descriptor = graphFilterDescriptors.get(node.key);
-          if (!descriptor) return false;
-          // Collection membership scopes the library map. It must never hide
-          // external Focus neighbours, even if a collection is selected while
-          // Focus View is already open. Other metadata filters still apply.
-          const filterDescriptor =
-            focusProjection && activeCollectionID !== null
-              ? {
-                  ...descriptor,
-                  collectionIDs: descriptor.collectionIDs.includes(
-                    activeCollectionID,
-                  )
-                    ? descriptor.collectionIDs
-                    : [...descriptor.collectionIDs, activeCollectionID],
-                }
-              : descriptor;
-          if (!graphFilter.matches(filterDescriptor)) return false;
-          const searchable = graphNodeSearchText(node);
-          return tokens.every((token) => searchable.includes(token));
-        })
-        .map((node) => node.key),
-    );
+    // Two sets, not one. `scopeKeys` is what the filter admits and is what the
+    // graph is a graph *of* — the Key and the colour assignment are built from
+    // it, so a folder graph names that folder's folders. `visibleKeys` narrows
+    // it further by the search box, which is a transient lens and must not
+    // reshuffle the swatches under the reader as they type.
+    const inScope = (node: CitationGraphNode): boolean => {
+      if (currentViewKind === "focus" && !focusProjection) return false;
+      if (focusScopeKeys && !focusScopeKeys.has(node.key)) return false;
+      if (
+        !focusProjection &&
+        mapScopeItemIDs &&
+        !mapScopeItemIDs.has(node.itemID)
+      ) {
+        return false;
+      }
+      const descriptor = graphFilterDescriptors.get(node.key);
+      if (!descriptor) return false;
+      // Collection membership scopes the library map. It must never hide
+      // external Focus neighbours, even if a collection is selected while
+      // Focus View is already open. Other metadata filters still apply.
+      const filterDescriptor =
+        focusProjection && activeCollectionID !== null
+          ? {
+              ...descriptor,
+              collectionIDs: descriptor.collectionIDs.includes(
+                activeCollectionID,
+              )
+                ? descriptor.collectionIDs
+                : [...descriptor.collectionIDs, activeCollectionID],
+            }
+          : descriptor;
+      if (!graphFilter.matches(filterDescriptor)) return false;
+      return true;
+    };
+    const matchesSearch = (node: CitationGraphNode): boolean => {
+      if (!tokens.length) return true;
+      const searchable = graphNodeSearchText(node);
+      return tokens.every((token) => searchable.includes(token));
+    };
+    const scoped = model.nodes.filter(inScope);
+    scopeKeys = new Set(scoped.map((node) => node.key));
+    visibleKeys = new Set(scoped.filter(matchesSearch).map((node) => node.key));
+    renderer?.setScopeKeys(scopeKeys);
     renderer?.setVisibleKeys(visibleKeys, false);
     const matches = tokens.length ? new Set(visibleKeys) : null;
     searchMatchKeys = matches;

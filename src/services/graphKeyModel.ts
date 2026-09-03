@@ -99,7 +99,25 @@ export interface KeyStates {
 export interface KeyModelInput {
   layout: GraphLayoutOptions;
   assignment: CategoryAssignment;
+  /**
+   * The nodes the graph is drawing — the filter's scope, not the whole library.
+   *
+   * A graph opened on one folder is a library-wide model with a filter over it,
+   * so handing the Key every node made it name folders whose papers were not on
+   * screen. Everything the Key counts is counted here.
+   */
   nodes: CitationGraphNode[];
+  /**
+   * The nodes the numeric scales were built from, where that is a wider set
+   * than `nodes`.
+   *
+   * The canvas derives its ramp and its radii from the whole model so that
+   * filtering moves nothing, which means the ends of a ramp belong to the model
+   * and not to the scope. Reading them off `nodes` would print a range the plot
+   * is not using. Counts still come from `nodes`: how many papers *on screen*
+   * have a value is a fact about the scope.
+   */
+  scaleNodes?: CitationGraphNode[];
   theme: GraphTheme;
   /** How many links are drawn. Zero means there is no link encoding to name. */
   edgeCount: number;
@@ -113,14 +131,18 @@ function metricLabel(metric: GraphNodeColorMetric | MetricID): string {
   );
 }
 
-/** The ends of what is on screen, formatted in the metric's own units. */
+/**
+ * The ends of the scale, formatted in the metric's own units, and how many of
+ * the drawn nodes sit on it. The two come from different sets on purpose — see
+ * `scaleNodes` above.
+ */
 function extentDetail(
-  nodes: CitationGraphNode[],
+  input: KeyModelInput,
   metric: MetricID,
 ): { detail: string; count: number } | null {
-  const extent = metricExtent(nodes, metric);
+  const extent = metricExtent(input.scaleNodes ?? input.nodes, metric);
   if (!extent) return null;
-  const count = nodes.filter(
+  const count = input.nodes.filter(
     (node) => metricNumber(node, metric) !== null,
   ).length;
   return {
@@ -137,11 +159,11 @@ function colorSection(input: KeyModelInput): KeySection {
 
   if (!isCategoricalColorMetric(metric)) {
     const entries: KeyEntry[] = [];
-    const extent = extentDetail(nodes, metric as MetricID);
+    const extent = extentDetail(input, metric as MetricID);
     entries.push({
       id: "ramp",
       // The section's subheading already names the metric; repeating it here
-      // pushed the range off the end of a 194px rail. The row carries the ends.
+      // pushed the range off the end of the rail. The row carries the ends.
       label: extent?.detail ?? "No values",
       count: extent?.count ?? 0,
       detail: null,
@@ -233,7 +255,7 @@ function colorSection(input: KeyModelInput): KeySection {
 function sizeSection(input: KeyModelInput): KeySection | null {
   const metric = input.layout.nodeSizeMetric;
   if (metric === "uniform") return null;
-  const extent = extentDetail(input.nodes, metric);
+  const extent = extentDetail(input, metric);
   return {
     kind: "size",
     heading: "Size",

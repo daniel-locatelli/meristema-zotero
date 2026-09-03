@@ -167,6 +167,18 @@ export class CitationGraphRenderer {
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
   private visibleKeys: Set<string>;
+  /**
+   * The keys the *filter* admits, before the search box narrows them further.
+   *
+   * A graph opened on a folder is the whole library with a filter over it, so
+   * "which categories exist" cannot be asked of the model — it would rank the
+   * library's folders and hand the swatches to folders the graph is not
+   * showing. It is asked of this instead. The search is deliberately not part
+   * of it: typing in the box would otherwise reshuffle every colour on screen.
+   */
+  private scopeKeys: Set<string>;
+  /** Bumped whenever `scopeKeys` changes, so the assignment cache can notice. */
+  private scopeRevision = 0;
   private searchMatches: Set<string> | null = null;
   private readonly hiddenEdgeKeys = new Set<string>();
   private layout: GraphLayoutOptions;
@@ -213,6 +225,7 @@ export class CitationGraphRenderer {
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
     this.visibleKeys = new Set(this.model.nodes.map((node) => node.key));
+    this.scopeKeys = new Set(this.visibleKeys);
 
     this.initializePositions();
     this.installEvents();
@@ -694,6 +707,35 @@ export class CitationGraphRenderer {
     return this.theme;
   }
 
+  /**
+   * The nodes inside the active filter — what the graph is a graph *of*.
+   *
+   * The Key counts these rather than the model, so a graph opened on a folder
+   * names that folder's colours and not the library's. It is not
+   * `visibleNodes()`: that one follows the search box and carries the selection
+   * and the pins, all of which change on a click.
+   */
+  public getScopeNodes(): CitationGraphNode[] {
+    if (this.scopeKeys.size === this.model.nodes.length)
+      return this.model.nodes;
+    return this.model.nodes.filter((node) => this.scopeKeys.has(node.key));
+  }
+
+  /** Narrow what the graph is a graph of. Null restores the whole model. */
+  public setScopeKeys(keys: ReadonlySet<string> | null): void {
+    const next = keys
+      ? new Set(keys)
+      : new Set(this.model.nodes.map((node) => node.key));
+    if (
+      next.size === this.scopeKeys.size &&
+      [...next].every((key) => this.scopeKeys.has(key))
+    ) {
+      return;
+    }
+    this.scopeKeys = next;
+    this.scopeRevision += 1;
+  }
+
   private isDarkMode(): boolean {
     return this.theme.scheme === "dark";
   }
@@ -703,10 +745,10 @@ export class CitationGraphRenderer {
    * metric, the node set or the scheme actually changes.
    */
   private categories(): CategoryAssignment {
-    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}`;
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(
-        this.model.nodes,
+        this.getScopeNodes(),
         this.layout.nodeColorMetric,
         this.theme,
         { labelFor: (id) => this.collectionLabels.get(id) ?? null },
@@ -1335,6 +1377,9 @@ export class CitationGraphRenderer {
     });
     this.visibleKeys = new Set(
       [...this.visibleKeys].filter((key) => validKeys.has(key)),
+    );
+    this.setScopeKeys(
+      new Set([...this.scopeKeys].filter((key) => validKeys.has(key))),
     );
     this.pinnedKeys = new Set(
       [...this.pinnedKeys].filter((key) => validKeys.has(key)),

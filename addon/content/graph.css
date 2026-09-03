@@ -6,6 +6,17 @@
  * system colours on purpose.
  */
 .meristema-root {
+  /*
+   * Zotero's own left pane, so the graph's rail is the same furniture rather
+   * than a near miss. `--material-sidepane` and `--material-panedivider` resolve
+   * inside the Zotero window, which is where the graph tab lives; the standalone
+   * graph window loads only chrome://global/skin/, so the fallbacks carry the
+   * values Zotero would have given (#zotero-collections-pane, 200px wide, and
+   * --color-sidepane / --color-panedivider).
+   */
+  --cm-sidepane: var(--material-sidepane, #f2f2f2);
+  --cm-panedivider: var(--material-panedivider, #dadada);
+  --cm-sidepane-width: 200px;
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
   --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
@@ -509,8 +520,10 @@
   min-width: 8px;
   max-width: 70%;
   min-height: 0;
-  border-left: 1px solid var(--cm-border);
-  background: var(--cm-surface-raised);
+  /* Zotero paints #zotero-item-pane-content with the same token as its left
+   * pane, so the graph's two side panels match each other and match Zotero. */
+  border-left: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
 }
 .cm-detail-shell[data-collapsed="true"] .cm-detail-panel {
   display: none;
@@ -697,6 +710,8 @@
  */
 .meristema-root[data-cm-scheme="dark"] {
   --cm-icon-color: #f2f2f2;
+  --cm-sidepane: var(--material-sidepane, #303030);
+  --cm-panedivider: var(--material-panedivider, #404040);
 }
 
 .cm-focus-bar {
@@ -837,11 +852,11 @@
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  width: 194px;
+  width: var(--cm-sidepane-width);
   min-width: 0;
   height: 100%;
-  border-right: 1px solid var(--cm-border);
-  background: var(--cm-surface-raised);
+  border-right: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
 }
 .cm-key-rail[data-collapsed="true"] {
   width: 28px;

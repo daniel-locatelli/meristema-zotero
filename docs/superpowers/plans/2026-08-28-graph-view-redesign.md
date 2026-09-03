@@ -724,6 +724,52 @@ the one silent breakage in the reflow; check it before claiming the task done.
 Verify in both a tab and a window, at narrow widths, that nothing wraps into a
 second row and the focus bar still fits.
 
+## From the first real run — DONE, verified
+
+The author opened a graph from a folder's context menu and reported three
+things. All three came from the same place: **a folder graph is the whole
+library with a filter over it**, and everything that asked "what is in this
+graph" asked the model instead of the filter.
+
+- **The Key named folders that were not on screen.** `refreshKeyRail` was handed
+  `model.nodes`, and `CitationGraphRenderer.categories()` ranked
+  `assignCategories` over `model.nodes` too — so a graph of one folder handed
+  its swatches to whichever folders were largest _library-wide_, and the rail
+  listed them. Both now read `getScopeNodes()`.
+- **The rail was 194px on `--cm-surface-raised`.** Zotero's
+  `#zotero-collections-pane` is **200px** on `--material-sidepane`
+  (`--color-sidepane`: `#f2f2f2` / `#303030`), divided by `--color-panedivider`
+  (`#dadada` / `#404040`). The rail now uses those, via
+  `var(--material-sidepane, …)` so the graph _tab_ inherits Zotero's own token
+  and the standalone window — which loads only `chrome://global/skin/` — falls
+  back to the same values. The detail panel matches, because Zotero paints
+  `#zotero-item-pane-content` with the same token.
+
+### The scope is the filter, not the search
+
+`applyFilters` builds two sets now. `scopeKeys` is what the filter admits and is
+what the graph is a graph _of_; `visibleKeys` narrows it further by the search
+box. The colour assignment and the Key are built from the first, because
+building them from the second would reshuffle every swatch on screen as the
+reader typed.
+
+### What deliberately did not change
+
+The canvas still derives its axes, its radii and its numeric ramp from the whole
+model, so filtering moves nothing — that is `setVisibleKeys`'s stated contract.
+The Key therefore reads its _ranges_ from the model (`KeyModelInput.scaleNodes`)
+and its _counts_ from the scope, and the two differ on purpose. A visible
+consequence: a one-folder graph still shows the library's citation range under
+SIZE while counting only the folder's papers. Worth an author's decision, not a
+silent fix.
+
+### Verified by
+
+`view 7 — the Key names the folders in scope and no others` and `view 8 — the
+rail is Zotero's own left pane`, both in `test/zotero/graphViewVisual.test.ts`.
+View 7 asserts every one of the other six harness folders is absent after
+`openCollections([3])`; view 8 asserts 200px and a painted, distinct sidepane.
+
 ## Task 8: Export
 
 `exportGraphPNG()` composites the theme's plot background before the graph
