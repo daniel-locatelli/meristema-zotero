@@ -434,13 +434,25 @@ describe("Graph view, as the product builds it", function () {
       expect(glyph, `${selector} draws its glyph`).to.not.equal(null);
       const buttonRect = button.getBoundingClientRect();
       const glyphRect = glyph.getBoundingClientRect();
-      const drift =
-        (glyphRect.top + glyphRect.bottom) / 2 -
-        (buttonRect.top + buttonRect.bottom) / 2;
-      expect(
-        Math.abs(drift),
-        `${selector} centres its glyph vertically`,
-      ).to.be.lessThan(0.6);
+      /*
+       * Both axes. The horizontal one has its own trap: the shared button rule
+       * is `.meristema-root button`, which outranks a bare class, so a square
+       * icon button declared as one class keeps `padding: 4px 9px` and its
+       * glyph sits against an edge. Any override here must match that
+       * specificity.
+       */
+      for (const [axis, near, far] of [
+        ["vertically", "top", "bottom"],
+        ["horizontally", "left", "right"],
+      ] as const) {
+        const drift =
+          (glyphRect[near] + glyphRect[far]) / 2 -
+          (buttonRect[near] + buttonRect[far]) / 2;
+        expect(
+          Math.abs(drift),
+          `${selector} centres its glyph ${axis}`,
+        ).to.be.lessThan(0.6);
+      }
     }
 
     const toggle = active.root.querySelector(".cm-key-toggle") as HTMLElement;

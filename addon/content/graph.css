@@ -150,7 +150,14 @@
   gap: 4px;
   flex: 0 0 auto;
 }
-.cm-history-controls button {
+/*
+ * `.meristema-root` on the front is load-bearing, not decoration. The shared
+ * button rule below is `.meristema-root button`, which outranks a bare class,
+ * so a square icon button written as one class quietly kept `padding: 4px 9px`
+ * — a 16px glyph inside a 6px content box, pushed against one edge. Anything
+ * here that overrides that rule has to match its specificity.
+ */
+.meristema-root .cm-history-controls button {
   min-width: 26px;
   width: 26px;
   height: 26px;
@@ -925,22 +932,28 @@
 .cm-key-rail[data-collapsed="true"] .cm-key-body {
   display: none;
 }
-.cm-key-toggle {
+/* Specificity as above: a bare `.cm-key-toggle` loses to `.meristema-root
+ * button` on padding, and the chevron ends up against the left edge. */
+.meristema-root .cm-key-toggle {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   /* The spacer that puts it at the toolbar's far end, as Zotero's is. */
   margin-inline-start: auto;
   width: 26px;
+  min-width: 26px;
   height: 26px;
+  min-height: 26px;
   padding: 0;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--cm-muted);
-  font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
-.cm-key-toggle:hover {
+.meristema-root .cm-key-toggle:hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
 }
 .cm-key-body {

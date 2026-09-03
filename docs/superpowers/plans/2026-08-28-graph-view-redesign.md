@@ -829,7 +829,15 @@ line box — so all four read a pixel or two high inside a centred button, and n
 amount of `align-items: center` fixes it, because the line box _is_ centred.
 `uiIconService.ts` gained `arrow-left`, `arrow-right`, `chevron-left` and
 `chevron-right`, centred on the 24-unit viewBox. View 9 asserts the drawn
-glyph's centre is within 0.6px of its button's.
+glyph's centre is within 0.6px of its button's, **on both axes**.
+
+Both axes, because the horizontal one had a second cause. The shared button
+rule is `.meristema-root button` — a class _and_ a type, so it outranks a bare
+`.cm-key-toggle`, and the toggle silently kept `padding: 4px 9px` with no
+`justify-content`: a 14px glyph in a 6px content box, flush against the left
+edge. `.cm-history-controls button` matched the shared rule's specificity but
+came earlier in the file and lost the same way. Any square icon button here has
+to be written `.meristema-root .whatever`, or the padding comes back.
 
 The toggle also says **"Collapse sidebar"**, not "Hide the key": since Task 7 the
 rail carries the view's zoom and appearance controls too, so the button takes
