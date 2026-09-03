@@ -16,10 +16,6 @@
  * render as plain rows: a focusable control that does nothing when pressed is
  * worse than no control.
  */
-import {
-  getKeyRailCollapsed,
-  setKeyRailCollapsed,
-} from "./citationPreferences";
 import { element, text } from "./graphViewControls";
 import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
@@ -129,6 +125,11 @@ export interface KeyRailOptions {
    * decides what emphasis *means*; it only says which entry is being pointed at.
    */
   onEmphasise: (entry: KeyEntry | null) => void;
+  /**
+   * The rail's own toggle flipped it. Not called for `setCollapsed`, which is
+   * how the view tells the rail about a change that came from elsewhere.
+   */
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export interface KeyRail {
@@ -147,6 +148,15 @@ export interface KeyRail {
    * the rail when the reader wants the whole width for the graph.
    */
   footer: HTMLElement;
+  /**
+   * The drag handle on the rail's inner edge. The view wires it, because the
+   * width it drags is Zotero's collections pane width, not the rail's own.
+   */
+  resizer: HTMLElement;
+  /** The open width. Remembered while collapsed and applied on expand. */
+  setWidth(width: number): void;
+  setCollapsed(collapsed: boolean): void;
+  isCollapsed(): boolean;
   render(model: KeyModel): void;
   /** Drop any pinned emphasis — a background click, or Escape. */
   release(): void;
@@ -172,15 +182,27 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   toolbar.append(toggle);
   const body = element(document, "div", "cm-key-body");
   const footer = element(document, "div", "cm-key-footer");
-  root.append(toolbar, body, footer);
+  const resizer = element(document, "div", "cm-rail-resizer");
+  resizer.tabIndex = 0;
+  resizer.setAttribute("role", "separator");
+  resizer.setAttribute("aria-orientation", "vertical");
+  resizer.setAttribute("aria-label", "Resize sidebar");
+  root.append(toolbar, body, footer, resizer);
 
-  let collapsed = getKeyRailCollapsed();
+  // Width and collapse belong to Zotero's collections pane; the view sets
+  // them here from its binding, and the rail only draws what it is told.
+  let collapsed = false;
+  let width = 200;
   /** The entry whose emphasis is pinned, if any. Hover is transient; this is not. */
   let pinned: KeyEntry | null = null;
   let pinnedButton: HTMLButtonElement | null = null;
 
-  const applyCollapsed = (): void => {
+  const applyLayout = (): void => {
     root.dataset.collapsed = String(collapsed);
+    // Inline width would beat the stylesheet's 28px collapsed rule, so it is
+    // only set while open.
+    root.style.width = collapsed ? "" : `${Math.round(width)}px`;
+    resizer.hidden = collapsed;
     toggle.setAttribute("aria-expanded", String(!collapsed));
     // "Sidebar", not "key": the rail carries the view's controls as well as
     // the Key now, and the button takes the whole column with it.
@@ -204,12 +226,17 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     onEmphasise(null);
   };
 
-  toggle.addEventListener("click", () => {
-    collapsed = !collapsed;
-    setKeyRailCollapsed(collapsed);
-    applyCollapsed();
+  const setCollapsed = (next: boolean): void => {
+    if (next === collapsed) return;
+    collapsed = next;
+    applyLayout();
     // A collapsed rail cannot show what is pinned, so it cannot hold a pin.
     if (collapsed) release();
+  };
+
+  toggle.addEventListener("click", () => {
+    setCollapsed(!collapsed);
+    options.onCollapsedChange?.(collapsed);
   });
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -295,12 +322,19 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     return node;
   }
 
-  applyCollapsed();
+  applyLayout();
 
   return {
     root,
     toolbar,
     footer,
+    resizer,
+    setWidth(next: number): void {
+      width = next;
+      applyLayout();
+    },
+    setCollapsed,
+    isCollapsed: () => collapsed,
     render(model: KeyModel): void {
       // A rebuild throws away the pinned entry's identity — the model is new
       // even when it describes the same thing — so the pin goes with it rather

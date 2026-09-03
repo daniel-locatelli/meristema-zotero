@@ -22,6 +22,7 @@
   --cm-sidepane: var(--material-sidepane, #f2f2f2);
   --cm-toolbar: var(--material-toolbar, #f9f9f9);
   --cm-panedivider: var(--color-panedivider, #dadada);
+  /* The rail's width until the view has read Zotero's collections pane width. */
   --cm-sidepane-width: 200px;
   --cm-toolbar-height: 41px;
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
@@ -1286,6 +1287,26 @@
   width: 28px;
 }
 .cm-key-rail[data-collapsed="true"] .cm-key-body {
+  display: none;
+}
+/*
+ * The rail's drag handle, on the edge it shares with the plot. Zotero's
+ * `#zotero-collections-splitter` sits between the two panes; here it lies
+ * over the rail's own last 8px so the layout has no extra column.
+ */
+.cm-rail-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.cm-rail-resizer:hover {
+  background: color-mix(in srgb, var(--cm-accent) 30%, transparent);
+}
+.cm-rail-resizer[hidden] {
   display: none;
 }
 /* Specificity as above: a bare `.cm-key-toggle` loses to `.meristema-root
