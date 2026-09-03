@@ -246,21 +246,19 @@ describe("Graph view, as the product builds it", function () {
     await shot("view-03-released");
   });
 
-  it("view 5 — the command bar is one row, and stays one row when narrow", async function () {
+  it("view 5 — the plot toolbar is one row, and stays one row when narrow", async function () {
     this.timeout(60_000);
     const active = await open(200);
-    const bar = active.root.querySelector(".cm-command-bar") as HTMLElement;
+    const bar = active.root.querySelector(".cm-plot-toolbar") as HTMLElement;
     const view = active.window as any;
 
-    expect(bar, "there is a command bar").to.not.equal(null);
-    expect(
-      active.root.querySelector(".cm-header"),
-      "and the header it replaced is gone",
-    ).to.equal(null);
-    expect(
-      active.root.querySelector(".cm-query-band"),
-      "along with the query band",
-    ).to.equal(null);
+    expect(bar, "there is a plot toolbar").to.not.equal(null);
+    for (const gone of [".cm-header", ".cm-query-band", ".cm-command-bar"]) {
+      expect(
+        active.root.querySelector(gone),
+        `${gone} is one of the window-spanning bars this view no longer has`,
+      ).to.equal(null);
+    }
 
     // The heading left the layout but not the document.
     const heading = active.root.querySelector("h1") as HTMLElement;
@@ -325,13 +323,106 @@ describe("Graph view, as the product builds it", function () {
     stage!.close();
     stage = await openViewStage(makeCorpus({ nodes: 200 }), { mode: "tab" });
     await settle(stage.window, 12);
-    const tabBar = stage.root.querySelector(".cm-command-bar") as HTMLElement;
+    const tabBar = stage.root.querySelector(".cm-plot-toolbar") as HTMLElement;
     expect(stage.root.dataset.mode).to.equal("tab");
     expect(
       tabBar.getBoundingClientRect().height,
       "the bar is the same one row in a tab",
     ).to.be.lessThan(56);
     await shot("view-05-bar-tab");
+  });
+
+  it("view 9 — the toolbars are Zotero's, one per pane", async function () {
+    this.timeout(60_000);
+    const active = await open(200);
+    const view = active.window as any;
+    const rail = active.root.querySelector(".cm-key-rail") as HTMLElement;
+    const railToolbar = active.root.querySelector(
+      ".cm-rail-toolbar",
+    ) as HTMLElement;
+    const plotToolbar = active.root.querySelector(
+      ".cm-plot-toolbar",
+    ) as HTMLElement;
+    expect(railToolbar, "the rail has a toolbar of its own").to.not.equal(null);
+    expect(plotToolbar, "and so does the plot").to.not.equal(null);
+
+    const railRect = railToolbar.getBoundingClientRect();
+    const plotRect = plotToolbar.getBoundingClientRect();
+
+    // Zotero's `.toolbar` is 41px. This is what the complaint was about: with
+    // one bar spanning the window the rail began below it, so the sidebar's
+    // top edge sat at a different y than #zotero-collections-pane's and the
+    // layout appeared to drop on switching to the graph.
+    for (const [name, rect] of [
+      ["rail", railRect],
+      ["plot", plotRect],
+    ] as const) {
+      expect(
+        Math.round(rect.height),
+        `the ${name} toolbar is Zotero's 41px`,
+      ).to.equal(41);
+    }
+    expect(
+      Math.round(railRect.top),
+      "the two toolbars start at the same y",
+    ).to.equal(Math.round(plotRect.top));
+    expect(
+      Math.round(railRect.top),
+      "and the rail's toolbar is the top of the rail, not a band above it",
+    ).to.equal(Math.round(rail.getBoundingClientRect().top));
+    expect(
+      // The rail's 1px divider is inside its border box, so the toolbar fills
+      // the 199px that leaves rather than the rail's own 200px.
+      Math.round(rail.getBoundingClientRect().width - railRect.width),
+      "the rail's toolbar fills the rail and goes no further",
+    ).to.equal(1);
+
+    // --material-toolbar, and distinct from the pane below it.
+    const toolbarBackground =
+      view.getComputedStyle(plotToolbar).backgroundColor;
+    expect(toolbarBackground, "the toolbars are painted").to.not.equal(
+      "rgba(0, 0, 0, 0)",
+    );
+    expect(
+      view.getComputedStyle(railToolbar).backgroundColor,
+      "both with the same token",
+    ).to.equal(toolbarBackground);
+
+    // The divider token is a border shorthand, so a colour slot has to read
+    // --color-panedivider; getting that wrong drops the declaration silently.
+    for (const [name, element, side] of [
+      ["rail", rail, "borderRightWidth"],
+      ["rail toolbar", railToolbar, "borderBottomWidth"],
+      ["plot toolbar", plotToolbar, "borderBottomWidth"],
+    ] as const) {
+      // Not "1px": Gecko snaps a hairline to the device pixel grid, so a 1px
+      // border computes to 0.8px at 1.25 dppx. That it is there at all is the
+      // claim.
+      expect(
+        parseFloat(view.getComputedStyle(element)[side]),
+        `the ${name} keeps its divider`,
+      ).to.be.greaterThan(0);
+    }
+
+    // The search sits at the right end of the plot's toolbar, as the quick
+    // search does in #zotero-items-toolbar.
+    const search = active.root.querySelector(
+      ".cm-plot-toolbar .cm-search-wrap",
+    ) as HTMLElement;
+    const actions = active.root.querySelector(
+      ".cm-plot-toolbar .cm-command-actions",
+    ) as HTMLElement;
+    expect(search, "the search is in the plot's toolbar").to.not.equal(null);
+    expect(
+      search.getBoundingClientRect().left,
+      "with the action buttons gathered to its left",
+    ).to.be.greaterThan(actions.getBoundingClientRect().right - 1);
+    expect(
+      plotRect.right - search.getBoundingClientRect().right,
+      "and nothing but the toolbar's padding beyond it",
+    ).to.be.lessThan(12);
+
+    await shot("view-09-pane-toolbars");
   });
 
   it("view 6 — the zoom and appearance controls live in the rail", async function () {

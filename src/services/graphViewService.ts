@@ -473,10 +473,14 @@ export function renderGraphView(
     applyTheme,
   );
 
-  // One bar, not two. The header and the query band below it spent 101px of a
-  // window on a title the window already carries, and pushed the graph — the
-  // thing the view is for — down past the fold on a laptop.
-  const commandBar = element(document, "header", "cm-command-bar");
+  // Zotero has no toolbar spanning its window. It gives each pane a toolbar
+  // inside it — `#zotero-toolbar-collection-tree` in the collections pane,
+  // `#zotero-toolbar-item-tree` in the items pane — so the band across the top
+  // of the library is two toolbars cut by the pane splitter, and the trees
+  // below them start at the same y in every tab. This view followed suit: the
+  // identity goes in the rail's toolbar, everything that acts on the graph
+  // goes in the plot's, and neither spans the width.
+  const plotToolbar = element(document, "div", "cm-plot-toolbar");
   const identity = element(document, "div", "cm-command-identity");
   const titleRow = element(document, "div", "cm-title-row");
   const historyControls = element(document, "div", "cm-history-controls");
@@ -504,7 +508,7 @@ export function renderGraphView(
     currentViewKind === "focus" ? "Explore" : "Collection Graph",
     "cm-visually-hidden",
   );
-  titleRow.append(historyControls, networkLogo(document), viewTitle);
+  titleRow.append(networkLogo(document), viewTitle);
   const summary = text(
     document,
     "p",
@@ -512,7 +516,6 @@ export function renderGraphView(
     "cm-library-summary",
   );
   identity.append(titleRow, summary);
-  commandBar.appendChild(identity);
 
   const toolbar = element(document, "div", "cm-command-actions");
   const addNodeWrap = element(document, "div", "cm-add-node-wrap");
@@ -655,9 +658,10 @@ export function renderGraphView(
   search.setAttribute("aria-label", "Search all fields in the current view");
   searchWrap.appendChild(search);
 
-  // History and identity, then the counts, then the search, then the things
-  // that act on what the search left. The search is the only elastic item, so
-  // it takes the slack and everything else keeps its size.
+  // History, then the things that act on the graph, then the search at the far
+  // right — the order and the alignment of `#zotero-items-toolbar`, which ends
+  // with a flexible spacer and the quick search. The search is the only
+  // elastic item, so it takes the slack and everything else keeps its size.
   toolbar.append(
     graphFilter.root,
     addNodeWrap,
@@ -665,8 +669,7 @@ export function renderGraphView(
     exportWrap,
     refreshButton,
   );
-  commandBar.append(searchWrap, toolbar);
-  root.appendChild(commandBar);
+  plotToolbar.append(historyControls, toolbar, searchWrap);
 
   const setViewKind = (kind: "map" | "focus", notify = true): void => {
     const changed = currentViewKind !== kind;
@@ -771,9 +774,15 @@ export function renderGraphView(
     focusRanking,
     focusLimit,
   );
-  root.appendChild(focusBar);
 
   const main = element(document, "main", "cm-main");
+  /*
+   * The plot and the things that act on it, in one column — Zotero's
+   * `#zotero-items-pane-container`, which holds the items toolbar above the
+   * items tree. The focus bar belongs inside it for the same reason: it
+   * describes the graph, not the rail beside it.
+   */
+  const plotPane = element(document, "div", "cm-plot-pane");
   const graphArea = element(document, "section", "cm-graph-area");
   const canvas = element(document, "canvas", "cm-graph-canvas");
   canvas.setAttribute(
@@ -964,7 +973,11 @@ export function renderGraphView(
   // appearance panel opens upward from the footer, so it still has the whole
   // window's height to open into.
   keyRail.footer.append(zoom, appearance.root);
-  main.append(keyRail.root, graphArea, detailShell);
+  // The counts name what the Key is a key to, so they sit above it, in the
+  // rail's own toolbar rather than in a band across the window.
+  keyRail.toolbar.prepend(identity);
+  plotPane.append(plotToolbar, focusBar, graphArea);
+  main.append(keyRail.root, plotPane, detailShell);
   root.appendChild(main);
   mount.appendChild(root);
 

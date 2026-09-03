@@ -770,6 +770,72 @@ rail is Zotero's own left pane`, both in `test/zotero/graphViewVisual.test.ts`.
 View 7 asserts every one of the other six harness folders is absent after
 `openCollections([3])`; view 8 asserts 200px and a painted, distinct sidepane.
 
+## From the second real run: the bar goes — DONE, verified
+
+The reader's complaint was that the command bar "doesn't exist in the normal
+Zotero UI" and that switching to the graph felt like a layout shift.
+
+**Zotero has no toolbar spanning its window.** Every pane carries a toolbar
+inside it: `#zotero-toolbar-collection-tree` is a child of
+`#zotero-collections-pane`, `#zotero-toolbar-item-tree` a child of
+`#zotero-items-pane-container`. What looks like one band across the library is
+two toolbars cut by the pane splitter — and it means the collections tree
+begins _below_ its own pane's toolbar, at the same y as the items tree.
+
+Task 7's single full-width bar broke that. The Key rail began under the bar
+rather than at the top of the window, so the left column's top edge moved when
+you switched into the graph. That is the shift, and it was real.
+
+The bar is now two: `.cm-rail-toolbar` inside the rail, `.cm-plot-toolbar` at
+the top of a new `.cm-plot-pane` that also holds the focus bar and the canvas.
+
+### Zotero's numbers, from `omni.ja`
+
+| Thing                                                  | Value                                                                             |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `.toolbar`                                             | `height: 41px !important; min-height: 41px; padding: 0 8px`                       |
+| `#zotero-collections-toolbar`, `#zotero-items-toolbar` | `background: var(--material-toolbar); border-bottom: var(--material-panedivider)` |
+| `--color-toolbar`                                      | `#f9f9f9` light, `#272727` dark                                                   |
+| toolbar buttons                                        | `width: 28px; height: 28px; padding: 0 4px`                                       |
+| `#zotero-items-toolbar` order                          | buttons, `<spacer flex="1"/>`, `quick-search-textbox`                             |
+
+The search therefore sits at the far right of the plot's toolbar, with the
+history and action buttons gathered left. The identity — logo and counts — went
+to the rail's toolbar, beside the collapse toggle, which is the shape of the
+collections toolbar (a control, a spacer, a control).
+
+### A bug this uncovered
+
+`--material-panedivider` is **not a colour**. It is `1px solid
+var(--color-panedivider)`, a whole border shorthand. The previous session wrote
+`--cm-panedivider: var(--material-panedivider, #dadada)` and used it in
+`border-right: 1px solid var(--cm-panedivider)`, which expands to `1px solid 1px
+solid #dadada` — invalid, so the declaration is dropped. It only bit inside a
+**tab**, where the token resolves; the standalone window fell back to the
+literal and looked correct. The token is now `--color-panedivider`.
+
+### Not done, deliberately
+
+The detail panel on the right is the third pane and has no toolbar, so its
+heading still sits level with the top of the window rather than with the two
+toolbars. Zotero does give its item pane a header row
+(`#zotero-item-pane-header`, same 28px buttons). Aligning it is the obvious next
+step but it redesigns that panel's top, which is more than a relocation.
+
+### What pins it
+
+`view 9 — the toolbars are Zotero's, one per pane` asserts both toolbars are
+41px, share a top edge with each other **and with the rail itself**, that the
+rail's toolbar is the rail's width less its divider, that both carry the same
+painted background, that all three dividers survive, and that the search is the
+rightmost thing in the plot's toolbar. `view 5` moved from `.cm-command-bar` to
+`.cm-plot-toolbar` and now also asserts no window-spanning bar of any of the
+three historical classes exists.
+
+Note for anyone writing a border assertion here: Gecko snaps a hairline to the
+device pixel grid, so a 1px border computes to **0.8px** at 1.25 dppx. Assert it
+is non-zero, not that it is `1px`.
+
 ## Task 8: Export
 
 `exportGraphPNG()` composites the theme's plot background before the graph

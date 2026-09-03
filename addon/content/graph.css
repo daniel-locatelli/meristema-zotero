@@ -7,16 +7,23 @@
  */
 .meristema-root {
   /*
-   * Zotero's own left pane, so the graph's rail is the same furniture rather
-   * than a near miss. `--material-sidepane` and `--material-panedivider` resolve
-   * inside the Zotero window, which is where the graph tab lives; the standalone
-   * graph window loads only chrome://global/skin/, so the fallbacks carry the
-   * values Zotero would have given (#zotero-collections-pane, 200px wide, and
-   * --color-sidepane / --color-panedivider).
+   * Zotero's own furniture, so the graph's panes are the same rather than a
+   * near miss. These tokens resolve inside the Zotero window, which is where
+   * the graph tab lives; the standalone graph window loads only
+   * chrome://global/skin/, so the fallbacks carry the values Zotero would have
+   * given (#zotero-collections-pane is 200px on --color-sidepane; .toolbar is
+   * 41px on --color-toolbar).
+   *
+   * `--color-panedivider`, not `--material-panedivider`: the material token is
+   * a whole border shorthand, `1px solid var(--color-panedivider)`, so putting
+   * it where a colour goes expands to `1px solid 1px solid #dadada` and the
+   * declaration is dropped — inside a tab, where the token actually resolves.
    */
   --cm-sidepane: var(--material-sidepane, #f2f2f2);
-  --cm-panedivider: var(--material-panedivider, #dadada);
+  --cm-toolbar: var(--material-toolbar, #f9f9f9);
+  --cm-panedivider: var(--color-panedivider, #dadada);
   --cm-sidepane-width: 200px;
+  --cm-toolbar-height: 41px;
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
   --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
@@ -44,29 +51,67 @@
   box-sizing: border-box;
 }
 /*
- * One row, 40px tall, holding what the header and the query band used to say
- * between them across 101px. Nothing here wraps: the search is the only elastic
- * item and everything beside it keeps its own width, so a narrow window
- * shortens the search rather than starting a second row.
+ * The two pane toolbars. Zotero's `.toolbar` is 41px with `padding: 0 8px`,
+ * and `#zotero-collections-toolbar` and `#zotero-items-toolbar` are both
+ * painted `--material-toolbar` over a `--material-panedivider` bottom edge;
+ * these match it, so the graph's rail and plot begin at the same y as the
+ * collections tree and the items tree do in the library tab. Nothing here
+ * wraps: the search is the only elastic item and everything beside it keeps
+ * its own width, so a narrow window shortens the search rather than starting a
+ * second row.
  */
-.cm-command-bar {
-  position: relative;
-  z-index: 12;
+.cm-rail-toolbar,
+.cm-plot-toolbar {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex: 0 0 auto;
   flex-wrap: nowrap;
-  min-height: 40px;
-  height: 40px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--cm-border-soft);
-  background: var(--cm-surface-raised);
+  min-height: var(--cm-toolbar-height);
+  height: var(--cm-toolbar-height);
+  padding: 0 8px;
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-toolbar);
 }
+.cm-plot-toolbar {
+  /* Above the plot's overlays, and above the popups anchored in the rail. */
+  position: relative;
+  z-index: 12;
+}
+/* The plot and its toolbar, as one column: #zotero-items-pane-container. */
+.cm-plot-pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+/*
+ * The rail's toolbar holds the identity, and the collapse toggle at its far
+ * end — the shape of #zotero-collections-toolbar, which is a button, a
+ * spacer, and a control on the right. A collapsed rail is 28px wide and can
+ * show only the toggle.
+ */
+.cm-key-rail[data-collapsed="true"] .cm-rail-toolbar {
+  padding: 0;
+  gap: 0;
+}
+.cm-key-rail[data-collapsed="true"] .cm-command-identity {
+  display: none;
+}
+/*
+ * The logo, the hidden heading and the counts, in the rail's toolbar. It is
+ * the one thing here that may be squeezed: the toggle beside it keeps its
+ * 26px and the rail is only 200px wide.
+ */
 .cm-command-identity {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 /*
  * Out of the layout, still in the accessible tree. The window and the tab
@@ -118,9 +163,10 @@
 }
 .cm-network-logo {
   display: inline-block;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
+  /* 16px, the size Zotero draws its own toolbar icons at. */
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   background-color: var(--cm-icon-color);
   -webkit-mask: url("chrome://__addonRef__/content/icons/network.svg") center /
     contain no-repeat;
@@ -151,19 +197,22 @@
   gap: 6px;
   align-items: center;
 }
-.cm-command-bar .cm-search-wrap {
-  /* The one elastic item in the bar; it absorbs every narrowing. */
-  flex: 1 1 auto;
+.cm-plot-toolbar .cm-search-wrap {
+  /*
+   * The one elastic item in the toolbar, and it absorbs every narrowing. The
+   * auto margin is Zotero's `<spacer flex="1">`: the quick search sits at the
+   * right end of #zotero-items-toolbar with the buttons gathered on the left.
+   */
+  flex: 0 1 auto;
+  margin-inline-start: auto;
   min-width: 90px;
-  max-width: none;
+  max-width: 430px;
 }
-.cm-command-bar .cm-toolbar-button,
-.cm-command-bar .cm-secondary-button {
-  min-height: 28px;
-  height: 28px;
-}
-.cm-command-bar .cm-search,
-.cm-command-bar .cm-search-wrap {
+/* Zotero sizes the buttons in both of these toolbars at 28px square. */
+.cm-plot-toolbar .cm-toolbar-button,
+.cm-plot-toolbar .cm-secondary-button,
+.cm-plot-toolbar .cm-search,
+.cm-plot-toolbar .cm-search-wrap {
   min-height: 28px;
   height: 28px;
 }
@@ -689,15 +738,15 @@
   font-weight: 650;
 }
 /*
- * A narrow window drops the counts before it lets anything wrap. The bar is a
- * single 40px row at every width; the alternative was a second row appearing
- * under it, which is the two-bar layout this task removed.
+ * A narrow window drops the counts before it lets anything wrap. Each toolbar
+ * is a single 41px row at every width; the alternative was a second row
+ * appearing under it.
  */
 @media (max-width: 760px) {
-  .cm-command-bar .cm-library-summary {
+  .cm-rail-toolbar .cm-library-summary {
     display: none;
   }
-  .cm-search-wrap {
+  .cm-plot-toolbar .cm-search-wrap {
     max-width: none;
   }
 }
@@ -711,7 +760,8 @@
 .meristema-root[data-cm-scheme="dark"] {
   --cm-icon-color: #f2f2f2;
   --cm-sidepane: var(--material-sidepane, #303030);
-  --cm-panedivider: var(--material-panedivider, #404040);
+  --cm-toolbar: var(--material-toolbar, #272727);
+  --cm-panedivider: var(--color-panedivider, #404040);
 }
 
 .cm-focus-bar {
@@ -866,10 +916,10 @@
 }
 .cm-key-toggle {
   flex: 0 0 auto;
-  align-self: flex-end;
+  /* The spacer that puts it at the toolbar's far end, as Zotero's is. */
+  margin-inline-start: auto;
   width: 26px;
   height: 26px;
-  margin: 3px 1px 0;
   padding: 0;
   border: 0;
   border-radius: 4px;

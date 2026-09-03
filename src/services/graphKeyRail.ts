@@ -133,6 +133,13 @@ export interface KeyRailOptions {
 export interface KeyRail {
   root: HTMLElement;
   /**
+   * The rail's toolbar, level with the plot's. It carries the collapse toggle
+   * and whatever the view puts beside it — the counterpart of
+   * `#zotero-toolbar-collection-tree`, which is where Zotero keeps the
+   * controls that belong to its left pane.
+   */
+  toolbar: HTMLElement;
+  /**
    * Where the view's own controls live. The zoom and appearance buttons used to
    * float over the plot's corners, covering the graph they were there to
    * adjust; the rail already owns the column beside it, and it collapses with
@@ -152,9 +159,19 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   const toggle = element(document, "button", "cm-key-toggle");
   toggle.type = "button";
+  /*
+   * The rail's own toolbar, and the reason the rail starts where Zotero's
+   * collections pane starts. Zotero has no bar spanning the window: it gives
+   * each pane a toolbar of its own inside it, so the band across the top of
+   * the library is two toolbars cut by the pane splitter. A single full-width
+   * bar put the rail's top edge below where the collections tree begins, and
+   * switching to the graph read as the whole layout dropping.
+   */
+  const toolbar = element(document, "div", "cm-rail-toolbar");
+  toolbar.append(toggle);
   const body = element(document, "div", "cm-key-body");
   const footer = element(document, "div", "cm-key-footer");
-  root.append(toggle, body, footer);
+  root.append(toolbar, body, footer);
 
   let collapsed = getKeyRailCollapsed();
   /** The entry whose emphasis is pinned, if any. Hover is transient; this is not. */
@@ -275,6 +292,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   return {
     root,
+    toolbar,
     footer,
     render(model: KeyModel): void {
       // A rebuild throws away the pinned entry's identity — the model is new
