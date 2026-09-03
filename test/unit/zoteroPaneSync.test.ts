@@ -238,6 +238,26 @@ describe("bindZoteroPane", function () {
     expect(f.pane.getAttribute("width")).to.equal("400");
   });
 
+  it("reports the pane's real state when Zotero refuses to collapse it", function () {
+    const f = fixture();
+    f.pane.rectWidth = 400;
+    (
+      f.win as unknown as { ZoteroPane: { itemPane: { collapsed: boolean } } }
+    ).ZoteroPane.itemPane = {
+      set collapsed(_value: boolean) {
+        throw new Error("Zotero said no");
+      },
+      get collapsed(): boolean {
+        return false;
+      },
+    };
+    const binding = bindZoteroPane("item", f.win, f.deps);
+    const seen = collect(binding);
+    binding.setCollapsed(true);
+    expect(binding.read()).to.deep.equal({ width: 400, collapsed: false });
+    expect(seen).to.deep.equal([{ width: 400, collapsed: false }]);
+  });
+
   it("notifies a collapse that came from Zotero, with the last open width", function () {
     const f = fixture();
     f.pane.rectWidth = 333;

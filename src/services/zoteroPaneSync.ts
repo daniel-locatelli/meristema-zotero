@@ -302,6 +302,20 @@ export function bindZoteroPane(
       relayout();
     }
     if (!collapsed) write(widthToRestore);
+    /*
+     * Zotero can refuse silently: `safely` swallows a throw, and its own
+     * `setPaneCollapsed` early-returns in states it does not like. So the pane
+     * itself, not the request, is what listeners are told about — otherwise the
+     * view would draw a collapsed pane that Zotero still has open, and no
+     * observation would ever correct it, because `lastNotified` already claims
+     * the change happened.
+     */
+    const actual = read();
+    if (actual.collapsed === collapsed) {
+      lastNotified = actual;
+      return;
+    }
+    notify(actual);
   };
 
   return {
