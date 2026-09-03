@@ -188,17 +188,31 @@ export function bindZoteroPane(
   host: Window,
   deps: ZoteroPaneSyncDeps = defaultDeps(),
 ): ZoteroPaneBinding {
+  /*
+   * Everything Zotero is asked for here is asked for inside a try: this runs
+   * from renderGraphView, and a plugin that throws while the window is still
+   * coming up would take the whole graph render down with it. Any failure just
+   * means there is no pane to follow.
+   */
   let target = findTarget(side, host);
   if (!target) {
-    for (const win of deps.mainWindows()) {
-      target = findTarget(side, win);
-      if (target) break;
+    try {
+      for (const win of deps.mainWindows()) {
+        target = findTarget(side, win);
+        if (target) break;
+      }
+    } catch {
+      target = null;
     }
   }
   if (!target) {
-    deps.debug(
-      `Meristema: no Zotero ${side} pane to follow; the graph pane resizes on its own.`,
-    );
+    try {
+      deps.debug(
+        `Meristema: no Zotero ${side} pane to follow; the graph pane resizes on its own.`,
+      );
+    } catch {
+      // A debug log is never worth failing the render for.
+    }
     return detachedBinding(side, deps);
   }
 

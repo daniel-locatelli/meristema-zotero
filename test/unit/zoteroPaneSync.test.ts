@@ -316,6 +316,36 @@ describe("bindZoteroPane", function () {
     expect(debugLines).to.have.length(1);
   });
 
+  it("falls back to a detached binding when Zotero itself throws at bind time", function () {
+    const host = {
+      document: { getElementById: () => null },
+    } as unknown as Window;
+    const debugLines: string[] = [];
+    const angry = () => {
+      throw new Error("Zotero is not ready");
+    };
+    let binding: ReturnType<typeof bindZoteroPane> | null = null;
+    expect(() => {
+      binding = bindZoteroPane("item", host, {
+        mainWindows: angry,
+        persistPref: () => null,
+        debug: (line) => debugLines.push(line),
+      });
+    }).not.to.throw();
+    expect(binding!.read()).to.deep.equal({
+      width: PANE_REOPEN_WIDTH.item,
+      collapsed: false,
+    });
+    expect(debugLines).to.have.length(1);
+    expect(() =>
+      bindZoteroPane("item", host, {
+        mainWindows: angry,
+        persistPref: () => null,
+        debug: angry,
+      }),
+    ).not.to.throw();
+  });
+
   it("still writes the element when updateLayoutConstraints is missing", function () {
     const f = fixture({ layout: false });
     f.pane.rectWidth = 200;
