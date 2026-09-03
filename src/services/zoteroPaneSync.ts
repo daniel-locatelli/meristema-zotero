@@ -259,6 +259,7 @@ export function bindZoteroPane(
       lastNotified = state;
       return;
     }
+    lastWritten = Number.NaN;
     notify(state);
   };
 

@@ -177,6 +177,21 @@ describe("bindZoteroPane", function () {
     expect(seen).to.deep.equal([{ width: 320, collapsed: false }]);
   });
 
+  it("resumes hearing about a width equal to the last write once Zotero moves away from it", function () {
+    const f = fixture();
+    f.pane.rectWidth = 200;
+    const binding = bindZoteroPane("collections", f.win, f.deps);
+    const seen = collect(binding);
+    binding.write(300);
+    f.pane.rectWidth = 400;
+    f.observers.fire();
+    expect(seen).to.have.length(1);
+    f.pane.rectWidth = 300;
+    f.observers.fire();
+    expect(seen).to.have.length(2);
+    expect(seen[1]).to.deep.equal({ width: 300, collapsed: false });
+  });
+
   it("stays quiet during a local change and reports the first change after it", function () {
     const f = fixture();
     f.pane.rectWidth = 200;
