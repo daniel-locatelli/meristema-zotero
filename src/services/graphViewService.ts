@@ -202,9 +202,10 @@ const LIBRARY_SEARCH_DEBOUNCE_MS = 180;
 const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
 const AUTOMATIC_FOCUS_REFRESH = automaticFocusSeedRefreshPlan();
 /**
- * A collapsed detail pane: the 8px resizer plus a 28px strip wide enough for
- * the toolbar's toggle, so the pane can be reopened from the toggle that
- * closed it rather than only by double-clicking the splitter.
+ * A collapsed detail pane: the resizer is hidden and the shell drops its
+ * track, so all 36px are a single strip wide enough for the toolbar's toggle.
+ * The pane can then be reopened from the toggle that closed it rather than
+ * only by double-clicking the splitter.
  */
 const COLLAPSED_DETAIL_WIDTH = "36px";
 

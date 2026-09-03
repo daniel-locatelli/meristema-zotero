@@ -634,7 +634,7 @@
   position: relative;
   display: grid;
   height: 100%;
-  grid-template-columns: 8px minmax(0, 1fr);
+  grid-template-columns: [resizer] 8px [panel] minmax(0, 1fr);
   flex: 0 0 auto;
   min-width: 8px;
   max-width: 70%;
@@ -659,6 +659,15 @@
   padding: 0;
   gap: 0;
 }
+/*
+ * Collapsed, the resizer is hidden, and a `display: none` grid item is not
+ * placed at all — so without this the panel would slide into the 8px track and
+ * the collapsed strip would be 8px of clipped toolbar. Both children name their
+ * column, and the collapsed shell drops the resizer's track entirely.
+ */
+.cm-detail-shell[data-collapsed="true"] {
+  grid-template-columns: [panel] minmax(0, 1fr);
+}
 /* The tab row on the left of the toolbar, the toggle at its far end. */
 .cm-detail-nav {
   display: flex;
@@ -668,6 +677,7 @@
   min-width: 0;
 }
 .cm-detail-resizer {
+  grid-column: resizer;
   position: relative;
   z-index: 2;
   cursor: ew-resize;
@@ -690,6 +700,7 @@
  * itself from its content.
  */
 .cm-detail-panel {
+  grid-column: panel;
   display: flex;
   flex-direction: column;
   min-width: 0;
