@@ -13,6 +13,7 @@ import type {
 } from "../domain/graphTypes";
 import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
 import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
+import { clamp } from "./graphMetricScale";
 import {
   axisMetricDefinitions,
   getMetricDefinition,
@@ -651,5 +652,108 @@ export function createAxesAppearance(
     setLayout,
     getLayout: read,
     close,
+  };
+}
+
+/*
+ * A drag handle on a pane's inner edge. Both of the view's side panes use
+ * this: the Key rail, whose width grows as the pointer moves right, and the
+ * detail pane, whose width grows as it moves left. The drawn width is always
+ * clamped, so "drag it shut" is decided from where the pointer is, not from
+ * the width: past the minimum by more than the threshold on release means
+ * collapse.
+ */
+export type PaneEdge = "start" | "end";
+
+export type PaneRelease =
+  { kind: "commit"; width: number } | { kind: "collapse" };
+
+/** The raw width the pointer asks for: distance from the pane's far edge. */
+export function paneWidthFromPointer(
+  edge: PaneEdge,
+  origin: number,
+  clientX: number,
+): number {
+  return edge === "start" ? clientX - origin : origin - clientX;
+}
+
+export function paneRelease(
+  raw: number,
+  minimum: number,
+  maximum: number,
+  collapseThreshold: number,
+): PaneRelease {
+  if (raw < minimum - collapseThreshold) return { kind: "collapse" };
+  return { kind: "commit", width: clamp(raw, minimum, maximum) };
+}
+
+export interface PaneResizerOptions {
+  handle: HTMLElement;
+  edge: PaneEdge;
+  minimum: number;
+  maximum: () => number;
+  /** Pixels past the minimum the pointer must go before release collapses. */
+  collapseThreshold: number;
+  /** The pane's far edge in client x: its left for "start", its right for "end". */
+  origin: () => number;
+  onBegin: () => void;
+  onMove: (width: number) => void;
+  /** Called on release only if the pointer moved. */
+  onRelease: (release: PaneRelease) => void;
+  /** Called on every release, after `onRelease`. */
+  onEnd: () => void;
+  onToggle: () => void;
+}
+
+/** Wire the handle. Returns a function that removes every listener. */
+export function attachPaneResizer(options: PaneResizerOptions): () => void {
+  const { handle } = options;
+  let dragging = false;
+  let lastRaw: number | null = null;
+
+  const onPointerDown = (event: PointerEvent): void => {
+    dragging = true;
+    lastRaw = null;
+    handle.setPointerCapture?.(event.pointerId);
+    options.onBegin();
+  };
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!dragging) return;
+    lastRaw = paneWidthFromPointer(
+      options.edge,
+      options.origin(),
+      event.clientX,
+    );
+    options.onMove(clamp(lastRaw, options.minimum, options.maximum()));
+  };
+  const onPointerUp = (event: PointerEvent): void => {
+    if (!dragging) return;
+    dragging = false;
+    handle.releasePointerCapture?.(event.pointerId);
+    if (lastRaw !== null) {
+      options.onRelease(
+        paneRelease(
+          lastRaw,
+          options.minimum,
+          options.maximum(),
+          options.collapseThreshold,
+        ),
+      );
+    }
+    options.onEnd();
+  };
+  const onDoubleClick = (): void => options.onToggle();
+
+  handle.addEventListener("pointerdown", onPointerDown);
+  handle.addEventListener("pointermove", onPointerMove);
+  handle.addEventListener("pointerup", onPointerUp);
+  handle.addEventListener("pointercancel", onPointerUp);
+  handle.addEventListener("dblclick", onDoubleClick);
+  return () => {
+    handle.removeEventListener("pointerdown", onPointerDown);
+    handle.removeEventListener("pointermove", onPointerMove);
+    handle.removeEventListener("pointerup", onPointerUp);
+    handle.removeEventListener("pointercancel", onPointerUp);
+    handle.removeEventListener("dblclick", onDoubleClick);
   };
 }
