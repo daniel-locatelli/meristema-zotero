@@ -828,6 +828,34 @@ describe("Graph view, as the product builds it", function () {
       "the header hangs under the band rather than filling it",
     ).to.be.greaterThan(bands[2]!.bottom - 1.5);
 
+    /*
+     * The right pane is one column of one colour. Its toolbar wears the
+     * sidepane fill, not `--material-toolbar`, so there is no step between the
+     * tab row and the title under it — the same way the Key rail's toolbar is
+     * seamless with the rail. Only the middle pane sits inside Zotero's layout
+     * switcher, and only the middle pane takes the toolbar fill.
+     */
+    const styles = active.window as unknown as Window;
+    const fill = (node: Element): string =>
+      styles.getComputedStyle(node)!.backgroundColor;
+    const toolbarFill = fill(
+      active.root.querySelector(".cm-detail-toolbar") as HTMLElement,
+    );
+    const shellFill = fill(
+      active.root.querySelector(".cm-detail-shell") as HTMLElement,
+    );
+    notes.push(
+      `view 10 detail fills: toolbar ${toolbarFill}, pane ${shellFill}`,
+    );
+    expect(
+      toolbarFill,
+      "the detail toolbar is painted with the pane under it",
+    ).to.equal(shellFill);
+    expect(
+      fill(active.root.querySelector(".cm-detail-header") as HTMLElement),
+      "and so is the header",
+    ).to.equal(shellFill);
+
     /** Controls whose text is wider than the box drawn around them. */
     const overflowing = (): string[] =>
       ([...panel.querySelectorAll("button")] as HTMLButtonElement[])

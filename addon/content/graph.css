@@ -108,15 +108,20 @@
  * The third pane's toolbar. Zotero's item pane has no toolbar of its own: it
  * sits under the window's, which runs on past the items pane to the right
  * edge. Splitting that band per pane, as this view does, leaves the right pane
- * owing the window a toolbar — so it is painted from the same two tokens the
- * middle one is, and the band and its rule cross the whole window unbroken.
+ * owing the window a toolbar — but it takes the *pane's* fill, not the
+ * toolbar's, exactly as the Key rail's does. A side pane is one column of one
+ * colour; painting a 41px strip of `--material-toolbar` across its top left a
+ * visible step where the tab row met the title under it, in a place Zotero has
+ * no step at all. Only the middle pane sits inside the layout switcher, and so
+ * only the middle pane wears the toolbar fill. The rule under the band stays,
+ * so the line still crosses the window unbroken.
  * Six pixels of gap rather than eight: what it holds is a set of three, not a
  * row of separate controls.
  */
 .cm-detail-toolbar {
   gap: 6px;
   border-bottom: 1px solid var(--cm-panedivider);
-  background: var(--cm-toolbar);
+  background: var(--cm-sidepane);
 }
 /* The plot and its toolbar, as one column: #zotero-items-pane-container. */
 .cm-plot-pane {

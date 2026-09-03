@@ -1177,3 +1177,16 @@ past the pane at 360px or 260px.
   (`PANE_TOGGLE_ICON_SIZE`). The rail's was drawn at 14px and the detail
   pane's at `createIcon`'s 16px default, which is visibly larger in the same
   26px box once the pair flanks the plot. `view 10` asserts they match.
+
+### The right pane's toolbar takes the pane's colour — DONE, verified
+
+The detail toolbar was painted `--material-toolbar` on the reasoning that the
+41px band should cross the window in one fill. In dark appearance that is
+`#272727` against the pane's `#303030`, so the tab row read as a darker header
+stuck on top of the pane — a step Zotero has nowhere, because
+`--material-toolbar` comes from `#zotero-layout-switcher .zotero-toolbar` and
+only the middle pane is inside the switcher. Both side panes now wear
+`--cm-sidepane` from top to bottom, as the Key rail already did; the divider
+under the band stays, so the rule still crosses the window unbroken. `view 10`
+asserts the toolbar, the header and the shell compute to one background
+(`toolbar rgb(48, 48, 48), pane rgb(48, 48, 48)`).
