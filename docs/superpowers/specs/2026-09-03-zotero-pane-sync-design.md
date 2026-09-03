@@ -1,7 +1,7 @@
 # Keeping the graph's side panes in step with Zotero's
 
 Date: 2026-09-03
-Status: designed
+Status: implemented
 
 ## Context
 
