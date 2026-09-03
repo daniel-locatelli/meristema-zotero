@@ -22,7 +22,11 @@
   --cm-sidepane: var(--material-sidepane, #f2f2f2);
   --cm-toolbar: var(--material-toolbar, #f9f9f9);
   --cm-panedivider: var(--color-panedivider, #dadada);
-  /* The rail's width until the view has read Zotero's collections pane width. */
+  /*
+   * Only a fallback: the rail's width is normally an inline `width` written
+   * from Zotero's collections pane, which outranks this. It matters for the
+   * first paint, and if the binding ever has no pane to follow.
+   */
   --cm-sidepane-width: 200px;
   --cm-toolbar-height: 41px;
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
@@ -149,7 +153,7 @@
 /*
  * The logo, the hidden heading and the counts, in the rail's toolbar. It is
  * the one thing here that may be squeezed: the toggle beside it keeps its
- * 26px and the rail is only 200px wide.
+ * 26px whatever width the rail has been dragged to.
  */
 .cm-command-identity {
   display: flex;
