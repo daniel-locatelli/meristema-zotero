@@ -1074,6 +1074,10 @@ export function renderGraphView(
     detailShell.style.width = state.collapsed
       ? COLLAPSED_DETAIL_WIDTH
       : `${Math.round(state.width)}px`;
+    // Mirror the Key rail: hide the drag handle while collapsed so a drag
+    // from the collapsed state can't reopen the graph's pane without
+    // Zotero's item pane following (see attachPaneResizer's onMove below).
+    resizer.hidden = state.collapsed;
   };
   applyDetailState(itemPane.read());
   const keyRail = createKeyRail({

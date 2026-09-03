@@ -675,6 +675,9 @@
 .cm-detail-resizer:hover {
   background: color-mix(in srgb, var(--cm-accent) 30%, transparent);
 }
+.cm-detail-resizer[hidden] {
+  display: none;
+}
 /*
  * A header that does not scroll over a body that does — Zotero's item pane,
  * which is `item-pane-header` above `item-details`. The panel itself no longer
