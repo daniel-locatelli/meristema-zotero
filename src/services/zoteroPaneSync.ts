@@ -311,7 +311,10 @@ export function bindZoteroPane(
     } else {
       safely(deps, `collapsing the ${side} pane`, () => {
         splitter?.setAttribute("state", collapsed ? "collapsed" : "open");
-        pane.setAttribute("collapsed", String(collapsed));
+        // Removed, not set to "false": Zotero's updateLayoutConstraints asks
+        // hasAttribute("collapsed"), so the string "false" still reads as shut.
+        if (collapsed) pane.setAttribute("collapsed", "true");
+        else pane.removeAttribute("collapsed");
       });
       relayout();
     }

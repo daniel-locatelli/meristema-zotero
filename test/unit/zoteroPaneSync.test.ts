@@ -222,7 +222,7 @@ describe("bindZoteroPane", function () {
     expect(seen).to.have.length(0);
     binding.setCollapsed(false);
     expect(f.splitter.getAttribute("state")).to.equal("open");
-    expect(f.pane.getAttribute("collapsed")).to.equal("false");
+    expect(f.pane.hasAttribute("collapsed")).to.equal(false);
     expect(f.pane.getAttribute("width")).to.equal("230");
   });
 
