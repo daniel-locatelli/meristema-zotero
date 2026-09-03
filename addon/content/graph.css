@@ -712,6 +712,24 @@
   margin-top: 6px;
 }
 /*
+ * The paper's address, under its name. It replaces an "Open DOI" button that
+ * only ever did what clicking an identifier does — while the identifier itself
+ * was nowhere on screen to click. `anywhere` because a DOI has no spaces and a
+ * long one would otherwise push the pane wider than the reader set it.
+ */
+.cm-detail-doi {
+  display: block;
+  margin-top: 5px;
+  color: var(--cm-accent);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cm-detail-doi:hover {
+  text-decoration: underline;
+}
+/*
  * Zotero's item-pane title is `font-weight: 600; line-height: 1.333` at the
  * pane's own size. It was 17px here, which is a heading out of a web page: the
  * one piece of type in the view larger than anything Zotero draws.
@@ -751,6 +769,11 @@
 }
 .cm-detail-section + .cm-detail-section {
   border-top: 1px solid var(--cm-border-soft);
+}
+/* A section with nothing in it still drew its divider, which left a rule under
+ * the last thing in the panel with nothing beneath it. */
+.cm-detail-section:empty {
+  display: none;
 }
 .cm-detail-heading,
 .cm-detail-actions,
@@ -871,6 +894,113 @@
 .cm-metric-list dd {
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+/*
+ * The panel's one raised voice. Everything else in this window is chrome that
+ * defers to Zotero's, but the graph's whole premise is that a paper is a point
+ * with quantitative dimensions — the axes are citations against year, the node
+ * is sized by citations — and the pane's headline should speak the plot's
+ * language rather than the item pane's. So three figures, set large in tabular
+ * numerals over the same uppercase micro-label the Key rail gives COLOR, SIZE
+ * and LINKS. Three columns because there are exactly three paper-level impact
+ * figures, not because three reads well.
+ *
+ * The list stays a `<dl>`: value in the first row, label under it in the
+ * second, placed by hand so the pairs keep their document order and the
+ * tooltip service still finds the terms it annotates.
+ */
+.cm-metric-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 10px;
+  row-gap: 3px;
+  margin-block: 2px;
+}
+.cm-metric-strip dd:nth-of-type(1) {
+  grid-area: 1 / 1;
+}
+.cm-metric-strip dd:nth-of-type(2) {
+  grid-area: 1 / 2;
+}
+.cm-metric-strip dd:nth-of-type(3) {
+  grid-area: 1 / 3;
+}
+.cm-metric-strip dt:nth-of-type(1) {
+  grid-area: 2 / 1;
+}
+.cm-metric-strip dt:nth-of-type(2) {
+  grid-area: 2 / 2;
+}
+.cm-metric-strip dt:nth-of-type(3) {
+  grid-area: 2 / 3;
+}
+.cm-metric-strip dd {
+  align-self: end;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.cm-metric-strip dt {
+  align-self: start;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-align: start;
+}
+/*
+ * The Advanced disclosure arrived with no rules of its own: a bare `<summary>`
+ * two pixels under the last value, carrying Gecko's default triangle and
+ * starting at a third left edge — the labels end at the column's right edge,
+ * the values start after it, "Advanced" began at the pane's. With two metrics
+ * above it that is three tight lines and three alignments in one corner.
+ * Zotero draws this as a `collapsible-section` head: a full-width row with a
+ * twisty, set in the same uppercase the left rail gives COLOR, SIZE and LINKS,
+ * so it reads as the control it is rather than as one more line of the list.
+ */
+.cm-advanced-details {
+  margin: 0;
+}
+.cm-advanced-details > summary {
+  /* Any display but `list-item` drops Gecko's own marker; ours is below. */
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  margin: 0 -8px;
+  padding: 2px 8px;
+  color: var(--cm-fill-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.cm-advanced-details > summary:hover {
+  color: CanvasText;
+}
+.cm-advanced-details > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-inline-start: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+.cm-advanced-details[open] > summary::before {
+  transform: rotate(45deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-advanced-details > summary::before {
+    transition: none;
+  }
+}
+.cm-advanced-details > .cm-metric-list {
+  margin-top: 8px;
 }
 /*
  * A related work is a row, not a card. Zotero lists attachments, notes and

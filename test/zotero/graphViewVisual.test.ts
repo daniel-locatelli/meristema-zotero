@@ -853,6 +853,96 @@ describe("Graph view, as the product builds it", function () {
         ] as HTMLButtonElement[]
       ).map((button) => button.getBoundingClientRect().height);
 
+    /*
+     * Both panes' collapse toggles sit at their inner edge — the one facing
+     * the plot — so they flank it and both point outward. The detail pane's
+     * used to sit at the far end of its toolbar, where a chevron beside a tab
+     * row reads as an overflow control rather than a pane control.
+     */
+    const detailToolbar = active.root.querySelector(
+      ".cm-detail-toolbar",
+    ) as HTMLElement;
+    const detailToggle = active.root.querySelector(
+      ".cm-detail-toggle",
+    ) as HTMLElement;
+    const railToggle = active.root.querySelector(
+      ".cm-key-toggle",
+    ) as HTMLElement;
+    expect(
+      detailToolbar.firstElementChild,
+      "the detail toggle opens its toolbar, before the tabs",
+    ).to.equal(detailToggle);
+    const plot = active.root.querySelector(".cm-plot-toolbar") as HTMLElement;
+    const plotRect = plot.getBoundingClientRect();
+    const railGap = plotRect.left - railToggle.getBoundingClientRect().right;
+    const detailGap =
+      detailToggle.getBoundingClientRect().left - plotRect.right;
+    notes.push(
+      `view 10 toggles: rail ${railGap.toFixed(1)}px from the plot, detail ${detailGap.toFixed(1)}px`,
+    );
+    for (const gap of [railGap, detailGap]) {
+      expect(
+        gap,
+        "each toggle sits against the plot, not at the window's edge",
+      ).to.be.lessThan(20);
+    }
+
+    /*
+     * The headline strip: three values on one row, three labels on the next.
+     */
+    const strip = active.root.querySelector(".cm-metric-strip") as HTMLElement;
+    expect(strip, "the overview leads with the metric strip").to.not.equal(
+      null,
+    );
+    const values = [...strip.querySelectorAll("dd")] as HTMLElement[];
+    const labels = [...strip.querySelectorAll("dt")] as HTMLElement[];
+    expect(values.length, "three figures, and only three").to.equal(3);
+    notes.push(
+      `view 10 strip: ${labels.map((label) => (label.textContent ?? "").trim()).join(" | ")} = ${values.map((value) => (value.textContent ?? "").trim()).join(" | ")}`,
+    );
+    for (const cell of [...values.slice(1), ...labels.slice(1)]) {
+      const first =
+        cell.tagName === values[0]!.tagName ? values[0]! : labels[0]!;
+      expect(
+        Math.abs(
+          cell.getBoundingClientRect().bottom -
+            first.getBoundingClientRect().bottom,
+        ),
+        "values share a row and labels share the row under it",
+      ).to.be.lessThan(1.5);
+    }
+    const advanced = active.root.querySelector(
+      ".cm-advanced-details > summary",
+    ) as HTMLElement | null;
+    expect(
+      advanced,
+      "and the rest of the registry is behind Advanced",
+    ).to.not.equal(null);
+
+    /*
+     * One action, and one only. "Show in Zotero" repeated the double-click on
+     * the circle, "Open DOI" repeated the identifier in the header, "Open in"
+     * swapped the whole view, and "Refresh" repeated the toolbar's.
+     */
+    const actionBar = active.root.querySelector(
+      ".cm-detail-body .cm-detail-actions",
+    ) as HTMLElement;
+    const actions = (
+      [...actionBar.querySelectorAll("button")] as HTMLButtonElement[]
+    ).map((button) => (button.textContent ?? "").trim());
+    notes.push(`view 10 actions: ${actions.join(" | ") || "none"}`);
+    expect(actions, "the overview offers one action").to.deep.equal([
+      "Find similar papers",
+    ]);
+
+    // And the DOI is in the header, as the link it always was.
+    const doi = active.root.querySelector(
+      ".cm-detail-header .cm-detail-doi",
+    ) as HTMLAnchorElement | null;
+    expect(doi?.textContent, "the header carries the DOI").to.equal(
+      "10.1000/harness.demo",
+    );
+
     const wide = { overflow: overflowing(), out: past(), tabs: tabHeights() };
     notes.push(
       `view 10 at 360px: overflowing ${wide.overflow.join(" | ") || "none"}; past the pane ${wide.out.join(" | ") || "none"}; tabs ${wide.tabs.map((height) => height.toFixed(1)).join("/")}`,

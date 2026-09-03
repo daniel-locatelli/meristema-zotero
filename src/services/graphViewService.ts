@@ -98,9 +98,13 @@ import {
   exportGraphJSON,
   exportGraphPNG,
 } from "./exportService";
-import { formatMetricValue, getMetricDefinition } from "./metricRegistry";
+import {
+  formatMetricValue,
+  getMetricDefinition,
+  METRIC_DEFINITIONS,
+  SUPPLEMENTARY_PROPERTY_DEFINITIONS,
+} from "./metricRegistry";
 import { createMetricNodeForItem } from "./itemMetricContext";
-import { createPaperOverviewActionBar } from "./paperOverviewActionsService";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { createUpdateProgress } from "./updateProgressService";
 import { createCancellationScope } from "./cancellationScope";
@@ -201,6 +205,56 @@ const AUTOMATIC_FOCUS_REFRESH = automaticFocusSeedRefreshPlan();
  * closed it rather than only by double-clicking the splitter.
  */
 const COLLAPSED_DETAIL_WIDTH = "36px";
+
+/**
+ * Everything the registry knows about a paper that the headline three leave
+ * out, behind a disclosure.
+ *
+ * This used to be grafted on after the fact by `dataSourceTooltipService`,
+ * which resolved the paper by reading the panel's `<h2>` and matching that
+ * text against a cached graph — and when the match was not unique it fell back
+ * to whatever item happened to be selected in the Zotero library, so the
+ * Advanced rows could describe a different paper than the title above them.
+ * The panel has the node in hand; it builds its own.
+ */
+function advancedMetrics(
+  document: Document,
+  node: CitationGraphNode,
+): HTMLElement {
+  const details = element(
+    document,
+    "details",
+    "cm-advanced-details",
+  ) as HTMLDetailsElement;
+  details.appendChild(text(document, "summary", "Advanced"));
+  const rows = element(document, "dl", "cm-metric-list");
+  const append = (label: string, value: string, description: string): void => {
+    const term = text(document, "dt", label);
+    term.title = description;
+    rows.append(term, text(document, "dd", value));
+  };
+  for (const metric of METRIC_DEFINITIONS) {
+    if (metric.itemPane !== "advanced") continue;
+    append(
+      metric.label,
+      formatMetricValue(metric.id, metric.value(node)),
+      metric.description,
+    );
+  }
+  for (const property of SUPPLEMENTARY_PROPERTY_DEFINITIONS) {
+    if (property.itemPane !== "advanced") continue;
+    const value = property.value(node);
+    append(
+      property.label,
+      value === null || value === undefined || value === ""
+        ? "—"
+        : property.format(value),
+      property.description,
+    );
+  }
+  details.appendChild(rows);
+  return details;
+}
 const cleanupByMount = new WeakMap<Element, () => void>();
 const controllerByMount = new WeakMap<Element, GraphViewController>();
 
@@ -994,7 +1048,14 @@ export function renderGraphView(
   const detailNav = element(document, "div", "cm-detail-nav");
   const detailToggle = element(document, "button", "cm-detail-toggle");
   detailToggle.type = "button";
-  detailToolbar.append(detailNav, detailToggle);
+  /*
+   * The toggle first, then the tabs. The Key rail's toggle sits at the rail's
+   * inner edge — the one facing the plot — so this one sits at the detail
+   * pane's inner edge too: the two flank the plot and both point outward. At
+   * the far end it read as a fourth tab crowded against "References 57", and
+   * a chevron beside a tab row is an overflow control, not a pane control.
+   */
+  detailToolbar.append(detailToggle, detailNav);
   const detailHeader = element(document, "header", "cm-detail-header");
   const detailBody = element(document, "div", "cm-detail-body");
   detail.append(detailToolbar, detailHeader, detailBody);
@@ -2361,6 +2422,24 @@ export function renderGraphView(
         text(document, "span", "Match needs confirmation", "cm-badge-warning"),
       );
     if (badges.childElementCount) detailHeader.appendChild(badges);
+    /*
+     * The DOI, as a link. It is the paper's address, so it belongs with the
+     * paper's name and not behind a button called "Open DOI" — a button that
+     * only ever did what clicking the identifier does, while the identifier
+     * itself was nowhere on screen to click.
+     */
+    const doi = node.doi?.trim();
+    if (doi) {
+      const link = element(document, "a", "cm-detail-doi");
+      link.href = `https://doi.org/${encodeURIComponent(doi)}`;
+      link.textContent = doi;
+      link.title = "Open this paper's DOI in the default browser.";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        Zotero.launchURL(link.href);
+      });
+      detailHeader.appendChild(link);
+    }
 
     const tabs = element(document, "div", "cm-detail-tabs");
     for (const [mode, label] of [
@@ -3516,60 +3595,55 @@ export function renderGraphView(
     }
 
     appendPaperHeader(node, "overview");
-    const rows = element(document, "dl", "cm-metric-list");
-    const appendMetric = (
-      label: string,
-      value: string,
-      titleValue?: string,
-    ): void => {
-      const term = text(document, "dt", label);
-      if (titleValue) term.title = titleValue;
-      rows.append(term, text(document, "dd", value));
-    };
-    appendMetric("Citations", formatCount(node.citationCount));
-    appendMetric("References", formatCount(node.referenceCount));
-    appendMetric(
-      "Citation rate",
-      node.citationVelocity === null
-        ? "—"
-        : `${formatMetricValue("citation-rate", node.citationVelocity)}/year`,
-      getMetricDefinition("citation-rate").description,
-    );
-    appendMetric("FWCI", formatMetricValue("fwci", node.fwci));
-    appendMetric(
-      "Journal h-index",
-      formatMetricValue("journal-h-index", node.sourceMetrics?.hIndex ?? null),
-      getMetricDefinition("journal-h-index").description,
-    );
-    appendMetric(
-      "2-year mean citedness",
-      formatMetricValue(
-        "two-year-mean-citedness",
-        node.sourceMetrics?.twoYearMeanCitedness ?? null,
-      ),
-      getMetricDefinition("two-year-mean-citedness").description,
-    );
-    appendMetric(
-      "Citation percentile",
-      formatMetricValue("citation-percentile", node.citationPercentile),
-    );
-    appendMetric(
-      "Library coverage",
-      formatMetricValue("library-coverage", node.libraryCoverage),
-    );
-    // The provider's own name for itself — "OpenAlex", not the "openalex" the
-    // record is keyed by.
-    appendMetric(
-      "Provider",
-      node.provider ? citationDataSourceLabel(node.provider) : "Zotero data",
-    );
-    appendMetric(
-      "Updated",
-      node.metricsUpdatedAt
-        ? new Date(node.metricsUpdatedAt).toLocaleString()
-        : "—",
-    );
-    detailBody.appendChild(detailSection(rows));
+    /*
+     * Three figures, and only three. The tab row one line above already states
+     * this paper's citation and reference counts, so repeating them here was
+     * the panel's first act being to say what it had just said. What is left
+     * is what nothing else on screen carries: how much this paper is cited
+     * against the field's expectation, how fast, and where it lands in the
+     * distribution. The rest of the registry is a keystroke away under
+     * Advanced, which `enhanceMetricPanel` fills from the registry itself.
+     */
+    const rows = element(document, "dl", "cm-metric-strip cm-metric-list");
+    const headline = [
+      ["FWCI", formatMetricValue("fwci", node.fwci), "fwci"],
+      [
+        "Citations / year",
+        node.citationVelocity === null
+          ? "—"
+          : formatMetricValue("citation-rate", node.citationVelocity),
+        "citation-rate",
+      ],
+      [
+        "Percentile",
+        formatMetricValue("citation-percentile", node.citationPercentile),
+        "citation-percentile",
+      ],
+    ] as const;
+    if (headline.every(([, value]) => value === "—")) {
+      /*
+       * Three em dashes side by side is a strip that says nothing loudly. An
+       * empty state names the reason and the way out, in the toolbar button's
+       * own word.
+       */
+      detailBody.appendChild(
+        detailSection(
+          text(
+            document,
+            "p",
+            "No impact metrics for this paper yet. Refresh the view to fetch them.",
+            "cm-placeholder",
+          ),
+        ),
+      );
+    } else {
+      for (const [label, value, metric] of headline) {
+        const term = text(document, "dt", label);
+        term.title = getMetricDefinition(metric).description;
+        rows.append(term, text(document, "dd", value));
+      }
+      detailBody.appendChild(detailSection(rows));
+    }
 
     if (node.kind === "external" && node.externalWork) {
       const work = node.externalWork as ExternalWork;
@@ -3757,52 +3831,39 @@ export function renderGraphView(
       actions.appendChild(update);
       detailBody.appendChild(detailSection(actions));
     } else {
-      const overviewActions = createPaperOverviewActionBar({
-        document,
-        actionsClass: "cm-detail-actions",
-        primaryButtonClass: "cm-primary-button",
-        secondaryButtonClass: "cm-secondary-button",
-        groupAlignment: "flow",
-        doi: node.doi,
-        onShowInZotero: () => selectPaper(node.itemID),
-        getOpenInActions:
-          focusProjection?.seedKeys.size === 1 &&
-          focusProjection.seedKeys.has(node.key)
-            ? undefined
-            : () => [
-                {
-                  label: "Current Explore view",
-                  title: "Use this paper as the seed of this Explore view.",
-                  action: () => {
-                    focusOnPaper(node);
-                  },
-                },
-              ],
-        onSimilar: () => loadInlineSimilarResults([node]),
-        onRefresh: async () => {
-          const item = Zotero.Items.get(node.itemID) as Zotero.Item | null;
-          if (!item)
-            throw new Error("The selected Zotero item is unavailable.");
-          await updateCitationDataForItems([item], {
-            force: false,
-            progressDocument: document,
+      /*
+       * One button. "Show in Zotero" repeated what a double-click on the
+       * circle already does; "Open DOI" repeated the DOI in the header, which
+       * is now a link; "Open in ›" was a menu of one entry that swapped the
+       * whole view out from under the reader, which is not what a button in a
+       * detail panel should do; and "Refresh" repeated the toolbar's, which
+       * covers this paper along with every other visible one. What is left is
+       * the one action that fetches something the reader cannot reach by
+       * clicking what is already on screen.
+       */
+      const actions = element(document, "div", "cm-detail-actions");
+      const similar = element(document, "button", "cm-primary-button");
+      similar.type = "button";
+      similar.append(
+        icon(document, "similar"),
+        document.createTextNode("Find similar papers"),
+      );
+      similar.title =
+        "Find papers similar to this one using scholarly-data providers. Results are shown for review and are not added to Zotero automatically.";
+      similar.addEventListener("click", () => {
+        if (similar.disabled) return;
+        similar.disabled = true;
+        void Promise.resolve(loadInlineSimilarResults([node]))
+          .catch((error: unknown) => {
+            Zotero.logError(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          })
+          .finally(() => {
+            if (similar.isConnected) similar.disabled = false;
           });
-          const refreshedNode = createMetricNodeForItem(item);
-          Object.assign(node, refreshedNode);
-          const libraryNode = libraryModel.nodes.find(
-            (candidate) => candidate.key === refreshedNode.key,
-          );
-          if (libraryNode) Object.assign(libraryNode, refreshedNode);
-          replaceLibraryGraph(buildCitationGraph(snapshot));
-          renderer?.setLayout(currentLayout);
-          updateSummary();
-          const current = model.nodes.find(
-            (candidate) => candidate.key === refreshedNode.key,
-          );
-          if (!cleaned && current) renderOverview(current);
-        },
       });
-      detailBody.appendChild(detailSection(overviewActions.root));
+      actions.appendChild(similar);
       if (focusProjection && !focusProjection.seedKeys.has(node.key)) {
         const addSeed = element(document, "button", "cm-secondary-button");
         addSeed.type = "button";
@@ -3812,9 +3873,13 @@ export function renderGraphView(
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(node)) renderOverview(node);
         });
-        overviewActions.root.appendChild(addSeed);
+        actions.appendChild(addSeed);
       }
+      detailBody.appendChild(detailSection(actions));
     }
+    // Last: a disclosure is where the reader goes after the panel has said
+    // everything it means to say out loud.
+    detailBody.appendChild(detailSection(advancedMetrics(document, node)));
 
     inlineSimilarResults = element(
       document,

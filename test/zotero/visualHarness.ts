@@ -26,6 +26,10 @@ import {
   type GraphViewOptions,
 } from "../../src/services/graphViewService";
 import { storeCitationGraphSnapshot } from "../../src/services/graphSnapshotStore";
+import {
+  installDataSourceHoverTooltips,
+  uninstallDataSourceHoverTooltips,
+} from "../../src/services/dataSourceTooltipService";
 
 declare const IOUtils: any;
 declare const PathUtils: any;
@@ -344,6 +348,14 @@ export async function openStage(): Promise<Stage> {
   main.appendChild(graphArea);
   root.appendChild(main);
   mount.appendChild(root);
+  /*
+   * The product installs this on every graph window (`windowService.ts`), and
+   * it is what collapses the detail pane's metric list into a headline and an
+   * Advanced disclosure. Without it the harness drew a panel that ships
+   * nowhere — a flat list of every metric — which is how three rounds of
+   * screenshots missed the shape the user was actually looking at.
+   */
+  installDataSourceHoverTooltips(document);
   await delay(200);
 
   return {
@@ -579,6 +591,11 @@ ${reason?.stack ?? ""}`,
     selected,
     errors,
     close: () => {
+      try {
+        uninstallDataSourceHoverTooltips(document);
+      } catch {
+        /* the document may already be gone */
+      }
       try {
         destroyGraphView(mount);
       } catch {

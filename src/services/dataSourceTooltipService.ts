@@ -907,7 +907,13 @@ function styleOpenAccessBadges(document: Document): void {
   }
 }
 
-const METRIC_PANEL_SELECTOR = "dl.meristema-pane-metrics, dl.cm-metric-list";
+/*
+ * The item pane's list only. The graph view's detail panel builds its own
+ * headline and its own Advanced list from the node it is already holding
+ * (`graphViewService.advancedMetrics`), rather than having them grafted on
+ * here from whatever item the library happens to have selected.
+ */
+const METRIC_PANEL_SELECTOR = "dl.meristema-pane-metrics";
 const BADGE_SELECTOR = ".meristema-pane-badges, .cm-badges";
 
 function enhancePropertyPanels(document: Document): void {

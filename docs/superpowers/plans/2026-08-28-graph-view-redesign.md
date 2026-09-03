@@ -1125,3 +1125,50 @@ right-aligned one.
 
 `Provider` reads "OpenAlex" through `citationDataSourceLabel`, not the
 "openalex" the record is keyed by.
+
+## From the sixth real run: the detail pane, cut down — DONE, verified
+
+The pane kept coming back because the screenshots were of a panel that ships
+nowhere. `dataSourceTooltipService.enhanceMetricPanel` — a MutationObserver
+installed on the graph window by `windowService.ts` — was rewriting the pane's
+metric list after the fact, collapsing eight of ten rows into an `Advanced`
+disclosure. The visual harness calls `renderGraphView` directly and never
+installed it, so every earlier round was iterating on a flat ten-row list the
+user never sees.
+
+Worse than a fidelity gap: that service resolved *which paper* the Advanced
+rows described by reading the panel's `<h2>` and matching the text against a
+cached graph, falling back to whatever item the Zotero library happened to have
+selected. A near-miss on the title match put one paper's metrics under another
+paper's name.
+
+- The panel builds its own Advanced list now (`advancedMetrics`), walking the
+  registry with the node it is already holding. `METRIC_PANEL_SELECTOR` drops
+  `dl.cm-metric-list`, so the tooltip service is back to doing tooltips. The
+  harness installs the service anyway, so what it draws is what ships.
+- The overview leads with three figures — FWCI, citations per year, percentile
+  — set large in tabular numerals over the uppercase micro-label the Key rail
+  already uses for COLOR, SIZE and LINKS. Citations and References are gone
+  from the body: the tab row states both, one line above. When all three are
+  missing the strip is replaced by a line naming the toolbar button that fills
+  them.
+- Five buttons became one. "Show in Zotero" repeated the double-click on the
+  circle (`onOpenNode` calls the same `selectPaper`). "Open DOI" repeated an
+  identifier that was nowhere on screen — the DOI is now a link under the
+  title, and the button is gone. "Open in ›" was a menu of one entry that
+  swapped the whole view out from under the reader. "Refresh" repeated the
+  toolbar's, which covers this paper along with every visible one. What is left
+  is "Find similar papers".
+- `groupAlignment` is gone from `paperOverviewActionsService`: the graph pane
+  no longer uses the shared bar, and the item pane never wanted the option.
+- The collapse toggle moved to the start of the detail toolbar. The Key rail's
+  sits at the rail's inner edge, so this one sits at the pane's: the two flank
+  the plot and both point outward. At the far end, a chevron beside a tab row
+  read as an overflow control.
+- `.cm-detail-section:empty` no longer draws its divider — the empty inline
+  results section was leaving a rule under the last thing in the panel.
+
+`view 10` measures it: toolbars `0.0–41.0` across all three panes, toggles 8.8px
+and 16.8px from the plot's edges, strip `FWCI | Citations / year | Percentile =
+4.21 | 183.4 | 99.2%`, actions `Find similar papers`, nothing overflowing or
+past the pane at 360px or 260px.

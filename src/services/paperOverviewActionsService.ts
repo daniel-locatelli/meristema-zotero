@@ -20,15 +20,6 @@ export interface PaperOverviewActionOptions {
   getOpenInActions?: () => readonly PaperOverviewOpenInAction[];
   onSimilar: Action;
   onRefresh: Action;
-  /**
-   * `"split"` — the default — keeps the paper's own actions at the start of
-   * the bar and Similar/Refresh at its end, which is the shape of the Zotero
-   * item pane section. `"flow"` runs all five as one group that wraps at the
-   * start of each line: in a 300px graph panel the bar never fits on one line,
-   * and a split bar there is not two ends of a row but a left-aligned row and
-   * a right-aligned one, which reads as two unrelated groups.
-   */
-  groupAlignment?: "split" | "flow";
 }
 
 export interface PaperOverviewActionBar {
@@ -97,16 +88,9 @@ export function createPaperOverviewActionBar(
    * In a narrow item pane they do not, and the second group came to rest at
    * the left of its own row, reading as a third group rather than the end of
    * the bar. An auto start margin puts it at the right edge on whichever line
-   * it lands on — unless the caller has asked for one flowing group, in which
-   * case the two halves are only there to keep the order.
+   * it lands on.
    */
-  if ((options.groupAlignment ?? "split") === "split") {
-    right.style.marginInlineStart = "auto";
-  } else {
-    root.style.justifyContent = "flex-start";
-    left.style.display = "contents";
-    right.style.display = "contents";
-  }
+  right.style.marginInlineStart = "auto";
 
   const showInZoteroButton = element(document, "button", secondaryButtonClass);
   showInZoteroButton.type = "button";
