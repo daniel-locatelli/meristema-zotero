@@ -794,27 +794,39 @@ describe("Graph view, as the product builds it", function () {
       "Auxin transport",
     );
 
-    // The third pane starts where the other two do. Zotero's item-pane-header
-    // has the same 41px floor its toolbars have, which is what puts the title
-    // on the line the Key and the search sit on.
-    const railToolbar = active.root.querySelector(
+    // One band across the window, not two and a half: the three panes'
+    // toolbars share a top and a bottom edge, and the header starts under
+    // them, so the rule under the band runs the width of the window whatever
+    // the length of the paper's title.
+    const bands = [
       ".cm-rail-toolbar",
-    ) as HTMLElement;
-    const headerRect = header.getBoundingClientRect();
-    const toolbarRect = railToolbar.getBoundingClientRect();
-    notes.push(
-      `view 10 header ${headerRect.top.toFixed(1)}–${headerRect.bottom.toFixed(1)} vs toolbar ${toolbarRect.top.toFixed(1)}–${toolbarRect.bottom.toFixed(1)}`,
+      ".cm-plot-toolbar",
+      ".cm-detail-toolbar",
+    ].map((selector) =>
+      (
+        active.root.querySelector(selector) as HTMLElement
+      ).getBoundingClientRect(),
     );
+    const headerRect = header.getBoundingClientRect();
+    notes.push(
+      `view 10 band ${bands.map((rect) => `${rect.top.toFixed(1)}–${rect.bottom.toFixed(1)}`).join(" ")} header top ${headerRect.top.toFixed(1)}`,
+    );
+    for (const rect of bands.slice(1)) {
+      expect(
+        Math.abs(rect.top - bands[0]!.top),
+        "every pane's toolbar starts at the same y",
+      ).to.be.lessThan(1.5);
+      expect(
+        Math.abs(rect.bottom - bands[0]!.bottom),
+        "and ends at the same y",
+        // Gecko snaps a hairline to the device pixel grid, so a 41px box with
+        // a border under it can land a fraction either side at 1.25 dppx.
+      ).to.be.lessThan(1.5);
+    }
     expect(
-      Math.abs(headerRect.top - toolbarRect.top),
-      "the header shares a top edge with the toolbars",
-    ).to.be.lessThan(1.5);
-    expect(
-      headerRect.height,
-      "and is at least as tall as one",
-      // Gecko snaps a hairline to the device pixel grid, so the border under a
-      // 41px box lands short of 42 at 1.25 dppx.
-    ).to.be.greaterThan(40);
+      headerRect.top,
+      "the header hangs under the band rather than filling it",
+    ).to.be.greaterThan(bands[2]!.bottom - 1.5);
 
     /** Controls whose text is wider than the box drawn around them. */
     const overflowing = (): string[] =>

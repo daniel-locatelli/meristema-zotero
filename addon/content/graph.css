@@ -81,7 +81,8 @@
  * left pane reads as one unbroken column, and so does this one.
  */
 .cm-rail-toolbar,
-.cm-plot-toolbar {
+.cm-plot-toolbar,
+.cm-detail-toolbar {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -102,6 +103,20 @@
   /* Above the plot's overlays, and above the popups anchored in the rail. */
   position: relative;
   z-index: 12;
+}
+/*
+ * The third pane's toolbar. Zotero's item pane has no toolbar of its own: it
+ * sits under the window's, which runs on past the items pane to the right
+ * edge. Splitting that band per pane, as this view does, leaves the right pane
+ * owing the window a toolbar — so it is painted from the same two tokens the
+ * middle one is, and the band and its rule cross the whole window unbroken.
+ * Six pixels of gap rather than eight: what it holds is a set of three, not a
+ * row of separate controls.
+ */
+.cm-detail-toolbar {
+  gap: 6px;
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-toolbar);
 }
 /* The plot and its toolbar, as one column: #zotero-items-pane-container. */
 .cm-plot-pane {
@@ -623,8 +638,28 @@
   border-left: 1px solid var(--cm-panedivider);
   background: var(--cm-sidepane);
 }
-.cm-detail-shell[data-collapsed="true"] .cm-detail-panel {
+/*
+ * Collapsed, the pane keeps its toolbar and its toggle, the way the Key rail
+ * keeps a 28px strip rather than vanishing. A pane that could only be reopened
+ * by finding an 8px splitter and double-clicking it was a pane most people
+ * would not get back.
+ */
+.cm-detail-shell[data-collapsed="true"] .cm-detail-header,
+.cm-detail-shell[data-collapsed="true"] .cm-detail-body,
+.cm-detail-shell[data-collapsed="true"] .cm-detail-nav {
   display: none;
+}
+.cm-detail-shell[data-collapsed="true"] .cm-detail-toolbar {
+  padding: 0;
+  gap: 0;
+}
+/* The tab row on the left of the toolbar, the toggle at its far end. */
+.cm-detail-nav {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 .cm-detail-resizer {
   position: relative;
@@ -654,18 +689,27 @@
   container-type: inline-size;
 }
 /*
- * `item-pane-header`: `padding: 8px`, `min-height: 41px`, `max-height: 25%`,
- * and a rule under it. The floor is the same 41px the two toolbars are, so the
- * paper's title sits on the line the Key and the search sit on rather than
- * 20px above them — the third pane finally starts where the other two do.
+ * `item-pane-header`: `padding: 8px`, `max-height: 25%`, and a rule under it.
+ * It has no floor of its own any more — the toolbar above it holds the 41px
+ * line, so a one-line title makes a short header instead of a padded one, and
+ * a three-line title is free to be three lines without shifting the band the
+ * other two panes share.
  */
 .cm-detail-header {
   flex: 0 0 auto;
-  min-height: var(--cm-toolbar-height);
   max-height: 25%;
   overflow-y: auto;
   padding: 8px;
   border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
+}
+/*
+ * The badges say what the paper is — open access, retracted, top 1% — so they
+ * belong with the title rather than in a section of their own below the tabs,
+ * where they read as the first row of the metrics.
+ */
+.cm-detail-header .cm-badges {
+  margin-top: 6px;
 }
 /*
  * Zotero's item-pane title is `font-weight: 600; line-height: 1.333` at the
@@ -693,17 +737,20 @@
   overflow-wrap: anywhere;
 }
 /*
- * The body's own sections, divided the way the item pane divides its own:
- * `:not(:last-child) > collapsible-section { border-bottom: 1px solid
- * var(--fill-quinary) }`. One rhythm for the whole panel, rather than a margin
- * chosen per block — which is what made the gaps read as arbitrary.
+ * The body's own sections, divided the way the item pane divides its own —
+ * one rhythm for the whole panel rather than a margin chosen per block, which
+ * is what made the gaps read as arbitrary. The rule is the Key's
+ * `--cm-border-soft` and not the item pane's `--fill-quinary`: 5% ink is
+ * invisible on the dark sidepane, so the blocks it was meant to separate read
+ * as one drift of content. The left rail's divider is the one the eye in this
+ * window is already calibrated to.
  */
 .cm-detail-section {
   display: block;
-  padding-block: 8px;
+  padding-block: 10px;
 }
 .cm-detail-section + .cm-detail-section {
-  border-top: 1px solid var(--cm-fill-quinary);
+  border-top: 1px solid var(--cm-border-soft);
 }
 .cm-detail-heading,
 .cm-detail-actions,
@@ -722,12 +769,20 @@
  * pane instead of being sized by the longest label — a `1fr` column has an
  * `auto` minimum, which is why "Cited by (1284 reported)" used to set the
  * width of all three and then wrap to three lines inside its own box.
+ *
+ * They live in the toolbar, not in the body: switching between a paper's
+ * metrics, the works it cites and the works citing it is navigation, and
+ * navigation is chrome. Zotero keeps the item pane's in the sidenav, which
+ * does not scroll away — nor do these now, so the tab row is still reachable
+ * from the bottom of a 57-item reference list.
  */
 .cm-detail-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  margin: 8px 0 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
 }
 .meristema-root .cm-detail-tabs button {
   min-width: 0;
@@ -762,6 +817,14 @@
 @container (max-width: 320px) {
   .cm-detail-tab-count {
     display: none;
+  }
+  /* And the padding goes with them, so "References" is still the whole word
+   * rather than "Referenc…" in the 65px a 260px pane leaves each tab. */
+  .cm-detail-toolbar {
+    padding: 0 4px;
+  }
+  .meristema-root .cm-detail-tabs button {
+    padding: 4px 2px;
   }
 }
 .cm-badges {
@@ -809,24 +872,46 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+/*
+ * A related work is a row, not a card. Zotero lists attachments, notes and
+ * related items as flat rows divided by a hairline and bled to the pane's
+ * edges; a bordered, raised, rounded box for each of thirty citing papers put
+ * boxes inside a box and made the list the loudest thing in a window whose
+ * subject is the plot. The negative margin is the body's own 8px, so each row
+ * spans the pane and its divider runs edge to edge.
+ */
 .cm-external-list {
   display: grid;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 0;
+  margin: 4px -8px 0;
 }
-/* The 6px radius the buttons and the fields in this view already use. */
 .cm-external-card {
-  padding: 10px;
-  border: 1px solid var(--cm-border);
-  border-radius: 6px;
-  background: Canvas;
+  padding: 8px;
+}
+.cm-external-card + .cm-external-card {
+  border-top: 1px solid var(--cm-border-soft);
 }
 .cm-external-card h3 {
-  font-size: 13px;
+  font-size: inherit;
   line-height: 1.35;
 }
+/* A retracted work keeps a mark of its own, now that there is no border to
+ * colour: the bar Zotero puts down the start edge of a flagged row. */
 .cm-external-retracted {
-  border-color: color-mix(in srgb, #dc2626 65%, var(--cm-border));
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+/*
+ * The row's own controls sit under its title, so they are read second: 11px
+ * chips rather than the pane's full-size buttons, which at three per row were
+ * competing with the title they belong to.
+ */
+.meristema-root .cm-external-card button {
+  min-height: 24px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
+.cm-external-card .cm-badges {
+  margin: 5px 0 0;
 }
 .cm-abstract-disclosure {
   margin: 8px 0;
@@ -1070,7 +1155,8 @@
 }
 /* Specificity as above: a bare `.cm-key-toggle` loses to `.meristema-root
  * button` on padding, and the chevron ends up against the left edge. */
-.meristema-root .cm-key-toggle {
+.meristema-root .cm-key-toggle,
+.meristema-root .cm-detail-toggle {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -1089,7 +1175,8 @@
   line-height: 1;
   cursor: pointer;
 }
-.meristema-root .cm-key-toggle:hover {
+.meristema-root .cm-key-toggle:hover,
+.meristema-root .cm-detail-toggle:hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
 }
 .cm-key-body {

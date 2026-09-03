@@ -17,6 +17,12 @@ export function externalWorkAuthorsText(
     : "Authors unavailable";
 }
 
+/** "1 citation", not "1 citations" — the count is read, not parsed. */
+function counted(value: number | null | undefined, noun: string): string {
+  if (value === null || value === undefined) return "";
+  return `${formatCount(value)} ${noun}${value === 1 ? "" : "s"}`;
+}
+
 export function externalWorkMetadataText(
   work: ExternalWorkSummary,
   recommendationScore: number | undefined,
@@ -24,14 +30,10 @@ export function externalWorkMetadataText(
   return [
     work.sourceTitle,
     work.year,
-    work.citationCount === null || work.citationCount === undefined
-      ? ""
-      : `${formatCount(work.citationCount)} citations`,
-    work.referenceCount === null || work.referenceCount === undefined
-      ? ""
-      : `${formatCount(work.referenceCount)} references`,
+    counted(work.citationCount, "citation"),
+    counted(work.referenceCount, "reference"),
     recommendationScore
-      ? `connected to ${recommendationScore} visible papers`
+      ? `connected to ${recommendationScore} visible ${recommendationScore === 1 ? "paper" : "papers"}`
       : "",
   ]
     .filter(Boolean)

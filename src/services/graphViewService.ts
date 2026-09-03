@@ -195,6 +195,12 @@ const RELATIONSHIP_FILTER_DEBOUNCE_MS = 120;
 const LIBRARY_SEARCH_DEBOUNCE_MS = 180;
 const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
 const AUTOMATIC_FOCUS_REFRESH = automaticFocusSeedRefreshPlan();
+/**
+ * A collapsed detail pane: the 8px resizer plus a 28px strip wide enough for
+ * the toolbar's toggle, so the pane can be reopened from the toggle that
+ * closed it rather than only by double-clicking the splitter.
+ */
+const COLLAPSED_DETAIL_WIDTH = "36px";
 const cleanupByMount = new WeakMap<Element, () => void>();
 const controllerByMount = new WeakMap<Element, GraphViewController>();
 
@@ -976,16 +982,22 @@ export function renderGraphView(
   resizer.setAttribute("role", "separator");
   const detail = element(document, "aside", "cm-detail-panel");
   /*
-   * Zotero's item pane is a header that stays put over a body that scrolls —
-   * `item-pane-header` above `item-details` — and the header has a 41px floor,
-   * which is what puts the paper's title on the same line as the two toolbars.
-   * Everything the panel draws goes in the body; `detailHeader` is written only
-   * by `setDetailHeader`, so a view that clears the body has to name its own
-   * header rather than inherit the last one.
+   * The pane in three parts, top to bottom: a toolbar level with the other two
+   * panes' that holds the pane's navigation and never moves, then Zotero's
+   * item-pane header — `item-pane-header` above `item-details` — and then the
+   * body, which is the only part that scrolls. Everything the panel draws goes
+   * in the body; the toolbar and the header are written only by `setDetailNav`
+   * and `setDetailHeader`, so a view that clears the body has to name its own
+   * rather than inherit the last one's.
    */
+  const detailToolbar = element(document, "div", "cm-detail-toolbar");
+  const detailNav = element(document, "div", "cm-detail-nav");
+  const detailToggle = element(document, "button", "cm-detail-toggle");
+  detailToggle.type = "button";
+  detailToolbar.append(detailNav, detailToggle);
   const detailHeader = element(document, "header", "cm-detail-header");
   const detailBody = element(document, "div", "cm-detail-body");
-  detail.append(detailHeader, detailBody);
+  detail.append(detailToolbar, detailHeader, detailBody);
   detailShell.append(resizer, detail);
   const initialWidth = clamp(
     getDetailPanelWidth(),
@@ -993,7 +1005,9 @@ export function renderGraphView(
     Math.max(260, (mount.getBoundingClientRect().width || 900) * 0.7),
   );
   const collapsed = getDetailPanelCollapsed();
-  detailShell.style.width = collapsed ? "8px" : `${initialWidth}px`;
+  detailShell.style.width = collapsed
+    ? COLLAPSED_DETAIL_WIDTH
+    : `${initialWidth}px`;
   detailShell.dataset.collapsed = String(collapsed);
   const keyRail = createKeyRail({
     document,
@@ -2283,7 +2297,7 @@ export function renderGraphView(
 
   const updateRelationshipTabLabels = (node: CitationGraphNode): void => {
     for (const direction of ["cited-by", "references"] as const) {
-      const button = detailBody.querySelector<HTMLButtonElement>(
+      const button = detailNav.querySelector<HTMLButtonElement>(
         `button[data-mode="${direction}"]`,
       );
       if (button) applyTabLabel(button, relationshipTabLabel(node, direction));
@@ -2313,6 +2327,17 @@ export function renderGraphView(
     if (meta) detailHeader.append(text(document, "p", meta, "cm-detail-meta"));
   };
 
+  /**
+   * The toolbar's navigation slot, left of the collapse toggle: the tab row on
+   * a paper, the way back on the graph-wide similar list, nothing when no
+   * paper is selected. Like the header, it survives `clear(detailBody)`, so
+   * every view names its own.
+   */
+  const setDetailNav = (...children: readonly Node[]): void => {
+    clear(detailNav);
+    detailNav.append(...children);
+  };
+
   function appendPaperHeader(
     node: CitationGraphNode,
     activeMode: "overview" | "cited-by" | "references",
@@ -2335,9 +2360,7 @@ export function renderGraphView(
       badges.append(
         text(document, "span", "Match needs confirmation", "cm-badge-warning"),
       );
-    if (badges.childElementCount) {
-      detailBody.appendChild(detailSection(badges));
-    }
+    if (badges.childElementCount) detailHeader.appendChild(badges);
 
     const tabs = element(document, "div", "cm-detail-tabs");
     for (const [mode, label] of [
@@ -2359,7 +2382,7 @@ export function renderGraphView(
       });
       tabs.appendChild(button);
     }
-    detailBody.appendChild(tabs);
+    setDetailNav(tabs);
   }
 
   function applyRelationshipMutationToGraph(
@@ -2680,13 +2703,10 @@ export function renderGraphView(
           Zotero.launchURL(url);
         });
         identityRow.appendChild(link);
-      } else {
-        // The absence of an identifier is not a fact about the paper worth
-        // the body's ink; Zotero writes a missing field in --fill-secondary.
-        identityRow.appendChild(
-          text(document, "span", "No DOI or URL", "cm-detail-meta"),
-        );
       }
+      // A work with no DOI and no provider record gets no line saying so: an
+      // empty field is not a fact about the paper, and thirty of them down a
+      // list is a column of nothing.
 
       const actionButtons = element(document, "div", "cm-detail-actions");
       if (work.inLibraryItemKey) {
@@ -2862,7 +2882,7 @@ export function renderGraphView(
           if (activeIgnoredRelation && !ignoredBadge) {
             ignoredBadge = text(document, "span", "Ignored Relationship");
             badges.appendChild(ignoredBadge);
-            if (!badges.parentElement) card.appendChild(badges);
+            if (!badges.parentElement) card.insertBefore(badges, identityRow);
           } else if (!activeIgnoredRelation && ignoredBadge) {
             ignoredBadge.remove();
             ignoredBadge = null;
@@ -2873,9 +2893,14 @@ export function renderGraphView(
       identityRow.appendChild(actionButtons);
       card.appendChild(identityRow);
 
+      /*
+       * No "In Zotero" badge: the row's first button already says "Show in
+       * Zotero" on exactly the works that are in the library and "Add to
+       * Zotero" on the ones that are not, so the badge was the same fact said
+       * twice — and said on nearly every row of a cited-by list, which made it
+       * a decoration rather than a mark.
+       */
       const badges = element(document, "div", "cm-badges");
-      if (work.inLibraryItemKey)
-        badges.append(text(document, "span", "In Zotero"));
       if (work.isOpenAccess)
         badges.append(text(document, "span", "Open Access"));
       if (activeIgnoredRelation) {
@@ -2884,7 +2909,12 @@ export function renderGraphView(
       }
       if (work.isRetracted)
         badges.append(text(document, "span", "Retracted", "cm-badge-danger"));
-      if (badges.childElementCount) card.appendChild(badges);
+      /*
+       * Above the row's controls, not under them: what the work *is* — already
+       * in Zotero, open access, retracted — is read with the title and the
+       * year, and a badge under the buttons read as a fourth control.
+       */
+      if (badges.childElementCount) card.insertBefore(badges, identityRow);
       syncIgnoredState();
 
       if (work.abstract) {
@@ -3032,41 +3062,25 @@ export function renderGraphView(
     const returnNode = selectedNode;
     clear(detailBody);
 
-    const headingRow = element(document, "div", "cm-detail-heading-row");
-    Object.assign(headingRow.style, {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: "8px",
-    });
-    headingRow.appendChild(
-      text(
-        document,
-        "h2",
-        "Similar papers for current graph",
-        "cm-detail-title",
-      ),
-    );
+    /*
+     * The way back is navigation, so it goes where the tab row it replaces
+     * went: the toolbar, above a header that names the list the way it names a
+     * paper.
+     */
     const back = element(document, "button", "cm-secondary-button");
     back.type = "button";
-    back.textContent = returnNode ? "Back to paper" : "Close";
+    back.append(
+      icon(document, "chevron-left"),
+      document.createTextNode(returnNode ? "Back to paper" : "Close"),
+    );
     back.title = returnNode
       ? "Return to the previously selected paper"
       : "Close graph-wide similar-paper results";
     back.addEventListener("click", () => renderOverview(returnNode));
-    headingRow.appendChild(back);
-
-    clear(detailHeader);
-    detailHeader.appendChild(headingRow);
-    detailBody.append(
-      detailSection(
-        text(
-          document,
-          "p",
-          `Based on ${formatCount(seedNodes.length)} currently visible graph papers.`,
-          "cm-detail-meta",
-        ),
-      ),
+    setDetailNav(back);
+    setDetailHeader(
+      "Similar papers for current graph",
+      `Based on ${formatCount(seedNodes.length)} currently visible graph papers.`,
     );
     const results = element(document, "section", "cm-graph-similar-results");
     results.appendChild(
@@ -3486,6 +3500,7 @@ export function renderGraphView(
     clear(detailBody);
     if (!node) {
       selectedNode = null;
+      setDetailNav();
       setDetailHeader("Paper details");
       detailBody.append(
         detailSection(
@@ -3542,7 +3557,12 @@ export function renderGraphView(
       "Library coverage",
       formatMetricValue("library-coverage", node.libraryCoverage),
     );
-    appendMetric("Provider", node.provider ?? "Zotero/local data");
+    // The provider's own name for itself — "OpenAlex", not the "openalex" the
+    // record is keyed by.
+    appendMetric(
+      "Provider",
+      node.provider ? citationDataSourceLabel(node.provider) : "Zotero data",
+    );
     appendMetric(
       "Updated",
       node.metricsUpdatedAt
@@ -3742,6 +3762,7 @@ export function renderGraphView(
         actionsClass: "cm-detail-actions",
         primaryButtonClass: "cm-primary-button",
         secondaryButtonClass: "cm-secondary-button",
+        groupAlignment: "flow",
         doi: node.doi,
         onShowInZotero: () => selectPaper(node.itemID),
         getOpenInActions:
@@ -4164,6 +4185,31 @@ export function renderGraphView(
     if (target?.dataset.action === "fit") fitCurrentGraph();
   });
 
+  /**
+   * The chevron points the way the pane will move: out to the right edge while
+   * it is open, back in from it once it is closed.
+   */
+  function syncDetailToggle(): void {
+    const isCollapsed = detailShell.dataset.collapsed === "true";
+    const label = isCollapsed ? "Show paper details" : "Hide paper details";
+    detailToggle.title = label;
+    detailToggle.setAttribute("aria-label", label);
+    detailToggle.setAttribute("aria-expanded", String(!isCollapsed));
+    detailToggle.replaceChildren(
+      icon(document, isCollapsed ? "chevron-left" : "chevron-right"),
+    );
+  }
+
+  function setDetailCollapsed(next: boolean): void {
+    detailShell.dataset.collapsed = String(next);
+    detailShell.style.width = next
+      ? COLLAPSED_DETAIL_WIDTH
+      : `${getDetailPanelWidth()}px`;
+    setDetailPanelCollapsed(next);
+    syncDetailToggle();
+    renderer?.resizeViewport();
+  }
+
   let resizing = false;
   const resize = (event: PointerEvent): void => {
     if (!resizing) return;
@@ -4182,22 +4228,20 @@ export function renderGraphView(
     resizing = false;
     resizer.releasePointerCapture?.(event.pointerId);
     const width = detailShell.getBoundingClientRect().width;
-    if (width <= 14) {
-      detailShell.style.width = "8px";
-      detailShell.dataset.collapsed = "true";
-      setDetailPanelCollapsed(true);
+    if (width <= 44) {
+      setDetailCollapsed(true);
     } else {
       setDetailPanelWidth(width);
       setDetailPanelCollapsed(false);
     }
   });
   resizer.addEventListener("dblclick", () => {
-    const next = detailShell.dataset.collapsed !== "true";
-    detailShell.dataset.collapsed = String(next);
-    detailShell.style.width = next ? "8px" : `${getDetailPanelWidth()}px`;
-    setDetailPanelCollapsed(next);
-    renderer?.resizeViewport();
+    setDetailCollapsed(detailShell.dataset.collapsed !== "true");
   });
+  detailToggle.addEventListener("click", () => {
+    setDetailCollapsed(detailShell.dataset.collapsed !== "true");
+  });
+  syncDetailToggle();
 
   const unsubscribeRelationshipMutations = subscribeRelationshipMutations(
     (event) => {

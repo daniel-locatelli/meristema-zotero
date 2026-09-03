@@ -1046,3 +1046,82 @@ the renderer redraws from the new theme, but the chrome around it kept the
 scheme it was built with and the capture came out light inside dark. `view 4` is
 where the live flip is checked; this one wants a window that has one scheme
 throughout, which is what a user's window has.
+
+## From the fifth real run: the detail panel again — DONE, verified
+
+The fourth run gave the panel Zotero's item pane. Looked at next to the other
+two panes, three things were still wrong, and all three were about the pane's
+_structure_ rather than its paint.
+
+### The band across the top
+
+The header carried the 41px floor, so the third pane's top edge was the header's
+— which grew to 68px the moment a title wrapped, and the line the other two
+panes' toolbars draw stopped two thirds of the way across the window. The pane
+has a **toolbar of its own** now, `.cm-detail-toolbar`, painted from the same
+two tokens `.cm-plot-toolbar` uses, and the header hangs under it with no floor
+at all. Zotero's item pane has no toolbar because it sits under the window's,
+which runs past the items pane to the right edge; this view split that band per
+pane in the fourth run, which left the right pane owing the window a toolbar.
+
+`view 10` measures all three toolbars now, not the header against one of them:
+`band 0.0–41.0 0.0–41.0 0.0–41.0 header top 41.0`.
+
+### The tabs are navigation, so they are chrome
+
+Overview / Cited by / References moved out of the body into that toolbar. They
+no longer scroll away under a 57-item reference list, they no longer sit
+between the badges and the metrics as though they were content, and the body
+lost a block — which is a gap that no longer has to be justified.
+
+Below 320px the counts already dropped; the toolbar's side padding and the
+tabs' own padding go with them, because "References" needed 70px and a 260px
+pane was leaving each tab 65 — the tab said "Referenc…".
+
+The collapse toggle at the toolbar's far end mirrors the rail's, and the
+collapsed pane keeps a 36px strip (the 8px splitter and a 28px toolbar) rather
+than vanishing to the splitter alone: a pane that could only be reopened by
+finding an 8px target and double-clicking it was a pane most people would not
+get back.
+
+### The badges belong to the title
+
+They say what the paper _is_ — open access, retracted, top 1% — so they are in
+the header with the creator line, not in the first section of the body where
+they read as a row of the metrics table.
+
+### The rules between sections
+
+The item pane's `--fill-quinary` is 5% ink. On the dark sidepane that is not a
+divider, it is nothing, and the blocks it was meant to separate read as one
+drift of content — which is what "the spacing between the sections seems off"
+was describing. The sections use `--cm-border-soft`, the rule the Key rail
+already draws between _its_ sections, so the eye reads one divider in this
+window rather than two.
+
+### A related work is a row, not a card
+
+Every citing paper was a bordered, raised, rounded box: boxes inside a box, and
+the loudest thing in a window whose subject is the plot. `.cm-external-card` is
+a flat row now, bled to the pane's edges with the body's own -8px, divided by
+the same hairline, its controls 11px chips under the title rather than
+full-size buttons competing with it. A retracted work keeps a mark of its own
+as an inset bar down the start edge, since there is no border left to colour.
+Six works fit where three did.
+
+Three cuts went with it. **"No DOI or URL"** — an empty field is not a fact
+about the paper, and thirty of them is a column of nothing. **"In Zotero"** —
+the row's first button already says "Show in Zotero" on exactly those works and
+"Add to Zotero" on the rest, so the badge was one fact said twice, on nearly
+every row. **"1 citations"** — `externalWorkMetadataText` counts singular and
+plural now.
+
+The overview's action bar takes `groupAlignment: "flow"`, so its five controls
+wrap as one left-aligned group. The split the item pane wants — actions at the
+start, Similar/Refresh at the end — is still the default and still what
+`itemPaneService` gets; in a 300px graph panel the bar never fits on one line,
+and a split bar there is not two ends of a row but a left-aligned row and a
+right-aligned one.
+
+`Provider` reads "OpenAlex" through `citationDataSourceLabel`, not the
+"openalex" the record is keyed by.
