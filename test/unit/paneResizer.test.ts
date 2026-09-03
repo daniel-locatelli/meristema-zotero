@@ -116,6 +116,18 @@ describe("attachPaneResizer", function () {
     expect(releases).to.deep.equal([{ kind: "collapse" }]);
   });
 
+  it("ends the drag when the pointer capture is lost, and only once", function () {
+    const { handle, log, releases } = setup("start");
+    handle.fire("pointerdown", { pointerId: 3 });
+    handle.fire("pointermove", { clientX: 400 });
+    handle.fire("lostpointercapture", { pointerId: 3 });
+    expect(log).to.deep.equal(["begin", "move 300", "end"]);
+    expect(releases).to.deep.equal([{ kind: "commit", width: 300 }]);
+    handle.fire("pointerup", { pointerId: 3, clientX: 400 });
+    expect(log).to.deep.equal(["begin", "move 300", "end"]);
+    expect(releases).to.have.length(1);
+  });
+
   it("toggles on double click and removes every listener on detach", function () {
     const { handle, log, detach } = setup("start");
     handle.fire("dblclick");

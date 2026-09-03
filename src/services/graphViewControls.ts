@@ -711,6 +711,14 @@ export function attachPaneResizer(options: PaneResizerOptions): () => void {
   let dragging = false;
   let lastRaw: number | null = null;
 
+  /*
+   * Pointer capture is load-bearing here: every listener is on the handle, so
+   * without it a pointerup over the plot or outside the window never reaches
+   * this code, `onEnd` never runs, and the binding's local-change depth stays
+   * above zero — the pane would stop hearing from Zotero for the rest of the
+   * session. `lostpointercapture` is the safety net for the cases where the
+   * capture is refused or taken away mid-drag.
+   */
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
     lastRaw = null;
@@ -748,12 +756,15 @@ export function attachPaneResizer(options: PaneResizerOptions): () => void {
   handle.addEventListener("pointermove", onPointerMove);
   handle.addEventListener("pointerup", onPointerUp);
   handle.addEventListener("pointercancel", onPointerUp);
+  // A no-op after a normal pointerup, which has already cleared `dragging`.
+  handle.addEventListener("lostpointercapture", onPointerUp);
   handle.addEventListener("dblclick", onDoubleClick);
   return () => {
     handle.removeEventListener("pointerdown", onPointerDown);
     handle.removeEventListener("pointermove", onPointerMove);
     handle.removeEventListener("pointerup", onPointerUp);
     handle.removeEventListener("pointercancel", onPointerUp);
+    handle.removeEventListener("lostpointercapture", onPointerUp);
     handle.removeEventListener("dblclick", onDoubleClick);
   };
 }
