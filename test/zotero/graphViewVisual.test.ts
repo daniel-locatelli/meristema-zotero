@@ -748,4 +748,182 @@ describe("Graph view, as the product builds it", function () {
       await delay(150);
     }
   });
+
+  it("view 10 — the detail panel is Zotero's item pane", async function () {
+    this.timeout(60_000);
+    // A paper with everything the panel can draw: a title that has to wrap, a
+    // creator line, every badge, and counts long enough to fill a tab label.
+    const corpus = makeCorpus({ nodes: 140 });
+    const subject = corpus.nodes[0]!;
+    subject.title =
+      "Auxin transport and the maintenance of the shoot apical meristem across angiosperm lineages";
+    subject.authors = ["Reinhardt, D.", "Pesce, E.-R.", "Stieger, P."];
+    subject.sourceTitle = "Nature Plants";
+    subject.year = 2018;
+    subject.doi = "10.1000/harness.demo";
+    subject.citationCount = 1284;
+    subject.referenceCount = 57;
+    subject.citationVelocity = 183.4;
+    subject.fwci = 4.21;
+    subject.citationPercentile = 0.992;
+    subject.isOpenAccess = true;
+    subject.isTop1Percent = true;
+    subject.provider = "openalex";
+    subject.metricsUpdatedAt = new Date("2026-08-30T09:15:00Z").toISOString();
+
+    stage = await openViewStage(corpus);
+    const active = stage;
+    await settle(active.window, 10);
+    (
+      active.root.querySelector(
+        '.cm-zoom-controls button[data-action="fit"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(active.window, 6);
+    const controller = getGraphViewController(active.mount);
+    expect(controller, "the view published a controller").to.not.equal(null);
+    controller!.revealItem(subject.itemID);
+    await settle(active.window, 10);
+
+    const panel = active.root.querySelector(".cm-detail-panel") as HTMLElement;
+    const header = active.root.querySelector(
+      ".cm-detail-header",
+    ) as HTMLElement;
+    expect(header, "the panel has a header of its own").to.not.equal(null);
+    expect(header.textContent, "which names the selected paper").to.contain(
+      "Auxin transport",
+    );
+
+    // The third pane starts where the other two do. Zotero's item-pane-header
+    // has the same 41px floor its toolbars have, which is what puts the title
+    // on the line the Key and the search sit on.
+    const railToolbar = active.root.querySelector(
+      ".cm-rail-toolbar",
+    ) as HTMLElement;
+    const headerRect = header.getBoundingClientRect();
+    const toolbarRect = railToolbar.getBoundingClientRect();
+    notes.push(
+      `view 10 header ${headerRect.top.toFixed(1)}–${headerRect.bottom.toFixed(1)} vs toolbar ${toolbarRect.top.toFixed(1)}–${toolbarRect.bottom.toFixed(1)}`,
+    );
+    expect(
+      Math.abs(headerRect.top - toolbarRect.top),
+      "the header shares a top edge with the toolbars",
+    ).to.be.lessThan(1.5);
+    expect(
+      headerRect.height,
+      "and is at least as tall as one",
+      // Gecko snaps a hairline to the device pixel grid, so the border under a
+      // 41px box lands short of 42 at 1.25 dppx.
+    ).to.be.greaterThan(40);
+
+    /** Controls whose text is wider than the box drawn around them. */
+    const overflowing = (): string[] =>
+      ([...panel.querySelectorAll("button")] as HTMLButtonElement[])
+        .filter((button) => button.scrollWidth > button.clientWidth + 1)
+        .map(
+          (button) =>
+            `${(button.textContent ?? "").trim()} ${button.clientWidth}<${button.scrollWidth}`,
+        );
+    /** Controls that stand outside the pane they are in. */
+    const past = (): string[] => {
+      const bounds = panel.getBoundingClientRect();
+      return ([...panel.querySelectorAll("button")] as HTMLButtonElement[])
+        .filter(
+          (button) => button.getBoundingClientRect().right > bounds.right + 1,
+        )
+        .map((button) => (button.textContent ?? "").trim());
+    };
+    /** A tab that wrapped is a tab that did not fit. */
+    const tabHeights = (): number[] =>
+      (
+        [
+          ...panel.querySelectorAll(".cm-detail-tabs button"),
+        ] as HTMLButtonElement[]
+      ).map((button) => button.getBoundingClientRect().height);
+
+    const wide = { overflow: overflowing(), out: past(), tabs: tabHeights() };
+    notes.push(
+      `view 10 at 360px: overflowing ${wide.overflow.join(" | ") || "none"}; past the pane ${wide.out.join(" | ") || "none"}; tabs ${wide.tabs.map((height) => height.toFixed(1)).join("/")}`,
+    );
+    await shot("view-10-detail-360");
+
+    // And the same panel at its narrowest, which is where it has to hold up.
+    const shell = active.root.querySelector(".cm-detail-shell") as HTMLElement;
+    shell.style.width = "260px";
+    await settle(active.window, 6);
+    await shot("view-10-detail-260");
+    const narrow = { overflow: overflowing(), out: past(), tabs: tabHeights() };
+    notes.push(
+      `view 10 at 260px: overflowing ${narrow.overflow.join(" | ") || "none"}; past the pane ${narrow.out.join(" | ") || "none"}; tabs ${narrow.tabs.map((height) => height.toFixed(1)).join("/")}`,
+    );
+
+    // The other two views of the same pane: a relationship list, which clears
+    // the body and has to name the header again, and the whole thing in the
+    // light scheme, where the header's rule and the hairlines between the
+    // sections are the parts that can go wrong.
+    shell.style.width = "360px";
+    await settle(active.window, 4);
+    (
+      panel.querySelector(
+        '.cm-detail-tabs button[data-mode="cited-by"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(active.window, 8);
+    expect(
+      (active.root.querySelector(".cm-detail-header") as HTMLElement)
+        .textContent,
+      "the header still names the paper the list belongs to",
+    ).to.contain("Auxin transport");
+    await shot("view-10-cited-by");
+
+    /*
+     * The light scheme gets its own stage rather than a repaint of this one.
+     * Flipping the appearance under an open harness window repaints the plot —
+     * the renderer redraws from the new theme — but the chrome around it kept
+     * the scheme it was built with, so the capture came out light inside dark.
+     * A window opened after the pref is set has one scheme throughout, which is
+     * what a user's window has; view 4 is where the live flip is checked.
+     */
+    const originalAppearance = Services.prefs.getIntPref(APPEARANCE_PREF, 2);
+    try {
+      Services.prefs.setIntPref(APPEARANCE_PREF, 1);
+      await delay(400);
+      active.close();
+      stage = await openViewStage(makeCorpus({ nodes: 60 }));
+      const light = stage;
+      await settle(light.window, 10);
+      getGraphViewController(light.mount)!.revealItem(
+        light.model.nodes[0]!.itemID,
+      );
+      await settle(light.window, 10);
+      notes.push(
+        `view 10 light chrome: ${(light.window as any).getComputedStyle(light.root).backgroundColor}`,
+      );
+      await shot("view-10-detail-light");
+    } finally {
+      Services.prefs.setIntPref(APPEARANCE_PREF, originalAppearance);
+      await delay(150);
+    }
+
+    for (const [width, measured] of [
+      ["360px", wide],
+      ["260px", narrow],
+    ] as const) {
+      expect(
+        measured.overflow,
+        `at ${width}, text spills out of: ${measured.overflow.join(" | ")}`,
+      ).to.be.empty;
+      expect(
+        measured.out,
+        `at ${width}, these stand outside the pane: ${measured.out.join(" | ")}`,
+      ).to.be.empty;
+      expect(measured.tabs.length, "there are three tabs").to.equal(3);
+      for (const height of measured.tabs) {
+        expect(
+          height,
+          `at ${width}, a tab label wrapped: ${measured.tabs.join("/")}`,
+        ).to.be.lessThan(32);
+      }
+    }
+  });
 });

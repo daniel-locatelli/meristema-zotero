@@ -975,6 +975,17 @@ export function renderGraphView(
   resizer.tabIndex = 0;
   resizer.setAttribute("role", "separator");
   const detail = element(document, "aside", "cm-detail-panel");
+  /*
+   * Zotero's item pane is a header that stays put over a body that scrolls —
+   * `item-pane-header` above `item-details` — and the header has a 41px floor,
+   * which is what puts the paper's title on the same line as the two toolbars.
+   * Everything the panel draws goes in the body; `detailHeader` is written only
+   * by `setDetailHeader`, so a view that clears the body has to name its own
+   * header rather than inherit the last one.
+   */
+  const detailHeader = element(document, "header", "cm-detail-header");
+  const detailBody = element(document, "div", "cm-detail-body");
+  detail.append(detailHeader, detailBody);
   detailShell.append(resizer, detail);
   const initialWidth = clamp(
     getDetailPanelWidth(),
@@ -2223,14 +2234,27 @@ export function renderGraphView(
       direction,
     );
 
+  /**
+   * A tab's label in the two parts the pane can lay out separately. The pane
+   * is 260px at its narrowest, which is 76px a tab: the name has to be able to
+   * clip and the count has to be able to go, and neither can happen while the
+   * two are one string.
+   */
+  interface DetailTabLabel {
+    name: string;
+    count: string | null;
+    /** The whole phrasing, which says what the count is a count of. */
+    title: string;
+  }
+
   const relationshipTabLabel = (
     node: CitationGraphNode,
     direction: "references" | "cited-by",
-  ): string => {
-    const label = direction === "references" ? "References" : "Cited by";
+  ): DetailTabLabel => {
+    const name = direction === "references" ? "References" : "Cited by";
     const state = relationshipPublicationStateForNode(node, direction);
     if (state?.active && !state.membershipPublished) {
-      return `${label} (updating…)`;
+      return { name, count: "…", title: `${name} (updating…)` };
     }
     const reportedCounts = getRelationshipReportedCounts(
       snapshot.libraryID,
@@ -2241,16 +2265,52 @@ export function renderGraphView(
       : direction === "references"
         ? reportedCounts.referenceCount
         : reportedCounts.citationCount;
-    return `${label} (${formatCount(count)} reported)`;
+    const formatted = formatCount(count);
+    return { name, count: formatted, title: `${name} (${formatted} reported)` };
+  };
+
+  const applyTabLabel = (
+    button: HTMLButtonElement,
+    label: DetailTabLabel,
+  ): void => {
+    clear(button);
+    button.append(text(document, "span", label.name, "cm-detail-tab-label"));
+    if (label.count !== null) {
+      button.append(text(document, "span", label.count, "cm-detail-tab-count"));
+    }
+    button.title = label.title;
   };
 
   const updateRelationshipTabLabels = (node: CitationGraphNode): void => {
     for (const direction of ["cited-by", "references"] as const) {
-      const button = detail.querySelector<HTMLButtonElement>(
+      const button = detailBody.querySelector<HTMLButtonElement>(
         `button[data-mode="${direction}"]`,
       );
-      if (button) button.textContent = relationshipTabLabel(node, direction);
+      if (button) applyTabLabel(button, relationshipTabLabel(node, direction));
     }
+  };
+
+  /**
+   * One block of the body, in the rhythm `.cm-detail-section` sets: 8px above
+   * and below, and a hairline between it and the block before it — which is
+   * how the item pane divides its own sections.
+   */
+  const detailSection = (...children: readonly Node[]): HTMLElement => {
+    const wrapper = element(document, "section", "cm-detail-section");
+    wrapper.append(...children);
+    return wrapper;
+  };
+
+  /**
+   * The panel's header, which is the one thing outside the body: it survives a
+   * `clear(detailBody)`, so every view that clears the body names it again.
+   * Zotero's `item-pane-header` carries the title and the creator-year line and
+   * nothing else, so the badges stay with the body below.
+   */
+  const setDetailHeader = (title: string, meta?: string | null): void => {
+    clear(detailHeader);
+    detailHeader.append(text(document, "h2", title, "cm-detail-title"));
+    if (meta) detailHeader.append(text(document, "p", meta, "cm-detail-meta"));
   };
 
   function appendPaperHeader(
@@ -2258,16 +2318,11 @@ export function renderGraphView(
     activeMode: "overview" | "cited-by" | "references",
   ): void {
     selectedNode = node;
-    detail.append(text(document, "h2", node.title));
-    detail.append(
-      text(
-        document,
-        "p",
-        [node.authors.slice(0, 5).join(", "), node.sourceTitle, node.year]
-          .filter(Boolean)
-          .join(" · "),
-        "cm-detail-meta",
-      ),
+    setDetailHeader(
+      node.title,
+      [node.authors.slice(0, 5).join(", "), node.sourceTitle, node.year]
+        .filter(Boolean)
+        .join(" · "),
     );
     const badges = element(document, "div", "cm-badges");
     if (node.isOpenAccess) badges.append(text(document, "span", "Open Access"));
@@ -2280,11 +2335,16 @@ export function renderGraphView(
       badges.append(
         text(document, "span", "Match needs confirmation", "cm-badge-warning"),
       );
-    if (badges.childElementCount) detail.appendChild(badges);
+    if (badges.childElementCount) {
+      detailBody.appendChild(detailSection(badges));
+    }
 
     const tabs = element(document, "div", "cm-detail-tabs");
     for (const [mode, label] of [
-      ["overview", "Overview"],
+      [
+        "overview",
+        { name: "Overview", count: null, title: "This paper's metrics" },
+      ],
       ["cited-by", relationshipTabLabel(node, "cited-by")],
       ["references", relationshipTabLabel(node, "references")],
     ] as const) {
@@ -2292,14 +2352,14 @@ export function renderGraphView(
       button.type = "button";
       button.dataset.mode = mode;
       button.dataset.selected = String(mode === activeMode);
-      button.textContent = label;
+      applyTabLabel(button, label);
       button.addEventListener("click", () => {
         if (mode === "overview") renderOverview(node);
         else showRelationList(node, mode);
       });
       tabs.appendChild(button);
     }
-    detail.appendChild(tabs);
+    detailBody.appendChild(tabs);
   }
 
   function applyRelationshipMutationToGraph(
@@ -2573,7 +2633,7 @@ export function renderGraphView(
       ignoredIndex?: IgnoredRelationIndex;
       referenceIndex?: RelatedWorkLookupIndex;
     },
-    target: HTMLElement = detail,
+    target: HTMLElement = detailBody,
     existingList?: HTMLElement,
   ): void {
     if (!works.length) {
@@ -2621,7 +2681,11 @@ export function renderGraphView(
         });
         identityRow.appendChild(link);
       } else {
-        identityRow.appendChild(text(document, "span", "No DOI or URL"));
+        // The absence of an identifier is not a fact about the paper worth
+        // the body's ink; Zotero writes a missing field in --fill-secondary.
+        identityRow.appendChild(
+          text(document, "span", "No DOI or URL", "cm-detail-meta"),
+        );
       }
 
       const actionButtons = element(document, "div", "cm-detail-actions");
@@ -2910,7 +2974,7 @@ export function renderGraphView(
     if (inlineSimilarResults?.isConnected) return inlineSimilarResults;
     const section = element(document, "section", "cm-inline-similar-results");
     section.style.marginTop = "10px";
-    detail.appendChild(section);
+    detailBody.appendChild(section);
     inlineSimilarResults = section;
     return section;
   };
@@ -2966,7 +3030,7 @@ export function renderGraphView(
     activeRelationshipView = null;
     renderer?.setGhostPreview(null);
     const returnNode = selectedNode;
-    clear(detail);
+    clear(detailBody);
 
     const headingRow = element(document, "div", "cm-detail-heading-row");
     Object.assign(headingRow.style, {
@@ -2976,7 +3040,12 @@ export function renderGraphView(
       gap: "8px",
     });
     headingRow.appendChild(
-      text(document, "h2", "Similar papers for current graph"),
+      text(
+        document,
+        "h2",
+        "Similar papers for current graph",
+        "cm-detail-title",
+      ),
     );
     const back = element(document, "button", "cm-secondary-button");
     back.type = "button";
@@ -2987,20 +3056,23 @@ export function renderGraphView(
     back.addEventListener("click", () => renderOverview(returnNode));
     headingRow.appendChild(back);
 
-    detail.append(
-      headingRow,
-      text(
-        document,
-        "p",
-        `Based on ${formatCount(seedNodes.length)} currently visible graph papers.`,
-        "cm-detail-meta",
+    clear(detailHeader);
+    detailHeader.appendChild(headingRow);
+    detailBody.append(
+      detailSection(
+        text(
+          document,
+          "p",
+          `Based on ${formatCount(seedNodes.length)} currently visible graph papers.`,
+          "cm-detail-meta",
+        ),
       ),
     );
     const results = element(document, "section", "cm-graph-similar-results");
     results.appendChild(
       text(document, "p", "Finding similar papers…", "cm-placeholder"),
     );
-    detail.appendChild(results);
+    detailBody.appendChild(results);
 
     try {
       const works = await getMissingPaperRecommendations(
@@ -3047,7 +3119,7 @@ export function renderGraphView(
     renderer?.setGhostPreview(null);
     similarRequestGeneration += 1;
     inlineSimilarResults = null;
-    clear(detail);
+    clear(detailBody);
     appendPaperHeader(node, direction);
 
     let relationshipSnapshot = getRelationshipViewSnapshot(
@@ -3186,8 +3258,8 @@ export function renderGraphView(
 
     controls.append(toolbar.root, update);
     if (picker) controls.appendChild(picker.button);
-    detail.appendChild(controls);
-    if (picker) detail.appendChild(picker.overlay);
+    detailBody.appendChild(controls);
+    if (picker) detailBody.appendChild(picker.overlay);
 
     const status = text(document, "p", "", "cm-detail-meta");
     const updateStatus = (): void => {
@@ -3201,7 +3273,7 @@ export function renderGraphView(
       );
       status.textContent = updateOutcome ? `${base} · ${updateOutcome}` : base;
     };
-    detail.append(status, listHost);
+    detailBody.append(status, listHost);
 
     renderList = (): void => {
       const generation = ++renderGeneration;
@@ -3411,16 +3483,18 @@ export function renderGraphView(
     renderer?.setGhostPreview(null);
     similarRequestGeneration += 1;
     inlineSimilarResults = null;
-    clear(detail);
+    clear(detailBody);
     if (!node) {
       selectedNode = null;
-      detail.append(
-        text(document, "h2", "Paper details"),
-        text(
-          document,
-          "p",
-          "Select a paper to inspect its metrics, references and citing works.",
-          "cm-placeholder",
+      setDetailHeader("Paper details");
+      detailBody.append(
+        detailSection(
+          text(
+            document,
+            "p",
+            "Select a paper to inspect its metrics, references and citing works.",
+            "cm-placeholder",
+          ),
         ),
       );
       return;
@@ -3475,7 +3549,7 @@ export function renderGraphView(
         ? new Date(node.metricsUpdatedAt).toLocaleString()
         : "—",
     );
-    detail.appendChild(rows);
+    detailBody.appendChild(detailSection(rows));
 
     if (node.kind === "external" && node.externalWork) {
       const work = node.externalWork as ExternalWork;
@@ -3559,7 +3633,7 @@ export function renderGraphView(
           importButtons,
         );
         actions.appendChild(add);
-        detail.appendChild(importArea);
+        detailBody.appendChild(importArea);
       }
 
       const sourceURL = externalWorkURL(work);
@@ -3661,7 +3735,7 @@ export function renderGraphView(
           });
       });
       actions.appendChild(update);
-      detail.appendChild(actions);
+      detailBody.appendChild(detailSection(actions));
     } else {
       const overviewActions = createPaperOverviewActionBar({
         document,
@@ -3707,7 +3781,7 @@ export function renderGraphView(
           if (!cleaned && current) renderOverview(current);
         },
       });
-      detail.appendChild(overviewActions.root);
+      detailBody.appendChild(detailSection(overviewActions.root));
       if (focusProjection && !focusProjection.seedKeys.has(node.key)) {
         const addSeed = element(document, "button", "cm-secondary-button");
         addSeed.type = "button";
@@ -3724,10 +3798,9 @@ export function renderGraphView(
     inlineSimilarResults = element(
       document,
       "section",
-      "cm-inline-similar-results",
+      "cm-inline-similar-results cm-detail-section",
     );
-    inlineSimilarResults.style.marginTop = "10px";
-    detail.appendChild(inlineSimilarResults);
+    detailBody.appendChild(inlineSimilarResults);
   }
 
   const handleGraphSelection = (node: CitationGraphNode | null): void => {

@@ -29,6 +29,20 @@
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
   --cm-surface-raised: color-mix(in srgb, Canvas 98%, CanvasText 2%);
   --cm-muted: color-mix(in srgb, CanvasText 68%, transparent);
+  /*
+   * Zotero's own two inks for a pane's secondary text and for the rules
+   * between an item pane's sections: `--fill-secondary` is 55% of the ink in
+   * both schemes and `--fill-quinary` is 5%. They resolve inside the tab; the
+   * fallbacks carry the same values into the standalone window.
+   */
+  --cm-fill-secondary: var(
+    --fill-secondary,
+    color-mix(in srgb, CanvasText 55%, transparent)
+  );
+  --cm-fill-quinary: var(
+    --fill-quinary,
+    color-mix(in srgb, CanvasText 5%, transparent)
+  );
   --cm-accent: var(--accent-blue, #2563eb);
   --cm-icon-color: #3f4650;
   color-scheme: light dark;
@@ -198,6 +212,13 @@
   margin: 3px 0 0;
   color: var(--cm-muted);
   line-height: 1.35;
+}
+/*
+ * The creator-year line under a title, and every secondary line in the detail
+ * panel: Zotero writes those in `--fill-secondary`, not in its body ink.
+ */
+.cm-detail-meta {
+  color: var(--cm-fill-secondary);
 }
 .cm-library-summary {
   /* Tabular figures so the counts do not jitter as the filter changes them. */
@@ -613,16 +634,76 @@
 .cm-detail-resizer:hover {
   background: color-mix(in srgb, var(--cm-accent) 30%, transparent);
 }
+/*
+ * A header that does not scroll over a body that does — Zotero's item pane,
+ * which is `item-pane-header` above `item-details`. The panel itself no longer
+ * carries the padding: the header has its own, and so has the body, because
+ * the header's bottom rule has to run the full width of the pane the way
+ * Zotero's does.
+ *
+ * `container-type` makes the panel the container the tab row asks about. It is
+ * `inline-size`, so only the width is contained and the body still sizes
+ * itself from its content.
+ */
 .cm-detail-panel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
-  padding: 12px 12px 30px;
+  overflow: hidden;
+  container-type: inline-size;
 }
-.cm-detail-panel h2 {
-  font-size: 17px;
-  line-height: 1.25;
+/*
+ * `item-pane-header`: `padding: 8px`, `min-height: 41px`, `max-height: 25%`,
+ * and a rule under it. The floor is the same 41px the two toolbars are, so the
+ * paper's title sits on the line the Key and the search sit on rather than
+ * 20px above them — the third pane finally starts where the other two do.
+ */
+.cm-detail-header {
+  flex: 0 0 auto;
+  min-height: var(--cm-toolbar-height);
+  max-height: 25%;
+  overflow-y: auto;
+  padding: 8px;
+  border-bottom: 1px solid var(--cm-panedivider);
+}
+/*
+ * Zotero's item-pane title is `font-weight: 600; line-height: 1.333` at the
+ * pane's own size. It was 17px here, which is a heading out of a web page: the
+ * one piece of type in the view larger than anything Zotero draws.
+ */
+.cm-detail-title {
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.333;
   overflow-wrap: anywhere;
+}
+.cm-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 8px 24px;
+}
+.cm-detail-body > h2,
+.cm-detail-body > h3 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.333;
+  overflow-wrap: anywhere;
+}
+/*
+ * The body's own sections, divided the way the item pane divides its own:
+ * `:not(:last-child) > collapsible-section { border-bottom: 1px solid
+ * var(--fill-quinary) }`. One rhythm for the whole panel, rather than a margin
+ * chosen per block — which is what made the gaps read as arbitrary.
+ */
+.cm-detail-section {
+  display: block;
+  padding-block: 8px;
+}
+.cm-detail-section + .cm-detail-section {
+  border-top: 1px solid var(--cm-fill-quinary);
 }
 .cm-detail-heading,
 .cm-detail-actions,
@@ -635,19 +716,56 @@
 .cm-detail-heading {
   margin-bottom: 8px;
 }
+/*
+ * Three tabs across a pane that can be 260px wide. Each column is
+ * `minmax(0, 1fr)` and each button is `min-width: 0`, so the columns divide the
+ * pane instead of being sized by the longest label — a `1fr` column has an
+ * `auto` minimum, which is why "Cited by (1284 reported)" used to set the
+ * width of all three and then wrap to three lines inside its own box.
+ */
 .cm-detail-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  margin: 11px 0;
+  margin: 8px 0 0;
+}
+.meristema-root .cm-detail-tabs button {
+  min-width: 0;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.cm-detail-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cm-detail-tab-count {
+  flex: 0 0 auto;
+  color: var(--cm-fill-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .cm-detail-tabs button[data-selected="true"] {
   border-color: var(--cm-accent);
   background: color-mix(in srgb, var(--cm-accent) 14%, Canvas);
-  font-weight: 650;
+  font-weight: 600;
+}
+.cm-detail-tabs button[data-selected="true"] .cm-detail-tab-count {
+  color: inherit;
+}
+/*
+ * Below this the counts have nowhere to go: at 260px each tab has about 76px
+ * of it, which "Cited by" fills on its own. The tab keeps its name and drops
+ * the number rather than clipping both.
+ */
+@container (max-width: 320px) {
+  .cm-detail-tab-count {
+    display: none;
+  }
 }
 .cm-badges {
-  margin: 8px 0;
+  margin: 0;
 }
 .cm-badges span {
   display: inline-flex;
@@ -655,7 +773,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--cm-accent) 12%, Canvas);
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .cm-badge-danger {
   background: color-mix(in srgb, #dc2626 16%, Canvas) !important;
@@ -665,34 +783,42 @@
   background: color-mix(in srgb, #b45309 16%, Canvas) !important;
   color: #b45309;
 }
+/*
+ * `info-box #info-table`: `grid-template-columns: max-content 1fr;
+ * column-gap: 8px; row-gap: 2px`, with `.meta-label` right-aligned in
+ * `--fill-secondary` and the value beside it. The rules under every row were
+ * the loudest thing in the panel and Zotero draws none.
+ */
 .cm-metric-list {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto;
-  margin: 9px 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  margin: 0;
 }
 .cm-metric-list dt,
 .cm-metric-list dd {
   margin: 0;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--cm-border-soft);
+  padding: 0;
 }
 .cm-metric-list dt {
-  color: var(--cm-muted);
+  color: var(--cm-fill-secondary);
+  text-align: end;
 }
 .cm-metric-list dd {
-  padding-left: 10px;
-  text-align: right;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 .cm-external-list {
   display: grid;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 8px;
 }
+/* The 6px radius the buttons and the fields in this view already use. */
 .cm-external-card {
   padding: 10px;
   border: 1px solid var(--cm-border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: Canvas;
 }
 .cm-external-card h3 {

@@ -875,7 +875,7 @@ solid #dadada` — invalid, so the declaration is dropped. It only bit inside a
 **tab**, where the token resolves; the standalone window fell back to the
 literal and looked correct. The token is now `--color-panedivider`.
 
-### Not done, deliberately
+### Not done, deliberately — done in the fourth run, below
 
 The detail panel on the right is the third pane and has no toolbar, so its
 heading still sits level with the top of the window rather than with the two
@@ -964,3 +964,85 @@ dark-theme export pasted into a light document: readable, with its legend.
 - Walk every colour metric and confirm the rail names every mark on screen.
 - Refresh the screenshots in `docs/assets/` — they still show the pre-rename
   "Citation Map" chrome — and update the README figures.
+
+## From the fourth real run: the detail panel — DONE, verified
+
+Three reports about the pane on the right, all of them true, and all three had
+the same root: the panel was the one part of the view never made to be Zotero's.
+It was a scrolling `<aside>` with a 17px web heading, a rule under every metric
+row, and a margin picked per block.
+
+### The panel is a header over a body
+
+`item-pane-header` is `padding: 8px`, `min-height: 41px`, `max-height: 25%`,
+`overflow-y: auto`, with a rule under it — the same 41px the two toolbars are.
+The panel is now that header over `.cm-detail-body`, which is the only thing
+that scrolls, and the paper's title sits on the line the Key and the search sit
+on. `renderGraphView` builds both; `detailHeader` is written only through
+`setDetailHeader`, so a view that clears the body (the overview, a relationship
+list, the graph-wide similar results) has to name its own header rather than
+leave the last paper's title over someone else's content.
+
+The title is `font-weight: 600` at the pane's own size, as Zotero's is. At 17px
+it was the largest type anywhere in the view and the only piece of it Zotero
+does not draw.
+
+### The tab labels fit because they are two things
+
+"Cited by (1284 reported)" was one string in a `repeat(3, 1fr)` grid. A `1fr`
+column has an `auto` minimum, so the longest label sized all three columns and
+then wrapped to three lines inside its own button — the overflow the reader saw.
+The columns are `minmax(0, 1fr)` and the buttons `min-width: 0` now, and the
+label is a name span the pane may clip beside a count span it may drop whole:
+
+```css
+@container (max-width: 320px) {
+  .cm-detail-tab-count {
+    display: none;
+  }
+}
+```
+
+`.cm-detail-panel` carries `container-type: inline-size` for that query. At the
+pane's 260px minimum each tab has about 76px, which "Cited by" fills on its own,
+so the tab keeps its name and loses the number rather than clipping both. The
+whole phrasing — which says what the count is a count of — is on the tooltip.
+
+### One rhythm, and Zotero's own table
+
+`.cm-detail-section` is 8px above and below with a hairline between it and the
+block before it, which is how the item pane divides its sections
+(`:not(:last-child) > collapsible-section`). The metric list is Zotero's
+`#info-table`: `grid-template-columns: max-content 1fr`, `column-gap: 8px`,
+`row-gap: 2px`, the label right-aligned in `--fill-secondary` beside its value.
+The rule under every row was the loudest thing in the panel and Zotero draws
+none.
+
+Two tokens carry the item pane's inks: `--cm-fill-secondary` and
+`--cm-fill-quinary`, each `var(--fill-*, <the same value as a CanvasText mix>)`
+so the tab resolves Zotero's and the standalone window falls back to it.
+
+### The action bar's second group
+
+`createPaperOverviewActionBar` held its two groups apart with
+`justify-content: space-between`, which does nothing once they stop sharing a
+line. In a 260px pane the Similar/refresh group came to rest at the left of its
+own row, reading as a third group. It has `margin-inline-start: auto` now, so it
+ends the bar on whichever line it lands on. Both the graph's panel and the item
+pane section use that builder, so both were fixed by the one line.
+
+### What pins it
+
+`view 10 — the detail panel is Zotero's item pane` selects a paper through the
+view's own controller, asserts the header shares a top edge with the toolbars
+and is at least as tall as one, that no control in the pane has text wider than
+itself or stands outside the pane, and that no tab is taller than 28px — at
+360px and again at 260px. It captures the overview, a relationship list and the
+whole thing in the light scheme.
+
+The light capture opens a **second stage** after the pref is set rather than
+flipping the appearance under the open one: a live flip repaints the plot, since
+the renderer redraws from the new theme, but the chrome around it kept the
+scheme it was built with and the capture came out light inside dark. `view 4` is
+where the live flip is checked; this one wants a window that has one scheme
+throughout, which is what a user's window has.

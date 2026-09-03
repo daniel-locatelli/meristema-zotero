@@ -79,8 +79,18 @@ export function createPaperOverviewActionBar(
 
   const left = element(document, "div", actionsClass);
   left.style.margin = "0";
+  left.style.minWidth = "0";
   const right = element(document, "div", actionsClass);
   right.style.margin = "0";
+  right.style.minWidth = "0";
+  /*
+   * `space-between` only holds the two groups apart while they share a line.
+   * In a 260px item pane they do not, and the second group came to rest at the
+   * left of its own row, reading as a third group rather than the end of the
+   * bar. An auto start margin puts it at the right edge on whichever line it
+   * lands on.
+   */
+  right.style.marginInlineStart = "auto";
 
   const showInZoteroButton = element(document, "button", secondaryButtonClass);
   showInZoteroButton.type = "button";
