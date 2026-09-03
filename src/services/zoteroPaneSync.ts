@@ -332,6 +332,8 @@ export function bindZoteroPane(
       lastNotified = actual;
       return;
     }
+    // Deliberately outranks the local-change quiet: a drag that ends in a
+    // refused collapse is the one thing the view must hear about mid-drag.
     notify(actual);
   };
 

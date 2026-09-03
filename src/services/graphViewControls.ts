@@ -737,7 +737,14 @@ export function attachPaneResizer(options: PaneResizerOptions): () => void {
   const onPointerUp = (event: PointerEvent): void => {
     if (!dragging) return;
     dragging = false;
-    handle.releasePointerCapture?.(event.pointerId);
+    // Releasing throws when the pointer is already gone (a lost capture after
+    // the pointer left). onEnd must still run, or the binding's local-change
+    // depth never returns to zero and it stops notifying for good.
+    try {
+      handle.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Nothing to release.
+    }
     if (lastRaw !== null) {
       options.onRelease(
         paneRelease(
