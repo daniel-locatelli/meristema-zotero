@@ -486,7 +486,7 @@ export function renderGraphView(
   const historyControls = element(document, "div", "cm-history-controls");
   const historyBackButton = element(document, "button", "cm-secondary-button");
   historyBackButton.type = "button";
-  historyBackButton.textContent = "←";
+  historyBackButton.append(icon(document, "arrow-left"));
   historyBackButton.title = "Go back";
   historyBackButton.setAttribute("aria-label", "Go back");
   const historyForwardButton = element(
@@ -495,7 +495,7 @@ export function renderGraphView(
     "cm-secondary-button",
   );
   historyForwardButton.type = "button";
-  historyForwardButton.textContent = "→";
+  historyForwardButton.append(icon(document, "arrow-right"));
   historyForwardButton.title = "Go forward";
   historyForwardButton.setAttribute("aria-label", "Go forward");
   historyControls.append(historyBackButton, historyForwardButton);

@@ -11,7 +11,11 @@ export type IconName =
   | "filter"
   | "sort"
   | "ascending"
-  | "descending";
+  | "descending"
+  | "arrow-left"
+  | "arrow-right"
+  | "chevron-left"
+  | "chevron-right";
 
 const ICON_PATHS: Record<IconName, string[]> = {
   add: ["M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"],
@@ -34,6 +38,25 @@ const ICON_PATHS: Record<IconName, string[]> = {
   sort: ["M7 4 3 8h3v10h2V8h3L7 4Zm10 16 4-4h-3V6h-2v10h-3l4 4Z"],
   ascending: ["M12 5 6 11h4v8h4v-8h4l-6-6Z"],
   descending: ["M10 5v8H6l6 6 6-6h-4V5h-4Z"],
+  /*
+   * The four navigation glyphs, drawn rather than typed. They were "←", "→",
+   * "‹" and "›" set as button text, and a text glyph sits on its font's
+   * baseline: the arrows ride the maths axis and the chevrons are shorter than
+   * their line box, so both looked a pixel or two high inside a centred
+   * button. These are centred on the viewBox instead, so they cannot drift.
+   */
+  "arrow-left": [
+    "M20 11H7.83l5.58-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z",
+  ],
+  "arrow-right": [
+    "M4 11h12.17l-5.58-5.59L12 4l8 8-8 8-1.41-1.41L16.17 13H4v-2Z",
+  ],
+  "chevron-left": [
+    "M15.7 6.7 14.3 5.3 7.6 12l6.7 6.7 1.4-1.4-5.3-5.3 5.3-5.3Z",
+  ],
+  "chevron-right": [
+    "M9.7 5.3 8.3 6.7l5.3 5.3-5.3 5.3 1.4 1.4L16.4 12 9.7 5.3Z",
+  ],
 };
 
 export function createIcon(

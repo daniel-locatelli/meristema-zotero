@@ -52,13 +52,19 @@
 }
 /*
  * The two pane toolbars. Zotero's `.toolbar` is 41px with `padding: 0 8px`,
- * and `#zotero-collections-toolbar` and `#zotero-items-toolbar` are both
- * painted `--material-toolbar` over a `--material-panedivider` bottom edge;
- * these match it, so the graph's rail and plot begin at the same y as the
+ * so both are that, and the trees below them start at the same y as the
  * collections tree and the items tree do in the library tab. Nothing here
  * wraps: the search is the only elastic item and everything beside it keeps
  * its own width, so a narrow window shortens the search rather than starting a
  * second row.
+ *
+ * They are painted differently, because Zotero paints them differently. The
+ * `--material-toolbar` fill is `#zotero-layout-switcher .zotero-toolbar` — and
+ * `#zotero-collections-pane` sits *outside* the layout switcher, beside it in
+ * `#zotero-trees`. So only the items toolbar takes the toolbar colour; the
+ * collections toolbar keeps the sidepane under it, and Zotero explicitly
+ * cancels its bottom edge with `border-bottom: 1px solid rgba(0,0,0,0)`. The
+ * left pane reads as one unbroken column, and so does this one.
  */
 .cm-rail-toolbar,
 .cm-plot-toolbar {
@@ -70,10 +76,15 @@
   min-height: var(--cm-toolbar-height);
   height: var(--cm-toolbar-height);
   padding: 0 8px;
-  border-bottom: 1px solid var(--cm-panedivider);
-  background: var(--cm-toolbar);
+}
+.cm-rail-toolbar {
+  /* Seamless with the rail below it: #zotero-toolbar-collection-tree. */
+  border-bottom: 1px solid transparent;
+  background: var(--cm-sidepane);
 }
 .cm-plot-toolbar {
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-toolbar);
   /* Above the plot's overlays, and above the popups anchored in the rail. */
   position: relative;
   z-index: 12;

@@ -377,22 +377,32 @@ describe("Graph view, as the product builds it", function () {
       "the rail's toolbar fills the rail and goes no further",
     ).to.equal(1);
 
-    // --material-toolbar, and distinct from the pane below it.
-    const toolbarBackground =
-      view.getComputedStyle(plotToolbar).backgroundColor;
-    expect(toolbarBackground, "the toolbars are painted").to.not.equal(
+    /*
+     * The two are painted differently, because Zotero paints them
+     * differently. `--material-toolbar` is applied by
+     * `#zotero-layout-switcher .zotero-toolbar`, and #zotero-collections-pane
+     * is outside the layout switcher — so the collections toolbar keeps the
+     * sidepane colour and the left column reads as one unbroken block. Getting
+     * this wrong is visible: the rail grows a header of a different colour.
+     */
+    const railBackground = view.getComputedStyle(railToolbar).backgroundColor;
+    const plotBackground = view.getComputedStyle(plotToolbar).backgroundColor;
+    expect(railBackground, "the rail's toolbar is painted").to.not.equal(
       "rgba(0, 0, 0, 0)",
     );
     expect(
-      view.getComputedStyle(railToolbar).backgroundColor,
-      "both with the same token",
-    ).to.equal(toolbarBackground);
+      railBackground,
+      "in the same colour as the rail under it, with no seam",
+    ).to.equal(view.getComputedStyle(rail).backgroundColor);
+    expect(
+      plotBackground,
+      "while the plot's toolbar takes the toolbar colour",
+    ).to.not.equal(railBackground);
 
     // The divider token is a border shorthand, so a colour slot has to read
     // --color-panedivider; getting that wrong drops the declaration silently.
     for (const [name, element, side] of [
       ["rail", rail, "borderRightWidth"],
-      ["rail toolbar", railToolbar, "borderBottomWidth"],
       ["plot toolbar", plotToolbar, "borderBottomWidth"],
     ] as const) {
       // Not "1px": Gecko snaps a hairline to the device pixel grid, so a 1px
@@ -403,6 +413,41 @@ describe("Graph view, as the product builds it", function () {
         `the ${name} keeps its divider`,
       ).to.be.greaterThan(0);
     }
+    expect(
+      view.getComputedStyle(railToolbar).borderBottomColor,
+      "and the rail's toolbar has no edge under it at all",
+    ).to.equal("rgba(0, 0, 0, 0)");
+
+    /*
+     * The navigation glyphs are drawn, not typed. A text arrow sits on its
+     * font's baseline and rides the maths axis, so it reads high in a centred
+     * button however the button is aligned; an svg centred on its own viewBox
+     * cannot. This asserts the geometry, which is what was actually wrong.
+     */
+    for (const selector of [
+      ".cm-history-controls button:first-child",
+      ".cm-history-controls button:last-child",
+      ".cm-key-toggle",
+    ]) {
+      const button = active.root.querySelector(selector) as HTMLElement;
+      const glyph = button.querySelector("svg") as SVGElement;
+      expect(glyph, `${selector} draws its glyph`).to.not.equal(null);
+      const buttonRect = button.getBoundingClientRect();
+      const glyphRect = glyph.getBoundingClientRect();
+      const drift =
+        (glyphRect.top + glyphRect.bottom) / 2 -
+        (buttonRect.top + buttonRect.bottom) / 2;
+      expect(
+        Math.abs(drift),
+        `${selector} centres its glyph vertically`,
+      ).to.be.lessThan(0.6);
+    }
+
+    const toggle = active.root.querySelector(".cm-key-toggle") as HTMLElement;
+    expect(
+      toggle.getAttribute("aria-label"),
+      "the toggle names the whole sidebar, which is what it collapses",
+    ).to.equal("Collapse sidebar");
 
     // The search sits at the right end of the plot's toolbar, as the quick
     // search does in #zotero-items-toolbar.

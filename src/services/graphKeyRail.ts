@@ -21,6 +21,7 @@ import {
   setKeyRailCollapsed,
 } from "./citationPreferences";
 import { element, text } from "./graphViewControls";
+import { createIcon } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -181,11 +182,13 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   const applyCollapsed = (): void => {
     root.dataset.collapsed = String(collapsed);
     toggle.setAttribute("aria-expanded", String(!collapsed));
-    toggle.title = collapsed ? "Show the key" : "Hide the key";
-    toggle.textContent = collapsed ? "›" : "‹";
-    toggle.setAttribute(
-      "aria-label",
-      collapsed ? "Show the key" : "Hide the key",
+    // "Sidebar", not "key": the rail carries the view's controls as well as
+    // the Key now, and the button takes the whole column with it.
+    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    toggle.title = label;
+    toggle.setAttribute("aria-label", label);
+    toggle.replaceChildren(
+      createIcon(document, collapsed ? "chevron-right" : "chevron-left", 14),
     );
   };
 

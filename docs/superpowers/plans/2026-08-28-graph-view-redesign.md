@@ -791,18 +791,49 @@ the top of a new `.cm-plot-pane` that also holds the focus bar and the canvas.
 
 ### Zotero's numbers, from `omni.ja`
 
-| Thing                                                  | Value                                                                             |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `.toolbar`                                             | `height: 41px !important; min-height: 41px; padding: 0 8px`                       |
-| `#zotero-collections-toolbar`, `#zotero-items-toolbar` | `background: var(--material-toolbar); border-bottom: var(--material-panedivider)` |
-| `--color-toolbar`                                      | `#f9f9f9` light, `#272727` dark                                                   |
-| toolbar buttons                                        | `width: 28px; height: 28px; padding: 0 4px`                                       |
-| `#zotero-items-toolbar` order                          | buttons, `<spacer flex="1"/>`, `quick-search-textbox`                             |
+| Thing                                     | Value                                                                             |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| `.toolbar`                                | `height: 41px !important; min-height: 41px; padding: 0 8px`                       |
+| `#zotero-layout-switcher .zotero-toolbar` | `background: var(--material-toolbar); border-bottom: var(--material-panedivider)` |
+| `#zotero-collections-toolbar`             | `border-bottom: 1px solid rgba(0,0,0,0)` — and no background rule at all          |
+| `--color-toolbar`                         | `#f9f9f9` light, `#272727` dark                                                   |
+| toolbar buttons                           | `width: 28px; height: 28px; padding: 0 4px`                                       |
+| `#zotero-items-toolbar` order             | buttons, `<spacer flex="1"/>`, `quick-search-textbox`                             |
 
 The search therefore sits at the far right of the plot's toolbar, with the
 history and action buttons gathered left. The identity — logo and counts — went
 to the rail's toolbar, beside the collapse toggle, which is the shape of the
 collections toolbar (a control, a spacer, a control).
+
+### The toolbars are not painted alike, and that is Zotero
+
+Read the selector: the `--material-toolbar` fill is scoped to
+`#zotero-layout-switcher .zotero-toolbar`, and `#zotero-collections-pane` sits
+**outside** the layout switcher — it is a sibling of it inside `#zotero-trees`.
+So the fill never reaches the collections toolbar. It keeps `--material-sidepane`
+from the pane around it, and Zotero cancels its bottom edge outright with
+`border-bottom: 1px solid rgba(0,0,0,0)`. The left column is one unbroken block
+of colour from the top of the window to the bottom; only the items toolbar is a
+toolbar to look at.
+
+Painting both with `--cm-toolbar` was wrong and the reader saw it immediately —
+the rail grew a header in a colour Zotero does not use there. `.cm-rail-toolbar`
+is `--cm-sidepane` with a transparent bottom border; `.cm-plot-toolbar` keeps
+`--cm-toolbar` and its divider.
+
+### The glyphs are drawn now
+
+"←", "→", "‹" and "›" were button text. A text glyph sits on its font's
+baseline — the arrows ride the maths axis, the chevrons are shorter than their
+line box — so all four read a pixel or two high inside a centred button, and no
+amount of `align-items: center` fixes it, because the line box _is_ centred.
+`uiIconService.ts` gained `arrow-left`, `arrow-right`, `chevron-left` and
+`chevron-right`, centred on the 24-unit viewBox. View 9 asserts the drawn
+glyph's centre is within 0.6px of its button's.
+
+The toggle also says **"Collapse sidebar"**, not "Hide the key": since Task 7 the
+rail carries the view's zoom and appearance controls too, so the button takes
+more than the Key with it.
 
 ### A bug this uncovered
 
