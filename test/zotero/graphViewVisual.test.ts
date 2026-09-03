@@ -573,6 +573,79 @@ describe("Graph view, as the product builds it", function () {
       0,
     );
     await shot("view-06-appearance-open");
+
+    /*
+     * The rail's four buttons draw their glyphs for the same reason the
+     * navigation ones do (view 9): "+", "−", "⌖" and "⚙" were text, and text
+     * sits on the font's baseline, not in the middle of the button. The gear
+     * and the crosshair were the worst of it — no two interface fonts draw
+     * those characters the same size or in the same place.
+     */
+    for (const button of [
+      ...zoom.querySelectorAll("button"),
+      appearance.querySelector("button")!,
+    ] as HTMLElement[]) {
+      const glyph = button.querySelector("svg") as SVGElement;
+      expect(
+        glyph,
+        `${button.getAttribute("aria-label")} draws its glyph`,
+      ).to.not.equal(null);
+      const buttonRect = button.getBoundingClientRect();
+      const glyphRect = glyph.getBoundingClientRect();
+      for (const [axis, near, far] of [
+        ["vertically", "top", "bottom"],
+        ["horizontally", "left", "right"],
+      ] as const) {
+        const drift =
+          (glyphRect[near] + glyphRect[far]) / 2 -
+          (buttonRect[near] + buttonRect[far]) / 2;
+        expect(
+          Math.abs(drift),
+          `${button.getAttribute("aria-label")} centres its glyph ${axis}`,
+        ).to.be.lessThan(0.6);
+      }
+    }
+
+    /*
+     * And both menus dismiss on a click outside them, the way every other menu
+     * in Zotero does. The appearance panel's closer used to live on the graph
+     * area, so once the control moved into the rail's footer nothing outside
+     * the plot reached it and the only way out was the button again.
+     */
+    const utils = (active.window as any).windowUtils;
+    const elsewhere = (): void => {
+      // The plot toolbar's own padding: inside the view, outside both controls
+      // and on no button.
+      const bar = active.root.querySelector(".cm-plot-toolbar") as HTMLElement;
+      const barRect = bar.getBoundingClientRect();
+      const x = barRect.left + 2;
+      const y = barRect.top + barRect.height / 2;
+      utils.sendMouseEvent("mousedown", x, y, 0, 1, 0, false, 0, 0);
+      utils.sendMouseEvent("mouseup", x, y, 0, 1, 0, false, 0, 0);
+    };
+
+    expect(panel.hidden, "the appearance panel is open to begin with").to.equal(
+      false,
+    );
+    elsewhere();
+    await settle(active.window, 8);
+    expect(
+      panel.hidden,
+      "and a pointer outside it closes it, without pressing its button again",
+    ).to.equal(true);
+
+    const exportMenu = active.root.querySelector(
+      ".cm-export-menu",
+    ) as HTMLElement;
+    const exportButton = exportMenu.parentElement!.querySelector(
+      "button",
+    ) as HTMLButtonElement;
+    exportButton.click();
+    await settle(active.window, 8);
+    expect(exportMenu.hidden, "the export menu opens").to.equal(false);
+    elsewhere();
+    await settle(active.window, 8);
+    expect(exportMenu.hidden, "and closes the same way").to.equal(true);
   });
 
   it("view 7 — the Key names the folders in scope and no others", async function () {

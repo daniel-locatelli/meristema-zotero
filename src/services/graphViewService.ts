@@ -131,6 +131,7 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
+import type { IconName } from "./uiIconService";
 import {
   applyGraphThemeToDocument,
   graphThemeFor,
@@ -791,15 +792,17 @@ export function renderGraphView(
   );
   graphArea.appendChild(canvas);
   const zoom = element(document, "div", "cm-zoom-controls");
-  for (const [action, label, description] of [
-    ["in", "+", "Zoom in"],
-    ["out", "−", "Zoom out"],
-    ["fit", "⌖", "Fit graph to view"],
-  ]) {
+  // Drawn glyphs, not typed ones: "+", "−" and "⌖" each sat on the font's
+  // baseline rather than in the middle of the button they were centred in.
+  for (const [action, glyph, description] of [
+    ["in", "zoom-in", "Zoom in"],
+    ["out", "zoom-out", "Zoom out"],
+    ["fit", "fit", "Fit graph to view"],
+  ] as [string, IconName, string][]) {
     const button = element(document, "button", "cm-rail-button");
     button.type = "button";
     button.dataset.action = action;
-    button.textContent = label;
+    button.append(icon(document, glyph));
     button.title = description;
     button.setAttribute("aria-label", description);
     zoom.appendChild(button);
@@ -939,6 +942,33 @@ export function renderGraphView(
         : resetGraphAppearance(),
   );
   currentLayout = appearance.getLayout();
+  /*
+   * Both of these panels used to close only by pressing their own button
+   * again, which is not how a menu behaves anywhere else in Zotero. The
+   * appearance panel had a closer, but it was on the graph area — and since
+   * the panel moved into the rail's footer, a click on the rail, on either
+   * toolbar or on the detail pane never reached it. These sit on the document,
+   * like the Add-node popup's and the Focus seed popover's above, so any
+   * pointer landing outside the control dismisses it. Capture phase, so the
+   * click that closes still does whatever it was aimed at.
+   */
+  const closeAppearanceOnOutsidePointer = (event: Event): void => {
+    if (appearance.panel.hidden) return;
+    const target = event.target as Node | null;
+    if (target && appearance.root.contains(target)) return;
+    appearance.close();
+  };
+  const closeAppearanceOnEscape = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || appearance.panel.hidden) return;
+    appearance.close();
+    appearance.button.focus();
+  };
+  document.addEventListener(
+    "pointerdown",
+    closeAppearanceOnOutsidePointer,
+    true,
+  );
+  document.addEventListener("keydown", closeAppearanceOnEscape, true);
 
   const detailShell = element(document, "div", "cm-detail-shell");
   const resizer = element(document, "div", "cm-detail-resizer");
@@ -3767,14 +3797,12 @@ export function renderGraphView(
 
   const onGraphAreaPointerDown = (event: PointerEvent): void => {
     const target = event.target as Element | null;
-    if (!target || appearance.root.contains(target)) return;
     // A click on the canvas is the spec's background click: it releases a pin.
+    // Only the canvas: the overlays above it are graph controls, and those must
+    // not discard the currently selected paper. Closing the appearance panel
+    // was this handler's other job and is the document closer's now — the panel
+    // moved into the rail's footer, which is not inside the graph area.
     if (target === canvas) keyRail.release();
-    if (target !== canvas) {
-      // Graph controls, including zoom and appearance controls, must not
-      // discard the currently selected paper.
-      appearance.close();
-    }
   };
   graphArea.addEventListener("pointerdown", onGraphAreaPointerDown, true);
 
@@ -3924,17 +3952,37 @@ export function renderGraphView(
         if (similarButton.isConnected) similarButton.disabled = false;
       });
   });
+  const closeExportMenu = (): void => {
+    exportMenu.hidden = true;
+    exportButton.setAttribute("aria-expanded", "false");
+  };
   exportButton.addEventListener("click", () => {
     exportMenu.hidden = !exportMenu.hidden;
     exportButton.setAttribute("aria-expanded", String(!exportMenu.hidden));
   });
+  const closeExportMenuOnOutsidePointer = (event: Event): void => {
+    if (exportMenu.hidden) return;
+    const target = event.target as Node | null;
+    if (target && exportWrap.contains(target)) return;
+    closeExportMenu();
+  };
+  const closeExportMenuOnEscape = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || exportMenu.hidden) return;
+    closeExportMenu();
+    exportButton.focus();
+  };
+  document.addEventListener(
+    "pointerdown",
+    closeExportMenuOnOutsidePointer,
+    true,
+  );
+  document.addEventListener("keydown", closeExportMenuOnEscape, true);
   exportMenu.addEventListener("click", (event) => {
     const target = (event.target as Element).closest(
       "button",
     ) as HTMLButtonElement | null;
     if (!target || !renderer) return;
-    exportMenu.hidden = true;
-    exportButton.setAttribute("aria-expanded", "false");
+    closeExportMenu();
     let task: Promise<void> | null = null;
     if (target.dataset.format === "png") {
       task = exportGraphPNG(document, renderer.getCanvas(), snapshot);
@@ -4403,6 +4451,18 @@ export function renderGraphView(
       true,
     );
     document.removeEventListener("keydown", closeAddNodePopupOnEscape, true);
+    document.removeEventListener(
+      "pointerdown",
+      closeAppearanceOnOutsidePointer,
+      true,
+    );
+    document.removeEventListener("keydown", closeAppearanceOnEscape, true);
+    document.removeEventListener(
+      "pointerdown",
+      closeExportMenuOnOutsidePointer,
+      true,
+    );
+    document.removeEventListener("keydown", closeExportMenuOnEscape, true);
     document.removeEventListener(
       "pointerdown",
       closeFocusSeedPopoverOnOutsidePointer,

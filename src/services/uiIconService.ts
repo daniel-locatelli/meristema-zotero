@@ -15,7 +15,11 @@ export type IconName =
   | "arrow-left"
   | "arrow-right"
   | "chevron-left"
-  | "chevron-right";
+  | "chevron-right"
+  | "zoom-in"
+  | "zoom-out"
+  | "fit"
+  | "settings";
 
 const ICON_PATHS: Record<IconName, string[]> = {
   add: ["M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"],
@@ -57,6 +61,38 @@ const ICON_PATHS: Record<IconName, string[]> = {
   "chevron-right": [
     "M9.7 5.3 8.3 6.7l5.3 5.3-5.3 5.3 1.4 1.4L16.4 12 9.7 5.3Z",
   ],
+  /*
+   * The rail's four buttons, for the same reason as the four above: they were
+   * "+", "−", "⌖" and "⚙" set as text. A text glyph sits on its font's
+   * baseline, and the last two are characters no interface font agrees on, so
+   * each one landed wherever its own font's metrics put it inside a button
+   * centred on something else. Drawn on the viewBox, they cannot drift.
+   */
+  "zoom-in": [
+    "M10.5 4a6.5 6.5 0 1 0 3.95 11.66L20 21.2l1.2-1.2-5.55-5.55A6.5 6.5 0 0 0 10.5 4Zm0 1.8a4.7 4.7 0 1 1 0 9.4 4.7 4.7 0 0 1 0-9.4Z",
+    "M9.6 7.6h1.8v1.9h1.9v1.8h-1.9v1.9H9.6v-1.9H7.7V9.5h1.9V7.6Z",
+  ],
+  "zoom-out": [
+    "M10.5 4a6.5 6.5 0 1 0 3.95 11.66L20 21.2l1.2-1.2-5.55-5.55A6.5 6.5 0 0 0 10.5 4Zm0 1.8a4.7 4.7 0 1 1 0 9.4 4.7 4.7 0 0 1 0-9.4Z",
+    "M7.7 9.5h5.6v1.8H7.7V9.5Z",
+  ],
+  fit: [
+    "M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z",
+    "M10.5 10.5h3v3h-3v-3Z",
+  ],
+  /*
+   * Generated, not hand-written, and rendered before it was pasted here: eight
+   * teeth on a 10.4 radius, a 3.4 bore, every vertex from the same polar
+   * sweep. A gear drawn by eye in path data comes out lopsided, which is what
+   * the first attempt did.
+   *
+   * One path, not two: separate `<path>` elements cannot punch a hole in each
+   * other, so the bore is a second subpath of this one and the set is filled
+   * even-odd (below).
+   */
+  settings: [
+    "M22.2 9.9L22.2 14.1L19.7 14.3L19.1 15.8L20.7 17.7L17.7 20.7L15.8 19.1L14.3 19.7L14.1 22.2L9.9 22.2L9.7 19.7L8.2 19.1L6.3 20.7L3.3 17.7L4.9 15.8L4.3 14.3L1.8 14.1L1.8 9.9L4.3 9.7L4.9 8.2L3.3 6.3L6.3 3.3L8.2 4.9L9.7 4.3L9.9 1.8L14.1 1.8L14.3 4.3L15.8 4.9L17.7 3.3L20.7 6.3L19.1 8.2L19.7 9.7ZM15.4 12.0L15.2 13.1L14.8 14.0L14.0 14.8L13.1 15.2L12.0 15.4L10.9 15.2L10.0 14.8L9.2 14.0L8.8 13.1L8.6 12.0L8.8 10.9L9.2 10.0L10.0 9.2L10.9 8.8L12.0 8.6L13.1 8.8L14.0 9.2L14.8 10.0L15.2 10.9Z",
+  ],
 };
 
 export function createIcon(
@@ -76,6 +112,12 @@ export function createIcon(
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", "currentColor");
+    /*
+     * Even-odd, so a subpath nested inside another is a hole no matter which
+     * way round it was drawn. The magnifier's lens already relied on winding
+     * to be hollow and stays hollow under this rule; the gear's bore needs it.
+     */
+    path.setAttribute("fill-rule", "evenodd");
     svg.appendChild(path);
   }
   return svg;

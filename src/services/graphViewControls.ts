@@ -327,7 +327,8 @@ export function createAxesAppearance(
     "cm-rail-button cm-appearance-button",
   );
   button.type = "button";
-  button.textContent = "⚙";
+  // Drawn, not typed: "⚙" is a glyph no two interface fonts place alike.
+  button.append(icon(document, "settings"));
   button.title = "Graph display settings";
   button.setAttribute("aria-label", "Graph display settings");
   button.setAttribute("aria-expanded", "false");

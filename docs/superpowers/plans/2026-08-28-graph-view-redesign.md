@@ -897,6 +897,57 @@ Note for anyone writing a border assertion here: Gecko snaps a hairline to the
 device pixel grid, so a 1px border computes to **0.8px** at 1.25 dppx. Assert it
 is non-zero, not that it is `1px`.
 
+## From the third real run: the rail's buttons — DONE, verified
+
+Two reports, one about drawing and one about behaviour.
+
+### The last four typed glyphs
+
+The rail's buttons were `+`, `−`, `⌘`‑adjacent `⌖` and `⚙` set as
+`textContent`, which is the same defect the navigation arrows had: a text glyph
+sits on its font's baseline, not in the middle of the button around it. The
+crosshair and the gear are worse than the arrows, because no two interface fonts
+agree on their size or side bearings at all. All four are drawn now
+(`zoom-in`, `zoom-out`, `fit`, `settings` in `uiIconService.ts`).
+
+The gear needed two things the others did not:
+
+- **Even-odd fill.** Separate `<path>` elements cannot punch a hole in each
+  other, so the bore has to be a second subpath of the same path, and the fill
+  rule has to make a nested subpath a hole regardless of winding.
+  `createIcon` now sets `fill-rule="evenodd"` on every path. The magnifier's
+  lens already relied on opposite winding to be hollow and is unchanged by this;
+  nothing else in the set has nested subpaths.
+- **Generating it rather than writing it.** The first gear was hand-written path
+  data and came out visibly lopsided — the user saw it before any test could.
+  The shipped one is emitted from a polar sweep (eight teeth, 10.4 tip radius,
+  8.0 root, 3.4 bore) and was rasterised and looked at _before_ being pasted in.
+  Write the generator, look at the picture, then paste.
+
+### The menus close on an outside click
+
+The appearance panel and the export menu both closed only by pressing their own
+button again. Neither is how a menu behaves anywhere else in Zotero.
+
+The appearance panel did have a closer, `onGraphAreaPointerDown` — but Task 7
+moved the control into the rail's footer, and that handler is bound to the graph
+area, so a click on the rail, on either toolbar or on the detail pane never
+reached it. The export menu never had one.
+
+Both now use the shape the Add-node popup and the Focus seed popover already
+used: a `pointerdown` listener on the _document_, in the capture phase, that
+closes when the target is outside the control's wrapper, plus an `Escape`
+handler that closes and returns focus to the button. Both pairs are removed in
+`cleanup`. `onGraphAreaPointerDown` is down to its one real job, releasing a
+pinned Key entry when the canvas itself is hit.
+
+### What pins it
+
+`view 6 — the zoom and appearance controls live in the rail` grew two parts: all
+four rail buttons draw an `svg` centred on both axes within 0.6px of the
+button's centre, and each menu is opened and then dismissed with a synthesised
+pointer on the plot toolbar's padding — outside both wrappers and on no button.
+
 ## Task 8: Export
 
 `exportGraphPNG()` composites the theme's plot background before the graph
