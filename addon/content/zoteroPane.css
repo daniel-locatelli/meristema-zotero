@@ -2,179 +2,51 @@
   color: #dc2626;
   font-weight: 700;
 }
+/*
+ * The section's shell. The detail rules come from paperDetail.css; this is
+ * only the padding the rows' negative margins assume (8px each side, as the
+ * graph's `.cm-detail-body` gives them) and the gap under the tab row.
+ */
 .meristema-item-pane {
-  --cmp-border: color-mix(in srgb, CanvasText 14%, transparent);
-  --cmp-muted: color-mix(in srgb, CanvasText 66%, transparent);
-  --cmp-accent: var(--accent-blue, #2563eb);
-  --cmp-manual-title: light-dark(#7c3aed, #c4b5fd);
   display: grid;
-  gap: 9px;
-  padding: 8px 4px 14px;
-  color: CanvasText;
-  font: menu;
-}
-.meristema-item-pane *,
-.meristema-item-pane *::before,
-.meristema-item-pane *::after {
-  box-sizing: border-box;
-}
-.meristema-pane-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
+  padding: 4px 8px 12px;
 }
-.meristema-pane-tabs > button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 36px;
-  height: auto !important;
-  padding-block: 5px;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  white-space: normal;
-  line-height: 1.2;
-  text-align: center;
+.meristema-item-pane .cm-detail-tabs {
+  margin-bottom: 4px;
 }
-.meristema-item-pane button,
-.meristema-item-pane input,
-.meristema-item-pane select {
-  min-height: 28px;
-  padding: 4px 8px;
-  border: 1px solid var(--cmp-border);
-  border-radius: 6px;
-  background: Canvas;
-  color: CanvasText;
-  font: inherit;
-}
-.meristema-item-pane button {
-  cursor: pointer;
-}
-.meristema-item-pane button:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--cmp-accent) 50%, var(--cmp-border));
-  background: color-mix(in srgb, var(--cmp-accent) 8%, Canvas);
-}
-.meristema-pane-tabs button[data-selected="true"] {
-  border-color: var(--cmp-accent);
-  background: color-mix(in srgb, var(--cmp-accent) 13%, Canvas);
-  font-weight: 650;
-}
-.meristema-primary-button {
-  background: var(--cmp-accent) !important;
-  border-color: var(--cmp-accent) !important;
-  color: white !important;
-}
-.meristema-pane-metrics {
-  display: grid;
-  grid-template-columns: minmax(125px, 1fr) auto;
-  margin: 0;
-}
-.meristema-pane-metrics dt,
-.meristema-pane-metrics dd {
-  margin: 0;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--cmp-border);
-}
-.meristema-pane-metrics dt {
-  color: var(--cmp-muted);
-}
-.meristema-pane-metrics dd {
-  padding-left: 10px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-.meristema-pane-badges,
-.meristema-pane-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-  margin: 7px 0;
-}
-.meristema-pane-actions > button {
-  min-width: 0;
-  max-width: 100%;
-  height: auto !important;
-  overflow-wrap: anywhere;
-  white-space: normal;
-  line-height: 1.2;
-}
-.meristema-pane-badges span {
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--cmp-accent) 12%, Canvas);
-  font-size: 10px;
-  font-weight: 650;
-}
-.meristema-danger-badge {
-  background: color-mix(in srgb, #dc2626 16%, Canvas) !important;
-  color: #dc2626;
-}
-.meristema-retraction-warning,
+/* The match-confirmation block: amber, like the "Match needs confirmation"
+ * badge, on the raised surface. */
 .meristema-match-warning {
+  display: grid;
+  gap: 6px;
   padding: 9px;
-  border: 1px solid color-mix(in srgb, #dc2626 60%, var(--cmp-border));
+  border: 1px solid color-mix(in srgb, #b45309 60%, var(--cm-border));
   border-radius: 7px;
-  background: color-mix(in srgb, #dc2626 7%, Canvas);
+  background: color-mix(in srgb, #f59e0b 9%, Canvas);
   line-height: 1.4;
 }
-.meristema-match-warning {
-  border-color: color-mix(in srgb, #b45309 60%, var(--cmp-border));
-  background: color-mix(in srgb, #f59e0b 9%, Canvas);
-}
-.meristema-match-warning p,
-.meristema-candidate,
-.meristema-secondary-text {
-  margin: 5px 0;
+.meristema-match-warning p {
+  margin: 0;
 }
 .meristema-candidate {
   display: grid;
   gap: 4px;
   padding: 7px;
-  border: 1px solid var(--cmp-border);
+  border: 1px solid var(--cm-border-soft);
   border-radius: 6px;
-  background: Canvas;
+  background: var(--cm-surface-raised);
 }
 .meristema-candidate-title {
-  font-weight: 650;
+  font-weight: 600;
 }
-.meristema-secondary-text {
-  color: var(--cmp-muted);
-  line-height: 1.35;
-  font-size: 11px;
+/* Zotero's item pane is narrower than the graph's default pane: drop the
+ * counts under 320px the way the graph's container query does. */
+@container (max-width: 320px) {
+  .meristema-item-pane .cm-detail-tab-count {
+    display: none;
+  }
 }
-.meristema-data-details {
-  margin-top: 8px;
-}
-.meristema-data-details > summary {
-  cursor: pointer;
-  font-weight: 650;
-}
-.meristema-relation-list {
-  display: grid;
-  gap: 7px;
-}
-.meristema-relation-card {
-  padding: 8px;
-  border: 1px solid var(--cmp-border);
-  border-radius: 7px;
-  background: Canvas;
-}
-.meristema-relation-card h4 {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
-}
-.meristema-manual-relation-title {
-  color: var(--cmp-manual-title);
-}
-.meristema-relation-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, auto) 30px;
-  gap: 6px;
-  align-items: center;
-  margin: 7px 0 2px;
+.meristema-item-pane {
+  container-type: inline-size;
 }

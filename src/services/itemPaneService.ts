@@ -1,88 +1,31 @@
 import { config } from "../../package.json";
 import type {
-  IgnoredProviderRelation,
-  ManualCitationRelation,
-  ManualRelationDirection,
-  RelatedWorkMetadata,
-} from "../domain/citationTypes";
-import type { ExternalWork } from "../domain/externalWork";
-import {
-  createIgnoredRelationIndex,
-  findIgnoredRelation,
-  ignoredRelationDescriptorForRelatedWork,
-  ignoredRelationDescriptorFromReference,
-  referenceMatchesRelatedWork,
-  type IgnoredRelationIndex,
-  type IgnoredRelationDescriptor,
-} from "../domain/relationshipDescriptors";
-import type {
   CitationGraphModel,
   CitationGraphNode,
 } from "../domain/graphTypes";
 import type { LibrarySnapshot } from "../domain/types";
-import {
-  refreshExternalRelationships,
-  importExternalWork,
-} from "./externalDiscoveryService";
-import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
+import { refreshExternalRelationships } from "./externalDiscoveryService";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
 import {
   confirmCitationMatch,
   confirmCitationMatchCandidate,
   getCitationMetricRecord,
-  getIgnoredRelations,
-  getManualRelations,
-  ignoreProviderRelation,
-  removeIgnoredRelation,
-  removeManualRelation,
 } from "./citationMetricsStore";
 import {
-  createRelatedWorkLookupIndex,
-  findMatchingRelatedWork,
-  matchRelatedWorkToGraphNode,
-  normalizeExactTitle,
-  relationshipCandidateIdentity,
-  type RelatedWorkLookupIndex,
-} from "../domain/workIdentity";
-import {
-  citationDataSourceLabel,
-  externalWorkURL,
-} from "./providerPresentation";
-import {
-  externalWorkAuthorsText,
-  externalWorkMetadataText,
-} from "./externalWorkPresentationService";
-import {
-  getRelationshipReportedCounts,
   getRelationshipViewSnapshot,
   getRelationshipViewSnapshotFromWorks,
   RELATIONSHIP_VIEW_LIMIT,
-  newlyRetrievedRelationshipWorkCount,
   notifyRelationshipMutation,
-  relationshipStatusText,
   subscribeRelationshipMutations,
-  type RelationshipViewDirection,
-  type RelationshipViewSnapshot,
 } from "./relationshipViewService";
-import {
-  getRelationshipPublicationState,
-  subscribeRelationshipPublications,
-} from "./relationshipEvents";
-import {
-  createPaperListToolbar,
-  describeExternalWork,
-} from "./paperListViewService";
-import {
-  createManualRelationshipPicker,
-  manualRelationsForSubject,
-} from "./manualRelationshipPickerService";
+import { subscribeRelationshipPublications } from "./relationshipEvents";
 import { createMetricNodeForItem } from "./itemMetricContext";
-import { createPaperOverviewActionBar } from "./paperOverviewActionsService";
-import { formatMetricValue, getMetricDefinition } from "./metricRegistry";
+import {
+  createPaperOverviewActionBar,
+  type PaperOverviewOpenInAction,
+} from "./paperOverviewActionsService";
+import { formatMetricValue } from "./metricRegistry";
 import { updateCitationDataForItems } from "./citationUpdateService";
-import { createUpdateProgress } from "./updateProgressService";
-import { createCancellationScope } from "./cancellationScope";
-import { createIcon } from "./uiIconService";
 import {
   buildCitationGraph,
   getCachedCitationGraph,
@@ -98,14 +41,25 @@ import {
   refreshOpenGraphViews,
 } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
+import { clear, text } from "./graphViewControls";
+import {
+  createBadges,
+  createDetailTabs,
+  createOverviewMetrics,
+  createRelationshipList,
+  createSimilarSection,
+  detailSection,
+  type PaperDetailHost,
+  type RelationshipList,
+} from "./paperDetailView";
+import type { DetailTab } from "./paperDetailModel";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 const PANE_ID = "meristema-item-pane";
 const RELATION_LIMIT = RELATIONSHIP_VIEW_LIMIT;
-type PaneTab = "overview" | "cited-by" | "references";
 interface PaneTabState {
   itemKey: string;
-  active: PaneTab;
+  active: DetailTab;
 }
 let registeredPaneID: string | false | null = null;
 let unsubscribeRelationshipMutations: (() => void) | null = null;
@@ -114,6 +68,7 @@ let scheduledPaneRefresh: ReturnType<typeof setTimeout> | null = null;
 const refreshCallbacks = new Map<Element, () => Promise<void>>();
 const paneSubjects = new Map<Element, { libraryID: number; itemKey: string }>();
 const paneTabState = new WeakMap<HTMLElement, PaneTabState>();
+const activeLists = new WeakMap<HTMLElement, RelationshipList>();
 
 function el<K extends keyof HTMLElementTagNameMap>(
   document: Document,
@@ -126,35 +81,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
   ) as HTMLElementTagNameMap[K];
   if (className) node.className = className;
   return node;
-}
-
-function txt<K extends keyof HTMLElementTagNameMap>(
-  document: Document,
-  tag: K,
-  value: string,
-  className?: string,
-): HTMLElementTagNameMap[K] {
-  const node = el(document, tag, className);
-  node.textContent = value;
-  return node;
-}
-
-function configureIconButton(
-  button: HTMLButtonElement,
-  label: string,
-  name: "refresh" | "sort" | "ascending" | "descending" = "refresh",
-): void {
-  button.replaceChildren(createIcon(button.ownerDocument, name));
-  button.title = label;
-  button.setAttribute("aria-label", label);
-  button.style.width = "30px";
-  button.style.minWidth = "30px";
-  button.style.padding = "4px";
-  button.style.justifyContent = "center";
-}
-
-function clear(node: Element): void {
-  node.replaceChildren();
 }
 
 function runUIAction(context: string, action: () => Promise<void>): void {
@@ -171,50 +97,16 @@ function runUIAction(context: string, action: () => Promise<void>): void {
   });
 }
 
-function count(value: number | null | undefined): string {
-  return value === null || value === undefined
-    ? "—"
-    : new Intl.NumberFormat(undefined, { useGrouping: false }).format(value);
-}
-
-function externalWorkTitle(
-  work: RelatedWorkMetadata | ExternalWork,
-  libraryID?: number,
-): string {
-  const localKey =
-    (work as ExternalWork).inLibraryItemKey ?? work.zoteroItemKey;
-  if (localKey && libraryID !== undefined) {
-    const localTitle = String(
-      itemByKey(libraryID, localKey)?.getField?.("title") ?? "",
-    ).trim();
-    if (localTitle) return localTitle;
-  }
-  return externalWorkDisplayTitle(work) ?? "Title unavailable";
-}
-
 function summaryForItem(item: Zotero.Item): string {
   const node = createMetricNodeForItem(item);
   const parts = [
-    node.citationCount === null ? null : `${count(node.citationCount)} C`,
-    node.referenceCount === null ? null : `${count(node.referenceCount)} R`,
+    node.citationCount === null ? null : `${node.citationCount} C`,
+    node.referenceCount === null ? null : `${node.referenceCount} R`,
     node.citationVelocity === null
       ? null
       : `${formatMetricValue("citation-rate", node.citationVelocity)}/y`,
   ].filter(Boolean);
   return parts.join(" · ") || "No citation data";
-}
-
-function row(
-  document: Document,
-  label: string,
-  value: string,
-  description?: string,
-): DocumentFragment {
-  const fragment = document.createDocumentFragment();
-  const term = txt(document, "dt", label);
-  if (description) term.title = description;
-  fragment.append(term, txt(document, "dd", value));
-  return fragment;
 }
 
 function itemByKey(libraryID: number, itemKey: string): Zotero.Item | null {
@@ -295,72 +187,6 @@ async function relationshipLibrarySnapshot(
   return promise;
 }
 
-async function relationshipContextForItem(item: Zotero.Item): Promise<{
-  node: CitationGraphNode;
-  graph: CitationGraphModel | null;
-  snapshot: LibrarySnapshot;
-}> {
-  const libraryID = Number(item.libraryID);
-  const [snapshot, graph] = await Promise.all([
-    relationshipLibrarySnapshot(libraryID),
-    Promise.resolve(getCachedCitationGraph(libraryID)),
-  ]);
-  return {
-    node: createMetricNodeForItem(item),
-    graph,
-    snapshot,
-  };
-}
-
-function referenceMatchesNode(
-  reference: RelatedWorkMetadata,
-  node: CitationGraphNode,
-): boolean {
-  if (reference.zoteroItemKey === node.itemKey) return true;
-  return matchRelatedWorkToGraphNode(reference, node).decision === "same-work";
-}
-
-function createTabs(
-  document: Document,
-  active: "overview" | "cited-by" | "references",
-  libraryID: number,
-  itemKey: string,
-  citationCount: number | null,
-  referenceCount: number | null,
-  onSelect: (tab: "overview" | "cited-by" | "references") => void,
-): HTMLDivElement {
-  const tabs = el(document, "div", "meristema-pane-tabs");
-  const labelFor = (
-    direction: "cited-by" | "references",
-    value: number | null,
-  ): string => {
-    const label = direction === "references" ? "References" : "Cited by";
-    const state = getRelationshipPublicationState(
-      libraryID,
-      itemKey,
-      direction,
-    );
-    if (state?.active && !state.membershipPublished) {
-      return `${label} (updating…)`;
-    }
-    const reported = state?.membershipPublished ? state.reportedCount : value;
-    return `${label} (${count(reported)} reported)`;
-  };
-  for (const [id, label] of [
-    ["overview", "Overview"],
-    ["cited-by", labelFor("cited-by", citationCount)],
-    ["references", labelFor("references", referenceCount)],
-  ] as const) {
-    const button = el(document, "button");
-    button.type = "button";
-    button.textContent = label;
-    button.dataset.selected = String(id === active);
-    button.addEventListener("click", () => onSelect(id));
-    tabs.appendChild(button);
-  }
-  return tabs;
-}
-
 function renderMatchConfirmation(
   document: Document,
   container: HTMLElement,
@@ -375,8 +201,8 @@ function renderMatchConfirmation(
   if (record.identityConflict) {
     const warning = el(document, "section", "meristema-match-warning");
     warning.append(
-      txt(document, "strong", "Scholarly identity conflict"),
-      txt(
+      text(document, "strong", "Scholarly identity conflict"),
+      text(
         document,
         "p",
         "Zotero and the provider returned conflicting stable identifiers. Meristema kept the Zotero data and did not merge the provider record.",
@@ -388,14 +214,14 @@ function renderMatchConfirmation(
   if (!record.matchConfirmed && record.status === "success") {
     const warning = el(document, "section", "meristema-match-warning");
     warning.append(
-      txt(document, "strong", "Confirm scholarly-record match"),
-      txt(
+      text(document, "strong", "Confirm scholarly-record match"),
+      text(
         document,
         "p",
         `Citation data were matched using ${record.matchedBy ?? "a fallback identifier"}. Confirm that the provider record is the same work.`,
       ),
     );
-    const confirm = el(document, "button", "meristema-primary-button");
+    const confirm = el(document, "button", "cm-primary-button");
     confirm.type = "button";
     confirm.textContent = "Confirm match";
     confirm.addEventListener("click", () => {
@@ -411,8 +237,8 @@ function renderMatchConfirmation(
   if (record.matchCandidates.length > 0) {
     const warning = el(document, "section", "meristema-match-warning");
     warning.append(
-      txt(document, "strong", "Choose the matching scholarly record"),
-      txt(
+      text(document, "strong", "Choose the matching scholarly record"),
+      text(
         document,
         "p",
         "The exact-title fallback returned multiple or contradictory records.",
@@ -421,13 +247,13 @@ function renderMatchConfirmation(
     for (const candidate of record.matchCandidates) {
       const card = el(document, "article", "meristema-candidate");
       card.append(
-        txt(
+        text(
           document,
           "div",
           candidate.title ?? "Untitled",
           "meristema-candidate-title",
         ),
-        txt(
+        text(
           document,
           "div",
           [
@@ -437,10 +263,10 @@ function renderMatchConfirmation(
           ]
             .filter(Boolean)
             .join(" · "),
-          "meristema-secondary-text",
+          "cm-detail-meta",
         ),
       );
-      const use = el(document, "button");
+      const use = el(document, "button", "cm-secondary-button");
       use.type = "button";
       use.textContent = "Use this match";
       use.addEventListener("click", () => {
@@ -465,218 +291,71 @@ function renderMatchConfirmation(
   }
 }
 
-function renderOverviewSimilarResults(
+function openInActionsFor(
   document: Document,
-  container: HTMLElement,
   item: Zotero.Item,
-  works: ExternalWork[],
-): void {
-  clear(container);
-  container.appendChild(txt(document, "h4", "Similar papers"));
-  if (!works.length) {
-    container.appendChild(
-      txt(
-        document,
-        "p",
-        "No similar papers were returned by the available providers.",
-        "meristema-secondary-text",
-      ),
-    );
-    return;
-  }
-  const list = el(document, "div", "meristema-relation-list");
-  for (const work of works) {
-    const card = el(document, "article", "meristema-relation-card");
-    card.append(
-      txt(
-        document,
-        "h4",
-        externalWorkTitle(work, Number(item.libraryID)),
-        "meristema-relation-title",
-      ),
-      txt(
-        document,
-        "p",
-        externalWorkAuthorsText(work),
-        "meristema-secondary-text",
-      ),
-    );
-    const metadata = externalWorkMetadataText(work, undefined);
-    if (metadata) {
-      card.appendChild(
-        txt(document, "p", metadata, "meristema-secondary-text"),
-      );
-    }
+): readonly PaperOverviewOpenInAction[] {
+  const itemID = Number(item.id);
+  const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
+  const openViews = getOpenGraphViews(hostWindow);
+  return [
+    {
+      label: "New Collection Graph",
+      title: "Open this paper in a new Collection Graph tab.",
+      action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
+    },
+    {
+      label: "New Explore view",
+      title: "Open this paper as the seed of a new Explore view.",
+      action: () => openFocusItemsInNewTab([itemID], hostWindow),
+    },
+    ...openViews.map((view, index) => ({
+      label: `${view.active ? "\u2713 " : ""}${view.title}`,
+      title:
+        view.kind === "focus"
+          ? "Add this paper as a seed in the selected Explore view."
+          : "Add this paper to the selected Collection Graph.",
+      separatorBefore: index === 0,
+      action: () =>
+        view.kind === "focus"
+          ? openFocusItemsInView(view.instanceID, [itemID], hostWindow)
+          : openGraphAndSelectItemsInView(
+              view.instanceID,
+              [itemID],
+              hostWindow,
+            ),
+    })),
+  ];
+}
 
-    const identity = el(document, "div", "meristema-pane-actions");
-    identity.style.justifyContent = "space-between";
-    identity.style.width = "100%";
-    const url = externalWorkURL(work);
-    if (url) {
-      const link = el(document, "a");
-      link.href = url;
-      link.textContent = work.doi?.trim()
-        ? `DOI: ${work.doi.trim()}`
-        : `Open ${citationDataSourceLabel(work.provider)} record`;
-      link.style.minWidth = "0";
-      link.style.overflowWrap = "anywhere";
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        Zotero.launchURL(url);
-      });
-      identity.appendChild(link);
-    }
-
-    const buttons = el(document, "div", "meristema-pane-actions");
-    buttons.style.margin = "0";
-    if (work.inLibraryItemKey) {
-      const local = itemByKey(Number(item.libraryID), work.inLibraryItemKey);
-      const show = el(document, "button", "meristema-primary-button");
-      show.type = "button";
-      show.textContent = "Show in Zotero";
-      show.addEventListener("click", () => {
-        if (local) Zotero.getActiveZoteroPane?.()?.selectItem?.(local.id);
-      });
-      buttons.appendChild(show);
-    } else {
-      const add = el(document, "button", "meristema-primary-button");
-      add.type = "button";
-      add.textContent = "Add to Zotero";
-      add.addEventListener("click", () => {
-        runUIAction("adding a similar paper", async () => {
-          add.disabled = true;
-          const imported = await importExternalWork(
-            work,
-            Number(item.libraryID),
-            [],
-          );
-          const added = imported[0];
-          if (!added) throw new Error("No item was imported.");
-          work.inLibraryItemKey = String(added.key);
-          renderOverviewSimilarResults(document, container, item, works);
-        });
-      });
-      buttons.appendChild(add);
-    }
-    identity.appendChild(buttons);
-    card.appendChild(identity);
-
-    const badges = el(document, "div", "meristema-pane-badges");
-    if (work.inLibraryItemKey)
-      badges.append(txt(document, "span", "In Zotero"));
-    if (work.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
-    if (work.isRetracted) badges.append(txt(document, "span", "Retracted"));
-    if (badges.childElementCount) card.appendChild(badges);
-
-    if (work.abstract) {
-      const disclosure = el(document, "details", "meristema-data-details");
-      disclosure.append(
-        txt(document, "summary", "Abstract"),
-        txt(document, "p", work.abstract),
-      );
-      card.appendChild(disclosure);
-    }
-    list.appendChild(card);
-  }
-  container.appendChild(list);
+function itemPaneHost(
+  document: Document,
+  snapshot: LibrarySnapshot,
+): PaperDetailHost {
+  return {
+    origin: "item-pane",
+    snapshot,
+    collectionChooser: false,
+    showInZotero: (itemKey) => {
+      const related = itemByKey(snapshot.libraryID, itemKey);
+      if (related) Zotero.getActiveZoteroPane?.()?.selectItem?.(related.id);
+    },
+    onRelationshipMutation: (event) => notifyRelationshipMutation(event),
+  };
 }
 
 function renderOverview(
   document: Document,
   container: HTMLElement,
   item: Zotero.Item,
+  host: PaperDetailHost,
   rerender: () => void,
 ): void {
   const node = createMetricNodeForItem(item);
   renderMatchConfirmation(document, container, item, rerender);
-  if (node.isRetracted) {
-    const warning = el(document, "div", "meristema-retraction-warning");
-    warning.textContent =
-      "Retraction reported by a scholarly-data provider. Verify the current status with the publisher.";
-    container.appendChild(warning);
-  }
-  const badges = el(document, "div", "meristema-pane-badges");
-  if (node.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
-  if (node.isTop1Percent) badges.append(txt(document, "span", "Top 1%"));
-  else if (node.isTop10Percent) badges.append(txt(document, "span", "Top 10%"));
-  if (badges.childElementCount) container.appendChild(badges);
-
-  const metrics = el(document, "dl", "meristema-pane-metrics");
-  metrics.append(
-    row(document, "Citations", count(node.citationCount)),
-    row(document, "References", count(node.referenceCount)),
-    row(
-      document,
-      "Citation rate",
-      node.citationVelocity === null
-        ? "—"
-        : `${formatMetricValue("citation-rate", node.citationVelocity)}/year`,
-      getMetricDefinition("citation-rate").description,
-    ),
-    row(
-      document,
-      "Citation acceleration",
-      formatMetricValue("citation-acceleration", node.citationAcceleration),
-      getMetricDefinition("citation-acceleration").description,
-    ),
-    row(document, "FWCI", formatMetricValue("fwci", node.fwci)),
-    row(
-      document,
-      "Journal h-index",
-      formatMetricValue("journal-h-index", node.sourceMetrics?.hIndex ?? null),
-      getMetricDefinition("journal-h-index").description,
-    ),
-    row(
-      document,
-      "2-year mean citedness",
-      formatMetricValue(
-        "two-year-mean-citedness",
-        node.sourceMetrics?.twoYearMeanCitedness ?? null,
-      ),
-      getMetricDefinition("two-year-mean-citedness").description,
-    ),
-    row(
-      document,
-      "Citation percentile",
-      formatMetricValue("citation-percentile", node.citationPercentile),
-    ),
-    row(
-      document,
-      "Library coverage",
-      formatMetricValue("library-coverage", node.libraryCoverage),
-      getMetricDefinition("library-coverage").description,
-    ),
-  );
-  container.appendChild(metrics);
-
-  const details = el(document, "details", "meristema-data-details");
-  details.appendChild(txt(document, "summary", "Data details"));
-  const detailMetrics = el(document, "dl", "meristema-pane-metrics");
-  detailMetrics.append(
-    row(document, "Canonical provider", node.provider ?? "—"),
-    row(document, "Match method", node.matchedBy ?? "—"),
-    row(
-      document,
-      "Structured references",
-      `${count(node.resolvedReferenceCount)} of ${count(node.referenceCount)}`,
-    ),
-    row(
-      document,
-      "Updated",
-      node.metricsUpdatedAt
-        ? new Date(node.metricsUpdatedAt).toLocaleString()
-        : "—",
-    ),
-    row(
-      document,
-      "Local manual relations",
-      String(
-        getManualRelations(Number(item.libraryID), String(item.key)).length,
-      ),
-    ),
-  );
-  details.appendChild(detailMetrics);
-  container.appendChild(details);
+  const badges = createBadges(document, node);
+  if (badges) container.appendChild(detailSection(document, badges));
+  container.appendChild(createOverviewMetrics(document, node));
 
   void ensureSourceMetricsForNodes([node])
     .then((updated) => {
@@ -688,84 +367,24 @@ function renderOverview(
       );
     });
 
-  const similarResults = el(document, "section");
-  similarResults.style.marginTop = "8px";
-  const overviewActions = createPaperOverviewActionBar({
+  const similar = createSimilarSection(document, host, async () => {
+    const { node: selected, graph } = await graphNodeForItem(item);
+    return getMissingPaperRecommendations([selected], graph.nodes, 50, 2);
+  });
+  const actions = createPaperOverviewActionBar({
     document,
-    actionsClass: "meristema-pane-actions",
-    primaryButtonClass: "meristema-primary-button",
-    doi: node.doi,
-    onShowInZotero: () =>
-      Zotero.getActiveZoteroPane?.()?.selectItem?.(Number(item.id)),
-    getOpenInActions: () => {
-      const itemID = Number(item.id);
-      const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
-      const openViews = getOpenGraphViews(hostWindow);
-      return [
-        {
-          label: "New Collection Graph",
-          title: "Open this paper in a new Collection Graph tab.",
-          action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
-        },
-        {
-          label: "New Explore view",
-          title: "Open this paper as the seed of a new Explore view.",
-          action: () => openFocusItemsInNewTab([itemID], hostWindow),
-        },
-        ...openViews.map((view, index) => ({
-          label: `${view.active ? "✓ " : ""}${view.title}`,
-          title:
-            view.kind === "focus"
-              ? "Add this paper as a seed in the selected Explore view."
-              : "Add this paper to the selected Collection Graph.",
-          separatorBefore: index === 0,
-          action: () =>
-            view.kind === "focus"
-              ? openFocusItemsInView(view.instanceID, [itemID], hostWindow)
-              : openGraphAndSelectItemsInView(
-                  view.instanceID,
-                  [itemID],
-                  hostWindow,
-                ),
-        })),
-      ];
-    },
-    onSimilar: async () => {
-      clear(similarResults);
-      similarResults.appendChild(
-        txt(
-          document,
-          "p",
-          "Finding similar papers…",
-          "meristema-secondary-text",
-        ),
-      );
-      try {
-        const { node: selected, graph } = await graphNodeForItem(item);
-        const works = await getMissingPaperRecommendations(
-          [selected],
-          graph.nodes,
-          50,
-          2,
+    actionsClass: "cm-detail-actions",
+    primaryButtonClass: "cm-primary-button",
+    secondaryButtonClass: "cm-secondary-button",
+    getOpenInActions: () => openInActionsFor(document, item),
+    // `start()` rethrows after it has drawn its own failure state; the section
+    // has already told the reader, so all that is left is the log.
+    onSimilar: () =>
+      similar.start().catch((error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
         );
-        if (similarResults.isConnected) {
-          renderOverviewSimilarResults(document, similarResults, item, works);
-        }
-      } catch (error) {
-        if (similarResults.isConnected) {
-          clear(similarResults);
-          similarResults.appendChild(
-            txt(
-              document,
-              "p",
-              "Similar-paper search failed.",
-              "meristema-secondary-text",
-            ),
-          );
-        }
-        throw error;
-      }
-    },
+      }),
     onRefresh: async () => {
       await updateCitationDataForItems([item], {
         force: false,
@@ -774,634 +393,7 @@ function renderOverview(
       rerender();
     },
   });
-  container.append(overviewActions.root, similarResults);
-}
-
-function relationKey(work: RelatedWorkMetadata | ExternalWork): string {
-  return relationshipCandidateIdentity(work);
-}
-
-function ignoredRelationDescriptor(
-  work: ExternalWork,
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-  referenceIndex?: RelatedWorkLookupIndex,
-): IgnoredRelationDescriptor {
-  const libraryID = Number(item.libraryID);
-  if (direction === "cited-by" && work.inLibraryItemKey) {
-    const target = createMetricNodeForItem(item);
-    const sourceRecord = getCitationMetricRecord(
-      libraryID,
-      work.inLibraryItemKey,
-    );
-    const reference = sourceRecord?.references.find((candidate) =>
-      referenceMatchesNode(candidate, target),
-    );
-    if (reference) {
-      return ignoredRelationDescriptorFromReference(
-        libraryID,
-        work.inLibraryItemKey,
-        reference,
-      );
-    }
-    return {
-      libraryID,
-      subjectItemKey: work.inLibraryItemKey,
-      direction: "reference",
-      provider: target.provider ?? "crossref",
-      providerWorkID: target.providerWorkID,
-      doi: target.doi,
-      normalizedTitle: normalizeExactTitle(target.title) || null,
-    };
-  }
-  if (direction === "reference") {
-    const reference = referenceIndex
-      ? findMatchingRelatedWork(referenceIndex, work)
-      : getCitationMetricRecord(libraryID, String(item.key))?.references.find(
-          (candidate) => referenceMatchesRelatedWork(candidate, work),
-        );
-    if (reference) {
-      return ignoredRelationDescriptorFromReference(
-        libraryID,
-        String(item.key),
-        reference,
-      );
-    }
-  }
-  return ignoredRelationDescriptorForRelatedWork(
-    libraryID,
-    String(item.key),
-    direction,
-    work,
-  );
-}
-
-function ignoredRelationForWork(
-  work: ExternalWork,
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-  ignoredIndex?: IgnoredRelationIndex,
-  referenceIndex?: RelatedWorkLookupIndex,
-): IgnoredProviderRelation | null {
-  const descriptor = ignoredRelationDescriptor(
-    work,
-    item,
-    direction,
-    referenceIndex,
-  );
-  const index =
-    ignoredIndex ??
-    createIgnoredRelationIndex(getIgnoredRelations(descriptor.libraryID));
-  return findIgnoredRelation(index, descriptor);
-}
-
-function manualWorkForItemKey(
-  libraryID: number,
-  relatedItemKey: string,
-): ExternalWork | null {
-  const related = itemByKey(libraryID, relatedItemKey);
-  if (!related) return null;
-  const node = createMetricNodeForItem(related);
-  return {
-    provider: "manual",
-    providerWorkID: null,
-    doi: node.doi,
-    title: node.title,
-    year: node.year,
-    authors: node.authors,
-    sourceTitle: node.sourceTitle,
-    abstract: null,
-    citationCount: node.citationCount,
-    referenceCount: node.referenceCount,
-    isOpenAccess: node.isOpenAccess,
-    openAccessStatus: node.openAccessStatus,
-    isRetracted: node.isRetracted,
-    zoteroItemKey: relatedItemKey,
-    inLibraryItemKey: relatedItemKey,
-  };
-}
-
-function manualRelationsForItem(
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-): Array<{ relation: ManualCitationRelation; relatedItemKey: string }> {
-  return manualRelationsForSubject(
-    Number(item.libraryID),
-    String(item.key),
-    direction,
-  );
-}
-
-interface RelationEntry {
-  work: ExternalWork;
-  manualRelation: ManualCitationRelation | null;
-  ignoredRelation: IgnoredProviderRelation | null;
-  providerOrder: number;
-}
-
-function relationEntriesForWorks(
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-  manualRelations: Array<{
-    relation: ManualCitationRelation;
-    relatedItemKey: string;
-  }>,
-  providerWorks: ExternalWork[],
-): RelationEntry[] {
-  const libraryID = Number(item.libraryID);
-  const ignoredIndex = createIgnoredRelationIndex(
-    getIgnoredRelations(libraryID),
-  );
-  const referenceIndex =
-    direction === "reference"
-      ? createRelatedWorkLookupIndex(
-          getCitationMetricRecord(libraryID, String(item.key))?.references ??
-            [],
-        )
-      : undefined;
-  const entries: RelationEntry[] = [];
-  const seen = new Set<string>();
-  for (const { relation, relatedItemKey } of manualRelations) {
-    const work = manualWorkForItemKey(libraryID, relatedItemKey);
-    if (!work) continue;
-    const key = relationKey(work);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push({
-      work,
-      manualRelation: relation,
-      ignoredRelation: null,
-      providerOrder: entries.length,
-    });
-  }
-  const providerOffset = entries.length;
-  for (const [providerOrder, work] of providerWorks.entries()) {
-    const key = relationKey(work);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push({
-      work,
-      manualRelation: null,
-      ignoredRelation: ignoredRelationForWork(
-        work,
-        item,
-        direction,
-        ignoredIndex,
-        referenceIndex,
-      ),
-      providerOrder: providerOffset + providerOrder,
-    });
-  }
-  return entries;
-}
-
-function renderRelationCard(
-  document: Document,
-  container: HTMLElement,
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-  work: ExternalWork,
-  manualRelation: ManualCitationRelation | null,
-  ignoredRelation: IgnoredProviderRelation | null,
-  rerender: () => void,
-): void {
-  let activeIgnoredRelation = ignoredRelation;
-  let ignoredBadge: HTMLElement | null = null;
-  let syncIgnoredControls = (): void => undefined;
-  const card = el(document, "article", "meristema-relation-card");
-  card.dataset.key = relationKey(work);
-  const title = txt(
-    document,
-    "h4",
-    externalWorkTitle(work, Number(item.libraryID)),
-    "meristema-relation-title",
-  );
-  if (manualRelation) {
-    title.classList.add("meristema-manual-relation-title");
-    title.title =
-      direction === "reference"
-        ? "Reference added manually in Meristema"
-        : "Citing paper added manually in Meristema";
-  }
-  card.appendChild(title);
-  card.appendChild(
-    txt(
-      document,
-      "p",
-      externalWorkAuthorsText(work),
-      "meristema-secondary-text",
-    ),
-  );
-  const metadata = externalWorkMetadataText(work, undefined);
-  if (metadata) {
-    card.appendChild(txt(document, "p", metadata, "meristema-secondary-text"));
-  }
-
-  const identityRow = el(document, "div", "meristema-pane-actions");
-  identityRow.style.justifyContent = "space-between";
-  identityRow.style.width = "100%";
-  const url = externalWorkURL(work);
-  if (url) {
-    const link = el(document, "a");
-    link.href = url;
-    link.textContent = work.doi?.trim()
-      ? `DOI: ${work.doi.trim()}`
-      : `Open ${citationDataSourceLabel(work.provider)} record`;
-    link.style.minWidth = "0";
-    link.style.overflowWrap = "anywhere";
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      Zotero.launchURL(url);
-    });
-    identityRow.appendChild(link);
-  } else {
-    identityRow.appendChild(txt(document, "span", "No DOI or URL"));
-  }
-
-  const actionButtons = el(document, "div", "meristema-pane-actions");
-  actionButtons.style.margin = "0";
-  if (work.inLibraryItemKey) {
-    const related = itemByKey(Number(item.libraryID), work.inLibraryItemKey);
-    const show = el(document, "button", "meristema-primary-button");
-    show.type = "button";
-    show.textContent = "Show in Zotero";
-    show.addEventListener("click", () => {
-      if (related) Zotero.getActiveZoteroPane?.()?.selectItem?.(related.id);
-    });
-    actionButtons.appendChild(show);
-  } else {
-    const add = el(document, "button", "meristema-primary-button");
-    add.type = "button";
-    add.textContent = "Add to Zotero";
-    add.addEventListener("click", () => {
-      runUIAction("adding an external relationship paper", async () => {
-        add.disabled = true;
-        add.textContent = "Adding…";
-        const imported = await importExternalWork(
-          work,
-          Number(item.libraryID),
-          [],
-        );
-        const added = imported[0];
-        if (!added) throw new Error("No item was imported.");
-        work.inLibraryItemKey = String(added.key);
-        rerender();
-      });
-    });
-    actionButtons.appendChild(add);
-  }
-
-  if (manualRelation) {
-    const removeManual = el(document, "button");
-    removeManual.type = "button";
-    removeManual.textContent = "Remove manual relation";
-    removeManual.addEventListener("click", () => {
-      runUIAction("removing a manual citation relation", async () => {
-        removeManual.disabled = true;
-        await removeManualRelation(manualRelation.id);
-        await refreshOpenGraphViews();
-        rerender();
-      });
-    });
-    actionButtons.appendChild(removeManual);
-  } else if (work.provider !== "manual") {
-    const toggleIgnored = el(document, "button");
-    toggleIgnored.type = "button";
-    syncIgnoredControls = (): void => {
-      toggleIgnored.textContent = activeIgnoredRelation
-        ? "Restore relationship"
-        : "Mark incorrect";
-      toggleIgnored.title = activeIgnoredRelation
-        ? "Restore this relationship to the citation graph"
-        : "Hide only this relationship edge from the citation graph";
-      if (activeIgnoredRelation && !ignoredBadge) {
-        ignoredBadge = txt(document, "span", "Ignored Relationship");
-        badges.appendChild(ignoredBadge);
-        if (!badges.parentElement) card.appendChild(badges);
-      } else if (!activeIgnoredRelation && ignoredBadge) {
-        ignoredBadge.remove();
-        ignoredBadge = null;
-        if (!badges.childElementCount) badges.remove();
-      }
-    };
-    toggleIgnored.addEventListener("click", () => {
-      runUIAction("updating an ignored citation relation", async () => {
-        toggleIgnored.disabled = true;
-        try {
-          if (activeIgnoredRelation) {
-            await removeIgnoredRelation(activeIgnoredRelation.id);
-            activeIgnoredRelation = null;
-          } else {
-            const descriptor = ignoredRelationDescriptor(work, item, direction);
-            await ignoreProviderRelation({
-              ...descriptor,
-              providerWorkID: descriptor.providerWorkID ?? "",
-              doi: descriptor.doi ?? "",
-              normalizedTitle: descriptor.normalizedTitle ?? "",
-            });
-            activeIgnoredRelation = ignoredRelationForWork(
-              work,
-              item,
-              direction,
-            );
-          }
-          syncIgnoredControls();
-          notifyRelationshipMutation({
-            origin: "item-pane",
-            libraryID: Number(item.libraryID),
-            subjectItemKey: String(item.key),
-            direction: direction === "reference" ? "references" : "cited-by",
-            work,
-            ignored: Boolean(activeIgnoredRelation),
-          });
-        } finally {
-          toggleIgnored.disabled = false;
-        }
-      });
-    });
-    actionButtons.appendChild(toggleIgnored);
-  }
-  identityRow.appendChild(actionButtons);
-  card.appendChild(identityRow);
-
-  const badges = el(document, "div", "meristema-pane-badges");
-  if (manualRelation) badges.append(txt(document, "span", "Manual"));
-  if (work.inLibraryItemKey) badges.append(txt(document, "span", "In Zotero"));
-  if (work.isOpenAccess) badges.append(txt(document, "span", "Open Access"));
-  if (activeIgnoredRelation) {
-    ignoredBadge = txt(document, "span", "Ignored Relationship");
-    badges.append(ignoredBadge);
-  }
-  if (work.isRetracted) {
-    badges.append(txt(document, "span", "Retracted", "meristema-danger-badge"));
-  }
-  if (badges.childElementCount) card.appendChild(badges);
-  syncIgnoredControls();
-
-  if (work.abstract) {
-    const disclosure = el(document, "details", "meristema-data-details");
-    disclosure.append(
-      txt(document, "summary", "Abstract"),
-      txt(document, "p", work.abstract, "meristema-secondary-text"),
-    );
-    card.appendChild(disclosure);
-  }
-  container.appendChild(card);
-}
-
-async function renderRelations(
-  document: Document,
-  container: HTMLElement,
-  item: Zotero.Item,
-  direction: ManualRelationDirection,
-  rerender: () => void,
-): Promise<void> {
-  clear(container);
-  const viewDirection: RelationshipViewDirection =
-    direction === "reference" ? "references" : "cited-by";
-  const updateLabel =
-    viewDirection === "references"
-      ? "Update reference papers"
-      : "Update citing papers";
-
-  const loading = txt(document, "p", "Loading…", "meristema-secondary-text");
-  container.appendChild(loading);
-  try {
-    const { node, graph, snapshot } = await relationshipContextForItem(item);
-    const libraryID = Number(item.libraryID);
-    const libraryWorks = graph?.nodes ?? snapshot.papers;
-    const readRelationshipSnapshot = (): RelationshipViewSnapshot =>
-      graph
-        ? getRelationshipViewSnapshot(
-            graph,
-            node,
-            viewDirection,
-            libraryID,
-            RELATION_LIMIT,
-          )
-        : getRelationshipViewSnapshotFromWorks(
-            node,
-            viewDirection,
-            libraryID,
-            libraryWorks,
-            viewDirection === "references" ? node.references : [],
-            RELATION_LIMIT,
-          );
-    const localPapersByKey = new Map(
-      snapshot.papers.map((paper) => [paper.itemKey, paper]),
-    );
-    let relationshipSnapshot = readRelationshipSnapshot();
-    let providerWorks = relationshipSnapshot.works;
-    let manualRelations = manualRelationsForItem(item, direction);
-    let entries = relationEntriesForWorks(
-      item,
-      direction,
-      manualRelations,
-      providerWorks,
-    );
-    let providerLookupActive =
-      getRelationshipPublicationState(
-        libraryID,
-        String(item.key),
-        viewDirection,
-      )?.active ?? false;
-    let updateOutcome: string | null = null;
-    let shownCount = entries.length;
-    let filtered = false;
-    let renderGeneration = 0;
-    let descriptorCache = new Map<
-      RelationEntry,
-      ReturnType<typeof describeExternalWork>
-    >();
-    let renderList = (): void => undefined;
-    let updateStatus = (): void => undefined;
-    loading.remove();
-
-    const controls = el(document, "div", "meristema-relation-controls");
-    controls.style.gridTemplateColumns = "minmax(0, 1fr) 30px 30px";
-    const toolbar = createPaperListToolbar({
-      document,
-      searchPlaceholder:
-        direction === "reference"
-          ? "Search references"
-          : "Search citing papers",
-      collections: snapshot.collections,
-      inputClassName: "meristema-paper-search",
-      onChange: () => renderList(),
-    });
-
-    const update = el(document, "button");
-    update.type = "button";
-    configureIconButton(update, updateLabel, "refresh");
-    update.disabled = providerLookupActive;
-
-    const currentRelatedItemKeys = (): Set<string> =>
-      new Set(
-        entries
-          .map(
-            ({ work }) => work.inLibraryItemKey ?? work.zoteroItemKey ?? null,
-          )
-          .filter((key): key is string => Boolean(key)),
-      );
-    const picker = createManualRelationshipPicker({
-      document,
-      snapshot,
-      subjectItemKey: String(item.key),
-      direction,
-      getAlreadyRelatedItemKeys: currentRelatedItemKeys,
-      inputClassName: "meristema-paper-search",
-      onApplied: () => rerender(),
-    });
-
-    controls.append(toolbar.root, update, picker.button);
-    container.append(controls, picker.overlay);
-
-    const status = txt(document, "p", "", "meristema-secondary-text");
-    updateStatus = (): void => {
-      const base = relationshipStatusText(
-        relationshipSnapshot,
-        shownCount,
-        filtered,
-        providerLookupActive,
-      );
-      status.textContent = updateOutcome ? `${base} · ${updateOutcome}` : base;
-    };
-    const list = el(document, "div", "meristema-relation-list");
-    container.append(status, list);
-
-    renderList = (): void => {
-      const generation = ++renderGeneration;
-      clear(list);
-      const ordered = toolbar.apply(
-        entries,
-        (entry) =>
-          descriptorCache.get(entry) ??
-          (() => {
-            const descriptor = describeExternalWork(
-              entry.work,
-              libraryID,
-              true,
-              Boolean(entry.manualRelation),
-              localPapersByKey,
-            );
-            descriptorCache.set(entry, descriptor);
-            return descriptor;
-          })(),
-      );
-      shownCount = ordered.length;
-      filtered = toolbar.hasActiveQueryOrFilters();
-      updateStatus();
-      if (!ordered.length) {
-        list.append(txt(document, "p", "No relationships are available."));
-        return;
-      }
-
-      let index = 0;
-      const appendNextBatch = (): void => {
-        if (generation !== renderGeneration || !list.isConnected) return;
-        for (const entry of ordered.slice(index, index + 24)) {
-          renderRelationCard(
-            document,
-            list,
-            item,
-            direction,
-            entry.work,
-            entry.manualRelation,
-            entry.ignoredRelation,
-            rerender,
-          );
-        }
-        index += 24;
-        if (index < ordered.length) {
-          const view = document.defaultView;
-          if (view) view.requestAnimationFrame(appendNextBatch);
-          else setTimeout(appendNextBatch, 0);
-        }
-      };
-      appendNextBatch();
-    };
-
-    update.addEventListener("click", () => {
-      runUIAction("updating " + direction + " relationships", async () => {
-        const requestScope = createCancellationScope(
-          `${direction} relationship update for ${String(item.key)}`,
-        );
-        update.disabled = true;
-        providerLookupActive = true;
-        updateOutcome = null;
-        updateStatus();
-        const cancelUpdate = (): void => {
-          requestScope.cancel();
-          providerLookupActive = false;
-          updateOutcome = "Update cancelled";
-          if (update.isConnected) update.disabled = false;
-          updateStatus();
-        };
-        const progress = createUpdateProgress({
-          document,
-          title: updateLabel,
-          message: "Checking provider pages for new relationships…",
-          onCancel: cancelUpdate,
-        });
-        const previousWorks = providerWorks;
-        try {
-          await refreshExternalRelationships(
-            node,
-            libraryWorks,
-            viewDirection,
-            {
-              maximum: RELATIONSHIP_VIEW_LIMIT,
-              refreshMembership: true,
-              silent: true,
-              mode: "manual",
-              queueBackgroundHydration: true,
-              signal: requestScope.signal,
-            },
-          );
-          if (requestScope.signal.cancelled) {
-            updateOutcome = "Update cancelled";
-            progress.dismiss();
-            return;
-          }
-          relationshipSnapshot = readRelationshipSnapshot();
-          providerWorks = relationshipSnapshot.works;
-          const added = newlyRetrievedRelationshipWorkCount(
-            previousWorks,
-            providerWorks,
-          );
-          updateOutcome = added
-            ? `${added} new paper${added === 1 ? "" : "s"} added`
-            : "No new papers returned";
-          progress.finish(updateOutcome);
-          manualRelations = manualRelationsForItem(item, direction);
-          entries = relationEntriesForWorks(
-            item,
-            direction,
-            manualRelations,
-            providerWorks,
-          );
-          descriptorCache = new Map();
-        } catch (error) {
-          if (requestScope.signal.cancelled) {
-            updateOutcome = "Update cancelled";
-            progress.dismiss();
-            return;
-          }
-          updateOutcome = "Update failed";
-          progress.fail(updateOutcome);
-          throw error;
-        } finally {
-          providerLookupActive = false;
-          update.disabled = false;
-          renderList();
-        }
-      });
-    });
-    renderList();
-  } catch (error) {
-    loading.textContent = "Unable to load relationships.";
-    Zotero.logError(error instanceof Error ? error : new Error(String(error)));
-  }
+  container.append(detailSection(document, actions.root), similar.root);
 }
 
 function renderPane(
@@ -1411,47 +403,106 @@ function renderPane(
   setSectionSummary?: (summary: string) => void,
 ): void {
   const itemKey = String(item.key);
+  const libraryID = Number(item.libraryID);
   const previousState = paneTabState.get(body);
-  let active: PaneTab =
+  let active: DetailTab =
     previousState?.itemKey === itemKey ? previousState.active : "overview";
   paneTabState.set(body, { itemKey, active });
+  activeLists.get(body)?.destroy();
+  activeLists.delete(body);
+
   const render = (): void => {
     setSectionSummary?.(summaryForItem(item));
+    activeLists.get(body)?.destroy();
+    activeLists.delete(body);
     clear(body);
-    const shell = el(document, "div", "meristema-item-pane");
+    const shell = el(
+      document,
+      "div",
+      "meristema-paper-detail meristema-item-pane",
+    );
     const content = el(document, "div", "meristema-pane-content");
-    const select = (tab: PaneTab): void => {
-      active = tab;
-      paneTabState.set(body, { itemKey, active });
-      render();
-    };
     const node = createMetricNodeForItem(item);
-    const reportedCounts = getRelationshipReportedCounts(
-      Number(item.libraryID),
+    const tabs = createDetailTabs(document, {
       node,
-    );
-    shell.append(
-      createTabs(
-        document,
-        active,
-        Number(item.libraryID),
-        itemKey,
-        reportedCounts.citationCount,
-        reportedCounts.referenceCount,
-        select,
-      ),
-      content,
-    );
+      libraryID,
+      active,
+      onSelect: (tab) => {
+        active = tab;
+        paneTabState.set(body, { itemKey, active });
+        render();
+      },
+    });
+    shell.append(tabs.root, content);
     body.appendChild(shell);
-    if (active === "overview") {
-      renderOverview(document, content, item, render);
-    } else {
-      void renderRelations(
-        document,
-        content,
-        item,
-        active === "references" ? "reference" : "cited-by",
-        render,
+
+    void relationshipLibrarySnapshot(libraryID)
+      .then((snapshot) => {
+        if (!content.isConnected) return;
+        clear(content);
+        const host = itemPaneHost(document, snapshot);
+        if (active === "overview") {
+          renderOverview(document, content, item, host, render);
+          return;
+        }
+        const graph = getCachedCitationGraph(libraryID);
+        const libraryWorks = graph?.nodes ?? snapshot.papers;
+        const direction = active;
+        const list = createRelationshipList(document, {
+          host,
+          node,
+          direction,
+          readSnapshot: () =>
+            graph
+              ? getRelationshipViewSnapshot(
+                  graph,
+                  node,
+                  direction,
+                  libraryID,
+                  RELATION_LIMIT,
+                )
+              : getRelationshipViewSnapshotFromWorks(
+                  node,
+                  direction,
+                  libraryID,
+                  libraryWorks,
+                  direction === "references" ? node.references : [],
+                  RELATION_LIMIT,
+                ),
+          refreshRelationships: (signal) =>
+            refreshExternalRelationships(node, libraryWorks, direction, {
+              maximum: RELATIONSHIP_VIEW_LIMIT,
+              refreshMembership: true,
+              silent: true,
+              mode: "manual",
+              queueBackgroundHydration: true,
+              signal,
+            }).then(() => undefined),
+          onManualChange: () => void refreshOpenGraphViews(),
+          updateCounts: (current) => tabs.updateCounts(current),
+        });
+        activeLists.set(body, list);
+        content.appendChild(list.root);
+      })
+      .catch((error: unknown) => {
+        if (content.isConnected) {
+          clear(content);
+          content.appendChild(
+            text(
+              document,
+              "p",
+              "Unable to load relationships.",
+              "cm-placeholder",
+            ),
+          );
+        }
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      });
+    if (active !== "overview") {
+      content.appendChild(
+        text(document, "p", "Loading\u2026", "cm-placeholder"),
       );
     }
   };
@@ -1510,6 +561,8 @@ export function registerCitationItemPane(): void {
       refreshCallbacks.delete(body);
       paneSubjects.delete(body);
       paneTabState.delete(body);
+      activeLists.get(body)?.destroy();
+      activeLists.delete(body);
     },
     onItemChange: ({
       doc,

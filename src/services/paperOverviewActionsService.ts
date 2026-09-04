@@ -15,18 +15,14 @@ export interface PaperOverviewActionOptions {
   actionsClass: string;
   primaryButtonClass: string;
   secondaryButtonClass?: string;
-  doi: string | null;
-  onShowInZotero: Action;
-  getOpenInActions?: () => readonly PaperOverviewOpenInAction[];
+  getOpenInActions: () => readonly PaperOverviewOpenInAction[];
   onSimilar: Action;
   onRefresh: Action;
 }
 
 export interface PaperOverviewActionBar {
   root: HTMLDivElement;
-  showInZoteroButton: HTMLButtonElement;
-  openDOIButton: HTMLButtonElement | null;
-  openInButton: HTMLButtonElement | null;
+  openInButton: HTMLButtonElement;
   similarButton: HTMLButtonElement;
   refreshButton: HTMLButtonElement;
 }
@@ -92,115 +88,90 @@ export function createPaperOverviewActionBar(
    */
   right.style.marginInlineStart = "auto";
 
-  const showInZoteroButton = element(document, "button", secondaryButtonClass);
-  showInZoteroButton.type = "button";
-  showInZoteroButton.textContent = "Show in Zotero";
-  showInZoteroButton.title = "Select this paper in the Zotero library.";
-  showInZoteroButton.addEventListener("click", () =>
-    invoke(showInZoteroButton, options.onShowInZotero),
-  );
-  left.appendChild(showInZoteroButton);
-
-  let openDOIButton: HTMLButtonElement | null = null;
-  const doi = options.doi?.trim() ?? "";
-  if (doi) {
-    openDOIButton = element(document, "button", secondaryButtonClass);
-    openDOIButton.type = "button";
-    openDOIButton.textContent = "Open DOI";
-    openDOIButton.title = "Open this paper's DOI in the default browser.";
-    openDOIButton.addEventListener("click", () => {
-      Zotero.launchURL(`https://doi.org/${encodeURIComponent(doi)}`);
-    });
-    left.appendChild(openDOIButton);
-  }
-
-  let openInButton: HTMLButtonElement | null = null;
   const getOpenInActions = options.getOpenInActions;
-  if (getOpenInActions) {
-    const wrapper = element(document, "div");
-    wrapper.style.position = "relative";
-    wrapper.style.display = "inline-flex";
+  const wrapper = element(document, "div");
+  wrapper.style.position = "relative";
+  wrapper.style.display = "inline-flex";
 
-    openInButton = element(document, "button", secondaryButtonClass);
-    openInButton.type = "button";
-    openInButton.textContent = "Open in ›";
-    openInButton.title = "Open this paper in a Collection Graph view.";
-    openInButton.setAttribute("aria-haspopup", "menu");
-    openInButton.setAttribute("aria-expanded", "false");
+  const openInButton = element(document, "button", secondaryButtonClass);
+  openInButton.type = "button";
+  openInButton.textContent = "Open in ›";
+  openInButton.title = "Open this paper in a Collection Graph view.";
+  openInButton.setAttribute("aria-haspopup", "menu");
+  openInButton.setAttribute("aria-expanded", "false");
 
-    const menu = element(document, "div");
+  const menu = element(document, "div");
+  menu.hidden = true;
+  menu.setAttribute("role", "menu");
+  Object.assign(menu.style, {
+    position: "absolute",
+    insetInlineStart: "0",
+    top: "calc(100% + 4px)",
+    zIndex: "1000",
+    display: "none",
+    flexDirection: "column",
+    minWidth: "190px",
+    padding: "4px",
+    border: "1px solid color-mix(in srgb, CanvasText 22%, transparent)",
+    borderRadius: "6px",
+    background: "Canvas",
+    color: "CanvasText",
+    boxShadow: "0 8px 24px color-mix(in srgb, black 24%, transparent)",
+  });
+
+  const closeMenu = (): void => {
     menu.hidden = true;
-    menu.setAttribute("role", "menu");
-    Object.assign(menu.style, {
-      position: "absolute",
-      insetInlineStart: "0",
-      top: "calc(100% + 4px)",
-      zIndex: "1000",
-      display: "none",
-      flexDirection: "column",
-      minWidth: "190px",
-      padding: "4px",
-      border: "1px solid color-mix(in srgb, CanvasText 22%, transparent)",
-      borderRadius: "6px",
-      background: "Canvas",
-      color: "CanvasText",
-      boxShadow: "0 8px 24px color-mix(in srgb, black 24%, transparent)",
-    });
-
-    const closeMenu = (): void => {
-      menu.hidden = true;
-      menu.style.display = "none";
-      openInButton?.setAttribute("aria-expanded", "false");
-    };
-    const rebuildMenu = (): void => {
-      menu.replaceChildren();
-      for (const entry of getOpenInActions()) {
-        if (entry.separatorBefore && menu.childElementCount) {
-          const separator = element(document, "div");
-          separator.setAttribute("role", "separator");
-          separator.style.borderTop =
-            "1px solid color-mix(in srgb, CanvasText 16%, transparent)";
-          separator.style.margin = "3px 2px";
-          menu.appendChild(separator);
-        }
-        const button = element(document, "button", secondaryButtonClass);
-        button.type = "button";
-        button.setAttribute("role", "menuitem");
-        button.textContent = entry.label;
-        button.title = entry.title ?? entry.label;
-        button.style.justifyContent = "flex-start";
-        button.style.width = "100%";
-        button.addEventListener("click", () => {
-          closeMenu();
-          invoke(button, entry.action);
-        });
-        menu.appendChild(button);
+    menu.style.display = "none";
+    openInButton.setAttribute("aria-expanded", "false");
+  };
+  const rebuildMenu = (): void => {
+    menu.replaceChildren();
+    for (const entry of getOpenInActions()) {
+      if (entry.separatorBefore && menu.childElementCount) {
+        const separator = element(document, "div");
+        separator.setAttribute("role", "separator");
+        separator.style.borderTop =
+          "1px solid color-mix(in srgb, CanvasText 16%, transparent)";
+        separator.style.margin = "3px 2px";
+        menu.appendChild(separator);
       }
-    };
-
-    openInButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (!menu.hidden) {
+      const button = element(document, "button", secondaryButtonClass);
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.textContent = entry.label;
+      button.title = entry.title ?? entry.label;
+      button.style.justifyContent = "flex-start";
+      button.style.width = "100%";
+      button.addEventListener("click", () => {
         closeMenu();
-        return;
-      }
-      rebuildMenu();
-      if (!menu.childElementCount) return;
-      menu.hidden = false;
-      menu.style.display = "flex";
-      openInButton?.setAttribute("aria-expanded", "true");
-      const closeOnOutsideClick = (outsideEvent: Event): void => {
-        if (!wrapper.contains(outsideEvent.target as Node)) closeMenu();
-      };
-      document.addEventListener("pointerdown", closeOnOutsideClick, {
-        once: true,
-        capture: true,
+        invoke(button, entry.action);
       });
-    });
+      menu.appendChild(button);
+    }
+  };
 
-    wrapper.append(openInButton, menu);
-    left.appendChild(wrapper);
-  }
+  openInButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!menu.hidden) {
+      closeMenu();
+      return;
+    }
+    rebuildMenu();
+    if (!menu.childElementCount) return;
+    menu.hidden = false;
+    menu.style.display = "flex";
+    openInButton.setAttribute("aria-expanded", "true");
+    const closeOnOutsideClick = (outsideEvent: Event): void => {
+      if (!wrapper.contains(outsideEvent.target as Node)) closeMenu();
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick, {
+      once: true,
+      capture: true,
+    });
+  });
+
+  wrapper.append(openInButton, menu);
+  left.appendChild(wrapper);
 
   const similarButton = element(document, "button", primaryButtonClass);
   similarButton.type = "button";
@@ -216,13 +187,13 @@ export function createPaperOverviewActionBar(
   );
   right.appendChild(similarButton);
 
-  const refreshButton = element(document, "button", secondaryButtonClass);
+  const refreshButton = element(
+    document,
+    "button",
+    `${secondaryButtonClass} cm-icon-button`.trim(),
+  );
   refreshButton.type = "button";
   refreshButton.appendChild(createIcon(document, "refresh"));
-  refreshButton.style.width = "30px";
-  refreshButton.style.minWidth = "30px";
-  refreshButton.style.padding = "4px";
-  refreshButton.style.justifyContent = "center";
   refreshButton.title =
     "Check scholarly-data providers online and update the citation metrics, reference metrics, open-access and retraction status, journal metrics, and stored cited-by/reference lists for this paper.";
   refreshButton.setAttribute("aria-label", refreshButton.title);
@@ -234,8 +205,6 @@ export function createPaperOverviewActionBar(
   root.append(left, right);
   return {
     root,
-    showInZoteroButton,
-    openDOIButton,
     openInButton,
     similarButton,
     refreshButton,
