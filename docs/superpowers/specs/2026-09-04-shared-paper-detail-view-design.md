@@ -1,7 +1,7 @@
 # One paper detail view for the item pane and the graph
 
 Date: 2026-09-04
-Status: approved
+Status: implemented
 
 ## Context
 
@@ -234,3 +234,17 @@ cancelled.
 - Moving the item pane's tab row into Zotero's sidenav.
 - Changing the graph pane's header, toolbar, collapse or resize behaviour.
 - Collection choosing in the item pane's import flow.
+
+### Deviations during implementation
+
+The base button, input and icon rules live once in `paperDetail.css`, with
+selectors covering both `.meristema-root` and `.meristema-paper-detail`,
+rather than duplicated. The import area builds its collection chooser on the
+first click, not at row construction. Rows treat a work as in the library on
+`inLibraryItemKey` alone.
+
+In the graph's Overview, Advanced sits directly under the metric strip,
+before the action row. The item pane's Overview renders without waiting for
+the library snapshot; only the similar-paper search and the relationship tabs
+load it. Removing a manual relation from a row notifies the host through
+`onManualRelationRemoved`, so open graphs rebuild.
