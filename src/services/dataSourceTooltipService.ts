@@ -7,7 +7,6 @@ import { getCachedCitationGraph } from "./citationGraphService";
 import { normalizeDOI, normalizeExactTitle } from "../domain/workIdentity";
 import { createMetricNodeForItem } from "./itemMetricContext";
 import {
-  formatMetricValue,
   METRIC_DEFINITIONS,
   SUPPLEMENTARY_PROPERTY_DEFINITIONS,
   metricTooltip,
@@ -289,7 +288,7 @@ function graphNodeForElement(
   element: Element,
 ): { node: CitationGraphNode; item: Zotero.Item | null } | null {
   const item = activeRegularItem(document);
-  if (element.closest(".meristema-pane-metrics, .meristema-relation-card")) {
+  if (element.closest(".meristema-item-pane")) {
     return item ? { node: createMetricNodeForItem(item), item } : null;
   }
 
@@ -388,7 +387,7 @@ function rowFromPath(path: HTMLElement[]): {
     const tag = elementTagName(candidate);
     return tag === "dt" || tag === "dd";
   });
-  if (!entry?.closest(".meristema-pane-metrics, .cm-metric-list")) {
+  if (!entry?.closest(".cm-metric-list")) {
     return null;
   }
   const isLabel = elementTagName(entry) === "dt";
@@ -418,8 +417,7 @@ function selectedRelationshipDirection(
     element.closest(".cm-detail-panel") ??
     element.ownerDocument;
   const selected = root.querySelector(
-    ".meristema-pane-tabs button[data-selected='true'], " +
-      ".cm-detail-tabs button[data-selected='true']",
+    ".cm-detail-tabs button[data-selected='true']",
   );
   const text = String(selected?.textContent ?? "").toLocaleLowerCase();
   if (text.includes("reference")) return "references";
@@ -562,10 +560,8 @@ function resolveExternalCardTooltip(
   if (path.some((candidate) => elementTagName(candidate) === "button")) {
     return null;
   }
-  const card = path.find(
-    (candidate) =>
-      candidate.classList?.contains("meristema-relation-card") ||
-      candidate.classList?.contains("cm-external-card"),
+  const card = path.find((candidate) =>
+    candidate.classList?.contains("cm-external-card"),
   );
   if (!card) return null;
   const dataElement = path.find((candidate) =>
@@ -588,9 +584,7 @@ function resolveBadgeTooltip(
   document: Document,
   path: HTMLElement[],
 ): ResolvedTooltip | null {
-  const badge = path.find((candidate) =>
-    candidate.closest?.(".meristema-pane-badges, .cm-badges"),
-  );
+  const badge = path.find((candidate) => candidate.closest?.(".cm-badges"));
   if (!badge) return null;
   const label = String(badge.textContent ?? "").trim();
   const definition = propertyDefinition(label);
@@ -737,153 +731,9 @@ function hideTooltip(handlers: DocumentTooltipHandlers): void {
   handlers.tooltip.style.display = "none";
 }
 
-function createPaneRow(
-  document: Document,
-  label: string,
-  value: string,
-): [HTMLElement, HTMLElement] {
-  const term = document.createElementNS(HTML_NS, "dt") as HTMLElement;
-  const data = document.createElementNS(HTML_NS, "dd") as HTMLElement;
-  term.textContent = label;
-  data.textContent = value;
-  return [term, data];
-}
-
-function supplementaryDisplay(node: CitationGraphNode, id: string): string {
-  const property = SUPPLEMENTARY_PROPERTY_DEFINITIONS.find(
-    (candidate) => candidate.id === id,
-  );
-  if (!property) return "—";
-  const value = property.value(node);
-  return value === null || value === undefined || value === ""
-    ? "—"
-    : property.format(value);
-}
-
-function enhanceMetricPanel(document: Document, rows: HTMLElement): void {
-  // Only enhance the root Overview list. Advanced/Data-details lists use the
-  // same CSS classes and must never be enhanced recursively.
-  if (rows.closest("details")) return;
-  if (rows.dataset.meristemaRegistryEnhanced === "true") return;
-  const context = graphNodeForElement(document, rows);
-  if (!context) return;
-  rows.dataset.meristemaRegistryEnhanced = "true";
-  const node = context.node;
-  const isItemPane = rows.classList.contains("meristema-pane-metrics");
-  const main = new Set(["citations", "references"]);
-  const labels = new Set<string>();
-  for (const termNode of Array.from(rows.querySelectorAll("dt"))) {
-    const term = termNode as HTMLElement;
-    labels.add(normalizedPropertyLabel(term.textContent ?? ""));
-  }
-
-  let details: HTMLDetailsElement | null = null;
-  if (isItemPane) {
-    const sibling = rows.nextElementSibling;
-    details = sibling?.matches("details.meristema-data-details")
-      ? (sibling as HTMLDetailsElement)
-      : null;
-  }
-  if (!details) {
-    details = document.createElementNS(
-      HTML_NS,
-      "details",
-    ) as HTMLDetailsElement;
-    details.className = isItemPane
-      ? "meristema-data-details"
-      : "cm-advanced-details";
-    const summary = document.createElementNS(HTML_NS, "summary");
-    summary.textContent = "Advanced";
-    details.appendChild(summary);
-    rows.after(details);
-  } else {
-    const summary = details.querySelector("summary");
-    if (summary) summary.textContent = "Advanced";
-  }
-  let advanced = details.querySelector("dl") as HTMLElement | null;
-  if (!advanced) {
-    advanced = document.createElementNS(HTML_NS, "dl") as HTMLElement;
-    advanced.className = rows.className;
-    details.appendChild(advanced);
-  }
-  advanced.dataset.meristemaRegistryAdvanced = "true";
-
-  const terms = Array.from(rows.querySelectorAll("dt"));
-  for (const termNode of terms) {
-    const term = termNode as HTMLElement;
-    const value = term.nextElementSibling;
-    if (!value || elementTagName(value) !== "dd") continue;
-    const key = normalizedPropertyLabel(term.textContent ?? "");
-    if (main.has(key)) continue;
-    if (
-      [
-        "provider",
-        "canonical-provider",
-        "citation-provider",
-        "match-confidence",
-      ].includes(key)
-    ) {
-      term.remove();
-      value.remove();
-      continue;
-    }
-    if (key === "citation-rate") term.textContent = "Recent citation rate";
-    if (key === "citation-acceleration")
-      term.textContent = "Change in annual citations";
-    if (key === "updated") term.textContent = "Last update";
-    advanced.append(term, value);
-  }
-
-  for (const metric of METRIC_DEFINITIONS) {
-    if (metric.itemPane !== "advanced") continue;
-    const aliases = [metric.id, metric.label, metric.shortLabel ?? ""].map(
-      normalizedPropertyLabel,
-    );
-    if (aliases.some((alias) => labels.has(alias))) continue;
-    const raw = metric.value(node);
-    const formatted = formatMetricValue(metric.id, raw);
-    advanced.append(...createPaneRow(document, metric.label, formatted));
-  }
-  for (const property of SUPPLEMENTARY_PROPERTY_DEFINITIONS) {
-    if (property.itemPane !== "advanced") continue;
-    const aliases = [property.id, property.label].map(normalizedPropertyLabel);
-    if (aliases.some((alias) => labels.has(alias))) continue;
-    advanced.append(
-      ...createPaneRow(
-        document,
-        property.label,
-        supplementaryDisplay(node, property.id),
-      ),
-    );
-  }
-
-  for (const termNode of Array.from(advanced.querySelectorAll("dt"))) {
-    const term = termNode as HTMLElement;
-    const key = normalizedPropertyLabel(term.textContent ?? "");
-    const value = term.nextElementSibling;
-    if (!value || elementTagName(value) !== "dd") continue;
-    if (
-      [
-        "provider",
-        "canonical-provider",
-        "citation-provider",
-        "match-confidence",
-        "match-status",
-      ].includes(key)
-    ) {
-      term.remove();
-      value.remove();
-    } else if (key === "matched-by") {
-      term.textContent = "Match method";
-    } else if (key === "updated") {
-      term.textContent = "Last update";
-    }
-  }
-}
-
 function styleOpenAccessBadges(document: Document): void {
   for (const badgeNode of Array.from(
-    document.querySelectorAll(".meristema-pane-badges span, .cm-badges span"),
+    document.querySelectorAll(".cm-badges span"),
   )) {
     const element = badgeNode as HTMLElement;
     if (String(element.textContent ?? "").trim() !== "Open Access") continue;
@@ -908,23 +758,15 @@ function styleOpenAccessBadges(document: Document): void {
 }
 
 /*
- * The item pane's list only. The graph view's detail panel builds its own
- * headline and its own Advanced list from the node it is already holding
- * (`paperDetailView.ts`'s `advancedMetrics` / `createOverviewMetrics`),
- * rather than having them grafted on here from whatever item the library
- * happens to have selected.
+ * The graph view's detail panel and the item pane both build their own
+ * headline and Advanced list from the node they already hold
+ * (`paperDetailView.ts`'s `advancedMetrics` / `createOverviewMetrics`), so
+ * the only reactive work left here is styling the Open Access badge once its
+ * card lands in the document.
  */
-const METRIC_PANEL_SELECTOR = "dl.meristema-pane-metrics";
-const BADGE_SELECTOR = ".meristema-pane-badges, .cm-badges";
+const BADGE_SELECTOR = ".cm-badges";
 
 function enhancePropertyPanels(document: Document): void {
-  for (const rows of Array.from(
-    document.querySelectorAll(METRIC_PANEL_SELECTOR),
-  )) {
-    const panel = rows as HTMLElement;
-    if (panel.closest("details")) continue;
-    enhanceMetricPanel(document, panel);
-  }
   styleOpenAccessBadges(document);
 }
 
@@ -940,11 +782,8 @@ function mutationTouchesPropertyUI(mutation: MutationRecord): boolean {
         : candidate.parentElement;
     if (!element) continue;
     if (
-      element.matches(METRIC_PANEL_SELECTOR) ||
       element.matches(BADGE_SELECTOR) ||
-      Boolean(element.closest(METRIC_PANEL_SELECTOR)) ||
       Boolean(element.closest(BADGE_SELECTOR)) ||
-      Boolean(element.querySelector(METRIC_PANEL_SELECTOR)) ||
       Boolean(element.querySelector(BADGE_SELECTOR))
     ) {
       return true;
