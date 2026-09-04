@@ -328,28 +328,13 @@ function openInActionsFor(
   ];
 }
 
-function itemPaneHost(
-  document: Document,
-  snapshot: LibrarySnapshot,
-): PaperDetailHost {
-  return {
-    origin: "item-pane",
-    snapshot,
-    collectionChooser: false,
-    showInZotero: (itemKey) => {
-      const related = itemByKey(snapshot.libraryID, itemKey);
-      if (related) Zotero.getActiveZoteroPane?.()?.selectItem?.(related.id);
-    },
-    onRelationshipMutation: (event) => notifyRelationshipMutation(event),
-  };
-}
-
 function renderOverview(
   document: Document,
   container: HTMLElement,
   item: Zotero.Item,
   host: PaperDetailHost,
   rerender: () => void,
+  loadSnapshot: () => Promise<void>,
 ): void {
   const node = createMetricNodeForItem(item);
   renderMatchConfirmation(document, container, item, rerender);
@@ -367,7 +352,11 @@ function renderOverview(
       );
     });
 
+  // The rows the section draws read `host.snapshot`, so the library snapshot
+  // has to be in hand before the first of them exists — but only here, which is
+  // why the Overview itself never waits on it.
   const similar = createSimilarSection(document, host, async () => {
+    await loadSnapshot();
     const { node: selected, graph } = await graphNodeForItem(item);
     return getMissingPaperRecommendations([selected], graph.nodes, 50, 2);
   });
@@ -377,14 +366,9 @@ function renderOverview(
     primaryButtonClass: "cm-primary-button",
     secondaryButtonClass: "cm-secondary-button",
     getOpenInActions: () => openInActionsFor(document, item),
-    // `start()` rethrows after it has drawn its own failure state; the section
-    // has already told the reader, so all that is left is the log.
-    onSimilar: () =>
-      similar.start().catch((error: unknown) => {
-        Zotero.logError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }),
+    // `start()` rethrows after it has drawn its own failure state; the action
+    // bar's own `invoke` catches and logs what comes back out.
+    onSimilar: () => similar.start(),
     onRefresh: async () => {
       await updateCitationDataForItems([item], {
         force: false,
@@ -436,23 +420,48 @@ function renderPane(
     shell.append(tabs.root, content);
     body.appendChild(shell);
 
+    // The Overview needs no library snapshot to draw, and waiting on one would
+    // stall every pane behind a whole-library load. Only the parts that read
+    // `host.snapshot` — the similar-paper rows and the relationship lists —
+    // load it, and each does so before drawing its first row.
+    let loadedSnapshot: LibrarySnapshot | null = null;
+    const host: PaperDetailHost = {
+      origin: "item-pane",
+      get snapshot() {
+        if (!loadedSnapshot) {
+          throw new Error("Meristema: library snapshot not loaded yet.");
+        }
+        return loadedSnapshot;
+      },
+      collectionChooser: false,
+      showInZotero: (itemKey) => {
+        const related = itemByKey(libraryID, itemKey);
+        if (related) Zotero.getActiveZoteroPane?.()?.selectItem?.(related.id);
+      },
+      onRelationshipMutation: (event) => notifyRelationshipMutation(event),
+    };
+
+    if (active === "overview") {
+      renderOverview(document, content, item, host, render, async () => {
+        loadedSnapshot = await relationshipLibrarySnapshot(libraryID);
+      });
+      return;
+    }
+
+    const direction = active;
+    content.appendChild(text(document, "p", "Loading…", "cm-placeholder"));
     void relationshipLibrarySnapshot(libraryID)
       .then((snapshot) => {
         if (!content.isConnected) return;
+        loadedSnapshot = snapshot;
         clear(content);
-        const host = itemPaneHost(document, snapshot);
-        if (active === "overview") {
-          renderOverview(document, content, item, host, render);
-          return;
-        }
         const graph = getCachedCitationGraph(libraryID);
         const libraryWorks = graph?.nodes ?? snapshot.papers;
-        const direction = active;
         const list = createRelationshipList(document, {
           host,
           node,
           direction,
-          readSnapshot: () =>
+          readSnapshot: (refreshing) =>
             graph
               ? getRelationshipViewSnapshot(
                   graph,
@@ -460,6 +469,7 @@ function renderPane(
                   direction,
                   libraryID,
                   RELATION_LIMIT,
+                  refreshing ? { queueBackgroundHydration: false } : undefined,
                 )
               : getRelationshipViewSnapshotFromWorks(
                   node,
@@ -468,6 +478,7 @@ function renderPane(
                   libraryWorks,
                   direction === "references" ? node.references : [],
                   RELATION_LIMIT,
+                  refreshing ? { queueBackgroundHydration: false } : undefined,
                 ),
           refreshRelationships: (signal) =>
             refreshExternalRelationships(node, libraryWorks, direction, {
@@ -500,11 +511,6 @@ function renderPane(
           error instanceof Error ? error : new Error(String(error)),
         );
       });
-    if (active !== "overview") {
-      content.appendChild(
-        text(document, "p", "Loading\u2026", "cm-placeholder"),
-      );
-    }
   };
   render();
 }
@@ -520,6 +526,8 @@ function renderPaneForItem(
   setEnabled?.(Boolean(subject));
   if (!subject) {
     paneSubjects.delete(body);
+    activeLists.get(body)?.destroy();
+    activeLists.delete(body);
     clear(body);
     return;
   }

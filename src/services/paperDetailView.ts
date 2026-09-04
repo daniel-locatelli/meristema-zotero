@@ -7,6 +7,7 @@
  *
  * Decisions that need no DOM are in paperDetailModel.ts.
  */
+import type { ManualCitationRelation } from "../domain/citationTypes";
 import type { ExternalWork } from "../domain/externalWork";
 import type { CitationGraphNode } from "../domain/graphTypes";
 import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
@@ -96,6 +97,11 @@ export interface RelationshipContext {
   referenceIndex?: RelatedWorkLookupIndex;
   /** Redraw the list after a manual relation is removed. */
   rerender(): void;
+  /**
+   * Called after a manual relation is removed from the store, before the
+   * redraw, so the host can apply the same side effects an addition triggers.
+   */
+  onManualRelationRemoved?(relation: ManualCitationRelation): void;
 }
 
 export interface PaperDetailHost {
@@ -617,6 +623,7 @@ export function appendRelatedWorkRows(
       remove.addEventListener("click", () =>
         runAction(remove, async () => {
           await removeManualRelation(manualRelation.id);
+          context.onManualRelationRemoved?.(manualRelation);
           context.rerender();
         }),
       );
@@ -775,6 +782,7 @@ export function relationshipContextFor(
   node: CitationGraphNode,
   direction: RelationshipViewDirection,
   rerender: () => void,
+  onManualRelationRemoved?: (relation: ManualCitationRelation) => void,
 ): RelationshipContext {
   return {
     node,
@@ -787,6 +795,7 @@ export function relationshipContextFor(
           )
         : undefined,
     rerender,
+    onManualRelationRemoved,
   };
 }
 
@@ -874,7 +883,7 @@ export interface RelationshipListOptions {
   readSnapshot(refreshing?: boolean): RelationshipViewSnapshot;
   /** Fetch new relationships from the providers; the host owns side effects. */
   refreshRelationships(signal: CancellationSignal): Promise<void>;
-  /** After a manual relation is added or removed through the picker. */
+  /** After a manual relation is added or removed, by picker or by row. */
   onManualChange?(changes: ManualRelationshipChange[]): void;
   /** The tab row to update after an update changes the counts. */
   updateCounts?(node: CitationGraphNode): void;
@@ -994,7 +1003,22 @@ export function createRelationshipList(
   renderList = (): void => {
     const generation = ++renderGeneration;
     clear(listHost);
-    const context = relationshipContextFor(libraryID, node, direction, refresh);
+    // Removing a manual relation changes the citation graph exactly as adding
+    // one through the picker does, so it reaches the host the same way.
+    const context = relationshipContextFor(
+      libraryID,
+      node,
+      direction,
+      refresh,
+      (relation) =>
+        options.onManualChange?.([
+          {
+            action: "removed",
+            relatedItemKey: relation.relatedItemKey,
+            relationID: relation.id,
+          },
+        ]),
+    );
     const entries = relationshipEntries(libraryID, context, works);
     const ordered = toolbar.apply(entries, (entry) => {
       const cached = descriptorCache.get(entry.work);
