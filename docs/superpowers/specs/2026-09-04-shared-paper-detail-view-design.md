@@ -77,36 +77,56 @@ Remove manual relation button, the way the item pane does.
 
 ### Components
 
-**`src/services/paperDetailView.ts`** (new). Exports builders that return plain
-elements, and one adapter type that describes the host:
+The view arrived as two modules, split along the line the tests wanted. The
+pure half has no DOM and no `Zotero`, so it runs under plain Node; the DOM
+half builds elements and is exercised by the graph's visual test.
+
+**`src/services/paperDetailModel.ts`** (new, pure). `DetailTab` and
+`DetailTabLabel`; `relationshipTabLabel(direction, state, reportedCount)`, the
+name, the count and the tooltip phrasing, with an ellipsis while a refresh is
+between started and published; `RelationEntry` and `mergeRelationEntries`,
+manual relations first in their own order, then the provider's works in the
+provider's order, deduplicated by `relationshipCandidateIdentity`, each
+provider work carrying whatever the caller's `resolveIgnored` returns; and
+`ignoredRelationDescriptorFor(node, libraryID, direction, work, recordFor,
+referenceIndex?)`, the one descriptor function that replaced the copy in each
+host. The store is reached through the `CitationRecordLookup` the caller
+passes, not imported, which is what keeps the module runnable outside Zotero.
+
+**`src/services/paperDetailView.ts`** (new, DOM). The builders return plain
+elements, and one adapter type describes the host:
 
 ```ts
 interface PaperDetailHost {
-  libraryID: number;
-  localPapersByKey: ReadonlyMap<string, ZoteroPaper>;
-  collections: readonly ZoteroCollection[];
-  /** Select the paper in Zotero's library. */
-  showInZotero(itemID: number): void;
-  /** Import a work; the chooser's selection when the host shows one. */
-  importWork(work: ExternalWork, collectionIDs: number[]): Promise<Zotero.Item>;
+  origin: "graph" | "item-pane";
+  snapshot: LibrarySnapshot;
+  /** Select the library item with this key in Zotero. */
+  showInZotero(itemKey: string): void;
   /** Whether Add to Zotero opens the collection chooser first. */
   collectionChooser: boolean;
-  /** Extra chip buttons on a row: Explore from this paper, Add as seed. */
+  /** Extra chip buttons on a row (Explore from this paper, Add as seed). */
   rowActions?(work: ExternalWork): readonly RowAction[];
-  /** A click handler for a row, when clicking it previews on the plot. */
+  /** A click handler for a row when clicking it previews on the plot. */
   previewRow?(
     work: ExternalWork,
     context: RelationshipContext | null,
   ): (() => void) | null;
-  /** Called after an ignore or restore, with the event the host publishes. */
+  clearPreview?(): void;
+  /** Called after an ignore or a restore; the host publishes or applies it. */
   onRelationshipMutation(event: RelationshipMutationEvent): void;
 }
 ```
 
+The host carries the whole `LibrarySnapshot` rather than the three fields the
+spec first listed, since the rows need the papers, the collections and the
+library id together; and `origin` is on it because a mutation has to say which
+pane it came from so that pane does not redraw itself twice.
+
 Builders:
 
-- `createDetailTabs(document, node, active, onSelect)` — the tab row, plus
-  `updateCounts(node)` so a host can refresh the figures without rebuilding.
+- `createDetailTabs(document, { node, libraryID, active, onSelect })` — the tab
+  row, plus `updateCounts(node)` so a host can refresh the figures without
+  rebuilding.
 - `createBadges(document, subject)` — for a node or a work; returns `null`
   when there is nothing to say.
 - `createOverviewMetrics(document, node)` — the strip or the empty state,
@@ -119,21 +139,18 @@ Builders:
   disclosure. `context` names the subject node and direction when the rows are
   a relationship list; without it the rows are similar papers and carry no
   ignore toggle.
-- `createRelationshipList(document, node, direction, host, options)` — the
-  controls row, status line, batched rows and the update flow with
-  `createUpdateProgress`. Returns `{ root, refresh() }`; `refresh()` re-reads
-  the snapshot and redraws, for hosts that receive external mutations.
+- `createRelationshipList(document, { host, node, direction, readSnapshot,
+refreshRelationships, onManualChange?, updateCounts? })` — the controls row,
+  status line, batched rows and the update flow with `createUpdateProgress`.
+  Returns `{ root, refresh(), destroy() }`; `refresh()` re-reads the snapshot
+  and redraws, for hosts that receive external mutations, and `destroy()`
+  cancels an update still in flight and tears down the toolbar and picker.
+  The options object is what the two hosts differ by: each brings its own
+  reader and its own refresh, so the list itself touches no provider code.
 - `createSimilarSection(document, host, load)` — the heading, the loading and
   failure placeholders, and the rows once `load()` resolves.
 - `createImportArea(document, work, host, onImported)` — the Add to Zotero
   flow, with the collection chooser when `host.collectionChooser` is true.
-- `relationEntries(node, direction, manualRelations, providerWorks, libraryID)`
-  — pure: manual relations first, then provider works, deduplicated by
-  `relationshipCandidateIdentity`, each with its ignored relation resolved.
-- `ignoredRelationDescriptorFor(node, direction, work, referenceIndex?)` —
-  pure: the one descriptor function, replacing the copy in each host.
-- `runAction(button, action)` — disables the button, awaits, logs through
-  `Zotero.logError`, re-enables when the button is still connected.
 
 **`addon/content/paperDetail.css`** (new). The `cm-detail-*` (body, section,
 meta, actions, tabs, tab-label, tab-count), `cm-badges`, `cm-badge-*`,
@@ -142,19 +159,22 @@ meta, actions, tabs, tab-label, tab-count), `cm-badges`, `cm-badge-*`,
 `cm-placeholder`, `cm-primary-button` and `cm-secondary-button` rules leave
 `graph.css` for this file. Rules that today hang off `.meristema-root` hang
 off `.meristema-paper-detail` instead. The tokens those rules read —
-`--cm-sidepane`, `--cm-border`, `--cm-border-soft`, `--cm-surface`,
-`--cm-surface-raised`, `--cm-muted`, `--cm-fill-secondary`,
-`--cm-fill-quinary`, `--cm-accent` — are declared on `.meristema-paper-detail`
-with the same Zotero fallbacks `graph.css` gives them. `box-sizing`, `font:
-menu` and `color-scheme` are set there too, so the section inherits nothing
-it needs from `.meristema-root`.
+`--cm-border`, `--cm-border-soft`, `--cm-surface`, `--cm-surface-raised`,
+`--cm-muted`, `--cm-fill-secondary`, `--cm-fill-quinary`, `--cm-accent` and
+`--cm-icon-color` — are declared on `.meristema-paper-detail`, and every one
+of them off the system colours, which follow the scheme on their own.
+`box-sizing`, `font: menu` and `color-scheme` are set there too, so the
+section inherits nothing it needs from `.meristema-root`.
 
 The graph puts `meristema-paper-detail` on `.cm-detail-panel`; the container
 query for the tab counts stays in `graph.css`, since only the graph's pane is a
-container. The item pane puts it on the section's shell `div`. Declaring the
-tokens twice, once on `.meristema-root` and once on `.meristema-paper-detail`,
-is accepted: the values are the same, and the graph's canvas and chrome keep
-reading from `.meristema-root` as before.
+container. The item pane puts it on the section's shell `div`. Declaring a
+token on both roots is accepted only where the value cannot vary by scheme:
+in the graph the panel is inside `.meristema-root`, so a declaration here is
+on the closer element and would shadow the root's dark override. The ones the
+root varies — `--cm-sidepane`, `--cm-panedivider`, `--cm-toolbar` — stay in
+`graph.css` alone, and the graph's canvas and chrome keep reading from
+`.meristema-root` as before.
 
 **`addon/content/graph.css`** keeps the shell: `.meristema-root` and its
 tokens, the three toolbars, the plot pane, the Key rail, `.cm-detail-shell`,
@@ -171,7 +191,11 @@ rule is deleted.
 **Stylesheet loading.** `ensureStyles` in `graphViewControls.ts` links
 `paperDetail.css` beside `graph.css`. `installStyles` in `hooks.ts` links it
 beside `zoteroPane.css`. Both use the same element id, so a graph tab in a main
-window that already has the link does not add a second one.
+window that already has the link does not add a second one. Because either can
+be the one to link first, `ensureStyles` also puts the `graph.css` link
+directly after the `paperDetail.css` one: the shell sheet overrides a few of
+the shared base rules at equal specificity, and only document order decides
+those.
 
 ### The graph after the change
 
@@ -216,12 +240,13 @@ cancelled.
 
 ### Testing
 
-- New unit tests in `test/unit/paperDetailView.test.ts` for the pure parts:
+- New unit tests in `test/unit/paperDetailModel.test.ts` for the pure parts:
   tab labels under the updating and published publication states;
-  `relationEntries` ordering and dedupe when a manual relation and a provider
-  work name the same paper; `ignoredRelationDescriptorFor` for a reference,
-  for a cited-by work that is in the library, and for a cited-by work that is
-  not.
+  `mergeRelationEntries` ordering and dedupe when a manual relation and a
+  provider work name the same paper, and when two manual relations do;
+  `ignoredRelationDescriptorFor` for a reference, for a cited-by work that is
+  in the library, for one in the library whose record holds no matching
+  reference, and for one that is not in the library at all.
 - `test/zotero/graphViewVisual.test.ts` runs unchanged as the regression check
   for the graph pane.
 - Manual check in the running Zotero: select a paper in the library, open the
@@ -248,3 +273,11 @@ before the action row. The item pane's Overview renders without waiting for
 the library snapshot; only the similar-paper search and the relationship tabs
 load it. Removing a manual relation from a row notifies the host through
 `onManualRelationRemoved`, so open graphs rebuild.
+
+A manual relation added or removed in the graph's detail pane has to reach an
+open item pane as well, and `itemPaneService` cannot be called from
+`graphViewService` — it imports `windowService`, which imports
+`graphViewService` back. So `relationshipEvents.ts` carries a bare
+`notifyManualRelationChange` / `subscribeManualRelationChanges` pair: the graph
+host's `onManualChange` pings it after rebuilding, and the registered item pane
+schedules a refresh of every open pane.
