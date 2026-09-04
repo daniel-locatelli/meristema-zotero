@@ -1051,8 +1051,12 @@ export function createRelationshipList(
     loadMore.style.margin = "10px auto";
     loadMore.style.display = "block";
     let index = 0;
-    const appendNextBatch = (): void => {
-      if (generation !== renderGeneration || !list.isConnected) return;
+    // The first batch is drawn before the caller has attached `root`, so the
+    // connectedness check that keeps a stale "Show more" click from drawing
+    // into a replaced list must not apply to it.
+    const appendNextBatch = (initial = false): void => {
+      if (generation !== renderGeneration) return;
+      if (!initial && !list.isConnected) return;
       const batch = ordered.slice(index, index + RELATIONSHIP_CARD_BATCH_SIZE);
       appendRelatedWorkRows(document, list, batch, host, context);
       index += batch.length;
@@ -1065,9 +1069,9 @@ export function createRelationshipList(
       }
       loadMore.textContent = `Show ${Math.min(RELATIONSHIP_CARD_BATCH_SIZE, remaining)} more`;
     };
-    loadMore.addEventListener("click", appendNextBatch);
+    loadMore.addEventListener("click", () => appendNextBatch());
     listHost.append(list, loadMore);
-    appendNextBatch();
+    appendNextBatch(true);
   };
 
   function refresh(): void {

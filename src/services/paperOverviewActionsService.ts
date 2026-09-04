@@ -3,10 +3,9 @@ import { createIcon } from "./uiIconService";
 
 type Action = () => void | Promise<void>;
 
-export interface PaperOverviewOpenInAction {
+export interface PaperOverviewOpenAction {
   label: string;
   title?: string;
-  separatorBefore?: boolean;
   action: Action;
 }
 
@@ -15,14 +14,15 @@ export interface PaperOverviewActionOptions {
   actionsClass: string;
   primaryButtonClass: string;
   secondaryButtonClass?: string;
-  getOpenInActions: () => readonly PaperOverviewOpenInAction[];
+  /** Drawn as plain buttons at the start of the bar, in order. */
+  openActions: readonly PaperOverviewOpenAction[];
   onSimilar: Action;
   onRefresh: Action;
 }
 
 export interface PaperOverviewActionBar {
   root: HTMLDivElement;
-  openInButton: HTMLButtonElement;
+  openButtons: HTMLButtonElement[];
   similarButton: HTMLButtonElement;
   refreshButton: HTMLButtonElement;
 }
@@ -88,90 +88,15 @@ export function createPaperOverviewActionBar(
    */
   right.style.marginInlineStart = "auto";
 
-  const getOpenInActions = options.getOpenInActions;
-  const wrapper = element(document, "div");
-  wrapper.style.position = "relative";
-  wrapper.style.display = "inline-flex";
-
-  const openInButton = element(document, "button", secondaryButtonClass);
-  openInButton.type = "button";
-  openInButton.textContent = "Open in ›";
-  openInButton.title = "Open this paper in a Collection Graph view.";
-  openInButton.setAttribute("aria-haspopup", "menu");
-  openInButton.setAttribute("aria-expanded", "false");
-
-  const menu = element(document, "div");
-  menu.hidden = true;
-  menu.setAttribute("role", "menu");
-  Object.assign(menu.style, {
-    position: "absolute",
-    insetInlineStart: "0",
-    top: "calc(100% + 4px)",
-    zIndex: "1000",
-    display: "none",
-    flexDirection: "column",
-    minWidth: "190px",
-    padding: "4px",
-    border: "1px solid color-mix(in srgb, CanvasText 22%, transparent)",
-    borderRadius: "6px",
-    background: "Canvas",
-    color: "CanvasText",
-    boxShadow: "0 8px 24px color-mix(in srgb, black 24%, transparent)",
+  const openButtons = options.openActions.map((entry) => {
+    const button = element(document, "button", secondaryButtonClass);
+    button.type = "button";
+    button.textContent = entry.label;
+    button.title = entry.title ?? entry.label;
+    button.addEventListener("click", () => invoke(button, entry.action));
+    left.appendChild(button);
+    return button;
   });
-
-  const closeMenu = (): void => {
-    menu.hidden = true;
-    menu.style.display = "none";
-    openInButton.setAttribute("aria-expanded", "false");
-  };
-  const rebuildMenu = (): void => {
-    menu.replaceChildren();
-    for (const entry of getOpenInActions()) {
-      if (entry.separatorBefore && menu.childElementCount) {
-        const separator = element(document, "div");
-        separator.setAttribute("role", "separator");
-        separator.style.borderTop =
-          "1px solid color-mix(in srgb, CanvasText 16%, transparent)";
-        separator.style.margin = "3px 2px";
-        menu.appendChild(separator);
-      }
-      const button = element(document, "button", secondaryButtonClass);
-      button.type = "button";
-      button.setAttribute("role", "menuitem");
-      button.textContent = entry.label;
-      button.title = entry.title ?? entry.label;
-      button.style.justifyContent = "flex-start";
-      button.style.width = "100%";
-      button.addEventListener("click", () => {
-        closeMenu();
-        invoke(button, entry.action);
-      });
-      menu.appendChild(button);
-    }
-  };
-
-  openInButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (!menu.hidden) {
-      closeMenu();
-      return;
-    }
-    rebuildMenu();
-    if (!menu.childElementCount) return;
-    menu.hidden = false;
-    menu.style.display = "flex";
-    openInButton.setAttribute("aria-expanded", "true");
-    const closeOnOutsideClick = (outsideEvent: Event): void => {
-      if (!wrapper.contains(outsideEvent.target as Node)) closeMenu();
-    };
-    document.addEventListener("pointerdown", closeOnOutsideClick, {
-      once: true,
-      capture: true,
-    });
-  });
-
-  wrapper.append(openInButton, menu);
-  left.appendChild(wrapper);
 
   const similarButton = element(document, "button", primaryButtonClass);
   similarButton.type = "button";
@@ -205,7 +130,7 @@ export function createPaperOverviewActionBar(
   root.append(left, right);
   return {
     root,
-    openInButton,
+    openButtons,
     similarButton,
     refreshButton,
   };

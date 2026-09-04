@@ -62,9 +62,12 @@ In the item pane section:
   registry. No title and no DOI: Zotero's header and Info section already carry
   them. No retraction banner: the Retracted badge says it, as it does in the
   graph.
-- Under the metrics, one actions row: Open in › on the left; Similar and the
-  refresh icon button on the right. Show in Zotero and Open DOI are gone.
-  Similar fills a similar-papers section below the row.
+- Under the metrics, one actions row: Collection Graph and Explore buttons
+  on the left, each opening the paper in a new tab; Similar and the refresh
+  icon button on the right. Show in Zotero and Open DOI are gone, and so is
+  the Open in › menu that once held the two open-tab actions plus the list of
+  already-open graph tabs. Similar fills a similar-papers section below the
+  row.
 - Cited by and References: the search toolbar, the refresh icon button and the
   manual-relationship picker on one row; the status line; the flat rows with
   chip buttons; "Show N more" in batches. Rows offer Show in Zotero or Add to

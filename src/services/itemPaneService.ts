@@ -25,7 +25,7 @@ import {
 import { createMetricNodeForItem } from "./itemMetricContext";
 import {
   createPaperOverviewActionBar,
-  type PaperOverviewOpenInAction,
+  type PaperOverviewOpenAction,
 } from "./paperOverviewActionsService";
 import { formatMetricValue } from "./metricRegistry";
 import { updateCitationDataForItems } from "./citationUpdateService";
@@ -36,11 +36,8 @@ import {
 } from "./citationGraphService";
 import { ensureSourceMetricsForNodes } from "./sourceMetricsService";
 import {
-  getOpenGraphViews,
   openGraphAndSelectItemsInNewTab,
-  openGraphAndSelectItemsInView,
   openFocusItemsInNewTab,
-  openFocusItemsInView,
   refreshOpenGraphViews,
 } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
@@ -295,40 +292,23 @@ function renderMatchConfirmation(
   }
 }
 
-function openInActionsFor(
+function openActionsFor(
   document: Document,
   item: Zotero.Item,
-): readonly PaperOverviewOpenInAction[] {
+): readonly PaperOverviewOpenAction[] {
   const itemID = Number(item.id);
   const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
-  const openViews = getOpenGraphViews(hostWindow);
   return [
     {
-      label: "New Collection Graph",
+      label: "Collection Graph",
       title: "Open this paper in a new Collection Graph tab.",
       action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
     },
     {
-      label: "New Explore view",
+      label: "Explore",
       title: "Open this paper as the seed of a new Explore view.",
       action: () => openFocusItemsInNewTab([itemID], hostWindow),
     },
-    ...openViews.map((view, index) => ({
-      label: `${view.active ? "\u2713 " : ""}${view.title}`,
-      title:
-        view.kind === "focus"
-          ? "Add this paper as a seed in the selected Explore view."
-          : "Add this paper to the selected Collection Graph.",
-      separatorBefore: index === 0,
-      action: () =>
-        view.kind === "focus"
-          ? openFocusItemsInView(view.instanceID, [itemID], hostWindow)
-          : openGraphAndSelectItemsInView(
-              view.instanceID,
-              [itemID],
-              hostWindow,
-            ),
-    })),
   ];
 }
 
@@ -369,7 +349,7 @@ function renderOverview(
     actionsClass: "cm-detail-actions",
     primaryButtonClass: "cm-primary-button",
     secondaryButtonClass: "cm-secondary-button",
-    getOpenInActions: () => openInActionsFor(document, item),
+    openActions: openActionsFor(document, item),
     // `start()` rethrows after it has drawn its own failure state; the action
     // bar's own `invoke` catches and logs what comes back out.
     onSimilar: () => similar.start(),
@@ -552,13 +532,15 @@ export function registerCitationItemPane(): void {
   registeredPaneID = manager.registerSection({
     paneID: PANE_ID,
     pluginID: config.addonID,
+    // The section variant of the network icon is drawn at 80% so it sits with
+    // Zotero's own header and sidenav icons instead of over-filling its box.
     header: {
       l10nID: "meristema-item-pane-header",
-      icon: `chrome://${config.addonRef}/content/icons/network.svg`,
+      icon: `chrome://${config.addonRef}/content/icons/network-section.svg`,
     },
     sidenav: {
       l10nID: "meristema-item-pane-sidenav",
-      icon: `chrome://${config.addonRef}/content/icons/network.svg`,
+      icon: `chrome://${config.addonRef}/content/icons/network-section.svg`,
     },
     onInit: ({
       body,
