@@ -98,11 +98,11 @@ export function ensureStyles(document: Document): void {
    * whichever order they arrived in. `after` moves it into the detail
    * link's parent, so this also holds when the two are in different parents.
    */
+  // 4 is DOCUMENT_POSITION_FOLLOWING; the bare `Node` global is not a given
+  // in the bootstrap sandbox this bundle is loaded into.
   const graphFollows =
-    !!(
-      paperDetailLink.compareDocumentPosition(graphLink) &
-      Node.DOCUMENT_POSITION_FOLLOWING
-    ) && paperDetailLink.parentNode === graphLink.parentNode;
+    !!(paperDetailLink.compareDocumentPosition(graphLink) & 4) &&
+    paperDetailLink.parentNode === graphLink.parentNode;
   if (!graphFollows) paperDetailLink.after(graphLink);
 }
 
