@@ -18,7 +18,10 @@ import {
   notifyRelationshipMutation,
   subscribeRelationshipMutations,
 } from "./relationshipViewService";
-import { subscribeRelationshipPublications } from "./relationshipEvents";
+import {
+  subscribeManualRelationChanges,
+  subscribeRelationshipPublications,
+} from "./relationshipEvents";
 import { createMetricNodeForItem } from "./itemMetricContext";
 import {
   createPaperOverviewActionBar,
@@ -64,6 +67,7 @@ interface PaneTabState {
 let registeredPaneID: string | false | null = null;
 let unsubscribeRelationshipMutations: (() => void) | null = null;
 let unsubscribeRelationshipPublications: (() => void) | null = null;
+let unsubscribeManualRelationChanges: (() => void) | null = null;
 let scheduledPaneRefresh: ReturnType<typeof setTimeout> | null = null;
 const refreshCallbacks = new Map<Element, () => Promise<void>>();
 const paneSubjects = new Map<Element, { libraryID: number; itemKey: string }>();
@@ -613,6 +617,11 @@ export function registerCitationItemPane(): void {
       scheduleCitationItemPaneRefresh(event.libraryID, event.subjectItemKey);
     },
   );
+  // The graph's detail pane adds and removes manual relations too, and the
+  // ping says only that something changed, so every open pane re-reads.
+  unsubscribeManualRelationChanges ??= subscribeManualRelationChanges(() => {
+    scheduleCitationItemPaneRefresh();
+  });
 }
 
 const pendingPaneRefreshes = new Set<string>();
@@ -677,6 +686,8 @@ export function unregisterCitationItemPane(): void {
   unsubscribeRelationshipMutations = null;
   unsubscribeRelationshipPublications?.();
   unsubscribeRelationshipPublications = null;
+  unsubscribeManualRelationChanges?.();
+  unsubscribeManualRelationChanges = null;
   if (scheduledPaneRefresh !== null) {
     clearTimeout(scheduledPaneRefresh);
     scheduledPaneRefresh = null;

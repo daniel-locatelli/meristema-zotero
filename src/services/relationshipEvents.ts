@@ -110,6 +110,36 @@ export function getRelationshipPublicationState(
   return state ? { ...state } : null;
 }
 
+/*
+ * A manual relation added or removed from one view, for the other views to
+ * redraw from. It carries nothing: every listener re-reads the store anyway,
+ * and keeping it a bare ping lets the graph tell the item pane without
+ * importing it — src/services/itemPaneService.ts imports windowService, which
+ * imports graphViewService, so a direct call would close a cycle.
+ */
+type ManualRelationChangeListener = () => void;
+
+const manualRelationChangeListeners = new Set<ManualRelationChangeListener>();
+
+export function subscribeManualRelationChanges(
+  listener: ManualRelationChangeListener,
+): () => void {
+  manualRelationChangeListeners.add(listener);
+  return () => manualRelationChangeListeners.delete(listener);
+}
+
+export function notifyManualRelationChange(): void {
+  for (const listener of [...manualRelationChangeListeners]) {
+    try {
+      listener();
+    } catch (error) {
+      Zotero.debug(
+        `Meristema: manual-relation listener failed: ${String(error)}`,
+      );
+    }
+  }
+}
+
 export function subscribeRelationshipPublications(
   listener: RelationshipPublicationListener,
 ): () => void {

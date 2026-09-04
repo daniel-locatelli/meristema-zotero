@@ -39,6 +39,7 @@ import {
   type RelationshipMutationEvent,
 } from "./relationshipViewService";
 import {
+  notifyManualRelationChange,
   subscribeRelationshipPublications,
   type RelationshipPublicationEvent,
 } from "./relationshipEvents";
@@ -2703,6 +2704,8 @@ export function renderGraphView(
         replaceLibraryGraph(buildCitationGraph(snapshot));
         renderer?.setLayout(renderer.getLayout());
         updateSummary();
+        // An open item pane is showing the same relations from the same store.
+        notifyManualRelationChange();
       },
       updateCounts: (current) => detailTabs?.updateCounts(current),
     });

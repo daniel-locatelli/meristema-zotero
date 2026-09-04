@@ -158,6 +158,34 @@ describe("mergeRelationEntries", () => {
     expect(entries).to.have.length(1);
   });
 
+  it("keeps the first of two manual relations on the same work", () => {
+    const second: ManualCitationRelation = {
+      ...manualRelation,
+      id: 8,
+      relatedItemKey: "DDDD",
+    };
+    const entries = mergeRelationEntries(
+      [
+        {
+          relation: manualRelation,
+          work: work({ provider: "manual", doi: "10.1000/dupe" }),
+        },
+        {
+          relation: second,
+          work: work({
+            provider: "manual",
+            doi: "10.1000/dupe",
+            title: "The same paper, entered twice",
+          }),
+        },
+      ],
+      [],
+      () => null,
+    );
+    expect(entries).to.have.length(1);
+    expect(entries[0].manualRelation).to.equal(manualRelation);
+  });
+
   it("resolves the ignored relation for provider works only", () => {
     const ignored: IgnoredProviderRelation = {
       id: 3,
@@ -224,6 +252,30 @@ describe("ignoredRelationDescriptorFor", () => {
     expect(descriptor.subjectItemKey).to.equal("CCCC");
     expect(descriptor.direction).to.equal("reference");
     expect(descriptor.doi).to.equal("10.1000/subject");
+  });
+
+  it("describes the subject under the citing item when its record has no matching reference", () => {
+    const citing = work({ doi: "10.1000/citing", inLibraryItemKey: "CCCC" });
+    const descriptor = ignoredRelationDescriptorFor(
+      node({}),
+      1,
+      "cited-by",
+      citing,
+      () => ({ references: [reference] }),
+    );
+    expect(descriptor.subjectItemKey).to.equal("CCCC");
+    expect(descriptor.direction).to.equal("reference");
+    expect(descriptor.provider).to.equal("openalex");
+    expect(descriptor.doi).to.equal("10.1000/subject");
+
+    const withoutProvider = ignoredRelationDescriptorFor(
+      node({ provider: null }),
+      1,
+      "cited-by",
+      citing,
+      () => ({ references: [reference] }),
+    );
+    expect(withoutProvider.provider).to.equal("crossref");
   });
 
   it("describes the citing work itself when it is not in the library", () => {

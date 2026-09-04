@@ -123,7 +123,7 @@ export interface PaperDetailHost {
   onRelationshipMutation(event: RelationshipMutationEvent): void;
 }
 
-export function runAction(
+function runAction(
   button: HTMLButtonElement,
   action: () => void | Promise<void>,
 ): void {
@@ -369,7 +369,7 @@ export function createOverviewMetrics(
 
 /* -------------------------------------------------------------- import */
 
-export function createCollectionChooser(
+function createCollectionChooser(
   document: Document,
   snapshot: LibrarySnapshot,
 ): { root: HTMLDivElement; selected: Set<number> } {
@@ -433,8 +433,8 @@ export function createImportArea(
   };
   if (!host.collectionChooser) {
     addButton.addEventListener("click", () => {
-      addButton.textContent = "Adding…";
       runAction(addButton, async () => {
+        addButton.textContent = "Adding…";
         try {
           await finish([]);
         } catch (error) {
@@ -455,8 +455,8 @@ export function createImportArea(
     const confirm = button(document, "Add paper", "cm-primary-button");
     const cancel = button(document, "Cancel", "cm-secondary-button");
     confirm.addEventListener("click", () => {
-      confirm.textContent = "Adding…";
       runAction(confirm, async () => {
+        confirm.textContent = "Adding…";
         try {
           await finish([...chooser!.selected]);
         } catch (error) {
@@ -718,7 +718,7 @@ export function appendRelatedWorkRows(
   }
 }
 
-export function manualWorkForItemKey(
+function manualWorkForItemKey(
   libraryID: number,
   relatedItemKey: string,
 ): ExternalWork | null {
@@ -748,7 +748,7 @@ export function manualWorkForItemKey(
 }
 
 /** Manual relations for a subject, as entries the rows can draw. */
-export function manualEntriesFor(
+function manualEntriesFor(
   libraryID: number,
   node: CitationGraphNode,
   direction: RelationshipViewDirection,
@@ -765,7 +765,7 @@ export function manualEntriesFor(
 }
 
 /** The entries for a relationship list, ready for `appendRelatedWorkRows`. */
-export function relationshipEntries(
+function relationshipEntries(
   libraryID: number,
   context: RelationshipContext,
   providerWorks: readonly ExternalWork[],
@@ -777,7 +777,7 @@ export function relationshipEntries(
   );
 }
 
-export function relationshipContextFor(
+function relationshipContextFor(
   libraryID: number,
   node: CitationGraphNode,
   direction: RelationshipViewDirection,
@@ -872,7 +872,7 @@ export function createSimilarSection(
 
 /* --------------------------------------------------------- relationships */
 
-export const RELATIONSHIP_CARD_BATCH_SIZE = 36;
+const RELATIONSHIP_CARD_BATCH_SIZE = 36;
 const RELATIONSHIP_FILTER_DEBOUNCE_MS = 120;
 
 export interface RelationshipListOptions {
@@ -915,6 +915,10 @@ export function createRelationshipList(
   let destroyed = false;
   let descriptorCache = new Map<ExternalWork, PaperListDescriptor>();
   let renderList = (): void => undefined;
+  // The in-flight update, held so destroy() can call off a fetch whose result
+  // has nowhere left to go and take its progress bar down with it.
+  let activeScope: ReturnType<typeof createCancellationScope> | null = null;
+  let activeProgress: ReturnType<typeof createUpdateProgress> | null = null;
 
   let filterTimer = 0;
   const scheduleRender = (): void => {
@@ -1081,6 +1085,7 @@ export function createRelationshipList(
     const scope = createCancellationScope(
       `${direction} relationship update for ${node.itemKey}`,
     );
+    activeScope = scope;
     update.disabled = true;
     updating = true;
     updateOutcome = null;
@@ -1098,6 +1103,7 @@ export function createRelationshipList(
       message: "Checking provider pages for new relationships…",
       onCancel: cancelUpdate,
     });
+    activeProgress = progress;
     void (async () => {
       const previousWorks = works;
       try {
@@ -1127,6 +1133,8 @@ export function createRelationshipList(
           error instanceof Error ? error : new Error(String(error)),
         );
       } finally {
+        if (activeScope === scope) activeScope = null;
+        if (activeProgress === progress) activeProgress = null;
         updating = false;
         update.disabled = publicationActive();
         if (!destroyed) {
@@ -1143,6 +1151,10 @@ export function createRelationshipList(
     refresh,
     destroy() {
       destroyed = true;
+      activeScope?.cancel();
+      activeScope = null;
+      activeProgress?.dismiss();
+      activeProgress = null;
       if (filterTimer) {
         if (win) win.clearTimeout(filterTimer);
         else clearTimeout(filterTimer);

@@ -42,7 +42,7 @@ export interface DetailTabLabel {
   title: string;
 }
 
-export function formatReportedCount(value: number | null): string {
+function formatReportedCount(value: number | null): string {
   return value === null
     ? "—"
     : new Intl.NumberFormat(undefined, { useGrouping: false }).format(value);
