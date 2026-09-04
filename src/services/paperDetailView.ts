@@ -905,12 +905,17 @@ export function createRelationshipList(
 
   let filterTimer = 0;
   const scheduleRender = (): void => {
-    if (filterTimer) win?.clearTimeout(filterTimer);
-    filterTimer =
-      win?.setTimeout(() => {
-        filterTimer = 0;
-        if (!destroyed && listHost.isConnected) renderList();
-      }, RELATIONSHIP_FILTER_DEBOUNCE_MS) ?? 0;
+    if (filterTimer) {
+      if (win) win.clearTimeout(filterTimer);
+      else clearTimeout(filterTimer);
+    }
+    const run = (): void => {
+      filterTimer = 0;
+      if (!destroyed && listHost.isConnected) renderList();
+    };
+    filterTimer = win
+      ? win.setTimeout(run, RELATIONSHIP_FILTER_DEBOUNCE_MS)
+      : (setTimeout(run, RELATIONSHIP_FILTER_DEBOUNCE_MS) as unknown as number);
   };
 
   const controls = element(document, "div", "cm-relationship-controls");
@@ -980,6 +985,8 @@ export function createRelationshipList(
   };
   root.append(status, listHost);
 
+  const paperByKey = localPaperByKey(host.snapshot);
+
   renderList = (): void => {
     const generation = ++renderGeneration;
     clear(listHost);
@@ -993,7 +1000,7 @@ export function createRelationshipList(
         libraryID,
         true,
         Boolean(entry.manualRelation),
-        localPaperByKey(host.snapshot),
+        paperByKey,
       );
       descriptorCache.set(entry.work, descriptor);
       return descriptor;
@@ -1094,8 +1101,10 @@ export function createRelationshipList(
       } finally {
         updating = false;
         update.disabled = publicationActive();
-        options.updateCounts?.(node);
-        if (!destroyed) renderList();
+        if (!destroyed) {
+          options.updateCounts?.(node);
+          renderList();
+        }
       }
     })();
   });
@@ -1106,7 +1115,10 @@ export function createRelationshipList(
     refresh,
     destroy() {
       destroyed = true;
-      if (filterTimer) win?.clearTimeout(filterTimer);
+      if (filterTimer) {
+        if (win) win.clearTimeout(filterTimer);
+        else clearTimeout(filterTimer);
+      }
       toolbar.destroy();
       picker?.destroy();
     },
