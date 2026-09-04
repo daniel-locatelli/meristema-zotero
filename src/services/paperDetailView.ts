@@ -418,32 +418,40 @@ export function createImportArea(
     });
     return { root, addButton };
   }
-  const chooser = createCollectionChooser(document, host.snapshot);
-  const confirm = button(document, "Add paper", "cm-primary-button");
-  const cancel = button(document, "Cancel", "cm-secondary-button");
-  confirm.addEventListener("click", () => {
-    confirm.textContent = "Adding…";
-    runAction(confirm, async () => {
-      try {
-        await finish([...chooser.selected]);
-      } catch (error) {
-        confirm.textContent = "Import failed — try again";
-        throw error;
-      }
+  // Building the chooser is deferred to the first click: a related-work list
+  // can have dozens of not-yet-imported rows, and eagerly building a
+  // collection tree for each one is wasted work no one may ever see.
+  let chooser: { root: HTMLDivElement; selected: Set<number> } | null = null;
+  const build = (): void => {
+    if (chooser) return;
+    chooser = createCollectionChooser(document, host.snapshot);
+    const confirm = button(document, "Add paper", "cm-primary-button");
+    const cancel = button(document, "Cancel", "cm-secondary-button");
+    confirm.addEventListener("click", () => {
+      confirm.textContent = "Adding…";
+      runAction(confirm, async () => {
+        try {
+          await finish([...chooser!.selected]);
+        } catch (error) {
+          confirm.textContent = "Import failed — try again";
+          throw error;
+        }
+      });
     });
-  });
-  cancel.addEventListener("click", () => {
-    root.hidden = true;
-    addButton.hidden = false;
-  });
-  const buttons = element(document, "div", "cm-detail-actions");
-  buttons.append(cancel, confirm);
-  root.append(
-    text(document, "h4", "Choose collections"),
-    chooser.root,
-    buttons,
-  );
+    cancel.addEventListener("click", () => {
+      root.hidden = true;
+      addButton.hidden = false;
+    });
+    const buttons = element(document, "div", "cm-detail-actions");
+    buttons.append(cancel, confirm);
+    root.append(
+      text(document, "h4", "Choose collections"),
+      chooser.root,
+      buttons,
+    );
+  };
   addButton.addEventListener("click", () => {
+    build();
     addButton.hidden = true;
     root.hidden = false;
   });
@@ -488,7 +496,7 @@ export function appendRelatedWorkRows(
     const { work, manualRelation } = entry;
     const card = element(document, "article", "cm-external-card");
     if (work.isRetracted) card.classList.add("cm-external-retracted");
-    const localKey = work.inLibraryItemKey ?? work.zoteroItemKey ?? null;
+    const localKey = work.inLibraryItemKey ?? null;
     const localTitle = localKey
       ? paperByKey.get(localKey)?.title?.trim()
       : null;
