@@ -205,9 +205,6 @@
   justify-content: center;
 }
 .cm-title-row h1,
-.cm-detail-panel h2,
-.cm-external-card h3,
-.cm-import-area h4,
 .cm-appearance-panel h2 {
   margin: 0;
 }
@@ -231,19 +228,10 @@
     no-repeat;
 }
 .cm-library-summary,
-.cm-detail-meta,
-.cm-placeholder,
 .cm-help {
   margin: 3px 0 0;
   color: var(--cm-muted);
   line-height: 1.35;
-}
-/*
- * The creator-year line under a title, and every secondary line in the detail
- * panel: Zotero writes those in `--fill-secondary`, not in its body ink.
- */
-.cm-detail-meta {
-  color: var(--cm-fill-secondary);
 }
 .cm-library-summary {
   /* Tabular figures so the counts do not jitter as the filter changes them. */
@@ -502,8 +490,7 @@
 .cm-filter-panel[hidden],
 .cm-add-node-popup[hidden],
 .cm-export-menu[hidden],
-.cm-appearance-panel[hidden],
-.cm-import-area[hidden] {
+.cm-appearance-panel[hidden] {
   display: none;
 }
 .cm-check-control {
@@ -764,98 +751,6 @@
   line-height: 1.333;
   overflow-wrap: anywhere;
 }
-.cm-detail-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 8px 24px;
-}
-.cm-detail-body > h2,
-.cm-detail-body > h3 {
-  margin: 0;
-  font-size: inherit;
-  font-weight: 600;
-  line-height: 1.333;
-  overflow-wrap: anywhere;
-}
-/*
- * The body's own sections, divided the way the item pane divides its own —
- * one rhythm for the whole panel rather than a margin chosen per block, which
- * is what made the gaps read as arbitrary. The rule is the Key's
- * `--cm-border-soft` and not the item pane's `--fill-quinary`: 5% ink is
- * invisible on the dark sidepane, so the blocks it was meant to separate read
- * as one drift of content. The left rail's divider is the one the eye in this
- * window is already calibrated to.
- */
-.cm-detail-section {
-  display: block;
-  padding-block: 10px;
-}
-.cm-detail-section + .cm-detail-section {
-  border-top: 1px solid var(--cm-border-soft);
-}
-/* A section with nothing in it still drew its divider, which left a rule under
- * the last thing in the panel with nothing beneath it. */
-.cm-detail-section:empty {
-  display: none;
-}
-.cm-detail-heading,
-.cm-detail-actions,
-.cm-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-.cm-detail-heading {
-  margin-bottom: 8px;
-}
-/*
- * Three tabs across a pane that can be 260px wide. Each column is
- * `minmax(0, 1fr)` and each button is `min-width: 0`, so the columns divide the
- * pane instead of being sized by the longest label — a `1fr` column has an
- * `auto` minimum, which is why "Cited by (1284 reported)" used to set the
- * width of all three and then wrap to three lines inside its own box.
- *
- * They live in the toolbar, not in the body: switching between a paper's
- * metrics, the works it cites and the works citing it is navigation, and
- * navigation is chrome. Zotero keeps the item pane's in the sidenav, which
- * does not scroll away — nor do these now, so the tab row is still reachable
- * from the bottom of a 57-item reference list.
- */
-.cm-detail-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-}
-.meristema-root .cm-detail-tabs button {
-  min-width: 0;
-  justify-content: center;
-  gap: 4px;
-  padding: 4px 6px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.cm-detail-tab-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cm-detail-tab-count {
-  flex: 0 0 auto;
-  color: var(--cm-fill-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.cm-detail-tabs button[data-selected="true"] {
-  border-color: var(--cm-accent);
-  background: color-mix(in srgb, var(--cm-accent) 14%, Canvas);
-  font-weight: 600;
-}
-.cm-detail-tabs button[data-selected="true"] .cm-detail-tab-count {
-  color: inherit;
-}
 /*
  * Below this the counts have nowhere to go: at 260px each tab has about 76px
  * of it, which "Cited by" fills on its own. The tab keeps its name and drops
@@ -870,241 +765,9 @@
   .cm-detail-toolbar {
     padding: 0 4px;
   }
-  .meristema-root .cm-detail-tabs button {
+  .meristema-paper-detail .cm-detail-tabs button {
     padding: 4px 2px;
   }
-}
-.cm-badges {
-  margin: 0;
-}
-.cm-badges span {
-  display: inline-flex;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--cm-accent) 12%, Canvas);
-  font-size: 10px;
-  font-weight: 600;
-}
-.cm-badge-danger {
-  background: color-mix(in srgb, #dc2626 16%, Canvas) !important;
-  color: #dc2626;
-}
-.cm-badge-warning {
-  background: color-mix(in srgb, #b45309 16%, Canvas) !important;
-  color: #b45309;
-}
-/*
- * `info-box #info-table`: `grid-template-columns: max-content 1fr;
- * column-gap: 8px; row-gap: 2px`, with `.meta-label` right-aligned in
- * `--fill-secondary` and the value beside it. The rules under every row were
- * the loudest thing in the panel and Zotero draws none.
- */
-.cm-metric-list {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 8px;
-  row-gap: 2px;
-  margin: 0;
-}
-.cm-metric-list dt,
-.cm-metric-list dd {
-  margin: 0;
-  padding: 0;
-}
-.cm-metric-list dt {
-  color: var(--cm-fill-secondary);
-  text-align: end;
-}
-.cm-metric-list dd {
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-/*
- * The panel's one raised voice. Everything else in this window is chrome that
- * defers to Zotero's, but the graph's whole premise is that a paper is a point
- * with quantitative dimensions — the axes are citations against year, the node
- * is sized by citations — and the pane's headline should speak the plot's
- * language rather than the item pane's. So three figures, set large in tabular
- * numerals over the same uppercase micro-label the Key rail gives COLOR, SIZE
- * and LINKS. Three columns because there are exactly three paper-level impact
- * figures, not because three reads well.
- *
- * The list stays a `<dl>`: value in the first row, label under it in the
- * second, placed by hand so the pairs keep their document order and the
- * tooltip service still finds the terms it annotates.
- */
-.cm-metric-strip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: 10px;
-  row-gap: 3px;
-  margin-block: 2px;
-}
-.cm-metric-strip dd:nth-of-type(1) {
-  grid-area: 1 / 1;
-}
-.cm-metric-strip dd:nth-of-type(2) {
-  grid-area: 1 / 2;
-}
-.cm-metric-strip dd:nth-of-type(3) {
-  grid-area: 1 / 3;
-}
-.cm-metric-strip dt:nth-of-type(1) {
-  grid-area: 2 / 1;
-}
-.cm-metric-strip dt:nth-of-type(2) {
-  grid-area: 2 / 2;
-}
-.cm-metric-strip dt:nth-of-type(3) {
-  grid-area: 2 / 3;
-}
-.cm-metric-strip dd {
-  align-self: end;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-}
-.cm-metric-strip dt {
-  align-self: start;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  text-align: start;
-}
-/*
- * The Advanced disclosure arrived with no rules of its own: a bare `<summary>`
- * two pixels under the last value, carrying Gecko's default triangle and
- * starting at a third left edge — the labels end at the column's right edge,
- * the values start after it, "Advanced" began at the pane's. With two metrics
- * above it that is three tight lines and three alignments in one corner.
- * Zotero draws this as a `collapsible-section` head: a full-width row with a
- * twisty, set in the same uppercase the left rail gives COLOR, SIZE and LINKS,
- * so it reads as the control it is rather than as one more line of the list.
- */
-.cm-advanced-details {
-  margin: 0;
-}
-.cm-advanced-details > summary {
-  /* Any display but `list-item` drops Gecko's own marker; ours is below. */
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 24px;
-  margin: 0 -8px;
-  padding: 2px 8px;
-  color: var(--cm-fill-secondary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.cm-advanced-details > summary:hover {
-  color: CanvasText;
-}
-.cm-advanced-details > summary::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 6px;
-  height: 6px;
-  margin-inline-start: 2px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 120ms ease;
-}
-.cm-advanced-details[open] > summary::before {
-  transform: rotate(45deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .cm-advanced-details > summary::before {
-    transition: none;
-  }
-}
-.cm-advanced-details > .cm-metric-list {
-  margin-top: 8px;
-}
-/*
- * A related work is a row, not a card. Zotero lists attachments, notes and
- * related items as flat rows divided by a hairline and bled to the pane's
- * edges; a bordered, raised, rounded box for each of thirty citing papers put
- * boxes inside a box and made the list the loudest thing in a window whose
- * subject is the plot. The negative margin is the body's own 8px, so each row
- * spans the pane and its divider runs edge to edge.
- */
-.cm-external-list {
-  display: grid;
-  gap: 0;
-  margin: 4px -8px 0;
-}
-.cm-external-card {
-  padding: 8px;
-}
-.cm-external-card + .cm-external-card {
-  border-top: 1px solid var(--cm-border-soft);
-}
-.cm-external-card h3 {
-  font-size: inherit;
-  line-height: 1.35;
-}
-/* A retracted work keeps a mark of its own, now that there is no border to
- * colour: the bar Zotero puts down the start edge of a flagged row. */
-.cm-external-retracted {
-  box-shadow: inset 3px 0 0 #dc2626;
-}
-/*
- * The row's own controls sit under its title, so they are read second: 11px
- * chips rather than the pane's full-size buttons, which at three per row were
- * competing with the title they belong to.
- */
-.meristema-root .cm-external-card button {
-  min-height: 24px;
-  padding: 3px 7px;
-  font-size: 11px;
-}
-.cm-external-card .cm-badges {
-  margin: 5px 0 0;
-}
-.cm-abstract-disclosure {
-  margin: 8px 0;
-}
-.cm-abstract-disclosure summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.cm-abstract-disclosure p {
-  margin: 7px 0;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-.cm-import-area {
-  margin: 9px 0;
-  padding: 9px;
-  border: 1px solid var(--cm-border-soft);
-  border-radius: 7px;
-  background: var(--cm-surface);
-}
-.cm-collection-chooser {
-  display: grid;
-  gap: 7px;
-  margin: 8px 0;
-}
-.cm-collection-tree {
-  max-height: 290px;
-  overflow: auto;
-  padding: 4px;
-  border: 1px solid var(--cm-border-soft);
-  border-radius: 6px;
-  background: Canvas;
-}
-.cm-collection-choice {
-  width: 100%;
-  justify-content: flex-start;
-  border-color: transparent;
-  background: transparent;
-  text-align: left;
 }
 .cm-menu-wrapper {
   position: relative;
@@ -1125,10 +788,6 @@
 .cm-export-menu button {
   justify-content: flex-start;
   border-color: transparent;
-}
-.cm-success {
-  color: #15803d;
-  font-weight: 650;
 }
 /*
  * A narrow window drops the counts before it lets anything wrap. Each toolbar

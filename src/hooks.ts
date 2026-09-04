@@ -59,6 +59,10 @@ import {
   installGraphTabHooks,
   refreshOpenGraphViews,
 } from "./services/windowService";
+import {
+  PAPER_DETAIL_STYLESHEET_HREF,
+  PAPER_DETAIL_STYLESHEET_ID,
+} from "./services/graphViewControls";
 
 const MAIN_STYLESHEET_ID = `${config.addonRef}-main-stylesheet`;
 const TAB_ICON_STYLESHEET_ID = `${config.addonRef}-tab-icon-stylesheet`;
@@ -72,6 +76,7 @@ function installStyles(win: _ZoteroTypes.MainWindow): void {
   const stylesheets: Array<[string, string]> = [
     [MAIN_STYLESHEET_ID, `chrome://${config.addonRef}/content/zoteroPane.css`],
     [TAB_ICON_STYLESHEET_ID, `chrome://${config.addonRef}/content/tabIcon.css`],
+    [PAPER_DETAIL_STYLESHEET_ID, PAPER_DETAIL_STYLESHEET_HREF],
   ];
   for (const [id, href] of stylesheets) {
     if (win.document.getElementById(id)) continue;

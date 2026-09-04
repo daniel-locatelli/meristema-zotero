@@ -1037,7 +1037,11 @@ export function renderGraphView(
   const resizer = element(document, "div", "cm-detail-resizer");
   resizer.tabIndex = 0;
   resizer.setAttribute("role", "separator");
-  const detail = element(document, "aside", "cm-detail-panel");
+  const detail = element(
+    document,
+    "aside",
+    "cm-detail-panel meristema-paper-detail",
+  );
   /*
    * The pane in three parts, top to bottom: a toolbar level with the other two
    * panes' that holds the pane's navigation and never moves, then Zotero's

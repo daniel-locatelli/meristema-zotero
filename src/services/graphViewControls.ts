@@ -53,9 +53,10 @@ export function clear(node: Element): void {
   node.replaceChildren();
 }
 
-export function ensureStyles(document: Document): void {
-  const id = `${config.addonRef}-graph-stylesheet`;
-  const href = `chrome://${config.addonRef}/content/graph.css`;
+export const PAPER_DETAIL_STYLESHEET_ID = `${config.addonRef}-paper-detail-stylesheet`;
+export const PAPER_DETAIL_STYLESHEET_HREF = `chrome://${config.addonRef}/content/paperDetail.css`;
+
+function ensureStylesheet(document: Document, id: string, href: string): void {
   let link = document.getElementById(id) as HTMLLinkElement | null;
   if (!link) {
     link = element(document, "link");
@@ -64,6 +65,24 @@ export function ensureStyles(document: Document): void {
     (document.head ?? document.documentElement).appendChild(link);
   }
   if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+}
+
+/** The detail view's stylesheet, in whichever document is about to draw one. */
+export function ensurePaperDetailStyles(document: Document): void {
+  ensureStylesheet(
+    document,
+    PAPER_DETAIL_STYLESHEET_ID,
+    PAPER_DETAIL_STYLESHEET_HREF,
+  );
+}
+
+export function ensureStyles(document: Document): void {
+  ensurePaperDetailStyles(document);
+  ensureStylesheet(
+    document,
+    `${config.addonRef}-graph-stylesheet`,
+    `chrome://${config.addonRef}/content/graph.css`,
+  );
 }
 
 export function icon(document: Document, name: IconName): SVGSVGElement {
