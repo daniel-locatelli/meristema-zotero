@@ -418,8 +418,10 @@
 }
 /*
  * The button, input and icon base for both roots (`.meristema-root` and
- * `.meristema-paper-detail`) lives in paperDetail.css, linked before this
- * sheet.
+ * `.meristema-paper-detail`) lives in paperDetail.css. ensureStyles in
+ * src/services/graphViewControls.ts puts this sheet's link directly after
+ * that one whichever order the two were first linked in, so the overrides
+ * below win their equal-specificity ties with it.
  */
 .cm-filter-panel {
   display: flex;

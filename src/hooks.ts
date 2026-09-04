@@ -87,7 +87,7 @@ function installStyles(win: _ZoteroTypes.MainWindow): void {
     link.id = id;
     link.setAttribute("rel", "stylesheet");
     link.setAttribute("href", href);
-    win.document.documentElement.appendChild(link);
+    (win.document.head ?? win.document.documentElement).appendChild(link);
   }
 }
 

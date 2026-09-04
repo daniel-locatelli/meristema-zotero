@@ -4,14 +4,14 @@
  * both draw (src/services/paperDetailView.ts). Loaded by both hosts.
  *
  * `.meristema-paper-detail` is the root. In the graph it sits on
- * `.cm-detail-panel`, inside the graph window's own root class, and these
- * tokens restate the values that root already gives; in the item pane it
- * sits on the section's own shell, and these are the only declarations of
- * them.
+ * `.cm-detail-panel`, inside the graph window's own root class; in the item
+ * pane it sits on the section's own shell, with no such root above it. So
+ * every token here has to hold in both places, and none of them may restate a
+ * value the graph's root varies by scheme — a declaration on the panel is on
+ * the closer element and would shadow the root's dark override. They are
+ * written against the system colours, which follow the scheme on their own.
  */
 .meristema-paper-detail {
-  --cm-sidepane: var(--material-sidepane, #f2f2f2);
-  --cm-panedivider: var(--color-panedivider, #dadada);
   --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
   --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
@@ -26,7 +26,7 @@
     color-mix(in srgb, CanvasText 5%, transparent)
   );
   --cm-accent: var(--accent-blue, #2563eb);
-  --cm-icon-color: #3f4650;
+  --cm-icon-color: color-mix(in srgb, CanvasText 78%, transparent);
   color-scheme: light dark;
   box-sizing: border-box;
   color: CanvasText;
@@ -44,9 +44,10 @@
 }
 /*
  * The one button, input and icon base for both roots — the graph's window
- * and the item pane's section. graph.css relies on this sheet being linked
- * before it (ensureStyles in src/services/graphViewControls.ts), so it draws
- * these same rules rather than declaring its own.
+ * and the item pane's section. graph.css draws these same rules rather than
+ * declaring its own, and overrides a few of them at the same specificity;
+ * ensureStyles (src/services/graphViewControls.ts) keeps its link directly
+ * after this sheet's so those overrides win.
  */
 .meristema-root button,
 .meristema-paper-detail button,
@@ -91,7 +92,8 @@
 .cm-filter-select,
 .cm-collection-search,
 .meristema-root input[type="search"],
-.meristema-paper-detail input[type="search"] {
+.meristema-paper-detail input[type="search"],
+.meristema-paper-detail select {
   min-height: 30px;
   min-width: 0;
   padding: 4px 8px;

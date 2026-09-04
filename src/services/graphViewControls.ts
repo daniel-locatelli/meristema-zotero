@@ -56,7 +56,11 @@ export function clear(node: Element): void {
 export const PAPER_DETAIL_STYLESHEET_ID = `${config.addonRef}-paper-detail-stylesheet`;
 export const PAPER_DETAIL_STYLESHEET_HREF = `chrome://${config.addonRef}/content/paperDetail.css`;
 
-function ensureStylesheet(document: Document, id: string, href: string): void {
+function ensureStylesheet(
+  document: Document,
+  id: string,
+  href: string,
+): HTMLLinkElement {
   let link = document.getElementById(id) as HTMLLinkElement | null;
   if (!link) {
     link = element(document, "link");
@@ -65,11 +69,12 @@ function ensureStylesheet(document: Document, id: string, href: string): void {
     (document.head ?? document.documentElement).appendChild(link);
   }
   if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+  return link;
 }
 
 /** The detail view's stylesheet, in whichever document is about to draw one. */
-export function ensurePaperDetailStyles(document: Document): void {
-  ensureStylesheet(
+export function ensurePaperDetailStyles(document: Document): HTMLLinkElement {
+  return ensureStylesheet(
     document,
     PAPER_DETAIL_STYLESHEET_ID,
     PAPER_DETAIL_STYLESHEET_HREF,
@@ -77,12 +82,28 @@ export function ensurePaperDetailStyles(document: Document): void {
 }
 
 export function ensureStyles(document: Document): void {
-  ensurePaperDetailStyles(document);
-  ensureStylesheet(
+  const paperDetailLink = ensurePaperDetailStyles(document);
+  const graphLink = ensureStylesheet(
     document,
     `${config.addonRef}-graph-stylesheet`,
     `chrome://${config.addonRef}/content/graph.css`,
   );
+  /*
+   * graph.css has to come after paperDetail.css: it overrides the shared
+   * base rules at the same specificity, so the later sheet is the one that
+   * wins. Neither link's position is ours to assume — in a main window
+   * installStyles (src/hooks.ts) links paperDetail.css at startup, long
+   * before any graph opens, and a standalone graph window links neither
+   * until here — so put the graph link directly after the detail one
+   * whichever order they arrived in. `after` moves it into the detail
+   * link's parent, so this also holds when the two are in different parents.
+   */
+  const graphFollows =
+    !!(
+      paperDetailLink.compareDocumentPosition(graphLink) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+    ) && paperDetailLink.parentNode === graphLink.parentNode;
+  if (!graphFollows) paperDetailLink.after(graphLink);
 }
 
 export function icon(document: Document, name: IconName): SVGSVGElement {

@@ -5,12 +5,14 @@
 /*
  * The section's shell. The detail rules come from paperDetail.css; this is
  * only the padding the rows' negative margins assume (8px each side, as the
- * graph's `.cm-detail-body` gives them) and the gap under the tab row.
+ * graph's `.cm-detail-body` gives them), the gap under the tab row, and the
+ * containment the width query below asks about.
  */
 .meristema-item-pane {
   display: grid;
   gap: 4px;
   padding: 4px 8px 12px;
+  container-type: inline-size;
 }
 .meristema-item-pane .cm-detail-tabs {
   margin-bottom: 4px;
@@ -46,7 +48,4 @@
   .meristema-item-pane .cm-detail-tab-count {
     display: none;
   }
-}
-.meristema-item-pane {
-  container-type: inline-size;
 }
