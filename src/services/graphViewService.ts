@@ -287,21 +287,23 @@ export function renderGraphView(
       }
       return actions;
     },
-    previewRow: (work, context) => {
+    previewRow: (work, context) => () => {
       const sourceKeys = context
         ? relationshipPreviewSourceKeys(model, context.node, work, visibleKeys)
         : (work.citingNodeKeys ?? []).filter((key) => visibleKeys.has(key));
-      if (!sourceKeys.length) return null;
-      return () =>
-        renderer?.setGhostPreview({
-          key: work.providerWorkID ?? work.doi ?? work.title ?? "external",
-          title: externalWorkTitle(work),
-          authors: work.authors ?? [],
-          year: work.year,
-          citationCount: work.citationCount ?? null,
-          referenceCount: work.referenceCount ?? null,
-          sourceKeys,
-        });
+      if (!sourceKeys.length) {
+        renderer?.setGhostPreview(null);
+        return;
+      }
+      renderer?.setGhostPreview({
+        key: work.providerWorkID ?? work.doi ?? work.title ?? "external",
+        title: externalWorkTitle(work),
+        authors: work.authors ?? [],
+        year: work.year,
+        citationCount: work.citationCount ?? null,
+        referenceCount: work.referenceCount ?? null,
+        sourceKeys,
+      });
     },
     clearPreview: () => renderer?.setGhostPreview(null),
     onRelationshipMutation: (event) => {
@@ -2526,7 +2528,6 @@ export function renderGraphView(
           seedNodes.length <= 1 ? 1 : 2,
         ),
       );
-      similarSection.root.style.marginTop = "10px";
       detailBody.appendChild(similarSection.root);
     }
     return similarSection.start();
@@ -2561,6 +2562,7 @@ export function renderGraphView(
       : "Close graph-wide similar-paper results";
     back.addEventListener("click", () => renderOverview(returnNode));
     setDetailNav(back);
+    detailTabs = null;
     setDetailHeader(
       "Similar papers for current graph",
       `Based on ${formatCount(seedNodes.length)} currently visible graph papers.`,
@@ -2730,6 +2732,7 @@ export function renderGraphView(
     if (!node) {
       selectedNode = null;
       setDetailNav();
+      detailTabs = null;
       setDetailHeader("Paper details");
       detailBody.append(
         detailSection(

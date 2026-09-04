@@ -797,7 +797,11 @@ export function createSimilarSection(
   host: PaperDetailHost,
   load: () => Promise<ExternalWork[]>,
 ): { root: HTMLElement; start(): Promise<void> } {
-  const root = element(document, "section", "cm-inline-similar-results");
+  const root = element(
+    document,
+    "section",
+    "cm-inline-similar-results cm-detail-section",
+  );
   let generation = 0;
   const heading = (): HTMLElement => text(document, "h3", "Similar papers");
   return {
