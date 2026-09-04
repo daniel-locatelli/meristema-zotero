@@ -416,68 +416,11 @@
   width: 100%;
   padding-left: 29px !important;
 }
-.cm-icon {
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-  vertical-align: -2px;
-  color: var(--cm-icon-color) !important;
-  fill: currentColor !important;
-  stroke: none;
-}
-.cm-icon path {
-  fill: currentColor !important;
-}
-.cm-search,
-.cm-select,
-.cm-filter-select,
-.cm-collection-search,
-.meristema-root input[type="search"] {
-  min-height: 30px;
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--cm-border);
-  border-radius: 6px;
-  background: Field;
-  color: FieldText;
-  font: inherit;
-}
-.cm-primary-button,
-.cm-secondary-button,
-.cm-toolbar-button,
-.cm-export-menu button,
-.cm-detail-tabs button,
-.cm-collection-choice,
-.meristema-root button {
-  min-height: 28px;
-  padding: 4px 9px;
-  border: 1px solid var(--cm-border);
-  border-radius: 6px;
-  background: var(--cm-surface-raised);
-  color: CanvasText;
-  font: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.meristema-root button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--cm-accent) 10%, Canvas);
-  border-color: color-mix(in srgb, var(--cm-accent) 42%, var(--cm-border));
-}
-.meristema-root button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-.cm-primary-button {
-  background: var(--cm-accent);
-  border-color: var(--cm-accent);
-  color: white;
-}
-.cm-primary-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--cm-accent) 84%, black) !important;
-}
+/*
+ * The button, input and icon base for both roots (`.meristema-root` and
+ * `.meristema-paper-detail`) lives in paperDetail.css, linked before this
+ * sheet.
+ */
 .cm-filter-panel {
   display: flex;
   gap: 12px;

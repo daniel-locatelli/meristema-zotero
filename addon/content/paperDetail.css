@@ -43,14 +43,17 @@
   margin: 0;
 }
 /*
- * The same button, input and icon base the graph gives its whole window
- * (the graph root's own `button` rule and friends in graph.css). Restated
- * here under this root so the item pane, which has no such ancestor, draws
- * the same controls. Keep the two blocks in step.
+ * The one button, input and icon base for both roots — the graph's window
+ * and the item pane's section. graph.css relies on this sheet being linked
+ * before it (ensureStyles in src/services/graphViewControls.ts), so it draws
+ * these same rules rather than declaring its own.
  */
+.meristema-root button,
 .meristema-paper-detail button,
 .cm-primary-button,
 .cm-secondary-button,
+.cm-toolbar-button,
+.cm-export-menu button,
 .cm-detail-tabs button,
 .cm-collection-choice {
   min-height: 28px;
@@ -65,10 +68,12 @@
   align-items: center;
   gap: 5px;
 }
+.meristema-root button:hover:not(:disabled),
 .meristema-paper-detail button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--cm-accent) 10%, Canvas);
   border-color: color-mix(in srgb, var(--cm-accent) 42%, var(--cm-border));
 }
+.meristema-root button:disabled,
 .meristema-paper-detail button:disabled {
   cursor: default;
   opacity: 0.55;
@@ -81,8 +86,12 @@
 .cm-primary-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--cm-accent) 84%, black) !important;
 }
-.meristema-paper-detail input[type="search"],
-.cm-collection-search {
+.cm-search,
+.cm-select,
+.cm-filter-select,
+.cm-collection-search,
+.meristema-root input[type="search"],
+.meristema-paper-detail input[type="search"] {
   min-height: 30px;
   min-width: 0;
   padding: 4px 8px;
