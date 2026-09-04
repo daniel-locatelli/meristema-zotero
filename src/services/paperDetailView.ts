@@ -33,7 +33,11 @@ import {
 } from "./externalWorkPresentationService";
 import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
 import { createMetricNodeForItem } from "./itemMetricContext";
-import { manualRelationsForSubject } from "./manualRelationshipPickerService";
+import {
+  createManualRelationshipPicker,
+  manualRelationsForSubject,
+  type ManualRelationshipChange,
+} from "./manualRelationshipPickerService";
 import {
   formatMetricValue,
   getMetricDefinition,
@@ -49,16 +53,33 @@ import {
   type RelationEntry,
 } from "./paperDetailModel";
 import {
+  createPaperListToolbar,
+  describeExternalWork,
+  type PaperListDescriptor,
+} from "./paperListViewService";
+import {
   citationDataSourceLabel,
   externalWorkURL,
 } from "./providerPresentation";
 import { getRelationshipPublicationState } from "./relationshipEvents";
 import {
   getRelationshipReportedCounts,
+  newlyRetrievedRelationshipWorkCount,
+  relationshipStatusText,
   type RelationshipMutationEvent,
   type RelationshipViewDirection,
+  type RelationshipViewSnapshot,
 } from "./relationshipViewService";
-import { clear, element, normalizeSearch, text } from "./graphViewControls";
+import { createUpdateProgress } from "./updateProgressService";
+import type { CancellationSignal } from "./cancellationScope";
+import { createCancellationScope } from "./cancellationScope";
+import {
+  clear,
+  element,
+  icon,
+  normalizeSearch,
+  text,
+} from "./graphViewControls";
 
 export interface RowAction {
   label: string;
@@ -832,6 +853,262 @@ export function createSimilarSection(
         }
         throw error;
       }
+    },
+  };
+}
+
+/* --------------------------------------------------------- relationships */
+
+export const RELATIONSHIP_CARD_BATCH_SIZE = 36;
+const RELATIONSHIP_FILTER_DEBOUNCE_MS = 120;
+
+export interface RelationshipListOptions {
+  host: PaperDetailHost;
+  node: CitationGraphNode;
+  direction: RelationshipViewDirection;
+  /** The current provider works, re-read on every refresh. */
+  readSnapshot(refreshing?: boolean): RelationshipViewSnapshot;
+  /** Fetch new relationships from the providers; the host owns side effects. */
+  refreshRelationships(signal: CancellationSignal): Promise<void>;
+  /** After a manual relation is added or removed through the picker. */
+  onManualChange?(changes: ManualRelationshipChange[]): void;
+  /** The tab row to update after an update changes the counts. */
+  updateCounts?(node: CitationGraphNode): void;
+}
+
+export interface RelationshipList {
+  root: HTMLElement;
+  refresh(): void;
+  destroy(): void;
+}
+
+export function createRelationshipList(
+  document: Document,
+  options: RelationshipListOptions,
+): RelationshipList {
+  const { host, node, direction } = options;
+  const libraryID = host.snapshot.libraryID;
+  const root = element(document, "div", "cm-relationship-list");
+  const listHost = element(document, "div");
+  const win = document.defaultView;
+
+  let relationshipSnapshot = options.readSnapshot();
+  let works = relationshipSnapshot.works;
+  let updating = false;
+  let updateOutcome: string | null = null;
+  let shownCount = works.length;
+  let filtered = false;
+  let renderGeneration = 0;
+  let destroyed = false;
+  let descriptorCache = new Map<ExternalWork, PaperListDescriptor>();
+  let renderList = (): void => undefined;
+
+  let filterTimer = 0;
+  const scheduleRender = (): void => {
+    if (filterTimer) win?.clearTimeout(filterTimer);
+    filterTimer =
+      win?.setTimeout(() => {
+        filterTimer = 0;
+        if (!destroyed && listHost.isConnected) renderList();
+      }, RELATIONSHIP_FILTER_DEBOUNCE_MS) ?? 0;
+  };
+
+  const controls = element(document, "div", "cm-relationship-controls");
+  const toolbar = createPaperListToolbar({
+    document,
+    searchPlaceholder:
+      direction === "references" ? "Search references" : "Search citing papers",
+    collections: host.snapshot.collections,
+    buttonClassName: "cm-secondary-button",
+    inputClassName: "cm-search",
+    onChange: scheduleRender,
+  });
+  toolbar.searchInput.style.maxWidth = "none";
+
+  const updateLabel =
+    direction === "references"
+      ? "Update reference papers"
+      : "Update citing papers";
+  const update = button(
+    document,
+    "",
+    "cm-secondary-button cm-icon-button",
+    updateLabel,
+  );
+  update.setAttribute("aria-label", updateLabel);
+  update.appendChild(icon(document, "refresh"));
+  const publicationActive = (): boolean =>
+    publicationStateFor(libraryID, node, direction)?.active ?? false;
+  update.disabled = publicationActive();
+
+  const currentRelatedItemKeys = (): Set<string> =>
+    new Set(
+      works
+        .map((work) => work.inLibraryItemKey ?? work.zoteroItemKey ?? null)
+        .filter((key): key is string => Boolean(key)),
+    );
+  const picker =
+    node.kind === "external" || node.itemID <= 0
+      ? null
+      : createManualRelationshipPicker({
+          document,
+          snapshot: host.snapshot,
+          subjectItemKey: node.itemKey,
+          direction: direction === "references" ? "reference" : "cited-by",
+          getAlreadyRelatedItemKeys: currentRelatedItemKeys,
+          buttonClassName: "cm-secondary-button",
+          inputClassName: "cm-search",
+          onApplied: (changes) => {
+            options.onManualChange?.(changes);
+            refresh();
+          },
+        });
+  controls.append(toolbar.root, update);
+  if (picker) controls.appendChild(picker.button);
+  root.appendChild(controls);
+  if (picker) root.appendChild(picker.overlay);
+
+  const status = text(document, "p", "", "cm-detail-meta");
+  const updateStatus = (): void => {
+    const base = relationshipStatusText(
+      relationshipSnapshot,
+      shownCount,
+      filtered,
+      updating || publicationActive(),
+    );
+    status.textContent = updateOutcome ? `${base} · ${updateOutcome}` : base;
+  };
+  root.append(status, listHost);
+
+  renderList = (): void => {
+    const generation = ++renderGeneration;
+    clear(listHost);
+    const context = relationshipContextFor(libraryID, node, direction, refresh);
+    const entries = relationshipEntries(libraryID, context, works);
+    const ordered = toolbar.apply(entries, (entry) => {
+      const cached = descriptorCache.get(entry.work);
+      if (cached) return cached;
+      const descriptor = describeExternalWork(
+        entry.work,
+        libraryID,
+        true,
+        Boolean(entry.manualRelation),
+        localPaperByKey(host.snapshot),
+      );
+      descriptorCache.set(entry.work, descriptor);
+      return descriptor;
+    });
+    filtered = toolbar.hasActiveQueryOrFilters();
+    if (!ordered.length) {
+      shownCount = 0;
+      updateStatus();
+      listHost.appendChild(
+        text(document, "p", "No external works were found.", "cm-placeholder"),
+      );
+      return;
+    }
+    const list = element(document, "div", "cm-external-list");
+    const loadMore = button(document, "", "cm-secondary-button");
+    loadMore.style.margin = "10px auto";
+    loadMore.style.display = "block";
+    let index = 0;
+    const appendNextBatch = (): void => {
+      if (generation !== renderGeneration || !list.isConnected) return;
+      const batch = ordered.slice(index, index + RELATIONSHIP_CARD_BATCH_SIZE);
+      appendRelatedWorkRows(document, list, batch, host, context);
+      index += batch.length;
+      shownCount = index;
+      updateStatus();
+      const remaining = ordered.length - index;
+      if (remaining <= 0) {
+        loadMore.remove();
+        return;
+      }
+      loadMore.textContent = `Show ${Math.min(RELATIONSHIP_CARD_BATCH_SIZE, remaining)} more`;
+    };
+    loadMore.addEventListener("click", appendNextBatch);
+    listHost.append(list, loadMore);
+    appendNextBatch();
+  };
+
+  function refresh(): void {
+    if (destroyed) return;
+    relationshipSnapshot = options.readSnapshot(true);
+    works = relationshipSnapshot.works;
+    descriptorCache = new Map();
+    update.disabled = updating || publicationActive();
+    options.updateCounts?.(node);
+    renderList();
+  }
+
+  update.addEventListener("click", () => {
+    if (update.disabled) return;
+    const scope = createCancellationScope(
+      `${direction} relationship update for ${node.itemKey}`,
+    );
+    update.disabled = true;
+    updating = true;
+    updateOutcome = null;
+    updateStatus();
+    const cancelUpdate = (): void => {
+      scope.cancel();
+      updating = false;
+      updateOutcome = "Update cancelled";
+      if (update.isConnected) update.disabled = false;
+      updateStatus();
+    };
+    const progress = createUpdateProgress({
+      document,
+      title: updateLabel,
+      message: "Checking provider pages for new relationships…",
+      onCancel: cancelUpdate,
+    });
+    void (async () => {
+      const previousWorks = works;
+      try {
+        await options.refreshRelationships(scope.signal);
+        if (scope.signal.cancelled) {
+          updateOutcome = "Update cancelled";
+          progress.dismiss();
+          return;
+        }
+        relationshipSnapshot = options.readSnapshot();
+        works = relationshipSnapshot.works;
+        descriptorCache = new Map();
+        const added = newlyRetrievedRelationshipWorkCount(previousWorks, works);
+        updateOutcome = added
+          ? `${added} new paper${added === 1 ? "" : "s"} added`
+          : "No new papers returned";
+        progress.finish(updateOutcome);
+      } catch (error) {
+        if (scope.signal.cancelled) {
+          updateOutcome = "Update cancelled";
+          progress.dismiss();
+          return;
+        }
+        updateOutcome = "Update failed";
+        progress.fail(updateOutcome);
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      } finally {
+        updating = false;
+        update.disabled = publicationActive();
+        options.updateCounts?.(node);
+        if (!destroyed) renderList();
+      }
+    })();
+  });
+
+  renderList();
+  return {
+    root,
+    refresh,
+    destroy() {
+      destroyed = true;
+      if (filterTimer) win?.clearTimeout(filterTimer);
+      toolbar.destroy();
+      picker?.destroy();
     },
   };
 }

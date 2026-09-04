@@ -454,3 +454,18 @@
   color: #15803d;
   font-weight: 650;
 }
+/* Search, refresh, add — one row, the search taking what the two 30px
+ * buttons leave. */
+.cm-relationship-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px 30px;
+  gap: 6px;
+  align-items: center;
+  margin: 7px 0 2px;
+}
+.meristema-paper-detail .cm-icon-button {
+  width: 30px;
+  min-width: 30px;
+  padding: 4px;
+  justify-content: center;
+}
