@@ -85,6 +85,7 @@ import {
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
 import { popoverShouldAnchorEnd } from "./popoverPlacement";
+import { insideSelectDropdown } from "./selectDropdown";
 import {
   appendRelatedWorkRows,
   button,
@@ -917,6 +918,7 @@ export function renderGraphView(
     if (appearance.panel.hidden) return;
     const target = event.target as Node | null;
     if (target && appearance.root.contains(target)) return;
+    if (insideSelectDropdown(target)) return;
     appearance.close();
   };
   const closeAppearanceOnEscape = (event: KeyboardEvent): void => {
@@ -1671,10 +1673,14 @@ export function renderGraphView(
     if (event.key !== "Escape" || focusSeedPopover.hidden) return;
     closeFocusSeedPopover(true);
   };
+  // A pointer on an option of one of the popover's `<select>`s lands in
+  // Zotero's dropdown popup, outside the popover; closing then would tear the
+  // select down before the option is applied.
   const closeFocusSettingsOnOutsidePointer = (event: Event): void => {
     if (focusSettingsPopover.hidden) return;
     const target = event.target as Node | null;
     if (target && focusSettingsMenu.contains(target)) return;
+    if (insideSelectDropdown(target)) return;
     closeFocusSettingsPopover();
   };
   const closeFocusSettingsOnEscape = (event: KeyboardEvent): void => {
