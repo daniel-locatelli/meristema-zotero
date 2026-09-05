@@ -57,10 +57,12 @@ Copied from `docs/superpowers/specs/2026-09-05-explore-toolbar-controls-design.m
 ### Task 1: Popover right-edge helper
 
 **Files:**
+
 - Create: `src/services/popoverPlacement.ts`
 - Test: `test/unit/popoverPlacement.test.ts`
 
 **Interfaces:**
+
 - Produces: `popoverOverflowsEnd(buttonLeft: number, popoverWidth: number, windowWidth: number): boolean` — true when a popover anchored at `buttonLeft` and `popoverWidth` wide would extend past `windowWidth`.
 
 - [ ] **Step 1: Write the failing test**
@@ -146,10 +148,12 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 2: Seeds and Settings buttons in the toolbar, band removed
 
 **Files:**
+
 - Modify: `src/services/graphViewService.ts` (toolbar assembly ~585–593; focus bar block ~611–697; `updateFocusBar` ~1548–1567; seed popover handlers ~1569–1596; cleanup block ~3737–3745)
 - Modify: `addon/content/graph.css` (~764–795, plus new rules)
 
 **Interfaces:**
+
 - Consumes: `popoverOverflowsEnd(buttonLeft, popoverWidth, windowWidth): boolean` from `src/services/popoverPlacement.ts` (Task 1).
 - Consumes (existing, `src/services/graphViewControls.ts`): `element(document, tag, className?)`, `text(document, tag, content, className?)`, `icon(document, name)`, `iconButtonContent(document, name, label)`; icon names `document` and `settings` exist in `src/services/uiIconService.ts`.
 
@@ -166,133 +170,123 @@ import { popoverOverflowsEnd } from "./popoverPlacement";
 Replace the block that begins `const focusBar = element(document, "section", "cm-focus-bar");` and ends with the `focusBar.append(...)` call (currently ~lines 611–697) with the following. The `<select>` construction loops are copied unchanged from the current code.
 
 ```ts
-  const focusSeedMenu = element(
-    document,
-    "div",
-    "cm-focus-seed-menu cm-menu-wrapper cm-focus-only",
-  );
-  const focusSeedButton = element(document, "button", "cm-toolbar-button");
-  focusSeedButton.type = "button";
-  focusSeedButton.setAttribute("aria-haspopup", "dialog");
-  focusSeedButton.setAttribute("aria-expanded", "false");
-  focusSeedButton.setAttribute("aria-controls", "meristema-focus-seed-popover");
-  focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
-  const focusSeedButtonLabel = focusSeedButton.querySelector(
-    "span",
-  ) as HTMLSpanElement;
-  const focusSeedPopover = element(document, "div", "cm-focus-seed-popover");
-  focusSeedPopover.id = "meristema-focus-seed-popover";
-  focusSeedPopover.hidden = true;
-  focusSeedPopover.setAttribute("role", "dialog");
-  focusSeedPopover.setAttribute("aria-label", "Explore seeds");
-  const focusSeedSearchWrap = element(
-    document,
-    "label",
-    "cm-focus-seed-search-wrap",
-  );
-  focusSeedSearchWrap.appendChild(icon(document, "search"));
-  const focusSeedSearch = element(document, "input", "cm-focus-seed-search");
-  focusSeedSearch.type = "search";
-  focusSeedSearch.placeholder = "Search seeds";
-  focusSeedSearch.setAttribute("aria-label", "Search Explore seeds");
-  focusSeedSearchWrap.appendChild(focusSeedSearch);
-  const focusSeedResults = element(document, "div", "cm-focus-seed-results");
-  focusSeedResults.setAttribute("role", "list");
-  focusSeedPopover.append(focusSeedSearchWrap, focusSeedResults);
-  focusSeedMenu.append(focusSeedButton, focusSeedPopover);
+const focusSeedMenu = element(
+  document,
+  "div",
+  "cm-focus-seed-menu cm-menu-wrapper cm-focus-only",
+);
+const focusSeedButton = element(document, "button", "cm-toolbar-button");
+focusSeedButton.type = "button";
+focusSeedButton.setAttribute("aria-haspopup", "dialog");
+focusSeedButton.setAttribute("aria-expanded", "false");
+focusSeedButton.setAttribute("aria-controls", "meristema-focus-seed-popover");
+focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
+const focusSeedButtonLabel = focusSeedButton.querySelector(
+  "span",
+) as HTMLSpanElement;
+const focusSeedPopover = element(document, "div", "cm-focus-seed-popover");
+focusSeedPopover.id = "meristema-focus-seed-popover";
+focusSeedPopover.hidden = true;
+focusSeedPopover.setAttribute("role", "dialog");
+focusSeedPopover.setAttribute("aria-label", "Explore seeds");
+const focusSeedSearchWrap = element(
+  document,
+  "label",
+  "cm-focus-seed-search-wrap",
+);
+focusSeedSearchWrap.appendChild(icon(document, "search"));
+const focusSeedSearch = element(document, "input", "cm-focus-seed-search");
+focusSeedSearch.type = "search";
+focusSeedSearch.placeholder = "Search seeds";
+focusSeedSearch.setAttribute("aria-label", "Search Explore seeds");
+focusSeedSearchWrap.appendChild(focusSeedSearch);
+const focusSeedResults = element(document, "div", "cm-focus-seed-results");
+focusSeedResults.setAttribute("role", "list");
+focusSeedPopover.append(focusSeedSearchWrap, focusSeedResults);
+focusSeedMenu.append(focusSeedButton, focusSeedPopover);
 
-  const focusDirection = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["both", "References + cited by"],
-    ["references", "References"],
-    ["cited-by", "Cited by"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusDirection.appendChild(option);
-  }
-  const focusLocality = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["all", "All known papers"],
-    ["local", "In Zotero only"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusLocality.appendChild(option);
-  }
-  const focusRanking = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["relevance", "Relevance"],
-    ["most-cited", "Most cited"],
-    ["most-recent", "Most recent"],
-    ["local-first", "In Zotero first"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusRanking.appendChild(option);
-  }
-  const focusLimit = element(document, "select", "cm-select");
-  for (const value of [10, 25, 50, 100, 200]) {
-    const option = element(document, "option");
-    option.value = String(value);
-    option.textContent = `${value} per seed per side`;
-    if (value === 25) option.selected = true;
-    focusLimit.appendChild(option);
-  }
+const focusDirection = element(document, "select", "cm-select");
+for (const [value, label] of [
+  ["both", "References + cited by"],
+  ["references", "References"],
+  ["cited-by", "Cited by"],
+] as const) {
+  const option = element(document, "option");
+  option.value = value;
+  option.textContent = label;
+  focusDirection.appendChild(option);
+}
+const focusLocality = element(document, "select", "cm-select");
+for (const [value, label] of [
+  ["all", "All known papers"],
+  ["local", "In Zotero only"],
+] as const) {
+  const option = element(document, "option");
+  option.value = value;
+  option.textContent = label;
+  focusLocality.appendChild(option);
+}
+const focusRanking = element(document, "select", "cm-select");
+for (const [value, label] of [
+  ["relevance", "Relevance"],
+  ["most-cited", "Most cited"],
+  ["most-recent", "Most recent"],
+  ["local-first", "In Zotero first"],
+] as const) {
+  const option = element(document, "option");
+  option.value = value;
+  option.textContent = label;
+  focusRanking.appendChild(option);
+}
+const focusLimit = element(document, "select", "cm-select");
+for (const value of [10, 25, 50, 100, 200]) {
+  const option = element(document, "option");
+  option.value = String(value);
+  option.textContent = `${value} per seed per side`;
+  if (value === 25) option.selected = true;
+  focusLimit.appendChild(option);
+}
 
-  // The four Explore settings, in a popover that reads as the appearance
-  // panel's sibling but opens downward from the toolbar.
-  const focusSettingsMenu = element(
-    document,
-    "div",
-    "cm-menu-wrapper cm-focus-only",
-  );
-  const focusSettingsButton = element(
-    document,
-    "button",
-    "cm-toolbar-button",
-  );
-  focusSettingsButton.type = "button";
-  focusSettingsButton.append(
-    iconButtonContent(document, "settings", "Settings"),
-  );
-  focusSettingsButton.title =
-    "Direction, scope, ranking and limit for the current Explore view.";
-  focusSettingsButton.setAttribute("aria-haspopup", "dialog");
-  focusSettingsButton.setAttribute("aria-expanded", "false");
-  focusSettingsButton.setAttribute(
-    "aria-controls",
-    "meristema-focus-settings-popover",
-  );
-  const focusSettingsPopover = element(
-    document,
-    "div",
-    "cm-appearance-panel cm-appearance-panel--below",
-  );
-  focusSettingsPopover.id = "meristema-focus-settings-popover";
-  focusSettingsPopover.hidden = true;
-  focusSettingsPopover.setAttribute("role", "dialog");
-  focusSettingsPopover.setAttribute("aria-label", "Explore settings");
-  const focusSettingsSection = element(
-    document,
-    "div",
-    "cm-appearance-section",
-  );
-  for (const [label, control] of [
-    ["Direction", focusDirection],
-    ["Scope", focusLocality],
-    ["Ranking", focusRanking],
-    ["Limit", focusLimit],
-  ] as const) {
-    const row = element(document, "label", "cm-appearance-row");
-    row.append(text(document, "span", label), control);
-    focusSettingsSection.appendChild(row);
-  }
-  focusSettingsPopover.appendChild(focusSettingsSection);
-  focusSettingsMenu.append(focusSettingsButton, focusSettingsPopover);
+// The four Explore settings, in a popover that reads as the appearance
+// panel's sibling but opens downward from the toolbar.
+const focusSettingsMenu = element(
+  document,
+  "div",
+  "cm-menu-wrapper cm-focus-only",
+);
+const focusSettingsButton = element(document, "button", "cm-toolbar-button");
+focusSettingsButton.type = "button";
+focusSettingsButton.append(iconButtonContent(document, "settings", "Settings"));
+focusSettingsButton.title =
+  "Direction, scope, ranking and limit for the current Explore view.";
+focusSettingsButton.setAttribute("aria-haspopup", "dialog");
+focusSettingsButton.setAttribute("aria-expanded", "false");
+focusSettingsButton.setAttribute(
+  "aria-controls",
+  "meristema-focus-settings-popover",
+);
+const focusSettingsPopover = element(
+  document,
+  "div",
+  "cm-appearance-panel cm-appearance-panel--below",
+);
+focusSettingsPopover.id = "meristema-focus-settings-popover";
+focusSettingsPopover.hidden = true;
+focusSettingsPopover.setAttribute("role", "dialog");
+focusSettingsPopover.setAttribute("aria-label", "Explore settings");
+const focusSettingsSection = element(document, "div", "cm-appearance-section");
+for (const [label, control] of [
+  ["Direction", focusDirection],
+  ["Scope", focusLocality],
+  ["Ranking", focusRanking],
+  ["Limit", focusLimit],
+] as const) {
+  const row = element(document, "label", "cm-appearance-row");
+  row.append(text(document, "span", label), control);
+  focusSettingsSection.appendChild(row);
+}
+focusSettingsPopover.appendChild(focusSettingsSection);
+focusSettingsMenu.append(focusSettingsButton, focusSettingsPopover);
 ```
 
 - [ ] **Step 3: Put both wrappers into the toolbar and drop the band**
@@ -300,22 +294,22 @@ Replace the block that begins `const focusBar = element(document, "section", "cm
 Change the toolbar assembly (currently ~lines 586–593):
 
 ```ts
-  toolbar.append(
-    graphFilter.root,
-    focusSeedMenu,
-    focusSettingsMenu,
-    addNodeWrap,
-    similarButton,
-    exportWrap,
-    refreshButton,
-  );
-  plotToolbar.append(historyControls, toolbar, searchWrap);
+toolbar.append(
+  graphFilter.root,
+  focusSeedMenu,
+  focusSettingsMenu,
+  addNodeWrap,
+  similarButton,
+  exportWrap,
+  refreshButton,
+);
+plotToolbar.append(historyControls, toolbar, searchWrap);
 ```
 
 Then change `plotPane.append(plotToolbar, focusBar, graphArea);` (~line 981) to:
 
 ```ts
-  plotPane.append(plotToolbar, graphArea);
+plotPane.append(plotToolbar, graphArea);
 ```
 
 Note: the toolbar is assembled before the seed block in the current file order. Move the whole block from Step 2 to sit before `toolbar.append(...)`, directly after `searchWrap.appendChild(search);`, so the wrappers exist when appended. `setViewKind` (defined just after the toolbar assembly) does not reference them, so it can stay where it is.
@@ -325,11 +319,11 @@ Note: the toolbar is assembled before the seed block in the current file order. 
 Directly after `closeFocusSeedPopover` (~line 1468), add its sibling:
 
 ```ts
-  const closeFocusSettingsPopover = (restoreFocus = false): void => {
-    focusSettingsPopover.hidden = true;
-    focusSettingsButton.setAttribute("aria-expanded", "false");
-    if (restoreFocus) focusSettingsButton.focus();
-  };
+const closeFocusSettingsPopover = (restoreFocus = false): void => {
+  focusSettingsPopover.hidden = true;
+  focusSettingsButton.setAttribute("aria-expanded", "false");
+  if (restoreFocus) focusSettingsButton.focus();
+};
 ```
 
 Then replace the start of `updateFocusBar` (~line 1548):
@@ -351,73 +345,73 @@ The rest of the function (label text, title, `renderFocusSeedResults`, the four 
 Replace the seed popover handlers (from `focusSeedButton.addEventListener("click", ...)` through the two `document.addEventListener` calls, ~lines 1569–1596) with:
 
 ```ts
-  // Anchors a popover to its button's right edge when the start-anchored
-  // box would run past the window. Measured on every open; the class is
-  // cleared first so a widened window gets the default back.
-  const alignPopover = (wrapper: HTMLElement, popover: HTMLElement): void => {
-    popover.classList.remove("cm-popover-end");
-    const win = document.defaultView;
-    if (!win) return;
-    const overflows = popoverOverflowsEnd(
-      wrapper.getBoundingClientRect().left,
-      popover.getBoundingClientRect().width,
-      win.innerWidth,
-    );
-    if (overflows) popover.classList.add("cm-popover-end");
-  };
+// Anchors a popover to its button's right edge when the start-anchored
+// box would run past the window. Measured on every open; the class is
+// cleared first so a widened window gets the default back.
+const alignPopover = (wrapper: HTMLElement, popover: HTMLElement): void => {
+  popover.classList.remove("cm-popover-end");
+  const win = document.defaultView;
+  if (!win) return;
+  const overflows = popoverOverflowsEnd(
+    wrapper.getBoundingClientRect().left,
+    popover.getBoundingClientRect().width,
+    win.innerWidth,
+  );
+  if (overflows) popover.classList.add("cm-popover-end");
+};
 
-  focusSeedButton.addEventListener("click", () => {
-    const opening = focusSeedPopover.hidden;
-    if (opening) closeFocusSettingsPopover();
-    focusSeedPopover.hidden = !opening;
-    focusSeedButton.setAttribute("aria-expanded", String(opening));
-    if (!opening) return;
-    renderFocusSeedResults();
-    alignPopover(focusSeedMenu, focusSeedPopover);
-    document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
-  });
-  focusSeedSearch.addEventListener("input", renderFocusSeedResults);
-  focusSettingsButton.addEventListener("click", () => {
-    const opening = focusSettingsPopover.hidden;
-    if (opening) closeFocusSeedPopover();
-    focusSettingsPopover.hidden = !opening;
-    focusSettingsButton.setAttribute("aria-expanded", String(opening));
-    if (opening) alignPopover(focusSettingsMenu, focusSettingsPopover);
-  });
-  // Capture phase and no preventDefault: the pointerdown that closes a
-  // popover still reaches whatever it was aimed at.
-  const closeFocusSeedPopoverOnOutsidePointer = (event: Event): void => {
-    if (focusSeedPopover.hidden) return;
-    const target = event.target as Node | null;
-    if (target && focusSeedMenu.contains(target)) return;
-    closeFocusSeedPopover();
-  };
-  const closeFocusSeedPopoverOnEscape = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || focusSeedPopover.hidden) return;
-    closeFocusSeedPopover(true);
-  };
-  const closeFocusSettingsOnOutsidePointer = (event: Event): void => {
-    if (focusSettingsPopover.hidden) return;
-    const target = event.target as Node | null;
-    if (target && focusSettingsMenu.contains(target)) return;
-    closeFocusSettingsPopover();
-  };
-  const closeFocusSettingsOnEscape = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || focusSettingsPopover.hidden) return;
-    closeFocusSettingsPopover(true);
-  };
-  document.addEventListener(
-    "pointerdown",
-    closeFocusSeedPopoverOnOutsidePointer,
-    true,
-  );
-  document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
-  document.addEventListener(
-    "pointerdown",
-    closeFocusSettingsOnOutsidePointer,
-    true,
-  );
-  document.addEventListener("keydown", closeFocusSettingsOnEscape, true);
+focusSeedButton.addEventListener("click", () => {
+  const opening = focusSeedPopover.hidden;
+  if (opening) closeFocusSettingsPopover();
+  focusSeedPopover.hidden = !opening;
+  focusSeedButton.setAttribute("aria-expanded", String(opening));
+  if (!opening) return;
+  renderFocusSeedResults();
+  alignPopover(focusSeedMenu, focusSeedPopover);
+  document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
+});
+focusSeedSearch.addEventListener("input", renderFocusSeedResults);
+focusSettingsButton.addEventListener("click", () => {
+  const opening = focusSettingsPopover.hidden;
+  if (opening) closeFocusSeedPopover();
+  focusSettingsPopover.hidden = !opening;
+  focusSettingsButton.setAttribute("aria-expanded", String(opening));
+  if (opening) alignPopover(focusSettingsMenu, focusSettingsPopover);
+});
+// Capture phase and no preventDefault: the pointerdown that closes a
+// popover still reaches whatever it was aimed at.
+const closeFocusSeedPopoverOnOutsidePointer = (event: Event): void => {
+  if (focusSeedPopover.hidden) return;
+  const target = event.target as Node | null;
+  if (target && focusSeedMenu.contains(target)) return;
+  closeFocusSeedPopover();
+};
+const closeFocusSeedPopoverOnEscape = (event: KeyboardEvent): void => {
+  if (event.key !== "Escape" || focusSeedPopover.hidden) return;
+  closeFocusSeedPopover(true);
+};
+const closeFocusSettingsOnOutsidePointer = (event: Event): void => {
+  if (focusSettingsPopover.hidden) return;
+  const target = event.target as Node | null;
+  if (target && focusSettingsMenu.contains(target)) return;
+  closeFocusSettingsPopover();
+};
+const closeFocusSettingsOnEscape = (event: KeyboardEvent): void => {
+  if (event.key !== "Escape" || focusSettingsPopover.hidden) return;
+  closeFocusSettingsPopover(true);
+};
+document.addEventListener(
+  "pointerdown",
+  closeFocusSeedPopoverOnOutsidePointer,
+  true,
+);
+document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
+document.addEventListener(
+  "pointerdown",
+  closeFocusSettingsOnOutsidePointer,
+  true,
+);
+document.addEventListener("keydown", closeFocusSettingsOnEscape, true);
 ```
 
 `closeFocusSeedPopover` (~line 1468) is unchanged; `closeFocusSettingsPopover` was added beside it in Step 4.
@@ -427,12 +421,12 @@ Replace the seed popover handlers (from `focusSeedButton.addEventListener("click
 In the cleanup function (~line 3737), after the `closeFocusSeedPopoverOnEscape` removal, add:
 
 ```ts
-    document.removeEventListener(
-      "pointerdown",
-      closeFocusSettingsOnOutsidePointer,
-      true,
-    );
-    document.removeEventListener("keydown", closeFocusSettingsOnEscape, true);
+document.removeEventListener(
+  "pointerdown",
+  closeFocusSettingsOnOutsidePointer,
+  true,
+);
+document.removeEventListener("keydown", closeFocusSettingsOnEscape, true);
 ```
 
 - [ ] **Step 7: Update the stylesheet**
@@ -490,6 +484,7 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ### Task 3: Spec status and manual walk-through notes
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-09-05-explore-toolbar-controls-design.md` (the `**Status:**` line)
 
 - [ ] **Step 1: Mark the spec implemented**
