@@ -84,6 +84,7 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
+import { popoverOverflowsEnd } from "./popoverPlacement";
 import {
   appendRelatedWorkRows,
   button,
@@ -583,52 +584,22 @@ export function renderGraphView(
   // right — the order and the alignment of `#zotero-items-toolbar`, which ends
   // with a flexible spacer and the quick search. The search is the only
   // elastic item, so it takes the slack and everything else keeps its size.
-  toolbar.append(
-    graphFilter.root,
-    addNodeWrap,
-    similarButton,
-    exportWrap,
-    refreshButton,
-  );
-  plotToolbar.append(historyControls, toolbar, searchWrap);
-
-  const setViewKind = (kind: "map" | "focus", notify = true): void => {
-    const changed = currentViewKind !== kind;
-    currentViewKind = kind;
-    root.dataset.viewKind = kind;
-    viewTitle.textContent = kind === "focus" ? "Explore" : "Collection Graph";
-    refreshButton.title =
-      kind === "focus"
-        ? "Refresh references and citing papers for the current Explore seeds."
-        : "Refresh metadata and citation counts for the currently visible papers.";
-    if (kind === "map") {
-      refreshButton.removeAttribute("aria-busy");
-      refreshButton.disabled = false;
-    }
-    if (changed && notify) options.onViewKindChange?.(kind);
-  };
-
-  const focusBar = element(document, "section", "cm-focus-bar");
-  focusBar.hidden = true;
   const focusSeedMenu = element(
     document,
     "div",
-    "cm-focus-seed-menu cm-menu-wrapper",
+    "cm-focus-seed-menu cm-menu-wrapper cm-focus-only",
   );
-  const focusSeedButton = element(document, "button", "cm-focus-seed-button");
+  const focusSeedButton = element(document, "button", "cm-toolbar-button");
   focusSeedButton.type = "button";
   focusSeedButton.setAttribute("aria-haspopup", "dialog");
   focusSeedButton.setAttribute("aria-expanded", "false");
-  const focusSeedButtonLabel = text(document, "span", "0 seeds");
-  const focusSeedButtonChevron = text(
-    document,
+  focusSeedButton.setAttribute("aria-controls", "meristema-focus-seed-popover");
+  focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
+  const focusSeedButtonLabel = focusSeedButton.querySelector(
     "span",
-    "▾",
-    "cm-focus-seed-chevron",
-  );
-  focusSeedButtonChevron.setAttribute("aria-hidden", "true");
-  focusSeedButton.append(focusSeedButtonLabel, focusSeedButtonChevron);
+  ) as HTMLSpanElement;
   const focusSeedPopover = element(document, "div", "cm-focus-seed-popover");
+  focusSeedPopover.id = "meristema-focus-seed-popover";
   focusSeedPopover.hidden = true;
   focusSeedPopover.setAttribute("role", "dialog");
   focusSeedPopover.setAttribute("aria-label", "Explore seeds");
@@ -647,6 +618,7 @@ export function renderGraphView(
   focusSeedResults.setAttribute("role", "list");
   focusSeedPopover.append(focusSeedSearchWrap, focusSeedResults);
   focusSeedMenu.append(focusSeedButton, focusSeedPopover);
+
   const focusDirection = element(document, "select", "cm-select");
   for (const [value, label] of [
     ["both", "References + cited by"],
@@ -688,13 +660,80 @@ export function renderGraphView(
     if (value === 25) option.selected = true;
     focusLimit.appendChild(option);
   }
-  focusBar.append(
-    focusSeedMenu,
-    focusDirection,
-    focusLocality,
-    focusRanking,
-    focusLimit,
+
+  // The four Explore settings, in a popover that reads as the appearance
+  // panel's sibling but opens downward from the toolbar.
+  const focusSettingsMenu = element(
+    document,
+    "div",
+    "cm-menu-wrapper cm-focus-only",
   );
+  const focusSettingsButton = element(document, "button", "cm-toolbar-button");
+  focusSettingsButton.type = "button";
+  focusSettingsButton.append(
+    iconButtonContent(document, "settings", "Settings"),
+  );
+  focusSettingsButton.title =
+    "Direction, scope, ranking and limit for the current Explore view.";
+  focusSettingsButton.setAttribute("aria-haspopup", "dialog");
+  focusSettingsButton.setAttribute("aria-expanded", "false");
+  focusSettingsButton.setAttribute(
+    "aria-controls",
+    "meristema-focus-settings-popover",
+  );
+  const focusSettingsPopover = element(
+    document,
+    "div",
+    "cm-appearance-panel cm-appearance-panel--below",
+  );
+  focusSettingsPopover.id = "meristema-focus-settings-popover";
+  focusSettingsPopover.hidden = true;
+  focusSettingsPopover.setAttribute("role", "dialog");
+  focusSettingsPopover.setAttribute("aria-label", "Explore settings");
+  const focusSettingsSection = element(
+    document,
+    "div",
+    "cm-appearance-section",
+  );
+  for (const [label, control] of [
+    ["Direction", focusDirection],
+    ["Scope", focusLocality],
+    ["Ranking", focusRanking],
+    ["Limit", focusLimit],
+  ] as const) {
+    const row = element(document, "label", "cm-appearance-row");
+    row.append(text(document, "span", label), control);
+    focusSettingsSection.appendChild(row);
+  }
+  focusSettingsPopover.appendChild(focusSettingsSection);
+  focusSettingsMenu.append(focusSettingsButton, focusSettingsPopover);
+
+  toolbar.append(
+    graphFilter.root,
+    focusSeedMenu,
+    focusSettingsMenu,
+    addNodeWrap,
+    similarButton,
+    exportWrap,
+    refreshButton,
+  );
+  plotToolbar.append(historyControls, toolbar, searchWrap);
+
+  const setViewKind = (kind: "map" | "focus", notify = true): void => {
+    const changed = currentViewKind !== kind;
+    currentViewKind = kind;
+    root.dataset.viewKind = kind;
+    viewTitle.textContent = kind === "focus" ? "Explore" : "Collection Graph";
+    refreshButton.title =
+      kind === "focus"
+        ? "Refresh references and citing papers for the current Explore seeds."
+        : "Refresh metadata and citation counts for the currently visible papers.";
+    if (kind === "map") {
+      refreshButton.removeAttribute("aria-busy");
+      refreshButton.disabled = false;
+    }
+    if (changed && notify) options.onViewKindChange?.(kind);
+  };
 
   const main = element(document, "main", "cm-main");
   /*
@@ -978,7 +1017,7 @@ export function renderGraphView(
   // The counts name what the Key is a key to, so they sit above it, in the
   // rail's own toolbar rather than in a band across the window.
   keyRail.toolbar.prepend(identity);
-  plotPane.append(plotToolbar, focusBar, graphArea);
+  plotPane.append(plotToolbar, graphArea);
   main.append(keyRail.root, plotPane, detailShell);
   root.appendChild(main);
   mount.appendChild(root);
@@ -1473,6 +1512,12 @@ export function renderGraphView(
     if (restoreFocus) focusSeedButton.focus();
   };
 
+  const closeFocusSettingsPopover = (restoreFocus = false): void => {
+    focusSettingsPopover.hidden = true;
+    focusSettingsButton.setAttribute("aria-expanded", "false");
+    if (restoreFocus) focusSettingsButton.focus();
+  };
+
   const renderFocusSeedResults = (): void => {
     clear(focusSeedResults);
     if (!focusProjection) return;
@@ -1546,9 +1591,9 @@ export function renderGraphView(
   };
 
   const updateFocusBar = (): void => {
-    focusBar.hidden = !focusProjection;
     if (!focusProjection) {
       closeFocusSeedPopover();
+      closeFocusSettingsPopover();
       updateNavigationButtons();
       return;
     }
@@ -1566,15 +1611,41 @@ export function renderGraphView(
     updateNavigationButtons();
   };
 
+  // Anchors a popover to its button's right edge when the start-anchored
+  // box would run past the window. Measured on every open; the class is
+  // cleared first so a widened window gets the default back.
+  const alignPopover = (wrapper: HTMLElement, popover: HTMLElement): void => {
+    popover.classList.remove("cm-popover-end");
+    const win = document.defaultView;
+    if (!win) return;
+    const overflows = popoverOverflowsEnd(
+      wrapper.getBoundingClientRect().left,
+      popover.getBoundingClientRect().width,
+      win.innerWidth,
+    );
+    if (overflows) popover.classList.add("cm-popover-end");
+  };
+
   focusSeedButton.addEventListener("click", () => {
     const opening = focusSeedPopover.hidden;
+    if (opening) closeFocusSettingsPopover();
     focusSeedPopover.hidden = !opening;
     focusSeedButton.setAttribute("aria-expanded", String(opening));
     if (!opening) return;
     renderFocusSeedResults();
+    alignPopover(focusSeedMenu, focusSeedPopover);
     document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
   });
   focusSeedSearch.addEventListener("input", renderFocusSeedResults);
+  focusSettingsButton.addEventListener("click", () => {
+    const opening = focusSettingsPopover.hidden;
+    if (opening) closeFocusSeedPopover();
+    focusSettingsPopover.hidden = !opening;
+    focusSettingsButton.setAttribute("aria-expanded", String(opening));
+    if (opening) alignPopover(focusSettingsMenu, focusSettingsPopover);
+  });
+  // Capture phase and no preventDefault: the pointerdown that closes a
+  // popover still reaches whatever it was aimed at.
   const closeFocusSeedPopoverOnOutsidePointer = (event: Event): void => {
     if (focusSeedPopover.hidden) return;
     const target = event.target as Node | null;
@@ -1585,12 +1656,28 @@ export function renderGraphView(
     if (event.key !== "Escape" || focusSeedPopover.hidden) return;
     closeFocusSeedPopover(true);
   };
+  const closeFocusSettingsOnOutsidePointer = (event: Event): void => {
+    if (focusSettingsPopover.hidden) return;
+    const target = event.target as Node | null;
+    if (target && focusSettingsMenu.contains(target)) return;
+    closeFocusSettingsPopover();
+  };
+  const closeFocusSettingsOnEscape = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || focusSettingsPopover.hidden) return;
+    closeFocusSettingsPopover(true);
+  };
   document.addEventListener(
     "pointerdown",
     closeFocusSeedPopoverOnOutsidePointer,
     true,
   );
   document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
+  document.addEventListener(
+    "pointerdown",
+    closeFocusSettingsOnOutsidePointer,
+    true,
+  );
+  document.addEventListener("keydown", closeFocusSettingsOnEscape, true);
 
   const applyFocusProjection = (
     projection: GraphFocusProjection,
@@ -3744,6 +3831,12 @@ export function renderGraphView(
       closeFocusSeedPopoverOnEscape,
       true,
     );
+    document.removeEventListener(
+      "pointerdown",
+      closeFocusSettingsOnOutsidePointer,
+      true,
+    );
+    document.removeEventListener("keydown", closeFocusSettingsOnEscape, true);
     graphArea.removeEventListener("pointerdown", onGraphAreaPointerDown, true);
     detachRailResizer();
     detachDetailResizer();
