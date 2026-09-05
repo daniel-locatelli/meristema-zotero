@@ -103,5 +103,11 @@ describe("popoverShouldAnchorEnd", function () {
     expect(
       popoverShouldAnchorEnd({ ...base, popoverWidth: Number.NaN }),
     ).to.equal(false);
+    expect(
+      popoverShouldAnchorEnd({ ...base, containerLeft: Number.NaN }),
+    ).to.equal(false);
+    expect(
+      popoverShouldAnchorEnd({ ...base, containerRight: Number.NaN }),
+    ).to.equal(false);
   });
 });

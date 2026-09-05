@@ -1620,7 +1620,9 @@ export function renderGraphView(
   // the same reason — CSS can say `100vw`, which is the window, but nothing in
   // the sheet can say "no wider than the pane" from inside a wrapper whose
   // containing block is the toolbar. Measured on every open; the class and the
-  // bound are cleared first so a widened pane gets the defaults back.
+  // bound are cleared first so a widened pane gets the defaults back. Resizing
+  // the pane while a popover is open leaves them stale until the next open,
+  // which is acceptable for a menu dismissed by almost any interaction.
   const alignPopover = (wrapper: HTMLElement, popover: HTMLElement): void => {
     popover.classList.remove("cm-popover-end");
     popover.style.maxWidth = "";

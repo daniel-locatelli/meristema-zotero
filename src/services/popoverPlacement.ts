@@ -1,4 +1,4 @@
-/** The measurements an end-anchor decision needs, in document coordinates. */
+/** The measurements an end-anchor decision needs, in one shared coordinate space (viewport, from `getBoundingClientRect`). */
 export interface PopoverPlacementMeasurements {
   /** The anchoring wrapper's left edge. */
   buttonLeft: number;

@@ -40,7 +40,7 @@ attribute. Nothing else in the toolbar moves between view kinds.
   The panel itself is `.cm-appearance-panel` with a new placement modifier,
   `.cm-appearance-panel--below`, that flips it to open downward from the
   toolbar (`top: calc(100% + 6px)`, `bottom: auto`) and drops the width to
-  `min(320px, calc(100vw - 38px))`.
+  `320px`, with the pane-relative upper bound applied inline on open.
 - The select elements, their option lists, their values and their `change`
   listeners are untouched, so the projection state round-trip (read on
   rebuild, written on restore) keeps working.
