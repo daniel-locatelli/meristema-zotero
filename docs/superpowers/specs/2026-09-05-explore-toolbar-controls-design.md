@@ -1,7 +1,7 @@
 # Explore Controls in the Plot Toolbar
 
 **Date:** 2026-09-05
-**Status:** Approved
+**Status:** Implemented
 
 ## Problem
 
