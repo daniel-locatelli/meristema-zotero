@@ -31,8 +31,8 @@ attribute. Nothing else in the toolbar moves between view kinds.
 
 ### Explore settings
 
-- A new `cm-toolbar-button` with the `settings` icon and the label
-  "Settings", also in a `cm-menu-wrapper`, with `aria-haspopup="dialog"`,
+- A new `cm-toolbar-button` with the `sliders` icon and the label "Explore",
+  also in a `cm-menu-wrapper`, with `aria-haspopup="dialog"`,
   `aria-expanded`, and `aria-controls` naming the popover's `id`.
 - Its popover holds the four existing `<select>` elements as labelled rows:
   Direction, Scope, Ranking, Limit. The rows use `.cm-appearance-section` and
@@ -116,7 +116,7 @@ The two wrappers carry `cm-focus-only`.
 
 The toolbar has no unit coverage; the gate is `npm run check` and the visual
 harness in `npm test`, plus a manual look at both view kinds: the Collection
-Graph toolbar unchanged, the Explore toolbar with Seeds and Settings after
+Graph toolbar unchanged, the Explore toolbar with Seeds and Explore after
 the filter, no band, both popovers opening below their buttons and closing
 on outside click and Escape, and, with the window narrowed until the toolbar
 is tight, both popovers staying inside the plot pane.

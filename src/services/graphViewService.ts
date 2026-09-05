@@ -674,9 +674,7 @@ export function renderGraphView(
   );
   const focusSettingsButton = element(document, "button", "cm-toolbar-button");
   focusSettingsButton.type = "button";
-  focusSettingsButton.append(
-    iconButtonContent(document, "settings", "Settings"),
-  );
+  focusSettingsButton.append(iconButtonContent(document, "sliders", "Explore"));
   focusSettingsButton.title =
     "Direction, scope, ranking and limit for the current Explore view.";
   focusSettingsButton.setAttribute("aria-haspopup", "dialog");
