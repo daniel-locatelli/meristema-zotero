@@ -761,23 +761,36 @@
   --cm-panedivider: var(--color-panedivider, #404040);
 }
 
-.cm-focus-seed-menu {
-  flex: 0 0 auto;
-}
 .meristema-root[data-view-kind="map"] .cm-focus-only {
   display: none;
 }
+/*
+ * The seeds label swings between "1 seed" and "12 seeds" as the projection
+ * changes; without a floor the button resizes under the pointer. The width and
+ * the nowrap are what the old `.cm-focus-seed-button` carried in the band.
+ */
+.cm-focus-seed-menu .cm-toolbar-button {
+  min-width: 86px;
+  white-space: nowrap;
+}
+/*
+ * The popovers get their upper bound from `alignPopover`, which sets an inline
+ * `max-width` from the plot pane's width. A `100vw` bound here would measure
+ * the window, and the pane — which is what clips them — is narrower than the
+ * window by the key rail and the detail shell.
+ */
 .cm-appearance-panel--below {
   top: calc(100% + 6px);
   bottom: auto;
-  width: min(320px, calc(100vw - 38px));
+  width: 320px;
 }
 .cm-appearance-panel--below.cm-popover-end,
 .cm-focus-seed-popover.cm-popover-end {
   right: 0;
   left: auto;
 }
-.cm-appearance-panel--below .cm-appearance-row .cm-select {
+/* Both panels' rows, so an Explore select matches an appearance one. */
+.cm-appearance-row .cm-select {
   min-height: 28px;
 }
 .cm-focus-seed-popover {
@@ -787,7 +800,7 @@
   left: 0;
   display: grid;
   gap: 7px;
-  width: min(430px, calc(100vw - 32px));
+  width: 430px;
   padding: 8px;
   border: 1px solid var(--cm-border);
   border-radius: 8px;

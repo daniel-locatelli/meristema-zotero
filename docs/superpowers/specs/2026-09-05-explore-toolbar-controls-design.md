@@ -54,12 +54,24 @@ pointerdown listener only closes: it never calls `preventDefault` or
 `stopPropagation`, so a click that lands on another toolbar button both
 closes the open popover and activates that button.
 
-Either popover can overflow the window's right edge when the toolbar is
-narrow, because both anchor to their button's left edge. On open, if the
-button's left plus the popover's width exceeds the window's inner width, the
+Either popover can overflow the plot pane's right edge when the toolbar is
+narrow, because both anchor to their button's left edge. The pane is what
+clips them — `.cm-plot-pane` is `overflow: hidden`, and it is narrower than
+the window by the key rail and the detail shell — so the measurement is
+against the pane's rect, not the window's inner width. On open, if the
+button's left plus the popover's width exceeds the pane's right edge, the
 popover gets the `cm-popover-end` class, which anchors it to the button's
-right edge instead (`right: 0; left: auto`). The class is removed on the next
-open before the measurement runs again.
+right edge instead (`right: 0; left: auto`). The end-anchored box is only
+used when it fits: `right: 0` on a wrapper as narrow as its button would push
+a wide popover past the pane's left edge, so the class is withheld unless the
+button's right minus the popover's width still clears that edge, and start
+alignment keeps the popover's head visible instead. Both the class and the
+width bound are cleared on the next open before the measurement runs again.
+
+The same open sets the popover's `max-width` inline from the pane's width
+(pane width less 16px). CSS cannot express that bound: `100vw` is the window,
+and a percentage inside a `cm-menu-wrapper` resolves against the toolbar. The
+sheet therefore carries only the fixed preferred width.
 
 ### Stylesheet
 
@@ -70,17 +82,29 @@ from `graph.css`. Add:
 .meristema-root[data-view-kind="map"] .cm-focus-only {
   display: none;
 }
+.cm-focus-seed-menu .cm-toolbar-button {
+  min-width: 86px;
+  white-space: nowrap;
+}
 .cm-appearance-panel--below {
   top: calc(100% + 6px);
   bottom: auto;
-  width: min(320px, calc(100vw - 38px));
+  width: 320px;
 }
 .cm-appearance-panel--below.cm-popover-end,
 .cm-focus-seed-popover.cm-popover-end {
   right: 0;
   left: auto;
 }
+.cm-appearance-row .cm-select {
+  min-height: 28px;
+}
 ```
+
+The seeds button keeps the `min-width` and the `nowrap` the band's button
+carried, so the toolbar does not resize as `N seeds` changes. The `.cm-select`
+rule is scoped to the row, not to the Explore panel, so a select in the
+appearance panel's identical rows is the same height as one in this panel.
 
 The base `.cm-appearance-panel` rule sets only `bottom` and `left` for
 placement, with no transform, and the modifier follows it in the same sheet at
@@ -95,4 +119,4 @@ harness in `npm test`, plus a manual look at both view kinds: the Collection
 Graph toolbar unchanged, the Explore toolbar with Seeds and Settings after
 the filter, no band, both popovers opening below their buttons and closing
 on outside click and Escape, and, with the window narrowed until the toolbar
-is tight, both popovers staying inside the window.
+is tight, both popovers staying inside the plot pane.

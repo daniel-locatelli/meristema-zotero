@@ -84,7 +84,7 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
-import { popoverOverflowsEnd } from "./popoverPlacement";
+import { popoverShouldAnchorEnd } from "./popoverPlacement";
 import {
   appendRelatedWorkRows,
   button,
@@ -595,6 +595,9 @@ export function renderGraphView(
   focusSeedButton.setAttribute("aria-expanded", "false");
   focusSeedButton.setAttribute("aria-controls", "meristema-focus-seed-popover");
   focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
+  // A tooltip before any projection exists; updateFocusBar replaces it with
+  // the seed count once there is one.
+  focusSeedButton.title = "Papers this Explore view was built from.";
   const focusSeedButtonLabel = focusSeedButton.querySelector(
     "span",
   ) as HTMLSpanElement;
@@ -1610,19 +1613,30 @@ export function renderGraphView(
     updateNavigationButtons();
   };
 
-  // Anchors a popover to its button's right edge when the start-anchored
-  // box would run past the window. Measured on every open; the class is
-  // cleared first so a widened window gets the default back.
+  // Anchors a popover to its button's right edge when the start-anchored box
+  // would run past the plot pane. The pane, not the window, is what clips:
+  // `.cm-plot-pane` is `overflow: hidden`, so a popover is cut at the pane's
+  // edge long before it reaches the window's. The width bound is set here for
+  // the same reason — CSS can say `100vw`, which is the window, but nothing in
+  // the sheet can say "no wider than the pane" from inside a wrapper whose
+  // containing block is the toolbar. Measured on every open; the class and the
+  // bound are cleared first so a widened pane gets the defaults back.
   const alignPopover = (wrapper: HTMLElement, popover: HTMLElement): void => {
     popover.classList.remove("cm-popover-end");
-    const win = document.defaultView;
-    if (!win) return;
-    const overflows = popoverOverflowsEnd(
-      wrapper.getBoundingClientRect().left,
-      popover.getBoundingClientRect().width,
-      win.innerWidth,
-    );
-    if (overflows) popover.classList.add("cm-popover-end");
+    popover.style.maxWidth = "";
+    const pane = plotPane.getBoundingClientRect();
+    if (pane.width > 0) {
+      popover.style.maxWidth = `${Math.max(0, pane.width - 16)}px`;
+    }
+    const button = wrapper.getBoundingClientRect();
+    const anchorEnd = popoverShouldAnchorEnd({
+      buttonLeft: button.left,
+      buttonRight: button.right,
+      popoverWidth: popover.getBoundingClientRect().width,
+      containerLeft: pane.left,
+      containerRight: pane.right,
+    });
+    if (anchorEnd) popover.classList.add("cm-popover-end");
   };
 
   focusSeedButton.addEventListener("click", () => {
