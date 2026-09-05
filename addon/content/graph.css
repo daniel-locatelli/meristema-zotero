@@ -288,15 +288,21 @@
 .cm-add-node-wrap {
   position: relative;
 }
+/*
+ * Start-anchored like the Explore popovers, and flipped to the button's right
+ * edge by `alignPopover` only when that keeps it inside the plot pane; the
+ * pane's `overflow: hidden` clips it, so anchoring right unconditionally ran
+ * it under the key rail whenever the button sat near the pane's left edge.
+ */
 .cm-add-node-popup {
   position: absolute;
   top: calc(100% + 7px);
-  right: 0;
+  left: 0;
   z-index: 40;
   display: grid;
   grid-template-rows: auto auto minmax(100px, 1fr) auto auto auto;
   gap: 7px;
-  width: min(560px, calc(100vw - 36px));
+  width: 560px;
   max-height: min(660px, calc(100vh - 125px));
   padding: 11px;
   border: 1px solid var(--cm-border);
@@ -785,7 +791,8 @@
   width: 320px;
 }
 .cm-appearance-panel--below.cm-popover-end,
-.cm-focus-seed-popover.cm-popover-end {
+.cm-focus-seed-popover.cm-popover-end,
+.cm-add-node-popup.cm-popover-end {
   right: 0;
   left: auto;
 }

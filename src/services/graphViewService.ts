@@ -1224,6 +1224,7 @@ export function renderGraphView(
     addNodePopup.hidden = !opening;
     addNodeButton.setAttribute("aria-expanded", String(opening));
     if (!opening) return;
+    alignPopover(addNodeWrap, addNodePopup);
     renderSelectedLibraryPapers();
     void renderLibrarySearchResults();
     document.defaultView?.setTimeout(() => addNodeSearch.focus(), 0);
