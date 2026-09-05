@@ -739,8 +739,7 @@ export function renderGraphView(
   /*
    * The plot and the things that act on it, in one column — Zotero's
    * `#zotero-items-pane-container`, which holds the items toolbar above the
-   * items tree. The focus bar belongs inside it for the same reason: it
-   * describes the graph, not the rail beside it.
+   * items tree.
    */
   const plotPane = element(document, "div", "cm-plot-pane");
   const graphArea = element(document, "section", "cm-graph-area");

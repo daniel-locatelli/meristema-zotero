@@ -81,6 +81,10 @@ const ICON_PATHS: Record<IconName, string[]> = {
     "M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z",
     "M10.5 10.5h3v3h-3v-3Z",
   ],
+  // A page with a folded corner; even-odd fill leaves it hollow like the magnifier.
+  document: [
+    "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11Z",
+  ],
   /*
    * Generated, not hand-written, and rendered before it was pasted here: eight
    * teeth on a 10.4 radius, a 3.4 bore, every vertex from the same polar
@@ -91,9 +95,6 @@ const ICON_PATHS: Record<IconName, string[]> = {
    * other, so the bore is a second subpath of this one and the set is filled
    * even-odd (below).
    */
-  document: [
-    "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11Z",
-  ],
   settings: [
     "M22.2 9.9L22.2 14.1L19.7 14.3L19.1 15.8L20.7 17.7L17.7 20.7L15.8 19.1L14.3 19.7L14.1 22.2L9.9 22.2L9.7 19.7L8.2 19.1L6.3 20.7L3.3 17.7L4.9 15.8L4.3 14.3L1.8 14.1L1.8 9.9L4.3 9.7L4.9 8.2L3.3 6.3L6.3 3.3L8.2 4.9L9.7 4.3L9.9 1.8L14.1 1.8L14.3 4.3L15.8 4.9L17.7 3.3L20.7 6.3L19.1 8.2L19.7 9.7ZM15.4 12.0L15.2 13.1L14.8 14.0L14.0 14.8L13.1 15.2L12.0 15.4L10.9 15.2L10.0 14.8L9.2 14.0L8.8 13.1L8.6 12.0L8.8 10.9L9.2 10.0L10.0 9.2L10.9 8.8L12.0 8.6L13.1 8.8L14.0 9.2L14.8 10.0L15.2 10.9Z",
   ],
