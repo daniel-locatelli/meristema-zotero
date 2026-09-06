@@ -364,9 +364,6 @@ export function renderGraphView(
 
   const root = element(document, "div", "meristema-root");
   root.dataset.mode = options.mode;
-  // Flipped by setSeeded. The Seeds and Explore buttons show only while the
-  // view is drawn from seeds; the CSS keys on this attribute.
-  root.dataset.seeded = "false";
 
   // The chrome reads the same tokens the canvas draws with. The scheme is
   // re-resolved on every change rather than read from a held media query,
@@ -544,8 +541,8 @@ export function renderGraphView(
   search.setAttribute("aria-label", "Search all fields in the current view");
   searchWrap.appendChild(search);
 
-  // History, then the things that act on the graph, then the search at the far
-  // right — the order and the alignment of `#zotero-items-toolbar`, which ends
+  // The things that act on the graph, then the search at the far right — the
+  // order and the alignment of `#zotero-items-toolbar`, which ends
   // with a flexible spacer and the quick search. The search is the only
   // elastic item, so it takes the slack and everything else keeps its size.
   const focusSeedMenu = element(
@@ -1551,7 +1548,7 @@ export function renderGraphView(
     focusSeedButtonLabel.textContent = `${focusProjection.seeds.length} seed${
       focusProjection.seeds.length === 1 ? "" : "s"
     }`;
-    focusSeedButton.title = `Show ${focusProjection.seeds.length} Focus seed${
+    focusSeedButton.title = `Show ${focusProjection.seeds.length} seed${
       focusProjection.seeds.length === 1 ? "" : "s"
     }`;
     if (!focusSeedPopover.hidden) renderFocusSeedResults();

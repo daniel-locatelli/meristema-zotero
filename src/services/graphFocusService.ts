@@ -176,7 +176,7 @@ export function externalWorkToFocusNode(
 
 /**
  * Enrich an existing external Focus seed in place without changing its graph
- * key. Focus history and selection use `key`, while relationship persistence
+ * key. Focus projection and selection use `key`, while relationship persistence
  * may safely promote a provisional candidate `itemKey` to a stable external
  * identity once one becomes available.
  */
