@@ -419,16 +419,12 @@ describe("Graph view, as the product builds it", function () {
     ).to.equal("rgba(0, 0, 0, 0)");
 
     /*
-     * The navigation glyphs are drawn, not typed. A text arrow sits on its
-     * font's baseline and rides the maths axis, so it reads high in a centred
-     * button however the button is aligned; an svg centred on its own viewBox
-     * cannot. This asserts the geometry, which is what was actually wrong.
+     * The toggle glyph is drawn, not typed. A text chevron sits on its font's
+     * baseline, so it reads high in a centred button however the button is
+     * aligned; an svg centred on its own viewBox cannot. This asserts the
+     * geometry, which is what was actually wrong.
      */
-    for (const selector of [
-      ".cm-history-controls button:first-child",
-      ".cm-history-controls button:last-child",
-      ".cm-key-toggle",
-    ]) {
+    for (const selector of [".cm-key-toggle"]) {
       const button = active.root.querySelector(selector) as HTMLElement;
       const glyph = button.querySelector("svg") as SVGElement;
       expect(glyph, `${selector} draws its glyph`).to.not.equal(null);

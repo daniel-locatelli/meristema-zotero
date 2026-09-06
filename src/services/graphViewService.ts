@@ -319,14 +319,7 @@ export function renderGraphView(
   let focusRefreshCount = 0;
   let focusLoadActive = false;
   let focusRebuildFrame = 0;
-  const focusBack: GraphFocusState[] = [];
-  const focusForward: GraphFocusState[] = [];
-  const mapSelectionBack: Array<string | null> = [];
-  const mapSelectionForward: Array<string | null> = [];
-  let focusReturnState: GraphFocusState | null = null;
-  let focusReturnForward: GraphFocusState[] = [];
   let librarySelectedKeyBeforeFocus: string | null = null;
-  let suppressSelectionHistory = false;
   let activeRelationshipView: {
     itemKey: string;
     direction: "references" | "cited-by";
@@ -400,22 +393,6 @@ export function renderGraphView(
   const plotToolbar = element(document, "div", "cm-plot-toolbar");
   const identity = element(document, "div", "cm-command-identity");
   const titleRow = element(document, "div", "cm-title-row");
-  const historyControls = element(document, "div", "cm-history-controls");
-  const historyBackButton = element(document, "button", "cm-secondary-button");
-  historyBackButton.type = "button";
-  historyBackButton.append(icon(document, "arrow-left"));
-  historyBackButton.title = "Go back";
-  historyBackButton.setAttribute("aria-label", "Go back");
-  const historyForwardButton = element(
-    document,
-    "button",
-    "cm-secondary-button",
-  );
-  historyForwardButton.type = "button";
-  historyForwardButton.append(icon(document, "arrow-right"));
-  historyForwardButton.title = "Go forward";
-  historyForwardButton.setAttribute("aria-label", "Go forward");
-  historyControls.append(historyBackButton, historyForwardButton);
   // The heading names the view for anyone navigating by headings, and the tab
   // or window title already says it on screen, so it is taken out of the
   // layout rather than out of the document.
@@ -701,7 +678,7 @@ export function renderGraphView(
     exportWrap,
     refreshButton,
   );
-  plotToolbar.append(historyControls, toolbar, searchWrap);
+  plotToolbar.append(toolbar, searchWrap);
 
   // The Seeds and Explore buttons stay in the toolbar on every path so the
   // view keeps one shape; without seeds there is nothing for them to show,
@@ -1318,11 +1295,6 @@ export function renderGraphView(
     summary.textContent = hidden ? `${base} - ${hidden} more available` : base;
   };
 
-  const cloneFocusState = (state: GraphFocusState): GraphFocusState => ({
-    ...state,
-    seedKeys: [...state.seedKeys],
-  });
-
   const focusStateFromControls = (seedKeys: string[]): GraphFocusState => ({
     seedKeys: [...new Set(seedKeys)],
     direction: focusDirection.value as GraphFocusDirection,
@@ -1482,15 +1454,6 @@ export function renderGraphView(
 
   let removeFocusSeed = (_key: string): void => undefined;
 
-  const updateNavigationButtons = (): void => {
-    historyBackButton.disabled = focusProjection
-      ? false
-      : mapSelectionBack.length === 0;
-    historyForwardButton.disabled = focusProjection
-      ? focusForward.length === 0
-      : mapSelectionForward.length === 0 && focusReturnState === null;
-  };
-
   const closeFocusSeedPopover = (restoreFocus = false): void => {
     focusSeedPopover.hidden = true;
     focusSeedButton.setAttribute("aria-expanded", "false");
@@ -1583,7 +1546,6 @@ export function renderGraphView(
       closeFocusSettingsPopover();
       focusSeedButtonLabel.textContent = "0 seeds";
       focusSeedButton.title = "Papers this graph was built from.";
-      updateNavigationButtons();
       return;
     }
     focusSeedButtonLabel.textContent = `${focusProjection.seeds.length} seed${
@@ -1597,7 +1559,6 @@ export function renderGraphView(
     focusLocality.value = focusProjection.state.locality;
     focusRanking.value = focusProjection.state.ranking;
     focusLimit.value = String(focusProjection.state.maxPerDirection);
-    updateNavigationButtons();
   };
 
   // Anchors a popover to its button's right edge when the start-anchored box
@@ -2038,10 +1999,7 @@ export function renderGraphView(
 
   const enterFocusSeeds = (
     seedCandidates: readonly CitationGraphNode[],
-    options: {
-      pushHistory?: boolean;
-      state?: GraphFocusState;
-    } = {},
+    options: { state?: GraphFocusState } = {},
   ): boolean => {
     const seeds = [
       ...new Map(
@@ -2056,11 +2014,6 @@ export function renderGraphView(
     if (!enteringFromLibrary) resetFocusRefreshTracking();
     if (enteringFromLibrary) {
       librarySelectedKeyBeforeFocus = selectedNode?.key ?? null;
-      if (options.pushHistory !== false) {
-        focusReturnState = null;
-        focusReturnForward = [];
-        mapSelectionForward.splice(0);
-      }
       libraryLayoutBeforeFocus = { ...currentLayout };
       libraryViewBeforeFocus = renderer?.getViewTransform() ?? null;
       libraryCollectionFilterBeforeFocus = graphFilter.state().collectionIDs;
@@ -2070,11 +2023,6 @@ export function renderGraphView(
       if (libraryCollectionFilterBeforeFocus.length) {
         graphFilter.setCollectionIDs([]);
       }
-    }
-    if (focusProjection && options.pushHistory !== false) {
-      focusBack.push(cloneFocusState(focusProjection.state));
-      focusForward.splice(0);
-      updateNavigationButtons();
     }
     const state = options.state ?? {
       seedKeys: seeds.map((seed) => seed.key),
@@ -2120,10 +2068,7 @@ export function renderGraphView(
 
   const enterFocus = (
     seedCandidate: CitationGraphNode,
-    options: {
-      pushHistory?: boolean;
-      state?: GraphFocusState;
-    } = {},
+    options: { state?: GraphFocusState } = {},
   ): boolean => enterFocusSeeds([seedCandidate], options);
 
   const addFocusSeeds = (candidates: readonly CitationGraphNode[]): boolean => {
@@ -2143,9 +2088,6 @@ export function renderGraphView(
     );
     if (!missingSeeds.length) return true;
 
-    focusBack.push(cloneFocusState(focusProjection.state));
-    focusForward.splice(0);
-    updateNavigationButtons();
     for (const seed of missingSeeds) ensureFocusRelationships(seed);
     const state = focusStateFromControls(
       appendUniqueScopeKeys(
@@ -2179,9 +2121,6 @@ export function renderGraphView(
       exitFocus();
       return;
     }
-    focusBack.push(cloneFocusState(focusProjection.state));
-    focusForward.splice(0);
-    updateNavigationButtons();
     activateFocusState(focusStateFromControls(remaining), { fit: true });
   };
 
@@ -2192,9 +2131,6 @@ export function renderGraphView(
       : undefined;
     return enterFocus(seed, { state });
   };
-
-  const restoreFocusState = (state: GraphFocusState): boolean =>
-    activateFocusState(cloneFocusState(state), { fit: true });
 
   const replaceLibraryGraph = (
     next: ReturnType<typeof buildCitationGraph>,
@@ -2215,16 +2151,12 @@ export function renderGraphView(
     applyFilters();
   };
 
-  const exitFocus = (options: { preserveFocusReturn?: boolean } = {}): void => {
+  const exitFocus = (): void => {
     resetFocusRefreshTracking();
     focusProjection = null;
     setSeeded(false);
-    if (!options.preserveFocusReturn) focusReturnState = null;
-    if (!options.preserveFocusReturn) focusReturnForward = [];
     focusRelationships.clear();
     focusSeedRegistry.clear();
-    focusBack.splice(0);
-    focusForward.splice(0);
     model.nodes.splice(0, model.nodes.length, ...libraryModel.nodes);
     model.edges.splice(0, model.edges.length, ...libraryModel.edges);
     Object.assign(model.statistics, libraryModel.statistics);
@@ -2250,11 +2182,8 @@ export function renderGraphView(
       const node = restoreSelectedKey
         ? model.nodes.find((candidate) => candidate.key === restoreSelectedKey)
         : null;
-      suppressSelectionHistory = true;
       if (node) renderer?.selectNode(node.key, false);
       else renderer?.clearSelection();
-      suppressSelectionHistory = false;
-      updateNavigationButtons();
     };
     if (restoreView) {
       scheduleCameraAction(() => {
@@ -3041,19 +2970,7 @@ export function renderGraphView(
   }
 
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
-    if (!suppressSelectionHistory && !focusProjection) {
-      const previousKey = selectedNode?.key ?? null;
-      const nextKey = node?.key ?? null;
-      if (previousKey !== nextKey) {
-        mapSelectionBack.push(previousKey);
-        if (mapSelectionBack.length > 100) mapSelectionBack.shift();
-        mapSelectionForward.splice(0);
-        focusReturnState = null;
-        focusReturnForward = [];
-      }
-    }
     renderOverview(node);
-    updateNavigationButtons();
   };
 
   renderer = new CitationGraphRenderer({
@@ -3102,7 +3019,6 @@ export function renderGraphView(
     );
   };
   renderOverview(null);
-  updateNavigationButtons();
   refreshSourceMetricsForLayout(currentLayout);
 
   const onGraphAreaPointerDown = (event: PointerEvent): void => {
@@ -3187,63 +3103,6 @@ export function renderGraphView(
       scheduleFocusRebuild();
     });
   }
-  const restoreMapSelection = (key: string | null): void => {
-    const node = key
-      ? (model.nodes.find((candidate) => candidate.key === key) ?? null)
-      : null;
-    suppressSelectionHistory = true;
-    if (node) renderer?.selectNode(node.key, false);
-    else renderer?.clearSelection();
-    suppressSelectionHistory = false;
-    updateNavigationButtons();
-  };
-  historyBackButton.addEventListener("click", () => {
-    if (focusProjection) {
-      const previous = focusBack.pop();
-      if (previous) {
-        focusForward.push(cloneFocusState(focusProjection.state));
-        restoreFocusState(previous);
-        updateFocusBar();
-        return;
-      }
-      focusReturnState = cloneFocusState(focusProjection.state);
-      focusReturnForward = focusForward.map(cloneFocusState);
-      exitFocus({ preserveFocusReturn: true });
-      return;
-    }
-    const previous = mapSelectionBack.pop();
-    if (previous === undefined) return;
-    mapSelectionForward.push(selectedNode?.key ?? null);
-    restoreMapSelection(previous);
-  });
-  historyForwardButton.addEventListener("click", () => {
-    if (focusProjection) {
-      const next = focusForward.pop();
-      if (!next) return;
-      focusBack.push(cloneFocusState(focusProjection.state));
-      restoreFocusState(next);
-      updateFocusBar();
-      return;
-    }
-    const nextSelection = mapSelectionForward.pop();
-    if (nextSelection !== undefined) {
-      mapSelectionBack.push(selectedNode?.key ?? null);
-      restoreMapSelection(nextSelection);
-      return;
-    }
-    const returnState = focusReturnState;
-    if (!returnState) return;
-    const returnForward = focusReturnForward.map(cloneFocusState);
-    focusReturnState = null;
-    focusReturnForward = [];
-    const seeds = seedsForState(returnState);
-    enterFocusSeeds(seeds, {
-      pushHistory: false,
-      state: returnState,
-    });
-    focusForward.splice(0, focusForward.length, ...returnForward);
-    updateFocusBar();
-  });
   similarButton.addEventListener("click", () => {
     if (similarButton.disabled) return;
     const visibleNodes = model.nodes.filter((node) =>

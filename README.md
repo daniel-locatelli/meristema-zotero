@@ -44,7 +44,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   ![graph](docs/assets/FreeGraph.png)
 
 - **Explore outward from one or more papers**
-  Add "seed" papers to a graph and it shows their references, citing papers, or both. Add or remove seeds, include papers outside Zotero, rank and limit neighbours, and move backward or forward through previous seed states. Remove the last seed and the graph returns to your library.
+  Add "seed" papers to a graph and it shows their references, citing papers, or both. Add or remove seeds, include papers outside Zotero, and rank and limit neighbours. Remove the last seed and the graph returns to your library.
   ![Explore](docs/assets/FocusView.png)
 
 - **Inspect citation data inside Zotero**
@@ -58,7 +58,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   Explore external references, citing works, and similar papers alongside your Zotero items. Preview their metadata, open the DOI, mark incorrect matches, or add the paper directly to Zotero.
 
 - **Work with multiple independent views**
-  Open several Graph tabs at once. Rename views and use `Show in ›` or `Explore in ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, camera, and navigation history.
+  Open several Graph tabs at once. Rename views and use `Show in ›` or `Explore in ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera.
 
 - **Control providers and updates**
   Choose which scholarly-data providers to use, which Zotero libraries shouldupdate automatically, and when cached data become stale. Refresh data manually when needed; long updates show progress and can be cancelled.

@@ -184,26 +184,6 @@
   align-items: center;
   gap: 8px;
 }
-.cm-history-controls {
-  display: inline-flex;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-/*
- * `.meristema-root` on the front is load-bearing, not decoration. The shared
- * button rule below is `.meristema-root button`, which outranks a bare class,
- * so a square icon button written as one class quietly kept `padding: 4px 9px`
- * — a 16px glyph inside a 6px content box, pushed against one edge. Anything
- * here that overrides that rule has to match its specificity.
- */
-.meristema-root .cm-history-controls button {
-  min-width: 26px;
-  width: 26px;
-  height: 26px;
-  min-height: 26px;
-  padding: 0;
-  justify-content: center;
-}
 .cm-title-row h1,
 .cm-appearance-panel h2 {
   margin: 0;
