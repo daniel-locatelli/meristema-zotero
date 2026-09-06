@@ -1,5 +1,6 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
+import { paneSelectedLibraryID } from "./paneLibrary";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { multiCollectionGraphTitle } from "./graphInstancePolicy";
 import { contextCollectionIDs, contextRegularItems } from "./menuContext";
@@ -85,7 +86,7 @@ function paneForContext(context?: any): any {
 
 function activeLibraryID(context?: any): number {
   const pane = paneForContext(context);
-  const direct = positiveInteger(pane?.getSelectedLibraryID?.());
+  const direct = paneSelectedLibraryID(pane);
   if (direct) return direct;
 
   const row = pane?.getCollectionTreeRow?.() as any;

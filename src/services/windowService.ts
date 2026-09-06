@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import type { LibrarySnapshot } from "../domain/types";
 import { positiveInteger } from "../domain/valueNormalization";
+import { paneSelectedLibraryID } from "./paneLibrary";
 import {
   destroyGraphView,
   getGraphViewController,
@@ -155,7 +156,7 @@ function selectedLibraryID(win: _ZoteroTypes.MainWindow): number {
     (pane, index, values) => pane && values.indexOf(pane) === index,
   );
   for (const pane of panes as any[]) {
-    const direct = positiveInteger(pane.getSelectedLibraryID?.());
+    const direct = paneSelectedLibraryID(pane);
     if (direct) return direct;
     const selectedItems = pane.getSelectedItems?.() ?? [];
     const fromItem = positiveInteger(selectedItems[0]?.libraryID);
