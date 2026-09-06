@@ -1005,16 +1005,6 @@ export async function openNewGraphWindow(
   await openGraphWindow(hostWindow, libraryID, { newInstance: true });
 }
 
-export async function openNewFocusWindow(
-  hostWindow?: _ZoteroTypes.MainWindow,
-  libraryID?: number | null,
-): Promise<void> {
-  await openGraphWindow(hostWindow, libraryID, {
-    newInstance: true,
-    initialKind: "focus",
-  });
-}
-
 export interface OpenGraphViewInfo {
   instanceID: string;
   title: string;

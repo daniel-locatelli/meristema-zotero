@@ -300,13 +300,13 @@ function openActionsFor(
   const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
   return [
     {
-      label: "Collection Graph",
-      title: "Open this paper in a new Collection Graph tab.",
+      label: "Graph",
+      title: "Show this paper in a new graph.",
       action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
     },
     {
       label: "Explore",
-      title: "Open this paper as the seed of a new Explore view.",
+      title: "Open a new graph with this paper as its seed.",
       action: () => openFocusItemsInNewTab([itemID], hostWindow),
     },
   ];

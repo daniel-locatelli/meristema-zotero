@@ -2,7 +2,7 @@ tools-submenu =
     .label = Meristema
 
 open-command =
-    .label = Open Collection Graph (Current Library)
+    .label = Open Graph (Current Library)
 
 update-library-command =
     .label = Update Fields (Current Library)
@@ -40,26 +40,17 @@ provider-opencitations-command =
 provider-inspire-command =
     .label = { $marker }INSPIRE-HEP
 
-show-items-command =
-    .label = Open in Collection Graph
-
-open-focus-view-command =
-    .label = Open in Explore
-
 refresh-command =
     .label = Refresh
 
 show-items-new-tab-command =
-    .label = Open in New Collection Graph
+    .label = Show in New Graph
 
 open-focus-view-new-tab-command =
-    .label = Open in New Explore View
+    .label = Explore in New Graph
 
 new-graph-view-command =
-    .label = New Collection Graph
-
-new-focus-view-command =
-    .label = New Explore View
+    .label = New Graph
 
 open-existing-view-command =
     .label = { $name }

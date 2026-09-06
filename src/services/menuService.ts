@@ -12,7 +12,6 @@ import {
   openFocusItemsInNewTab,
   openFocusItemsInView,
   openGraphForCollections,
-  openNewFocusWindow,
   openNewGraphWindow,
   renameGraphView,
 } from "./windowService";
@@ -21,17 +20,16 @@ const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
 const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 
-// Menu labels do not convey the difference between the two views: a Citation
-// Map only draws connections between papers already in the library, while a
-// Focus View fetches references and citing works from the providers. Tooltips
-// cannot be used for this — Gecko does not render them over an open menupopup —
-// so the hint goes in acceltext, the only secondary text a menuitem will draw.
+// Menu labels do not convey what the two intents cost: showing papers only
+// draws connections already in the library, while exploring fetches
+// references and citing works from the providers. Tooltips cannot be used for
+// this — Gecko does not render them over an open menupopup — so the hint goes
+// in acceltext, the only secondary text a menuitem will draw.
 const MENU_HINTS: Record<string, string> = {
   "show-items-new-tab-command": "library only",
   "collection-new-graph-command": "library only",
   "new-graph-view-command": "library only",
   "open-focus-view-new-tab-command": "fetches online",
-  "new-focus-view-command": "fetches online",
 };
 
 function menuHint(l10nID: string): string | undefined {
@@ -153,21 +151,26 @@ async function openInNewFocusView(
   await openFocusItemsInNewTab(command.itemIDs, hostWindow);
 }
 
-async function openInExistingView(
+async function showInExistingView(
   view: OpenGraphViewInfo,
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
   if (!command.itemIDs.length) return;
-  if (view.kind === "focus") {
-    await openFocusItemsInView(view.instanceID, command.itemIDs, hostWindow);
-    return;
-  }
   await openGraphAndSelectItemsInView(
     view.instanceID,
     command.itemIDs,
     hostWindow,
   );
+}
+
+async function exploreInExistingView(
+  view: OpenGraphViewInfo,
+  command: MenuCommandContext,
+  hostWindow: MainWindow,
+): Promise<void> {
+  if (!command.itemIDs.length) return;
+  await openFocusItemsInView(view.instanceID, command.itemIDs, hostWindow);
 }
 
 function commandItem(
@@ -207,6 +210,7 @@ function itemCommand(context: any): MenuCommandContext {
 // popuphidden so the next opening rebuilds them.
 function injectViewItems(
   context: any,
+  group: string,
   views: readonly OpenGraphViewInfo[],
   hint: string | ((view: OpenGraphViewInfo) => string),
   run: (view: OpenGraphViewInfo) => void,
@@ -217,9 +221,10 @@ function injectViewItems(
   const popup = anchor?.parentElement as HTMLElement | null | undefined;
   if (!anchor || !popup) return;
 
+  // Two anchors share the item menu, so each clears only its own entries.
   const clear = (): void => {
     popup
-      .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}]`)
+      .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}="${group}"]`)
       .forEach((node) => node.remove());
   };
   clear();
@@ -229,7 +234,7 @@ function injectViewItems(
   let previous: HTMLElement = anchor;
   for (const view of views) {
     const item = document.createXULElement("menuitem");
-    item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "true");
+    item.setAttribute(OPEN_IN_DYNAMIC_ATTR, group);
     item.setAttribute("class", "menuitem-iconic");
     item.setAttribute("image", ICON);
     const text = label(view);
@@ -283,6 +288,23 @@ function itemMenus(): MenuData[] {
       async (context) => {
         await openInNewMap(itemCommand(context), contextWindow(context));
       },
+      (context) => {
+        const hostWindow = contextWindow(context);
+        injectViewItems(
+          context,
+          "show",
+          getOpenGraphViews(hostWindow),
+          "adds to graph",
+          (view) => {
+            void showInExistingView(
+              view,
+              itemCommand(context),
+              hostWindow,
+            ).catch(report);
+          },
+          (view) => `Show in ${view.title}`,
+        );
+      },
     ),
     contextCommandItem(
       `${config.addonRef}-open-focus-view-new-tab-command`,
@@ -294,15 +316,17 @@ function itemMenus(): MenuData[] {
         const hostWindow = contextWindow(context);
         injectViewItems(
           context,
+          "explore",
           getOpenGraphViews(hostWindow),
-          (view) => (view.kind === "focus" ? "add as seeds" : "add to graph"),
+          "adds as seeds",
           (view) => {
-            void openInExistingView(
+            void exploreInExistingView(
               view,
               itemCommand(context),
               hostWindow,
             ).catch(report);
           },
+          (view) => `Explore in ${view.title}`,
         );
       },
     ),
@@ -325,8 +349,8 @@ function itemMenus(): MenuData[] {
 // cannot honestly say "add": the filter holds one collection, so a second
 // folder would displace the first rather than join it.
 //
-// Explore views are left out. A focus view is seeded by item IDs and has no
-// collection to re-scope, so there is nothing coherent to offer.
+// A seeded graph is offered too: showing a folder in it drops the seeds and
+// draws the folder, which is what "Show in" promises.
 function collectionMenus(): MenuData[] {
   // The label names the folders rather than the feature: right-clicking PhD
   // offers "New PhD Graph", and three folders offer "New Graph from 3
@@ -371,7 +395,8 @@ function collectionMenus(): MenuData[] {
         const folders = target.collectionIDs.length;
         injectViewItems(
           context,
-          getOpenGraphViews(hostWindow).filter((view) => view.kind === "map"),
+          "show",
+          getOpenGraphViews(hostWindow),
           "replaces contents",
           (view) => {
             void openGraphForCollections(target.collectionIDs, hostWindow, {
@@ -396,9 +421,6 @@ function toolsSubmenu(): MenuData {
     menus: [
       commandItem(`${config.addonRef}-new-graph-view-command`, (context) =>
         openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
-      ),
-      commandItem(`${config.addonRef}-new-focus-view-command`, (context) =>
-        openNewFocusWindow(contextWindow(context), activeLibraryID(context)),
       ),
       commandItem(
         `${config.addonRef}-refresh-library-command`,
