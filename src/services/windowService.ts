@@ -15,6 +15,7 @@ import {
   GRAPH_VIEW_BASE_TITLE,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
+  isLegacyDefaultTitle,
   multiCollectionGraphTitle,
   nextGraphViewTitle,
   selectReusableGraphInstance,
@@ -489,7 +490,13 @@ function instanceForTab(
     win,
     positiveInteger(tab?.data?.libraryID),
   );
-  const restoredTitle = String(tab?.data?.graphTitle ?? "").trim();
+  const restoredTitleRaw = String(tab?.data?.graphTitle ?? "").trim();
+  // "Collection Graph" and "Explore" (and their numbered siblings) were the
+  // default names of the previous version's two tab kinds; treat them as
+  // absent so restored tabs fall through to a freshly generated title.
+  const restoredTitle = isLegacyDefaultTitle(restoredTitleRaw)
+    ? ""
+    : restoredTitleRaw;
   if (restoredTitle) {
     created.title = restoredTitle;
     created.customTitle = true;
@@ -497,6 +504,8 @@ function instanceForTab(
   created.tabID = tab.id;
   tab.data ??= {};
   tab.data.graphInstanceID = created.instanceID;
+  // Stop the stale kind key from propagating into future session stores.
+  if (tab.data) delete tab.data.graphKind;
   return created;
 }
 

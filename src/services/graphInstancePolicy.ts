@@ -58,6 +58,15 @@ export function multiCollectionGraphTitle(
 }
 
 /**
+ * True for a default tab title from the previous version's two tab kinds
+ * ("Collection Graph", "Explore", and their numbered siblings). A title a
+ * user typed themselves never matches this shape.
+ */
+export function isLegacyDefaultTitle(title: string): boolean {
+  return /^(Collection Graph|Explore)( \d+)?$/.test(title.trim());
+}
+
+/**
  * Return a stable, human-readable default title without reusing an existing
  * title. The first view keeps the unnumbered base name; later views use 2, 3,
  * and so on.

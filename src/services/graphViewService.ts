@@ -2904,7 +2904,7 @@ export function renderGraphView(
         addSeed.type = "button";
         addSeed.textContent = "Add as seed";
         addSeed.title =
-          "Add this paper to Explore without adding it to Zotero.";
+          "Add this paper as a seed of this graph without adding it to Zotero.";
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(node)) renderOverview(node);
         });

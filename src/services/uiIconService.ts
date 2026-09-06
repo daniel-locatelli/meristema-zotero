@@ -82,7 +82,7 @@ const ICON_PATHS: Record<IconName, string[]> = {
     "M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z",
     "M10.5 10.5h3v3h-3v-3Z",
   ],
-  // Three slider tracks with their knobs: the Explore view's own controls,
+  // Three slider tracks with their knobs: the Explore controls,
   // distinct from the gear that opens the rail's display settings.
   sliders: [
     "M3 17v2h6v-2H3Zm0-12v2h10V5H3Zm10 16v-2h8v-2h-8v-2h-2v6h2ZM7 9v2H3v2h4v2h2V9H7Zm14 4v-2H11v2h10Zm-6-4h2V7h4V5h-4V3h-2v6Z",

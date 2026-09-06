@@ -100,6 +100,7 @@ import {
 } from "../../src/services/citationUpdateEvents";
 import {
   collectionGraphTitle,
+  isLegacyDefaultTitle,
   multiCollectionGraphTitle,
   nextGraphViewTitle,
   graphInstanceShouldRender,
@@ -350,6 +351,14 @@ describe("Architecture foundations", function () {
     expect(nextGraphViewTitle([])).to.equal("Graph");
     expect(nextGraphViewTitle(["Graph"])).to.equal("Graph 2");
     expect(nextGraphViewTitle(["Graph", "Graph 2"])).to.equal("Graph 3");
+  });
+
+  it("recognizes the previous version's default tab titles as legacy", function () {
+    expect(isLegacyDefaultTitle("Collection Graph")).to.equal(true);
+    expect(isLegacyDefaultTitle("Explore 2")).to.equal(true);
+    expect(isLegacyDefaultTitle("Graph")).to.equal(false);
+    expect(isLegacyDefaultTitle("PhD Graph")).to.equal(false);
+    expect(isLegacyDefaultTitle("Explorer")).to.equal(false);
   });
 
   it("names a multi-folder graph after the first folder and a count", function () {

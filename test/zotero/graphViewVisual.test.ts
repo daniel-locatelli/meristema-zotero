@@ -263,7 +263,7 @@ describe("Graph view, as the product builds it", function () {
     // The heading left the layout but not the document.
     const heading = active.root.querySelector("h1") as HTMLElement;
     expect(heading, "the view still has a heading").to.not.equal(null);
-    expect(heading.textContent).to.contain("Collection Graph");
+    expect(heading.textContent).to.equal("Graph");
     expect(
       view.getComputedStyle(heading).getPropertyValue("position"),
       "taken out of the flow rather than out of the tree",
