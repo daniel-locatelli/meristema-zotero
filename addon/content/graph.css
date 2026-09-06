@@ -767,7 +767,7 @@
   --cm-panedivider: var(--color-panedivider, #404040);
 }
 
-.meristema-root[data-view-kind="map"] .cm-focus-only {
+.meristema-root[data-seeded="false"] .cm-focus-only {
   display: none;
 }
 /*

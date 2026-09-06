@@ -334,8 +334,6 @@ function renderDetachedWindow(
   const host = liveHostWindow(hostWindow);
   renderGraphView(popup.document, mount, snapshot, {
     mode: "window",
-    initialViewKind: instance.kind,
-    onViewKindChange: (kind) => setInstanceKind(host, instance, kind),
     onSelectPaper: (itemID) => {
       void selectPaper(host, itemID).catch((error) =>
         reportAsyncError("Meristema: paper selection failed", error),
@@ -719,8 +717,6 @@ function renderTab(
     const request = consumePendingRequest(instance);
     renderGraphView(win.document, container, snapshot, {
       mode: "tab",
-      initialViewKind: instance.kind,
-      onViewKindChange: (kind) => setInstanceKind(win, instance, kind),
       onSelectPaper: (itemID) => {
         void selectPaper(win, itemID).catch((error) =>
           reportAsyncError("Meristema: paper selection failed", error),

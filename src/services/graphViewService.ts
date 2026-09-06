@@ -184,8 +184,6 @@ export function getGraphViewController(
 export interface GraphViewOptions {
   mode: "tab" | "window";
   onSelectPaper: (itemID: number) => void | Promise<void>;
-  onViewKindChange?: (kind: "map" | "focus") => void;
-  initialViewKind?: "map" | "focus";
   initialItemID?: number | null;
   initialItemIDs?: readonly number[] | null;
   initialItemMode?: "replace" | "add";
@@ -237,12 +235,6 @@ export function renderGraphView(
   };
   const paperByKey = localPaperByKey(snapshot);
   const collectionLabels = collectionLabelsByID(snapshot);
-  const initialViewKind =
-    options.initialViewKind ??
-    (options.initialFocusItemID || options.initialFocusItemIDs?.length
-      ? "focus"
-      : "map");
-  let currentViewKind: "map" | "focus" = initialViewKind;
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
   /** What the filter admits, before the search box. See `applyFilters`. */
   let scopeKeys = new Set(visibleKeys);
@@ -282,7 +274,7 @@ export function renderGraphView(
         actions.push({
           label: "Add as seed",
           title:
-            "Add this paper to the current Explore view without adding it to Zotero.",
+            "Add this paper as a seed of this graph without adding it to Zotero.",
           run: () => {
             addFocusSeed(focusNode);
           },
@@ -379,7 +371,9 @@ export function renderGraphView(
 
   const root = element(document, "div", "meristema-root");
   root.dataset.mode = options.mode;
-  root.dataset.viewKind = currentViewKind;
+  // Flipped by setSeeded. The Seeds and Explore buttons show only while the
+  // view is drawn from seeds; the CSS keys on this attribute.
+  root.dataset.seeded = "false";
 
   // The chrome reads the same tokens the canvas draws with. The scheme is
   // re-resolved on every change rather than read from a held media query,
@@ -425,12 +419,7 @@ export function renderGraphView(
   // The heading names the view for anyone navigating by headings, and the tab
   // or window title already says it on screen, so it is taken out of the
   // layout rather than out of the document.
-  const viewTitle = text(
-    document,
-    "h1",
-    currentViewKind === "focus" ? "Explore" : "Collection Graph",
-    "cm-visually-hidden",
-  );
+  const viewTitle = text(document, "h1", "Graph", "cm-visually-hidden");
   titleRow.append(networkLogo(document), viewTitle);
   const summary = text(
     document,
@@ -451,10 +440,7 @@ export function renderGraphView(
   const addNodePopup = element(document, "section", "cm-add-node-popup");
   addNodePopup.hidden = true;
   addNodePopup.setAttribute("role", "dialog");
-  addNodePopup.setAttribute(
-    "aria-label",
-    "Add papers to Collection Graph view",
-  );
+  addNodePopup.setAttribute("aria-label", "Add papers to this graph");
   const addNodeSearch = element(document, "input", "cm-add-node-search");
   addNodeSearch.type = "search";
   addNodeSearch.placeholder = "Search title, creator, or year";
@@ -598,7 +584,7 @@ export function renderGraphView(
   focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
   // A tooltip before any projection exists; updateFocusBar replaces it with
   // the seed count once there is one.
-  focusSeedButton.title = "Papers this Explore view was built from.";
+  focusSeedButton.title = "Papers this graph was built from.";
   const focusSeedButtonLabel = focusSeedButton.querySelector(
     "span",
   ) as HTMLSpanElement;
@@ -676,7 +662,7 @@ export function renderGraphView(
   focusSettingsButton.type = "button";
   focusSettingsButton.append(iconButtonContent(document, "sliders", "Explore"));
   focusSettingsButton.title =
-    "Direction, scope, ranking and limit for the current Explore view.";
+    "Direction, scope, ranking and limit for this graph's seeds.";
   focusSettingsButton.setAttribute("aria-haspopup", "dialog");
   focusSettingsButton.setAttribute("aria-expanded", "false");
   focusSettingsButton.setAttribute(
@@ -721,20 +707,15 @@ export function renderGraphView(
   );
   plotToolbar.append(historyControls, toolbar, searchWrap);
 
-  const setViewKind = (kind: "map" | "focus", notify = true): void => {
-    const changed = currentViewKind !== kind;
-    currentViewKind = kind;
-    root.dataset.viewKind = kind;
-    viewTitle.textContent = kind === "focus" ? "Explore" : "Collection Graph";
-    refreshButton.title =
-      kind === "focus"
-        ? "Refresh references and citing papers for the current Explore seeds."
-        : "Refresh metadata and citation counts for the currently visible papers.";
-    if (kind === "map") {
+  const setSeeded = (seeded: boolean): void => {
+    root.dataset.seeded = seeded ? "true" : "false";
+    refreshButton.title = seeded
+      ? "Refresh references and citing papers for the current Explore seeds."
+      : "Refresh metadata and citation counts for the currently visible papers.";
+    if (!seeded) {
       refreshButton.removeAttribute("aria-busy");
       refreshButton.disabled = false;
     }
-    if (changed && notify) options.onViewKindChange?.(kind);
   };
 
   const main = element(document, "main", "cm-main");
@@ -1292,9 +1273,10 @@ export function renderGraphView(
   renderSelectedLibraryPapers();
 
   const updateEmptyState = (visibleCount: number): void => {
-    // Focus View fetches its own neighbours, so an empty projection there is a
-    // transient loading state rather than a misunderstanding worth explaining.
-    if (currentViewKind !== "map" || visibleCount > 1) {
+    // A seeded view fetches its own neighbours, so an empty projection there
+    // is a transient loading state rather than a misunderstanding worth
+    // explaining.
+    if (focusProjection || visibleCount > 1) {
       emptyState.hidden = true;
       return;
     }
@@ -1303,17 +1285,17 @@ export function renderGraphView(
       ? "Only one paper in this graph"
       : "This graph is empty";
     emptyStateBody.textContent = visibleCount
-      ? "A Collection Graph shows how papers you already have cite each " +
+      ? "Without seeds, a graph shows how papers you already have cite each " +
         "other, so a single paper has nothing to connect to. Add more with " +
         "the + button in the toolbar, or select several papers in your " +
-        "Zotero library, right-click, and choose this view by name to add " +
-        "them here. To look beyond your library, switch to Explore for this " +
-        "paper’s references and citing works."
-      : "A Collection Graph shows how papers you already have cite each " +
+        "Zotero library, right-click, and choose “Show in” this graph. To " +
+        "look beyond your library, right-click a paper and choose " +
+        "“Explore in” this graph for its references and citing works."
+      : "Without seeds, a graph shows how papers you already have cite each " +
         "other. Add papers with the + button in the toolbar, or select " +
-        "several in your Zotero library and right-click → “Open in " +
-        "New Collection Graph”. To find work you do not have yet, " +
-        "switch to Explore.";
+        "several in your Zotero library and right-click → “Show in New " +
+        "Graph”. To find work you do not have yet, right-click a paper and " +
+        "choose “Explore in New Graph”.";
   };
 
   const updateSummary = (): void => {
@@ -1581,7 +1563,7 @@ export function renderGraphView(
         );
         remove.type = "button";
         remove.textContent = "×";
-        remove.title = `Remove ${seed.title} from Focus View`;
+        remove.title = `Remove ${seed.title} from the seeds`;
         remove.setAttribute("aria-label", remove.title);
         remove.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -1703,7 +1685,7 @@ export function renderGraphView(
     projection: GraphFocusProjection,
     projectionOptions: { fit?: boolean } = {},
   ): void => {
-    setViewKind("focus");
+    setSeeded(true);
     focusProjection = projection;
     model.nodes.splice(0, model.nodes.length, ...projection.nodes);
     model.edges.splice(0, model.edges.length, ...projection.edges);
@@ -2232,7 +2214,7 @@ export function renderGraphView(
   const exitFocus = (options: { preserveFocusReturn?: boolean } = {}): void => {
     resetFocusRefreshTracking();
     focusProjection = null;
-    setViewKind("map");
+    setSeeded(false);
     if (!options.preserveFocusReturn) focusReturnState = null;
     if (!options.preserveFocusReturn) focusReturnForward = [];
     focusRelationships.clear();
@@ -3044,7 +3026,7 @@ export function renderGraphView(
         addSeed.type = "button";
         addSeed.textContent = "Add as seed";
         addSeed.title =
-          "Add this paper to the current Explore view without changing Zotero.";
+          "Add this paper as a seed of this graph without changing Zotero.";
         addSeed.addEventListener("click", () => {
           if (addFocusSeed(node)) renderOverview(node);
         });
@@ -3147,7 +3129,6 @@ export function renderGraphView(
     // it further by the search box, which is a transient lens and must not
     // reshuffle the swatches under the reader as they type.
     const inScope = (node: CitationGraphNode): boolean => {
-      if (currentViewKind === "focus" && !focusProjection) return false;
       if (focusScopeKeys && !focusScopeKeys.has(node.key)) return false;
       if (
         !focusProjection &&
@@ -3678,7 +3659,7 @@ export function renderGraphView(
   };
 
   addLibraryItemsToView = (itemIDs) =>
-    currentViewKind === "focus"
+    focusProjection
       ? addFocusItems(itemIDs)
       : addMapItemsRespectingFilters(itemIDs);
 
