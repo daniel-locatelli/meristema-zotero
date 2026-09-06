@@ -1,7 +1,7 @@
 # One Graph View, Seeded or Not
 
 **Date:** 2026-09-06
-**Status:** Draft
+**Status:** Implemented
 
 ## Problem
 
@@ -160,9 +160,9 @@ Graph (Current Library)" label becomes "Open Graph (Current Library)".
 - `npm run check` is the gate. Type checking enforces the removal: every
   reference to `GraphViewKind`, `kind`, `graphKind`, `initialViewKind` and
   `onViewKindChange` must be gone or the build fails.
-- Unit tests in `test/unit` for `nextGraphViewTitle` without a kind: the
-  first view is "Graph", the second "Graph 2", a preferred base wins, and a
-  blank preferred base falls back to "Graph".
+- The `nextGraphViewTitle` tests in `test/unit/architecture.test.ts` lose
+  their kind argument: the first view is "Graph", the second "Graph 2", a
+  preferred base wins, and a blank preferred base falls back to "Graph".
 - Manual walk-through in Zotero after `npm start`:
   1. Tools › Meristema › New Graph opens the library graph, titled "Graph".
   2. Right-click a paper › Explore in New Graph opens "Graph 2" with the
@@ -194,4 +194,5 @@ Graph (Current Library)" label becomes "Open Graph (Current Library)".
   unfiltered collection-menu views, one Tools entry.
 - `addon/locale/en-US/mainWindow.ftl` — labels above.
 - `addon/content/graph.css` — `[data-seeded="false"] .cm-focus-only`.
-- `README.md`, new `test/unit/graphInstancePolicy.test.ts`.
+- `README.md`, `test/unit/architecture.test.ts` (the title tests already
+  live there).
