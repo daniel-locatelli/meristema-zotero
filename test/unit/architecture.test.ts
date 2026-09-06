@@ -346,14 +346,10 @@ describe("Architecture foundations", function () {
     ).to.equal(true);
   });
 
-  it("assigns separate default names to Collection Graph and Explore views", function () {
-    expect(nextGraphViewTitle("map", [])).to.equal("Collection Graph");
-    expect(nextGraphViewTitle("map", ["Collection Graph"])).to.equal(
-      "Collection Graph 2",
-    );
-    expect(
-      nextGraphViewTitle("focus", ["Collection Graph", "Explore"]),
-    ).to.equal("Explore 2");
+  it("names every new view Graph and numbers the rest", function () {
+    expect(nextGraphViewTitle([])).to.equal("Graph");
+    expect(nextGraphViewTitle(["Graph"])).to.equal("Graph 2");
+    expect(nextGraphViewTitle(["Graph", "Graph 2"])).to.equal("Graph 3");
   });
 
   it("names a multi-folder graph after the first folder and a count", function () {
@@ -432,14 +428,14 @@ describe("Architecture foundations", function () {
     // A graph opened from a folder is titled after it, so the tab says what it
     // shows. Deduplication still applies: opening the same folder twice must
     // not produce two tabs with one name.
-    expect(nextGraphViewTitle("map", [], "PhD Graph")).to.equal("PhD Graph");
-    expect(nextGraphViewTitle("map", ["PhD Graph"], "PhD Graph")).to.equal(
+    expect(nextGraphViewTitle([], "PhD Graph")).to.equal("PhD Graph");
+    expect(nextGraphViewTitle(["PhD Graph"], "PhD Graph")).to.equal(
       "PhD Graph 2",
     );
     // A blank or whitespace folder name falls back to the generic base rather
     // than titling a tab with nothing.
-    expect(nextGraphViewTitle("map", [], "   ")).to.equal("Collection Graph");
-    expect(nextGraphViewTitle("map", [], "")).to.equal("Collection Graph");
+    expect(nextGraphViewTitle([], "   ")).to.equal("Graph");
+    expect(nextGraphViewTitle([], "")).to.equal("Graph");
   });
 
   it("defers redraws for hidden Meristema tabs", function () {

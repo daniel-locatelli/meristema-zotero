@@ -1,7 +1,5 @@
 import { config } from "../../package.json";
 
-export type GraphViewKind = "map" | "focus";
-
 export interface ViewInstanceDescriptor {
   instanceID: string;
   tabID: string | null;
@@ -21,9 +19,8 @@ export function isGraphTabDescriptor(
   return String(tab.type ?? "").replace(/-unloaded$/, "") === config.addonRef;
 }
 
-export function graphViewBaseTitle(kind: GraphViewKind): string {
-  return kind === "focus" ? "Explore" : "Collection Graph";
-}
+/** The name a view carries when nothing more specific names it. */
+export const GRAPH_VIEW_BASE_TITLE = "Graph";
 
 /**
  * The name a folder's graph carries: "PhD" becomes "PhD Graph". A folder
@@ -71,11 +68,10 @@ export function multiCollectionGraphTitle(
  * tab with nothing.
  */
 export function nextGraphViewTitle(
-  kind: GraphViewKind,
   existingTitles: readonly string[],
   preferredBase?: string,
 ): string {
-  const base = preferredBase?.trim() || graphViewBaseTitle(kind);
+  const base = preferredBase?.trim() || GRAPH_VIEW_BASE_TITLE;
   const occupied = new Set(existingTitles.map((title) => title.trim()));
   if (!occupied.has(base)) return base;
   let suffix = 2;

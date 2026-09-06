@@ -12,7 +12,7 @@ import {
   uninstallDataSourceHoverTooltips,
 } from "./dataSourceTooltipService";
 import {
-  type GraphViewKind,
+  GRAPH_VIEW_BASE_TITLE,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
   multiCollectionGraphTitle,
@@ -31,7 +31,6 @@ const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/graphWindow.xht
 interface GraphInstanceState {
   instanceID: string;
   title: string;
-  kind: GraphViewKind;
   customTitle: boolean;
   tabID: string | null;
   libraryID: number | null;
@@ -69,7 +68,6 @@ function graphState(win: _ZoteroTypes.MainWindow): GraphWindowState {
 function createGraphInstance(
   win: _ZoteroTypes.MainWindow,
   libraryID: number | null = null,
-  kind: GraphViewKind = "map",
   titleBase?: string,
 ): GraphInstanceState {
   graphInstanceSequence += 1;
@@ -78,11 +76,9 @@ function createGraphInstance(
   const created: GraphInstanceState = {
     instanceID,
     title: nextGraphViewTitle(
-      kind,
       [...state.instances.values()].map((instance) => instance.title),
       titleBase,
     ),
-    kind,
     customTitle: false,
     tabID: null,
     libraryID,
@@ -450,7 +446,6 @@ function updateTabData(
   tab.data ??= {};
   tab.data.graphInstanceID = instance.instanceID;
   tab.data.graphTitle = instance.title;
-  tab.data.graphKind = instance.kind;
   tab.data.libraryID = snapshot.libraryID;
   tab.data.itemID = itemID ?? snapshot.papers[0]?.itemID ?? null;
 }
@@ -465,31 +460,12 @@ function syncInstanceTitle(
     if (tab) {
       tab.data ??= {};
       tab.data.graphTitle = instance.title;
-      tab.data.graphKind = instance.kind;
       void manager.rename(instance.tabID, instance.title);
     }
   }
   if (instance.detachedWindow && !instance.detachedWindow.closed) {
     instance.detachedWindow.document.title = instance.title;
   }
-}
-
-function setInstanceKind(
-  win: _ZoteroTypes.MainWindow,
-  instance: GraphInstanceState,
-  kind: GraphViewKind,
-): void {
-  if (instance.kind === kind) return;
-  instance.kind = kind;
-  if (!instance.customTitle) {
-    instance.title = nextGraphViewTitle(
-      kind,
-      [...graphState(win).instances.values()]
-        .filter((candidate) => candidate.instanceID !== instance.instanceID)
-        .map((candidate) => candidate.title),
-    );
-  }
-  syncInstanceTitle(win, instance);
 }
 
 function instanceForTab(
@@ -512,7 +488,6 @@ function instanceForTab(
   const created = createGraphInstance(
     win,
     positiveInteger(tab?.data?.libraryID),
-    tab?.data?.graphKind === "focus" ? "focus" : "map",
   );
   const restoredTitle = String(tab?.data?.graphTitle ?? "").trim();
   if (restoredTitle) {
@@ -606,7 +581,7 @@ export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
   manager.tabHooks.moveToNewWindow ??= {};
   manager.tabHooks.restoreState[TAB_TYPE] = async () => ({ itemID: null });
   manager.tabHooks.getTitle[TAB_TYPE] = async (tab: any) =>
-    String(tab?.data?.graphTitle ?? "Collection Graph");
+    String(tab?.data?.graphTitle ?? GRAPH_VIEW_BASE_TITLE);
   const focus = (tab: any): void => {
     const container = manager.getTabContent(tab.id);
     (container?.querySelector(".cm-search") as HTMLElement | null)?.focus();
@@ -818,7 +793,6 @@ function activateGraphCollection(
 interface OpenGraphOptions {
   newInstance?: boolean;
   targetInstanceID?: string | null;
-  initialKind?: GraphViewKind;
   request?: PendingGraphRequest;
   /**
    * Names a newly created view after what it shows, e.g. "PhD Graph" for a
@@ -826,13 +800,6 @@ interface OpenGraphOptions {
    * re-scoping a graph does not rename the tab out from under the user.
    */
   titleBase?: string;
-}
-
-function requestViewKind(
-  request: PendingGraphRequest | undefined,
-): GraphViewKind | null {
-  if (!request) return null;
-  return request.focusItemIDs.length ? "focus" : "map";
 }
 
 function requestedInstance(
@@ -902,16 +869,8 @@ export async function openGraphWindow(
   }
 
   let instance = requestedInstance(win, options);
-  const requestedKind = options.initialKind ?? requestViewKind(options.request);
   if (!instance) {
-    instance = createGraphInstance(
-      win,
-      targetLibraryID,
-      requestedKind ?? "map",
-      options.titleBase,
-    );
-  } else if (requestedKind) {
-    setInstanceKind(win, instance, requestedKind);
+    instance = createGraphInstance(win, targetLibraryID, options.titleBase);
   }
   const previousLibraryID = instance.libraryID;
   if (previousLibraryID !== null && previousLibraryID !== targetLibraryID) {
@@ -969,7 +928,6 @@ export async function openGraphWindow(
       graph: true,
       graphInstanceID: instance.instanceID,
       graphTitle: instance.title,
-      graphKind: instance.kind,
       icon: NETWORK_ICON_TYPE,
     },
     select: true,
@@ -1008,7 +966,6 @@ export async function openNewGraphWindow(
 export interface OpenGraphViewInfo {
   instanceID: string;
   title: string;
-  kind: GraphViewKind;
   tabID: string | null;
   active: boolean;
   detached: boolean;
@@ -1024,7 +981,6 @@ export function getOpenGraphViews(
     .map((instance) => ({
       instanceID: instance.instanceID,
       title: instance.title,
-      kind: instance.kind,
       tabID: instance.tabID,
       active:
         instance.tabID === selectedTabID ||
