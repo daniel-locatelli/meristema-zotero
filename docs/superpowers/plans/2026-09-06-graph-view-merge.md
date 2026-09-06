@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-09-06-graph-view-merge-design.md`
   Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa
   ```
 - Prettier formats the Markdown under `docs/` too. Run `npx prettier --write <file>` on any doc you edit before committing.
-- Branch: work on `graph-view-merge`, which already holds the spec. Before Task 1, merge `main` into it if `main` has moved (the `explore-toolbar-followups` branch touches the same toolbar code and should land first).
+- Branch: work on `graph-view-merge`, which already holds the spec and this plan and is rebased on `main` as of 2026-09-06.
 - The view's user-facing name is "Graph". "Explore" names the act of seeding and its controls, never a kind of tab. "Collection Graph", "Explore view" and "Focus View" must not appear in any user-visible string after Task 4. Code comments may keep "Focus" as the internal name of the projection.
 
 ---
