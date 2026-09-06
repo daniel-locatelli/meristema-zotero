@@ -103,6 +103,7 @@ import {
   isLegacyDefaultTitle,
   multiCollectionGraphTitle,
   nextGraphViewTitle,
+  paperGraphTitle,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
   selectReusableGraphInstance,
@@ -351,6 +352,21 @@ describe("Architecture foundations", function () {
     expect(nextGraphViewTitle([])).to.equal("Graph");
     expect(nextGraphViewTitle(["Graph"])).to.equal("Graph 2");
     expect(nextGraphViewTitle(["Graph", "Graph 2"])).to.equal("Graph 3");
+  });
+
+  it("names a paper graph after the paper, cut at a word when long", function () {
+    expect(paperGraphTitle("Attention Is All You Need")).to.equal(
+      "Attention Is All You Need",
+    );
+    expect(
+      paperGraphTitle(
+        "A Survey of Graph Neural Networks for Citation Recommendation in Digital Libraries",
+      ),
+    ).to.equal("A Survey of Graph Neural Networks for…");
+    // A title with no break before the limit is cut at the limit itself.
+    expect(paperGraphTitle("x".repeat(50))).to.equal(`${"x".repeat(40)}…`);
+    expect(paperGraphTitle("  ")).to.equal(null);
+    expect(paperGraphTitle(undefined)).to.equal(null);
   });
 
   it("recognizes the previous version's default tab titles as legacy", function () {

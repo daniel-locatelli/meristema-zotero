@@ -57,6 +57,30 @@ export function multiCollectionGraphTitle(
   return `${stem} +${named.length - 1} Graph`;
 }
 
+/** Longest paper title a tab carries before it is cut. */
+export const PAPER_GRAPH_TITLE_LENGTH = 40;
+
+/**
+ * The name a graph opened from papers carries: the first paper's title, cut
+ * at the last word boundary that fits and closed with an ellipsis when it is
+ * longer than a tab can show. A blank title has no graph name, and callers
+ * fall back to the generic base.
+ */
+export function paperGraphTitle(
+  title: unknown,
+  maxLength = PAPER_GRAPH_TITLE_LENGTH,
+): string | null {
+  const trimmed = String(title ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!trimmed) return null;
+  if (trimmed.length <= maxLength) return trimmed;
+  const head = trimmed.slice(0, maxLength);
+  const lastSpace = head.lastIndexOf(" ");
+  const cut = lastSpace > 0 ? head.slice(0, lastSpace) : head;
+  return `${cut.trimEnd()}…`;
+}
+
 /**
  * True for a default tab title from the previous version's two tab kinds
  * ("Collection Graph", "Explore", and their numbered siblings). A title a

@@ -19,6 +19,7 @@ import {
   isLegacyDefaultTitle,
   multiCollectionGraphTitle,
   nextGraphViewTitle,
+  paperGraphTitle,
   selectReusableGraphInstance,
 } from "./graphInstancePolicy";
 import { getAvailableCitationLibraries } from "./citationLibraryService";
@@ -1046,6 +1047,13 @@ function regularItemsByID(itemIDs: readonly number[]): Zotero.Item[] {
     );
 }
 
+/** The title Zotero shows for an item, or an empty string. */
+function itemDisplayTitle(item: any): string {
+  return String(
+    item?.getDisplayTitle?.() || item?.getField?.("title") || "",
+  ).trim();
+}
+
 export async function openGraphAndSelectItems(
   itemIDs: readonly number[],
   hostWindow?: _ZoteroTypes.MainWindow,
@@ -1070,6 +1078,7 @@ export async function openGraphAndSelectItems(
   await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
+    titleBase: paperGraphTitle(itemDisplayTitle(items[0])) ?? undefined,
     request: {
       ...emptyRequest(),
       selectionItemIDs: ids,
@@ -1127,6 +1136,7 @@ export async function openFocusItems(
   await openGraphWindow(win, libraryID, {
     newInstance: options.newInstance,
     targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
+    titleBase: paperGraphTitle(itemDisplayTitle(items[0])) ?? undefined,
     request: {
       ...emptyRequest(),
       focusItemIDs: ids,
