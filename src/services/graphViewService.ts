@@ -574,7 +574,7 @@ export function renderGraphView(
   const focusSeedMenu = element(
     document,
     "div",
-    "cm-focus-seed-menu cm-menu-wrapper cm-focus-only",
+    "cm-focus-seed-menu cm-menu-wrapper",
   );
   const focusSeedButton = element(document, "button", "cm-toolbar-button");
   focusSeedButton.type = "button";
@@ -653,11 +653,7 @@ export function renderGraphView(
 
   // The four Explore settings, in a popover that reads as the appearance
   // panel's sibling but opens downward from the toolbar.
-  const focusSettingsMenu = element(
-    document,
-    "div",
-    "cm-menu-wrapper cm-focus-only",
-  );
+  const focusSettingsMenu = element(document, "div", "cm-menu-wrapper");
   const focusSettingsButton = element(document, "button", "cm-toolbar-button");
   focusSettingsButton.type = "button";
   focusSettingsButton.append(iconButtonContent(document, "sliders", "Explore"));
@@ -707,8 +703,13 @@ export function renderGraphView(
   );
   plotToolbar.append(historyControls, toolbar, searchWrap);
 
+  // The Seeds and Explore buttons stay in the toolbar on every path so the
+  // view keeps one shape; without seeds there is nothing for them to show,
+  // so they are disabled rather than hidden.
   const setSeeded = (seeded: boolean): void => {
     root.dataset.seeded = seeded ? "true" : "false";
+    focusSeedButton.disabled = !seeded;
+    focusSettingsButton.disabled = !seeded;
     refreshButton.title = seeded
       ? "Refresh references and citing papers for the current Explore seeds."
       : "Refresh metadata and citation counts for the currently visible papers.";
@@ -717,6 +718,7 @@ export function renderGraphView(
       refreshButton.disabled = false;
     }
   };
+  setSeeded(false);
 
   const main = element(document, "main", "cm-main");
   /*
@@ -1579,6 +1581,8 @@ export function renderGraphView(
     if (!focusProjection) {
       closeFocusSeedPopover();
       closeFocusSettingsPopover();
+      focusSeedButtonLabel.textContent = "0 seeds";
+      focusSeedButton.title = "Papers this graph was built from.";
       updateNavigationButtons();
       return;
     }

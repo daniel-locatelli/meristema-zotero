@@ -767,9 +767,6 @@
   --cm-panedivider: var(--color-panedivider, #404040);
 }
 
-.meristema-root[data-seeded="false"] .cm-focus-only {
-  display: none;
-}
 /*
  * The seeds label swings between "1 seed" and "12 seeds" as the projection
  * changes; without a floor the button resizes under the pointer. The width and
