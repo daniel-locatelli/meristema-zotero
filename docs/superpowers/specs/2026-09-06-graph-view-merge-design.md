@@ -110,6 +110,16 @@ Collection context menu: the injected "Show in {title}" entries are offered
 for every open view, not only map views. Showing folders in a seeded view
 clears its seeds first, then applies the folder scope.
 
+Clearing seeds for a Show intent, whether of items or folders, is the plain
+`exitFocus` path that removing the last seed takes: the seed history is
+dropped, no return state is kept, so Forward is empty afterwards, and the
+folder filter remembered on entry is restored before the new scope replaces
+it. The reader lands on exactly the graph they asked to see, with Back
+holding the seedless graph's own selection history.
+
+No keyboard shortcuts or command keys are bound to any of the renamed or
+deleted menu commands; the locale file is the only place they are named.
+
 Tools submenu: one entry, **New Graph**, opening the library graph.
 "New Explore View" and `openNewFocusWindow` are removed; a new graph is
 seeded by exploring a paper in it.
@@ -165,7 +175,13 @@ Graph (Current Library)" label becomes "Open Graph (Current Library)".
      second seed.
   6. Right-click a folder › Show in Graph 2 while seeded: seeds clear and the
      folder graph appears.
-  7. Restart Zotero with the tabs open: every tab reopens as a graph.
+  7. Explore paper A, then Explore paper B in the same tab, then press
+     Back twice: the second press crosses into the seedless graph, the
+     Seeds and Explore buttons hide, and Forward returns to the seeded
+     state.
+  8. Restart Zotero with the tabs open, including one saved by the previous
+     version as an Explore tab: every tab reopens as a graph of its library
+     with no error in the debug output.
 
 ## Files
 
