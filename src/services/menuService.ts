@@ -342,16 +342,12 @@ function itemMenus(): MenuData[] {
 }
 
 // A folder opens as a collection-scoped graph rather than as a bag of item
-// IDs: `openGraphForCollection` drives the graph's own collection filter, so
+// IDs: `openGraphForCollections` drives the graph's own collection filter, so
 // the scope follows the folder as papers are added to it and subcollections
-// come along. That filter is a scope, not an addition — opening a folder in an
-// existing graph replaces what it was showing, which is why the injected
-// entries read "Show in <graph>" and not the item menu's "add to graph". They
-// cannot honestly say "add": the filter holds one collection, so a second
-// folder would displace the first rather than join it.
-//
-// A seeded graph is offered too: showing a folder in it drops the seeds and
-// draws the folder, which is what "Show in" promises.
+// come along. Open views are not offered: that filter is a scope, not an
+// addition, so showing a folder in an existing graph could only replace what
+// it was showing, and a graph is re-scoped from inside it with filters and
+// seeds anyway.
 function collectionMenus(): MenuData[] {
   // The label names the folders rather than the feature: right-clicking PhD
   // offers "New PhD Graph", and three folders offer "New Graph from 3
@@ -391,23 +387,6 @@ function collectionMenus(): MenuData[] {
             graph: target.title,
             count: target.collectionIDs.length,
           }),
-        );
-        const hostWindow = contextWindow(context);
-        const folders = target.collectionIDs.length;
-        injectViewItems(
-          context,
-          "show",
-          getOpenGraphViews(hostWindow),
-          "replaces contents",
-          (view) => {
-            void openGraphForCollections(target.collectionIDs, hostWindow, {
-              targetInstanceID: view.instanceID,
-            }).catch(report);
-          },
-          (view) =>
-            folders === 1
-              ? `Show in ${view.title}`
-              : `Show ${folders} folders in ${view.title}`,
         );
       },
     ),
