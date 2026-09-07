@@ -760,7 +760,9 @@ export function renderGraphView(
       if (stableFrames >= 2 || attempts >= 24) {
         if (restoredCamera) {
           renderer?.setViewTransform(restoredCamera);
-          restoredCamera = null;
+          // The seeds' automatic relationship check ends with one more fit
+          // once every seed has reported; the camera stays armed until then.
+          if (!focusPostRefreshFitSeeds.size) restoredCamera = null;
         } else {
           renderer?.fitVisibleNodes();
         }
@@ -1903,13 +1905,8 @@ export function renderGraphView(
         graphFilter.setCollectionIDs([]);
       }
     }
-    const state = options.state ?? {
-      seedKeys: seeds.map((seed) => seed.key),
-      direction: "both",
-      locality: "all",
-      ranking: "relevance",
-      maxPerDirection: Number.POSITIVE_INFINITY,
-    };
+    const state =
+      options.state ?? focusStateFromControls(seeds.map((seed) => seed.key));
     const normalizedState = {
       ...state,
       seedKeys: state.seedKeys.length
