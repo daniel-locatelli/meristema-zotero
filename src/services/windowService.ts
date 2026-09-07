@@ -387,16 +387,24 @@ function writeSavedGraph(
   const serialized = comparableState(state);
   const write = updateSavedGraph(id, state).then(
     () => {
-      instance.savedGraphSerialized = serialized;
+      // A Save as… during this write may have re-pointed the instance to a
+      // new row; the older write must not stamp the new row as if it wrote it.
+      if (instance.savedGraphID === id) {
+        instance.savedGraphSerialized = serialized;
+      }
       return true;
     },
     (error: unknown) => {
       reportAsyncError("Meristema: saved graph write failed", error);
-      const mount = instanceMount(win, instance);
-      if (mount) {
-        getGraphViewController(mount)?.setStatus(
-          mode === "autosave" ? "Autosave failed" : "Save failed",
-        );
+      // Same re-pointing guard: don't blame the new row for the old write's
+      // failure.
+      if (instance.savedGraphID === id) {
+        const mount = instanceMount(win, instance);
+        if (mount) {
+          getGraphViewController(mount)?.setStatus(
+            mode === "autosave" ? "Autosave failed" : "Save failed",
+          );
+        }
       }
       return false;
     },
@@ -465,6 +473,12 @@ function savedGraphsHost(
   instance: GraphInstanceState,
 ): GraphViewSavedGraphsHost {
   const libraryID = (): number => instance.libraryID ?? selectedLibraryID(win);
+  // Dialogs belong in front of the window the graph is actually shown in: a
+  // detached graph window when it's still open, the host window otherwise.
+  const dialogWindow = (): Window =>
+    instance.detachedWindow && !instance.detachedWindow.closed
+      ? instance.detachedWindow
+      : (win as unknown as Window);
   // The live view's state, camera included: Save writes the camera, which
   // autosave never tracks.
   const currentState = (): GraphViewState => {
@@ -477,7 +491,10 @@ function savedGraphsHost(
     );
   };
   const askName = (): string | null => {
-    const answer = (win as any).prompt?.("Save graph as", instance.title);
+    const answer = (dialogWindow() as any).prompt?.(
+      "Save graph as",
+      instance.title,
+    );
     if (answer === null || answer === undefined) return null;
     const name = String(answer).trim();
     return name || null;
@@ -512,7 +529,7 @@ function savedGraphsHost(
       );
       const name = entry?.name ?? "this graph";
       const confirmed = Boolean(
-        (win as any).confirm?.(
+        (dialogWindow() as any).confirm?.(
           `Delete the saved graph “${name}”? Open tabs keep their graph; only the saved copy is removed.`,
         ),
       );
@@ -566,6 +583,7 @@ function viewStateOptions(
   // library's items and its collections are that library's folders.
   if (instance.libraryID !== null && instance.libraryID !== libraryID) {
     instance.viewState = null;
+    releaseSavedGraph(win, instance);
   }
   return {
     title: instanceTitle(instance),

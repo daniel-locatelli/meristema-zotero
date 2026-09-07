@@ -4,7 +4,7 @@ import {
   serializeGraphViewState,
   type GraphViewState,
 } from "./graphViewState";
-import { openPluginDatabase } from "./pluginDatabase";
+import { getPluginDatabase, openPluginDatabase } from "./pluginDatabase";
 
 /**
  * A saved graph is a `GraphViewState` under a name: a recipe, not a picture.
@@ -177,11 +177,18 @@ export function createSavedGraphStore(
 // can be listed from a menu before any graph has been rendered, and idempotent
 // so every entry point can simply await it.
 let boundStore: Promise<SavedGraphStore> | null = null;
+let boundConnection: unknown = null;
 
 function store(): Promise<SavedGraphStore> {
+  if (boundStore && getPluginDatabase() !== boundConnection) {
+    // The connection this store was built on has since been closed (e.g. by
+    // a plugin reload); rebuild against whatever is open now.
+    boundStore = null;
+  }
   if (boundStore) return boundStore;
   boundStore = (async () => {
     const connection = await openPluginDatabase();
+    boundConnection = connection;
     const created = createSavedGraphStore(connection);
     await created.ensureSchema();
     return created;

@@ -414,7 +414,15 @@ async function fillSavedGraphPopup(
     (child) => !child.hasAttribute(SAVED_GRAPH_DYNAMIC_ATTR),
   ) as HTMLElement | undefined;
   if (!anchor) return;
-  const graphs = await listSavedGraphs(libraryID);
+  let graphs;
+  try {
+    graphs = await listSavedGraphs(libraryID);
+  } catch (error) {
+    // The submenu must never render completely empty: put the anchor back
+    // and let the caller's .catch(report) log the failure.
+    anchor.hidden = false;
+    throw error;
+  }
   clear();
   anchor.hidden = graphs.length > 0;
   const document = popup.ownerDocument as any;
