@@ -4,6 +4,7 @@ import { paneSelectedLibraryID } from "./paneLibrary";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { multiCollectionGraphTitle } from "./graphInstancePolicy";
 import { contextCollectionIDs, contextRegularItems } from "./menuContext";
+import { listSavedGraphs } from "./savedGraphService";
 import {
   getDefaultHostWindow,
   getOpenGraphViews,
@@ -14,12 +15,14 @@ import {
   openFocusItemsInView,
   openGraphForCollections,
   openNewGraphWindow,
+  openSavedGraph,
   renameGraphView,
 } from "./windowService";
 
 const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
 const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
+const SAVED_GRAPH_DYNAMIC_ATTR = "data-meristema-saved-graph";
 
 // Menu labels do not convey what the two intents cost: showing papers only
 // draws connections already in the library, while exploring fetches
@@ -315,19 +318,17 @@ function itemMenus(): MenuData[] {
       },
       (context) => {
         const hostWindow = contextWindow(context);
+        const command = itemCommand(context);
+        context.setL10nArgs(JSON.stringify({ count: command.itemIDs.length }));
         injectViewItems(
           context,
           "explore",
           getOpenGraphViews(hostWindow),
           "adds as seeds",
           (view) => {
-            void exploreInExistingView(
-              view,
-              itemCommand(context),
-              hostWindow,
-            ).catch(report);
+            void exploreInExistingView(view, command, hostWindow).catch(report);
           },
-          (view) => `Explore in ${view.title}`,
+          (view) => `Add as seed to ${view.title}`,
         );
       },
     ),
@@ -393,6 +394,95 @@ function collectionMenus(): MenuData[] {
   ];
 }
 
+// The submenu's rows are only known when it shows, so, like the item menu's
+// per-view entries, they are injected while the popup is open and removed
+// when it hides. One static entry, "No saved graphs yet.", is declared up
+// front: it is the anchor the rows are inserted after, and the message when
+// there are none. Deleting is not offered here; the graph's own menu has it.
+async function fillSavedGraphPopup(
+  popup: HTMLElement,
+  libraryID: number,
+  hostWindow: MainWindow,
+): Promise<void> {
+  const clear = (): void => {
+    popup
+      .querySelectorAll(`[${SAVED_GRAPH_DYNAMIC_ATTR}]`)
+      .forEach((node) => node.remove());
+  };
+  clear();
+  const anchor = Array.from(popup.children).find(
+    (child) => !child.hasAttribute(SAVED_GRAPH_DYNAMIC_ATTR),
+  ) as HTMLElement | undefined;
+  if (!anchor) return;
+  const graphs = await listSavedGraphs(libraryID);
+  clear();
+  anchor.hidden = graphs.length > 0;
+  const document = popup.ownerDocument as any;
+  let previous: HTMLElement = anchor;
+  for (const graph of graphs) {
+    const item = document.createXULElement("menuitem");
+    item.setAttribute(SAVED_GRAPH_DYNAMIC_ATTR, String(graph.id));
+    item.setAttribute("class", "menuitem-iconic");
+    item.setAttribute("image", ICON);
+    item.setAttribute("label", graph.name);
+    item.setAttribute(
+      "acceltext",
+      new Date(graph.modified).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+    );
+    item.addEventListener(
+      "command",
+      () => {
+        void openSavedGraph(graph.id, hostWindow)
+          .then((result) => {
+            if (result === "deleted") {
+              (hostWindow as any).alert?.("This graph was deleted.");
+            }
+          })
+          .catch(report);
+      },
+      { once: true },
+    );
+    previous.after(item);
+    previous = item;
+  }
+  popup.addEventListener("popuphidden", clear, { once: true });
+}
+
+function openSavedGraphSubmenu(): MenuData {
+  return {
+    menuType: "submenu",
+    l10nID: `${config.addonRef}-open-saved-graph-submenu`,
+    icon: ICON,
+    onShowing: (_event: Event, context: any) => {
+      const menuElem = safeContextValue(context, "menuElem") as
+        HTMLElement | undefined;
+      const popup =
+        menuElem?.localName === "menupopup"
+          ? menuElem
+          : (menuElem?.querySelector("menupopup") as HTMLElement | null);
+      if (!popup) return;
+      void fillSavedGraphPopup(
+        popup,
+        activeLibraryID(context),
+        contextWindow(context),
+      ).catch(report);
+    },
+    menus: [
+      {
+        menuType: "menuitem",
+        l10nID: `${config.addonRef}-open-saved-graph-empty-command`,
+        onShowing: (_event: Event, context: any) => {
+          context.setEnabled(false);
+        },
+      },
+    ],
+  };
+}
+
 function toolsSubmenu(): MenuData {
   return {
     menuType: "submenu",
@@ -402,6 +492,7 @@ function toolsSubmenu(): MenuData {
       commandItem(`${config.addonRef}-new-graph-view-command`, (context) =>
         openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
       ),
+      openSavedGraphSubmenu(),
       commandItem(
         `${config.addonRef}-refresh-library-command`,
         async (context) => {

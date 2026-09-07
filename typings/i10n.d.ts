@@ -11,6 +11,8 @@ export type FluentMessageId =
   | 'open-command'
   | 'open-existing-view-command'
   | 'open-focus-view-new-tab-command'
+  | 'open-saved-graph-empty-command'
+  | 'open-saved-graph-submenu'
   | 'pref-automatic-updates'
   | 'pref-automatic-updates-text'
   | 'pref-cache-days'

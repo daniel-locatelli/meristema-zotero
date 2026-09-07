@@ -46,8 +46,14 @@ refresh-command =
 show-items-new-tab-command =
     .label = Show in New Graph
 
+# $count is how many items were selected. The new graph seeds from them and
+# fetches their references and citing papers.
 open-focus-view-new-tab-command =
-    .label = Explore in New Graph
+    .label =
+        { $count ->
+            [1] New Graph from item
+           *[other] New Graph from { $count } items
+        }
 
 new-graph-view-command =
     .label = New Graph
@@ -70,3 +76,9 @@ rename-view-command =
 
 refresh-library-command =
     .label = Refresh Library
+
+open-saved-graph-submenu =
+    .label = Open Saved Graph…
+
+open-saved-graph-empty-command =
+    .label = No saved graphs yet.

@@ -58,7 +58,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   Explore external references, citing works, and similar papers alongside your Zotero items. Preview their metadata, open the DOI, mark incorrect matches, or add the paper directly to Zotero.
 
 - **Work with multiple independent views**
-  Open several Graph tabs at once. Rename views and use `Show in ›` or `Explore in ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera.
+  Open several Graph tabs at once. Rename views and use `Show in ›`, `New Graph from item` or `Add as seed to ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera, and survives a refresh. Save a graph from the toolbar's Graph menu to come back to it later; a saved graph autosaves and reopens from the Graph menu or from Tools › Meristema › Open Saved Graph.
 
 - **Control providers and updates**
   Choose which scholarly-data providers to use, which Zotero libraries shouldupdate automatically, and when cached data become stale. Refresh data manually when needed; long updates show progress and can be cancelled.
