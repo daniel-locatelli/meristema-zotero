@@ -7,6 +7,7 @@ import {
   closeExternalWorkCache,
   initExternalWorkCache,
 } from "./services/externalWorkCacheService";
+import { closePluginDatabase } from "./services/pluginDatabase";
 import {
   startProviderResponseCache,
   stopProviderResponseCache,
@@ -354,6 +355,9 @@ async function onShutdown(): Promise<void> {
     Zotero.logError(error instanceof Error ? error : new Error(String(error))),
   );
   await closeCitationMetricsStore().catch((error: unknown) =>
+    Zotero.logError(error instanceof Error ? error : new Error(String(error))),
+  );
+  await closePluginDatabase().catch((error: unknown) =>
     Zotero.logError(error instanceof Error ? error : new Error(String(error))),
   );
   delete (Zotero as any)[config.addonInstance];

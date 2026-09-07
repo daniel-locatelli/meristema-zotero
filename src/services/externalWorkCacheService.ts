@@ -1,5 +1,5 @@
-import { config } from "../../package.json";
 import type { RelatedWorkMetadata } from "../domain/citationTypes";
+import { openPluginDatabase } from "./pluginDatabase";
 import {
   relationshipCandidateIdentity,
   stableExternalWorkIdentity,
@@ -335,57 +335,52 @@ export function initExternalWorkCache(): Promise<void> {
   closing = false;
   writeQueue.reopen();
   initPromise = (async () => {
-    const connection = new Zotero.DBConnection(`${config.addonRef}-external`);
-    try {
-      for (const statement of SCHEMA.split(";")
-        .map((part) => part.trim())
-        .filter(Boolean)) {
-        await connection.queryAsync(statement);
-      }
-      const rows = (await connection.queryAsync(
-        "SELECT * FROM external_works_v2",
-      )) as ExternalWorkCacheRow[];
-      const relationshipRows = (await connection.queryAsync(
-        "SELECT * FROM external_relationships_v2",
-      )) as ExternalRelationshipCacheRow[];
-      const nextMirror = new Map<string, ExternalWorkCacheEntry>();
-      for (const row of rows) {
-        try {
-          const entry = rowToEntry(row);
-          nextMirror.set(entry.identityKey, entry);
-        } catch (error) {
-          Zotero.logError(
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      }
-      const nextRelationshipMirror = new Map<
-        string,
-        ExternalRelationshipCacheEntry
-      >();
-      for (const row of relationshipRows) {
-        try {
-          const entry = rowToRelationshipEntry(row);
-          nextRelationshipMirror.set(entry.relationshipKey, entry);
-        } catch (error) {
-          Zotero.logError(
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      }
-      db = connection;
-      mirror = nextMirror;
-      relationshipMirror = nextRelationshipMirror;
-      hydratedRelationshipMirror.clear();
-      relationshipDependencyIndex.clear();
-      initialized = true;
-      Zotero.debug(
-        `Meristema: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists`,
-      );
-    } catch (error) {
-      await connection.closeDatabase(true).catch(() => undefined);
-      throw error;
+    const connection = await openPluginDatabase();
+    for (const statement of SCHEMA.split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)) {
+      await connection.queryAsync(statement);
     }
+    const rows = (await connection.queryAsync(
+      "SELECT * FROM external_works_v2",
+    )) as ExternalWorkCacheRow[];
+    const relationshipRows = (await connection.queryAsync(
+      "SELECT * FROM external_relationships_v2",
+    )) as ExternalRelationshipCacheRow[];
+    const nextMirror = new Map<string, ExternalWorkCacheEntry>();
+    for (const row of rows) {
+      try {
+        const entry = rowToEntry(row);
+        nextMirror.set(entry.identityKey, entry);
+      } catch (error) {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
+    }
+    const nextRelationshipMirror = new Map<
+      string,
+      ExternalRelationshipCacheEntry
+    >();
+    for (const row of relationshipRows) {
+      try {
+        const entry = rowToRelationshipEntry(row);
+        nextRelationshipMirror.set(entry.relationshipKey, entry);
+      } catch (error) {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
+    }
+    db = connection;
+    mirror = nextMirror;
+    relationshipMirror = nextRelationshipMirror;
+    hydratedRelationshipMirror.clear();
+    relationshipDependencyIndex.clear();
+    initialized = true;
+    Zotero.debug(
+      `Meristema: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists`,
+    );
   })().finally(() => {
     initPromise = null;
   });
@@ -397,14 +392,12 @@ export async function closeExternalWorkCache(): Promise<void> {
   if (initPromise) await initPromise.catch(() => undefined);
   writeQueue.close();
   await writeQueue.drain();
-  const connection = db;
   db = null;
   initialized = false;
   mirror.clear();
   relationshipMirror.clear();
   hydratedRelationshipMirror.clear();
   relationshipDependencyIndex.clear();
-  if (connection) await connection.closeDatabase(true).catch(() => undefined);
 }
 
 export async function clearExternalWorkCache(): Promise<void> {
