@@ -261,16 +261,30 @@ describe("Graph view, as the product builds it", function () {
     }
 
     // A seedless graph has no seeds to show, but the Seeds button is how the
-    // first one is added, so it stays live. Explore has nothing to set yet.
+    // first one is added, so it stays live. Direction and scope wait behind
+    // the gear, and only appear once there is a seed to explore from.
     const seeds = active.root.querySelector(
       'button[aria-controls="meristema-focus-seed-popover"]',
     ) as HTMLButtonElement;
-    const explore = active.root.querySelector(
-      'button[aria-controls="meristema-focus-settings-popover"]',
-    ) as HTMLButtonElement;
     expect(seeds, "there is a Seeds button").to.not.equal(null);
     expect(seeds.disabled, "and it is enabled while seedless").to.equal(false);
-    expect(explore.disabled, "while Explore waits for a seed").to.equal(true);
+    expect(
+      active.root.querySelector(
+        'button[aria-controls="meristema-focus-settings-popover"]',
+      ),
+      "the toolbar has no Explore button",
+    ).to.equal(null);
+    const explore = active.root.querySelector(
+      ".cm-appearance-panel .cm-explore-section",
+    ) as HTMLElement;
+    expect(explore, "the gear panel has the Explore section").to.not.equal(
+      null,
+    );
+    expect(explore.hidden, "hidden while seedless").to.equal(true);
+    expect(
+      explore.querySelectorAll("select").length,
+      "with direction and scope only",
+    ).to.equal(2);
     expect(
       active.root.querySelector(".cm-add-node-wrap"),
       "Add Node is gone",

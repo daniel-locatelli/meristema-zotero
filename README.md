@@ -44,7 +44,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   ![graph](docs/assets/FreeGraph.png)
 
 - **Explore outward from one or more papers**
-  Add "seed" papers to a graph and it shows their references, citing papers, or both. Add a seed from the Seeds button, from a paper's detail pane, or by right-clicking its node; include papers outside Zotero, and rank and limit neighbours. Remove the last seed and the graph returns to your library.
+  Add "seed" papers to a graph and it shows their references, citing papers, or both. Add a seed from the Seeds button, from a paper's detail pane, or by right-clicking its node; include papers outside Zotero, and choose the direction and scope behind the gear. Remove the last seed and the graph returns to your library.
   ![Explore](docs/assets/FocusView.png)
 
 - **Inspect citation data inside Zotero**

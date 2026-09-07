@@ -123,7 +123,6 @@ import {
   type GraphFocusDirection,
   type GraphFocusLocality,
   type GraphFocusProjection,
-  type GraphFocusRanking,
   type GraphFocusState,
 } from "./graphFocusService";
 import {
@@ -561,85 +560,45 @@ export function renderGraphView(
     option.textContent = label;
     focusLocality.appendChild(option);
   }
-  const focusRanking = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["relevance", "Relevance"],
-    ["most-cited", "Most cited"],
-    ["most-recent", "Most recent"],
-    ["local-first", "In Zotero first"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusRanking.appendChild(option);
-  }
-  const focusLimit = element(document, "select", "cm-select");
-  for (const value of [10, 25, 50, 100, 200]) {
-    const option = element(document, "option");
-    option.value = String(value);
-    option.textContent = `${value} per seed per side`;
-    if (value === 25) option.selected = true;
-    focusLimit.appendChild(option);
-  }
-
-  // The four Explore settings, in a popover that reads as the appearance
-  // panel's sibling but opens downward from the toolbar.
-  const focusSettingsMenu = element(document, "div", "cm-menu-wrapper");
-  const focusSettingsButton = element(document, "button", "cm-toolbar-button");
-  focusSettingsButton.type = "button";
-  focusSettingsButton.append(iconButtonContent(document, "sliders", "Explore"));
-  focusSettingsButton.title =
-    "Direction, scope, ranking and limit for this graph's seeds.";
-  focusSettingsButton.setAttribute("aria-haspopup", "dialog");
-  focusSettingsButton.setAttribute("aria-expanded", "false");
-  focusSettingsButton.setAttribute(
-    "aria-controls",
-    "meristema-focus-settings-popover",
-  );
-  const focusSettingsPopover = element(
+  // Direction and scope are settings of the graph, so they live with the
+  // graph display settings behind the Key rail's gear, as that panel's first
+  // section. They mean nothing without a seed, so the section is hidden
+  // while the graph is seedless. Ranking and the per-seed limit are gone:
+  // every neighbour a seed has is shown.
+  const exploreSection = element(
     document,
-    "div",
-    "cm-appearance-panel cm-appearance-panel--below",
+    "fieldset",
+    "cm-appearance-section cm-explore-section",
   );
-  focusSettingsPopover.id = "meristema-focus-settings-popover";
-  focusSettingsPopover.hidden = true;
-  focusSettingsPopover.setAttribute("role", "dialog");
-  focusSettingsPopover.setAttribute("aria-label", "Explore settings");
-  const focusSettingsSection = element(
-    document,
-    "div",
-    "cm-appearance-section",
-  );
+  exploreSection.hidden = true;
+  exploreSection.style.display = "none";
+  exploreSection.appendChild(text(document, "legend", "Explore"));
   for (const [label, control] of [
     ["Direction", focusDirection],
     ["Scope", focusLocality],
-    ["Ranking", focusRanking],
-    ["Limit", focusLimit],
   ] as const) {
     const row = element(document, "label", "cm-appearance-row");
     row.append(text(document, "span", label), control);
-    focusSettingsSection.appendChild(row);
+    exploreSection.appendChild(row);
   }
-  focusSettingsPopover.appendChild(focusSettingsSection);
-  focusSettingsMenu.append(focusSettingsButton, focusSettingsPopover);
 
   toolbar.append(
     graphFilter.root,
     focusSeedMenu,
-    focusSettingsMenu,
     similarButton,
     exportWrap,
     refreshButton,
   );
   plotToolbar.append(toolbar, searchWrap);
 
-  // The Seeds and Explore buttons stay in the toolbar on every path so the
-  // view keeps one shape. Seeds is how the first seed is added, so it is
-  // always live; Explore has nothing to set until there is one, so it is
-  // disabled rather than hidden.
+  // The Seeds button stays in the toolbar on every path so the view keeps one
+  // shape: it is how the first seed is added, so it is always live. The
+  // Explore section behind the gear has nothing to set until there is a seed,
+  // so it is hidden rather than disabled.
   const setSeeded = (seeded: boolean): void => {
     root.dataset.seeded = seeded ? "true" : "false";
-    focusSettingsButton.disabled = !seeded;
+    exploreSection.hidden = !seeded;
+    exploreSection.style.display = seeded ? "" : "none";
     refreshButton.title = seeded
       ? "Refresh references and citing papers for the current Explore seeds."
       : "Refresh metadata and citation counts for the currently visible papers.";
@@ -831,6 +790,7 @@ export function renderGraphView(
           )
         : resetGraphAppearance(),
   );
+  appearance.panel.prepend(exploreSection);
   currentLayout = appearance.getLayout();
   /*
    * Both of these panels used to close only by pressing their own button
@@ -1095,17 +1055,15 @@ export function renderGraphView(
       summary.textContent = base;
       return;
     }
-    const hidden =
-      focusProjection.hidden.references + focusProjection.hidden.citedBy;
-    summary.textContent = hidden ? `${base} - ${hidden} more available` : base;
+    summary.textContent = base;
   };
 
   const focusStateFromControls = (seedKeys: string[]): GraphFocusState => ({
     seedKeys: [...new Set(seedKeys)],
     direction: focusDirection.value as GraphFocusDirection,
     locality: focusLocality.value as GraphFocusLocality,
-    ranking: focusRanking.value as GraphFocusRanking,
-    maxPerDirection: Math.max(1, Number(focusLimit.value) || 25),
+    ranking: "relevance",
+    maxPerDirection: Number.POSITIVE_INFINITY,
   });
 
   const resolveFocusSeed = (
@@ -1280,12 +1238,6 @@ export function renderGraphView(
     if (restoreFocus) focusSeedButton.focus();
   };
 
-  const closeFocusSettingsPopover = (restoreFocus = false): void => {
-    focusSettingsPopover.hidden = true;
-    focusSettingsButton.setAttribute("aria-expanded", "false");
-    if (restoreFocus) focusSettingsButton.focus();
-  };
-
   const seedPopoverPaperForNode = (
     node: CitationGraphNode,
   ): SeedPopoverPaper => ({
@@ -1399,7 +1351,6 @@ export function renderGraphView(
 
   const updateFocusBar = (): void => {
     if (!focusProjection) {
-      closeFocusSettingsPopover();
       focusSeedButtonLabel.textContent = "0 seeds";
       focusSeedButton.title = "Add seeds from the library.";
       if (!focusSeedPopover.hidden) renderFocusSeedResults();
@@ -1414,8 +1365,6 @@ export function renderGraphView(
     if (!focusSeedPopover.hidden) renderFocusSeedResults();
     focusDirection.value = focusProjection.state.direction;
     focusLocality.value = focusProjection.state.locality;
-    focusRanking.value = focusProjection.state.ranking;
-    focusLimit.value = String(focusProjection.state.maxPerDirection);
   };
 
   // Anchors a popover to its button's right edge when the start-anchored box
@@ -1448,7 +1397,6 @@ export function renderGraphView(
 
   focusSeedButton.addEventListener("click", () => {
     const opening = focusSeedPopover.hidden;
-    if (opening) closeFocusSettingsPopover();
     focusSeedPopover.hidden = !opening;
     focusSeedButton.setAttribute("aria-expanded", String(opening));
     if (!opening) return;
@@ -1520,13 +1468,6 @@ export function renderGraphView(
     // rather than when the debounce finally fires.
     renderFocusSeedResults();
   });
-  focusSettingsButton.addEventListener("click", () => {
-    const opening = focusSettingsPopover.hidden;
-    if (opening) closeFocusSeedPopover();
-    focusSettingsPopover.hidden = !opening;
-    focusSettingsButton.setAttribute("aria-expanded", String(opening));
-    if (opening) alignPopover(focusSettingsMenu, focusSettingsPopover);
-  });
   // Capture phase and no preventDefault: the pointerdown that closes a
   // popover still reaches whatever it was aimed at.
   const closeFocusSeedPopoverOnOutsidePointer = (event: Event): void => {
@@ -1539,32 +1480,12 @@ export function renderGraphView(
     if (event.key !== "Escape" || focusSeedPopover.hidden) return;
     closeFocusSeedPopover(true);
   };
-  // A pointer on an option of one of the popover's `<select>`s lands in
-  // Zotero's dropdown popup, outside the popover; closing then would tear the
-  // select down before the option is applied.
-  const closeFocusSettingsOnOutsidePointer = (event: Event): void => {
-    if (focusSettingsPopover.hidden) return;
-    const target = event.target as Node | null;
-    if (target && focusSettingsMenu.contains(target)) return;
-    if (insideSelectDropdown(target)) return;
-    closeFocusSettingsPopover();
-  };
-  const closeFocusSettingsOnEscape = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || focusSettingsPopover.hidden) return;
-    closeFocusSettingsPopover(true);
-  };
   document.addEventListener(
     "pointerdown",
     closeFocusSeedPopoverOnOutsidePointer,
     true,
   );
   document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
-  document.addEventListener(
-    "pointerdown",
-    closeFocusSettingsOnOutsidePointer,
-    true,
-  );
-  document.addEventListener("keydown", closeFocusSettingsOnEscape, true);
 
   const applyFocusProjection = (
     projection: GraphFocusProjection,
@@ -1671,8 +1592,6 @@ export function renderGraphView(
     if (!projection) return false;
     focusDirection.value = projection.state.direction;
     focusLocality.value = projection.state.locality;
-    focusRanking.value = projection.state.ranking;
-    focusLimit.value = String(projection.state.maxPerDirection);
     applyFocusProjection(projection, { fit: options.fit });
     const selectedKey = options.selectKey ?? projection.seeds[0].key;
     if (visibleKeys.has(selectedKey)) {
@@ -1949,7 +1868,7 @@ export function renderGraphView(
       direction: "both",
       locality: "all",
       ranking: "relevance",
-      maxPerDirection: 25,
+      maxPerDirection: Number.POSITIVE_INFINITY,
     };
     const normalizedState = {
       ...state,
@@ -2907,7 +2826,6 @@ export function renderGraphView(
     clientY: number,
   ): void => {
     closeFocusSeedPopover();
-    closeFocusSettingsPopover();
     nodeMenuTarget = node;
     const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
     nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
@@ -3087,12 +3005,7 @@ export function renderGraphView(
     updateSummary();
   };
   search.addEventListener("input", applyFilters);
-  for (const control of [
-    focusDirection,
-    focusLocality,
-    focusRanking,
-    focusLimit,
-  ]) {
+  for (const control of [focusDirection, focusLocality]) {
     control.addEventListener("change", () => {
       if (!focusProjection) return;
       scheduleFocusRebuild();
@@ -3677,12 +3590,6 @@ export function renderGraphView(
       closeFocusSeedPopoverOnEscape,
       true,
     );
-    document.removeEventListener(
-      "pointerdown",
-      closeFocusSettingsOnOutsidePointer,
-      true,
-    );
-    document.removeEventListener("keydown", closeFocusSettingsOnEscape, true);
     graphArea.removeEventListener("pointerdown", onGraphAreaPointerDown, true);
     document.removeEventListener(
       "pointerdown",
