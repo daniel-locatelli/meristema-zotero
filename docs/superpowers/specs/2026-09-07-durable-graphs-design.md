@@ -165,6 +165,12 @@ Export, Graph, Refresh.
 - "Show in", "Add as seed to" and "New Graph from" keep working through the
   pending request; the state only fills in what the request does not name.
 
+Restored seeds go through `addFocusSeeds`, so they get the same automatic
+background check a newly added seed gets: a seed whose cached relationships
+are older than 30 days is re-fetched from the providers, and a fresher one
+trusts the cache. Nothing else is fetched on open or on rebuild; the toolbar
+Refresh button remains the way to force a full re-fetch.
+
 With this, the sequence in the bug report keeps its seeds: the import
 triggers the update, the update triggers the refresh, and the refresh
 rebuilds the same graph. The imported paper's node changes from external to
