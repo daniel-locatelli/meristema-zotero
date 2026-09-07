@@ -1,7 +1,7 @@
 # Durable Graphs
 
 **Date:** 2026-09-07
-**Status:** Approved
+**Status:** Phase 1 implemented
 
 ## Problem
 

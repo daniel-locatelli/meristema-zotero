@@ -2,10 +2,12 @@ import { config } from "../../package.json";
 import type { LibrarySnapshot } from "../domain/types";
 import { positiveInteger } from "../domain/valueNormalization";
 import { paneSelectedLibraryID } from "./paneLibrary";
+import type { GraphViewState } from "./graphViewState";
 import {
   destroyGraphView,
   getGraphViewController,
   renderGraphView,
+  type GraphViewOptions,
 } from "./graphViewService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import {
@@ -43,6 +45,12 @@ interface GraphInstanceState {
   pendingCollectionIDs: number[];
   mapScopeItemIDs: number[] | null;
   mapPinnedItemIDs: number[];
+  /**
+   * The graph as a recipe, kept across renders. A refresh rebuilds the view
+   * from this rather than from nothing, and the view reports every change
+   * back into it.
+   */
+  viewState: GraphViewState | null;
   detachedWindow: Window | null;
   detachedMount: HTMLElement | null;
   lastActivatedAt: number;
@@ -91,6 +99,7 @@ function createGraphInstance(
     pendingCollectionIDs: [],
     mapScopeItemIDs: null,
     mapPinnedItemIDs: [],
+    viewState: null,
     detachedWindow: null,
     detachedMount: null,
     lastActivatedAt: Date.now(),
@@ -313,6 +322,38 @@ async function selectPaper(
   host.focus();
 }
 
+/**
+ * What the live view knows that the instance does not yet: the camera, which
+ * the view never reports on its own, and any change still waiting for its
+ * animation frame. Read just before the view is torn down for a render.
+ */
+function captureViewState(
+  instance: GraphInstanceState,
+  mount: Element | null,
+): void {
+  if (!mount) return;
+  const live = getGraphViewController(mount)?.getState();
+  if (live) instance.viewState = live;
+}
+
+function viewStateOptions(
+  instance: GraphInstanceState,
+  libraryID: number,
+): Pick<GraphViewOptions, "initialState" | "title" | "onStateChange"> {
+  // A view moving to another library keeps nothing: its seeds are that
+  // library's items and its collections are that library's folders.
+  if (instance.libraryID !== null && instance.libraryID !== libraryID) {
+    instance.viewState = null;
+  }
+  return {
+    initialState: instance.viewState,
+    title: instance.customTitle ? instance.title : null,
+    onStateChange: (state) => {
+      instance.viewState = state;
+    },
+  };
+}
+
 function renderDetachedWindow(
   hostWindow: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
@@ -327,6 +368,8 @@ function renderDetachedWindow(
   const popup = instance.detachedWindow;
   const mount = instance.detachedMount;
   if (!popup || popup.closed || !mount) return;
+  captureViewState(instance, mount);
+  const stateOptions = viewStateOptions(instance, snapshot.libraryID);
   instance.libraryID = snapshot.libraryID;
   instance.lastActivatedAt = Date.now();
   instance.dirty = false;
@@ -348,6 +391,7 @@ function renderDetachedWindow(
     },
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
+    ...stateOptions,
   });
   installGraphLibraryFilter(
     popup.document,
@@ -686,6 +730,8 @@ function renderTab(
   container: HTMLElement,
   snapshot: LibrarySnapshot,
 ): void {
+  captureViewState(instance, container);
+  const stateOptions = viewStateOptions(instance, snapshot.libraryID);
   instance.libraryID = snapshot.libraryID;
   instance.dirty = false;
   instance.renderGeneration += 1;
@@ -718,6 +764,7 @@ function renderTab(
       },
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionIDs: request.collectionIDs,
+      ...stateOptions,
     });
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
@@ -951,6 +998,7 @@ export async function openGraphWindow(
       instance.pendingCollectionIDs = [];
       instance.mapScopeItemIDs = null;
       instance.mapPinnedItemIDs = [];
+      instance.viewState = null;
       if (!instance.detachedWindow || instance.detachedWindow.closed) {
         graphStateByWindow.get(win)?.instances.delete(instance.instanceID);
       }
@@ -1020,6 +1068,8 @@ export function renameGraphView(
   if (!normalized) throw new Error("Meristema view names cannot be empty.");
   instance.title = normalized;
   instance.customTitle = true;
+  if (instance.viewState)
+    instance.viewState = { ...instance.viewState, title: normalized };
   syncInstanceTitle(win, instance);
 }
 
