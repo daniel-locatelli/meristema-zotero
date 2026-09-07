@@ -106,8 +106,7 @@ export function resolveGraphViewSeeds(
     }
     // A paper that was outside Zotero when the state was written may have
     // been imported since; the seed is then that library item, not a copy.
-    const importedKey = (seed.work as { inLibraryItemKey?: string | null })
-      .inLibraryItemKey;
+    const importedKey = seed.work.inLibraryItemKey ?? seed.work.zoteroItemKey;
     const imported = importedKey ? resolvers.nodeForItemKey(importedKey) : null;
     if (imported) {
       nodes.push(imported);

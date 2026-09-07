@@ -177,7 +177,7 @@ Refresh button remains the way to force a full re-fetch.
 With this, the sequence in the bug report keeps its seeds: the import
 triggers the update, the update triggers the refresh, and the refresh
 rebuilds the same graph. The imported paper's node changes from external to
-local because the seed is re-resolved against the new snapshot.
+local because the seed is re-resolved against the new snapshot. That resolution goes through the work's in-library key, then its DOI; a seed known only by a PMID, arXiv id, ISBN or provider id stays external after import until it is re-seeded.
 
 ### Saved graphs
 
