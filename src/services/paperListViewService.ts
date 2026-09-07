@@ -682,7 +682,7 @@ export function sameCollectionScope(
   return b.every((id) => seen.has(id));
 }
 
-function defaultFilterState(): PaperListFilterState {
+export function defaultPaperListFilterState(): PaperListFilterState {
   return {
     collectionIDs: [],
     tag: null,
@@ -697,6 +697,8 @@ function defaultFilterState(): PaperListFilterState {
     openAccessOnly: false,
   };
 }
+
+const defaultFilterState = defaultPaperListFilterState;
 
 function appendOption(
   document: Document,
