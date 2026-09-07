@@ -132,16 +132,46 @@ function withDeadline<T>(
   });
 }
 
+/**
+ * Removing an item is the one library change nothing else re-renders for: an
+ * add or a modify runs through the citation update, which ends with a graph
+ * refresh, but a trash or a delete only reaches this observer. Without this,
+ * an open graph keeps the gone item's node until something else refreshes
+ * it. The refresh restores the view's state, so a graph seeded on the item
+ * simply loses that seed.
+ */
+let removalRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+const REMOVAL_REFRESH_DELAY_MS = 250;
+
+function scheduleRemovalRefresh(): void {
+  if (removalRefreshTimer) clearTimeout(removalRefreshTimer);
+  removalRefreshTimer = setTimeout(() => {
+    removalRefreshTimer = null;
+    if (!addon.data.alive) return;
+    void withDeadline(
+      refreshOpenGraphViews(),
+      VIEW_REFRESH_DEADLINE_MS,
+      "Graph view refresh after item removal",
+      cancelPendingGraphRefreshes,
+    ).catch((error: unknown) => {
+      Zotero.debug(
+        `Meristema: graph refresh after item removal failed: ${String(error)}`,
+      );
+    });
+  }, REMOVAL_REFRESH_DELAY_MS);
+}
+
 function registerLibrarySnapshotInvalidation(): void {
   if (librarySnapshotNotifierID) return;
   const observer = {
     notify(
-      _event: string,
+      event: string,
       type: string,
       ids: Array<number | string>,
       extraData?: Record<string, { libraryID?: number }>,
     ): void {
       if (type !== "item") return;
+      if (event === "delete" || event === "trash") scheduleRemovalRefresh();
       const libraryIDs = new Set<number>();
       for (const id of ids) {
         const itemID = Number(id);
@@ -179,6 +209,10 @@ function registerLibrarySnapshotInvalidation(): void {
 }
 
 function unregisterLibrarySnapshotInvalidation(): void {
+  if (removalRefreshTimer) {
+    clearTimeout(removalRefreshTimer);
+    removalRefreshTimer = null;
+  }
   if (!librarySnapshotNotifierID) return;
   Zotero.Notifier.unregisterObserver(librarySnapshotNotifierID);
   librarySnapshotNotifierID = null;
