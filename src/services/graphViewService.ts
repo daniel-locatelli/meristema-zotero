@@ -26,6 +26,12 @@ import {
   refreshExternalRelationships,
   selectedRelationshipCacheIsFresh,
 } from "./externalDiscoveryService";
+import {
+  emptyGraphViewState,
+  resolveGraphViewSeeds,
+  seedFromNode,
+  type GraphViewState,
+} from "./graphViewState";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
 import { mergeRelatedWorkLists } from "./relationshipStoreService";
 import { externalWorkURL } from "./providerPresentation";
@@ -164,6 +170,10 @@ export interface GraphViewController {
   openFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   addFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   openCollections(collectionIDs: readonly number[]): GraphFocusResult;
+  /** The graph as a recipe: seeds, Explore settings, filters, camera, title. */
+  getState(): GraphViewState;
+  /** Rebuilds the graph from a recipe. Seeds whose item is gone are dropped. */
+  applyState(state: GraphViewState): GraphFocusResult;
   setActive(active: boolean): void;
 }
 
@@ -203,6 +213,16 @@ export interface GraphViewOptions {
   initialFocusItemID?: number | null;
   initialFocusItemIDs?: readonly number[] | null;
   initialCollectionIDs?: readonly number[];
+  /** Applied after the initial request, so a request wins where both speak. */
+  initialState?: GraphViewState | null;
+  /** The custom title the host gave this view, reported back in `getState`. */
+  title?: string | null;
+  /**
+   * Fires after seeds, Explore settings, filters or the title change, once
+   * per animation frame. Camera moves never fire it; read `getState()` for
+   * the camera when it is needed.
+   */
+  onStateChange?: (state: GraphViewState) => void;
 }
 
 function localPaperByKey(snapshot: LibrarySnapshot): Map<string, ZoteroPaper> {
@@ -354,6 +374,11 @@ export function renderGraphView(
   let viewActive = true;
   let inactiveRelationshipDirty = false;
   let applyFilters = (): void => undefined;
+  /**
+   * Tells the host the recipe changed. Assigned once `getState` exists; the
+   * filter controller below closes over it long before that.
+   */
+  let notifyStateChange: () => void = () => undefined;
   /** Rebuild the Key from the graph as it now stands. Assigned once the rail exists. */
   let refreshKeyRail = (): void => undefined;
   /** What the search is currently matching, so the Key can name that mark. */
@@ -454,7 +479,10 @@ export function renderGraphView(
     collections: snapshot.collections,
     buttonClassName: "cm-toolbar-button",
     getDescriptors: () => [...graphFilterDescriptors.values()],
-    onChange: () => applyFilters(),
+    onChange: () => {
+      applyFilters();
+      notifyStateChange();
+    },
   });
   const similarButton = element(document, "button", "cm-toolbar-button");
   similarButton.type = "button";
@@ -673,6 +701,12 @@ export function renderGraphView(
   let libraryViewBeforeFocus: GraphViewTransform | null = null;
   let libraryCollectionFilterBeforeFocus: number[] | undefined;
   let cameraFrame = 0;
+  /**
+   * A camera handed in with a state. The seeds' automatic relationship check
+   * ends with a fit, which would throw a restored camera away; while this is
+   * set, that fit places the camera here instead.
+   */
+  let restoredCamera: GraphViewTransform | null = null;
   let focusFitGeneration = 0;
   const focusPostRefreshFitSeeds = new Set<string>();
   const cancelCameraFrame = (): void => {
@@ -724,7 +758,12 @@ export function renderGraphView(
       attempts += 1;
 
       if (stableFrames >= 2 || attempts >= 24) {
-        renderer?.fitVisibleNodes();
+        if (restoredCamera) {
+          renderer?.setViewTransform(restoredCamera);
+          restoredCamera = null;
+        } else {
+          renderer?.fitVisibleNodes();
+        }
         return;
       }
       cameraFrame = view
@@ -1513,6 +1552,7 @@ export function renderGraphView(
     applyFilters();
     if (projectionOptions.fit) scheduleFocusFit();
     updateFocusBar();
+    notifyStateChange();
   };
 
   const seedsForState = (state: GraphFocusState): CitationGraphNode[] =>
@@ -1996,6 +2036,7 @@ export function renderGraphView(
     setSeeded(false);
     focusRelationships.clear();
     focusSeedRegistry.clear();
+    restoredCamera = null;
     model.nodes.splice(0, model.nodes.length, ...libraryModel.nodes);
     model.edges.splice(0, model.edges.length, ...libraryModel.edges);
     Object.assign(model.statistics, libraryModel.statistics);
@@ -2039,6 +2080,7 @@ export function renderGraphView(
         });
       }
     }
+    notifyStateChange();
   };
 
   /**
@@ -3009,6 +3051,7 @@ export function renderGraphView(
     control.addEventListener("change", () => {
       if (!focusProjection) return;
       scheduleFocusRebuild();
+      notifyStateChange();
     });
   }
   similarButton.addEventListener("click", () => {
@@ -3427,6 +3470,73 @@ export function renderGraphView(
     return nodes.length && addFocusSeeds(nodes) ? "selected" : "not-found";
   };
 
+  const getState = (): GraphViewState => {
+    const seeds = focusProjection
+      ? focusProjection.state.seedKeys
+          .map((key) => focusSeedRegistry.get(key) ?? null)
+          .filter((node): node is CitationGraphNode => node !== null)
+          .map(seedFromNode)
+          .filter((seed): seed is NonNullable<typeof seed> => seed !== null)
+      : [];
+    // Entering Explore stashes the library's collection scope and clears the
+    // control, so the scope a seeded graph belongs to is the stashed one.
+    const filters = graphFilter.state();
+    if (focusProjection && libraryCollectionFilterBeforeFocus !== undefined) {
+      filters.collectionIDs = [...libraryCollectionFilterBeforeFocus];
+    }
+    return {
+      ...emptyGraphViewState(),
+      seeds,
+      explore: {
+        direction: focusDirection.value as GraphFocusDirection,
+        locality: focusLocality.value as GraphFocusLocality,
+      },
+      filters,
+      camera: renderer?.getViewTransform() ?? null,
+      title: options.title ?? null,
+    };
+  };
+
+  let stateChangeFrame = 0;
+  notifyStateChange = (): void => {
+    if (!options.onStateChange || stateChangeFrame || cleaned) return;
+    const view = document.defaultView;
+    const run = (): void => {
+      stateChangeFrame = 0;
+      if (!cleaned) options.onStateChange?.(getState());
+    };
+    stateChangeFrame = view
+      ? view.requestAnimationFrame(run)
+      : (setTimeout(run, 0) as unknown as number);
+  };
+
+  const applyState = (state: GraphViewState): GraphFocusResult => {
+    focusDirection.value = state.explore.direction;
+    focusLocality.value = state.explore.locality;
+    // Filters first, collections included: entering Explore below stashes
+    // the collection scope, so it comes back when the last seed goes.
+    if (focusProjection) exitFocus();
+    graphFilter.setState(state.filters);
+    const paperByKey = localPaperByKey(snapshot);
+    const { nodes } = resolveGraphViewSeeds(state.seeds, (itemKey) => {
+      const paper = paperByKey.get(itemKey);
+      return paper ? libraryNodeForItem(paper.itemID) : null;
+    });
+    if (nodes.length) {
+      restoredCamera = state.camera;
+      if (!addFocusSeeds(nodes)) {
+        restoredCamera = null;
+        return "not-found";
+      }
+      return "selected";
+    }
+    if (state.camera) {
+      const camera = state.camera;
+      scheduleCameraAction(() => renderer?.setViewTransform(camera));
+    }
+    return state.seeds.length ? "not-found" : "selected";
+  };
+
   syncMapPinnedKeys(false);
   applyFilters();
 
@@ -3460,6 +3570,8 @@ export function renderGraphView(
       scheduleCameraAction(() => renderer?.fitVisibleNodes());
       return "selected";
     },
+    getState,
+    applyState,
     setActive(active) {
       viewActive = active;
       if (!active) {
@@ -3486,6 +3598,25 @@ export function renderGraphView(
     }
   } else if (options.initialItemID) {
     controller.replaceMapItems([options.initialItemID]);
+  }
+  if (options.initialState) {
+    const request = Boolean(
+      options.initialFocusItemIDs?.length ||
+      options.initialFocusItemID ||
+      options.initialCollectionIDs?.length ||
+      options.initialItemIDs?.length ||
+      options.initialItemID,
+    );
+    if (request) {
+      // The request already shaped the graph; the state only fills in what
+      // the request does not name.
+      focusDirection.value = options.initialState.explore.direction;
+      focusLocality.value = options.initialState.explore.locality;
+      if (!focusProjection) graphFilter.setState(options.initialState.filters);
+      else scheduleFocusRebuild();
+    } else {
+      applyState(options.initialState);
+    }
   }
   updateSummary();
   const localCitationWarmupItemIDs = [
@@ -3527,6 +3658,12 @@ export function renderGraphView(
     : 0;
   const cleanup = (): void => {
     cleaned = true;
+    if (stateChangeFrame) {
+      const view = document.defaultView;
+      if (view) view.cancelAnimationFrame(stateChangeFrame);
+      else clearTimeout(stateChangeFrame);
+      stateChangeFrame = 0;
+    }
     disposeThemeObserver();
     activeRelationshipList?.destroy();
     activeRelationshipList = null;

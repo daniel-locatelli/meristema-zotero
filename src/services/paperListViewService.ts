@@ -86,6 +86,8 @@ export interface PaperFilterController {
   state(): PaperListFilterState;
   hasActiveFilters(): boolean;
   setCollectionIDs(collectionIDs: readonly number[]): void;
+  /** Replaces every filter at once, then fires `onChange` once. */
+  setState(state: PaperListFilterState): void;
   reset(): void;
   destroy(): void;
 }
@@ -1212,6 +1214,20 @@ export function createPaperFilterController(
       ];
       if (sameCollectionScope(filters.collectionIDs, normalized)) return;
       filters.collectionIDs = normalized;
+      updateFilterButton();
+      filterPopup.close();
+      options.onChange();
+    },
+    setState: (state) => {
+      filters = {
+        ...defaultFilterState(),
+        ...state,
+        collectionIDs: [
+          ...new Set(
+            state.collectionIDs.filter((id) => Number.isInteger(id) && id > 0),
+          ),
+        ],
+      };
       updateFilterButton();
       filterPopup.close();
       options.onChange();

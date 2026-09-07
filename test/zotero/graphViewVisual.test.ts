@@ -1138,4 +1138,60 @@ describe("Graph view, as the product builds it", function () {
     menu.dispatchEvent(escape);
     expect(menu.hidden, "Escape closes it").to.equal(true);
   });
+
+  it("view 13 — a view rebuilt from its own state keeps its seeds, settings and filters", async function () {
+    this.timeout(90_000);
+    const first = await open(60);
+    const controller = getGraphViewController(first.mount)!;
+    const [a, b] = first.model.nodes as [
+      (typeof first.model.nodes)[number],
+      (typeof first.model.nodes)[number],
+    ];
+    expect(controller.openFocusItems([a.itemID, b.itemID])).to.equal(
+      "selected",
+    );
+    await settle(first.window, 6);
+
+    const direction = first.root.querySelector(
+      ".cm-explore-section select",
+    ) as HTMLSelectElement;
+    direction.value = "references";
+    direction.dispatchEvent(new (first.window as any).Event("change"));
+    await settle(first.window, 6);
+
+    const state = controller.getState();
+    expect(state.seeds, "both seeds, by key, in order").to.deep.equal([
+      { kind: "item", itemKey: a.itemKey },
+      { kind: "item", itemKey: b.itemKey },
+    ]);
+    expect(state.explore.direction).to.equal("references");
+    expect(state.camera, "the camera is read on demand").to.not.equal(null);
+    first.close();
+
+    // A rebuilt view: the same corpus, handed the state the first one gave.
+    stage = await openViewStage(first.model, {
+      initialState: {
+        ...state,
+        filters: { ...state.filters, excludeRetracted: true },
+      },
+    });
+    const second = stage;
+    await settle(second.window, 12);
+    const rebuilt = getGraphViewController(second.mount)!;
+    const restored = rebuilt.getState();
+    expect(restored.seeds).to.deep.equal(state.seeds);
+    expect(restored.explore).to.deep.equal(state.explore);
+    expect(restored.filters.excludeRetracted).to.equal(true);
+    const seedsButton = second.root.querySelector(
+      'button[aria-controls="meristema-focus-seed-popover"]',
+    ) as HTMLButtonElement;
+    expect(seedsButton.textContent?.trim()).to.equal("2 seeds");
+    const filterButton = second.root.querySelector(
+      '.cm-plot-toolbar button[aria-label^="Filter papers"]',
+    ) as HTMLButtonElement;
+    expect(filterButton.getAttribute("aria-label")).to.equal(
+      "Filter papers (1 active)",
+    );
+    expect(second.errors, "nothing threw in the background").to.deep.equal([]);
+  });
 });
