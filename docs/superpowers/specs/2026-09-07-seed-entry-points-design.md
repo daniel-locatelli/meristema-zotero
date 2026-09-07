@@ -37,14 +37,17 @@ scoring in `scoreLibraryPaperSearch`, and the 50-result cap.
 - With an empty query the popover lists the current seeds, as it does today.
   In a seedless graph it shows a placeholder: "No seeds yet. Search the
   library to add one."
-- With a query it lists matching library papers. A row that is already a
-  seed keeps the × remove control it has now; any other row shows a +
-  control that adds the paper as a seed. Clicking the row's main area
-  selects the node in the graph when the paper is in the graph, and does
-  nothing otherwise.
-- Adding or removing a seed re-renders the list in place and keeps the
-  query, so several seeds can be added in a row. The popover does not close
-  on add.
+- With a query it lists matching library papers only; seeds that do not
+  match the query are not shown. A row that is already a seed keeps the ×
+  remove control it has now; any other row shows a + control that adds the
+  paper as a seed. Clicking the row's main area selects the node in the
+  graph when the paper is in the graph, and does nothing otherwise.
+- Adding or removing a seed re-renders the list in place, keeps the query,
+  keeps the results' scroll position, and leaves focus in the search box, so
+  several seeds can be added in a row. The popover does not close on add.
+- Library search stays off the main thread's critical path as it is today:
+  the debounce and the cooperative scoring loop are reused unchanged, so a
+  library of tens of thousands of papers does not stall typing.
 
 The `cm-add-node-*` elements, their CSS rules, and the Add Node event
 handlers are removed. `addLibraryItemsToView` loses its seedless branch;
@@ -64,7 +67,10 @@ calling `removeFocusSeed`. "Explore from this paper" stays as the
 replace-all-seeds action.
 
 Both branches of the detail pane, library papers and external works, get
-the same treatment.
+the same treatment. External works need no extra staging: `addFocusSeed`
+already resolves them through `resolveFocusSeed` and
+`ensureFocusRelationships`, which is how "Add as seed" works for them in a
+seeded graph today.
 
 ### A right-click menu on a node
 
@@ -74,19 +80,26 @@ The renderer adds a `contextmenu` listener on the canvas that runs the
 existing `hitTest`; when it lands on a node it prevents the default menu,
 selects the node, and calls the callback with the pointer's client
 coordinates. On the background it does nothing and the browser default is
-left alone.
+left alone. The canvas is already focusable and handles `keydown`, so
+Shift+F10 and the ContextMenu key with a node selected call the same
+callback with the selected node's screen position.
 
-The graph view renders a `cm-node-menu` element, hidden until used,
-positioned absolutely inside the plot pane at the pointer and clamped so it
-stays within the pane. It holds two buttons:
+The graph view renders a `cm-node-menu` element, hidden until used and
+positioned absolutely inside the plot pane. Client coordinates are converted
+with the plot pane's `getBoundingClientRect()`, so the menu lands under the
+pointer whatever the pane's offset or device pixel ratio. The position is
+clamped on all four edges so the menu never clips at the pane's boundary.
+It holds two buttons:
 
 1. "Add as seed" when the node is not a seed, "Remove seed" when it is.
 2. "Explore from this paper".
 
 Choosing an item runs the action and closes the menu. Escape, a pointer
-down outside the menu, a scroll or wheel on the canvas, and a change of
-selection all close it. The menu has `role="menu"`, its items
-`role="menuitem"`, and focus moves to the first item when it opens.
+down outside the menu, a scroll or wheel on the canvas, a window resize,
+and a change of selection all close it. The menu has `role="menu"`, its
+items `role="menuitem"`, focus moves to the first item when it opens,
+ArrowDown and ArrowUp move between items with wrap-around, and closing
+returns focus to the canvas.
 
 ## Files
 
@@ -111,8 +124,10 @@ selection all close it. The menu has `role="menu"`, its items
 - Manual, in Zotero: from a seedless graph, Seeds › search › + seeds the
   graph and enables Explore; detail pane shows "Add as seed" on a
   non-seed and "Remove seed" on a seed; right-click on a node opens the
-  menu, on the background does not; removing the last seed from the menu
-  returns the library graph; no Add Node button remains.
+  menu, on the background does not; with a node selected, Shift+F10 opens
+  it, ArrowDown and ArrowUp move, Escape closes and returns focus to the
+  canvas; removing the last seed from the menu returns the library graph;
+  no Add Node button remains.
 
 ## Out of scope
 
