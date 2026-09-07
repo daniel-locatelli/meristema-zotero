@@ -819,10 +819,10 @@ export function renderGraphView(
    * again, which is not how a menu behaves anywhere else in Zotero. The
    * appearance panel had a closer, but it was on the graph area — and since
    * the panel moved into the rail's footer, a click on the rail, on either
-   * toolbar or on the detail pane never reached it. These sit on the document,
-   * like the Focus seed popover's above, so any
-   * pointer landing outside the control dismisses it. Capture phase, so the
-   * click that closes still does whatever it was aimed at.
+   * toolbar or on the detail pane never reached it. These sit on the
+   * document, like the Focus seed popover's above, so any pointer landing
+   * outside the control dismisses it. Capture phase, so the click that
+   * closes still does whatever it was aimed at.
    */
   const closeAppearanceOnOutsidePointer = (event: Event): void => {
     if (appearance.panel.hidden) return;
@@ -1257,6 +1257,7 @@ export function renderGraphView(
     focusSeedSearch.value = "";
     librarySearchGeneration += 1;
     libraryState = { status: "idle" };
+    libraryPaperBySeedRowID.clear();
     clear(focusSeedResults);
     if (restoreFocus) focusSeedButton.focus();
   };
@@ -1375,6 +1376,7 @@ export function renderGraphView(
       closeFocusSettingsPopover();
       focusSeedButtonLabel.textContent = "0 seeds";
       focusSeedButton.title = "Add seeds from the library.";
+      if (!focusSeedPopover.hidden) renderFocusSeedResults();
       return;
     }
     focusSeedButtonLabel.textContent = `${focusProjection.seeds.length} seed${
@@ -1457,6 +1459,9 @@ export function renderGraphView(
     });
   };
   focusSeedSearch.addEventListener("input", () => {
+    libraryState = focusSeedSearch.value.trim()
+      ? { status: "searching" }
+      : { status: "idle" };
     if (librarySearchTimer !== null) {
       if (document.defaultView) {
         document.defaultView.clearTimeout(librarySearchTimer);
