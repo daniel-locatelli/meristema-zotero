@@ -91,6 +91,7 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
+import { clampMenuPosition } from "./nodeMenu";
 import { popoverShouldAnchorEnd } from "./popoverPlacement";
 import { insideSelectDropdown } from "./selectDropdown";
 import {
@@ -691,6 +692,23 @@ export function renderGraphView(
   const emptyStateBody = text(document, "p", "", "cm-empty-state-body");
   emptyState.append(emptyStateTitle, emptyStateBody);
   graphArea.appendChild(emptyState);
+
+  // The node's right-click menu. Two items: the seed toggle and Explore-from.
+  // It lives in the graph area so it is clamped to the plot, not the window.
+  const nodeMenu = element(document, "div", "cm-node-menu");
+  nodeMenu.hidden = true;
+  nodeMenu.setAttribute("role", "menu");
+  nodeMenu.setAttribute("aria-label", "Paper actions");
+  const nodeMenuSeed = element(document, "button", "cm-node-menu-item");
+  nodeMenuSeed.type = "button";
+  nodeMenuSeed.setAttribute("role", "menuitem");
+  const nodeMenuExplore = element(document, "button", "cm-node-menu-item");
+  nodeMenuExplore.type = "button";
+  nodeMenuExplore.setAttribute("role", "menuitem");
+  nodeMenuExplore.textContent = "Explore from this paper";
+  nodeMenu.append(nodeMenuSeed, nodeMenuExplore);
+  graphArea.appendChild(nodeMenu);
+  let nodeMenuTarget: CitationGraphNode | null = null;
   let currentLayout = initialLayout;
   let libraryLayoutBeforeFocus: GraphLayoutOptions | null = null;
   let libraryViewBeforeFocus: GraphViewTransform | null = null;
@@ -2853,7 +2871,75 @@ export function renderGraphView(
     }
   }
 
+  const closeNodeMenu = (restoreFocus = false): void => {
+    if (nodeMenu.hidden) return;
+    nodeMenu.hidden = true;
+    nodeMenuTarget = null;
+    if (restoreFocus) canvas.focus();
+  };
+  const openNodeMenu = (
+    node: CitationGraphNode,
+    clientX: number,
+    clientY: number,
+  ): void => {
+    closeFocusSeedPopover();
+    closeFocusSettingsPopover();
+    nodeMenuTarget = node;
+    const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
+    nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
+    nodeMenu.hidden = false;
+    // Measured after it is shown, so offsetWidth is the laid-out width.
+    const pane = graphArea.getBoundingClientRect();
+    const { left, top } = clampMenuPosition({
+      x: clientX - pane.left,
+      y: clientY - pane.top,
+      menuWidth: nodeMenu.offsetWidth,
+      menuHeight: nodeMenu.offsetHeight,
+      paneWidth: pane.width,
+      paneHeight: pane.height,
+    });
+    nodeMenu.style.left = `${left}px`;
+    nodeMenu.style.top = `${top}px`;
+    nodeMenuSeed.focus();
+  };
+  nodeMenuSeed.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    closeNodeMenu(true);
+    if (!node) return;
+    if (focusProjection?.seedKeys.has(node.key)) removeFocusSeed(node.key);
+    else addFocusSeed(node);
+  });
+  nodeMenuExplore.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    closeNodeMenu(true);
+    if (node) focusOnPaper(node);
+  });
+  nodeMenu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeNodeMenu(true);
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    // Two items: either arrow moves to the other one.
+    const active = document.activeElement;
+    (active === nodeMenuSeed ? nodeMenuExplore : nodeMenuSeed).focus();
+  });
+  const closeNodeMenuOnOutsidePointer = (event: Event): void => {
+    if (nodeMenu.hidden) return;
+    const target = event.target as Node | null;
+    if (target && nodeMenu.contains(target)) return;
+    closeNodeMenu();
+  };
+  const closeNodeMenuOnWheel = (): void => closeNodeMenu();
+  const closeNodeMenuOnResize = (): void => closeNodeMenu();
+  document.addEventListener("pointerdown", closeNodeMenuOnOutsidePointer, true);
+  canvas.addEventListener("wheel", closeNodeMenuOnWheel, { passive: true });
+  document.defaultView?.addEventListener("resize", closeNodeMenuOnResize);
+
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
+    closeNodeMenu();
     renderOverview(node);
   };
 
@@ -2872,6 +2958,7 @@ export function renderGraphView(
       void selectPaper(node.itemID);
     },
     onBackgroundInteraction: appearance.close,
+    onNodeContextMenu: openNodeMenu,
   });
   refreshKeyRail = (): void => {
     const active = renderer;
@@ -3573,6 +3660,13 @@ export function renderGraphView(
     );
     document.removeEventListener("keydown", closeFocusSettingsOnEscape, true);
     graphArea.removeEventListener("pointerdown", onGraphAreaPointerDown, true);
+    document.removeEventListener(
+      "pointerdown",
+      closeNodeMenuOnOutsidePointer,
+      true,
+    );
+    canvas.removeEventListener("wheel", closeNodeMenuOnWheel);
+    document.defaultView?.removeEventListener("resize", closeNodeMenuOnResize);
     detachRailResizer();
     detachDetailResizer();
     unsubscribeCollectionsPane();

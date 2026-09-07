@@ -1078,4 +1078,56 @@ describe("Graph view, as the product builds it", function () {
       }
     }
   });
+
+  it("view 12 — a right-click on a node opens the seed menu, on the background it does not", async function () {
+    this.timeout(60_000);
+    const active = await open(60);
+    const view = active.window as any;
+    const menu = active.root.querySelector(".cm-node-menu") as HTMLElement;
+    expect(menu, "the menu exists").to.not.equal(null);
+    expect(menu.hidden, "and starts hidden").to.equal(true);
+
+    const rect = active.canvas.getBoundingClientRect();
+    const background = new view.MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: rect.left + 2,
+      clientY: rect.top + 2,
+    });
+    active.canvas.dispatchEvent(background);
+    expect(menu.hidden, "the background leaves it hidden").to.equal(true);
+    expect(background.defaultPrevented, "and keeps the browser menu").to.equal(
+      false,
+    );
+
+    const controller = getGraphViewController(active.mount)!;
+    const first = active.model.nodes[0]!;
+    controller.revealItem(first.itemID);
+    await settle(active.window, 4);
+    // Where the renderer put the first node: ask it, rather than guess.
+    const position = (active as any).renderer?.nodeClientPosition?.(first.key);
+    if (position) {
+      const onNode = new view.MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: position.x,
+        clientY: position.y,
+      });
+      active.canvas.dispatchEvent(onNode);
+      expect(menu.hidden, "a node opens it").to.equal(false);
+      expect(onNode.defaultPrevented, "and takes the event").to.equal(true);
+      const items = [...menu.querySelectorAll('[role="menuitem"]')].map(
+        (item) => item?.textContent,
+      );
+      expect(items).to.deep.equal(["Add as seed", "Explore from this paper"]);
+      const escape = new view.KeyboardEvent("keydown", {
+        bubbles: true,
+        key: "Escape",
+      });
+      menu.dispatchEvent(escape);
+      expect(menu.hidden, "Escape closes it").to.equal(true);
+    } else {
+      note("view 12: the harness exposes no renderer; node half skipped");
+    }
+  });
 });

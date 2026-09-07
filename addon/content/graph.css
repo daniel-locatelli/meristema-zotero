@@ -597,6 +597,35 @@
   border-color: transparent;
 }
 /*
+ * The node's right-click menu. Absolute inside `.cm-graph-area`, placed by
+ * `clampMenuPosition` so it never leaves the plot; the same surface as the
+ * export menu so the two read as one family.
+ */
+.cm-node-menu {
+  position: absolute;
+  z-index: 12;
+  display: grid;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--cm-border);
+  border-radius: 7px;
+  background: Canvas;
+  box-shadow: 0 9px 28px color-mix(in srgb, black 23%, transparent);
+}
+.cm-node-menu[hidden] {
+  display: none;
+}
+.cm-node-menu-item {
+  justify-content: flex-start;
+  border-color: transparent !important;
+  background: transparent !important;
+  text-align: left;
+}
+.cm-node-menu-item:hover,
+.cm-node-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--cm-accent) 10%, Canvas) !important;
+}
+/*
  * A narrow window drops the counts before it lets anything wrap. Each toolbar
  * is a single 41px row at every width; the alternative was a second row
  * appearing under it.
