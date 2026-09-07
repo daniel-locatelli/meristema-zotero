@@ -1292,6 +1292,8 @@ describe("Graph view, as the product builds it", function () {
       "This graph was deleted.",
     );
 
+    await delay(1400);
+    await settle(view.window, 4);
     (
       menu.querySelector(
         'button[data-action="delete"][data-id="7"]',

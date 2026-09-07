@@ -3190,6 +3190,7 @@ export function renderGraphView(
   });
   let statusTimer = 0;
   const setStatus = (message: string | null): void => {
+    if (cleaned) return;
     const view = document.defaultView;
     if (statusTimer) {
       if (view) view.clearTimeout(statusTimer);
@@ -3324,11 +3325,13 @@ export function renderGraphView(
       if (action === "save" || action === "save-as") {
         closeGraphMenu();
         const name = await (action === "save" ? host.save() : host.saveAs());
+        if (cleaned) return;
         if (name) setStatus("Saved");
         return;
       }
       if (action === "open" && Number.isInteger(id)) {
         const result = await host.open(id);
+        if (cleaned) return;
         if (result === "opened") {
           closeGraphMenu();
           return;
@@ -3339,11 +3342,14 @@ export function renderGraphView(
         await new Promise<void>((resolve) =>
           view ? view.setTimeout(resolve, 1200) : setTimeout(resolve, 1200),
         );
+        if (cleaned) return;
         if (!graphMenu.hidden) await rebuildGraphMenuList();
         return;
       }
       if (action === "delete" && Number.isInteger(id)) {
-        if (await host.remove(id)) await rebuildGraphMenuList();
+        const removed = await host.remove(id);
+        if (cleaned) return;
+        if (removed) await rebuildGraphMenuList();
       }
     };
     graphMenuBusy = true;
@@ -3352,7 +3358,14 @@ export function renderGraphView(
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
         );
-        setStatus(action === "open" ? "Could not open" : "Save failed");
+        if (cleaned) return;
+        const message =
+          action === "delete"
+            ? "Could not delete"
+            : action === "open"
+              ? "Could not open"
+              : "Save failed";
+        setStatus(message);
       })
       .finally(() => {
         graphMenuBusy = false;
