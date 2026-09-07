@@ -297,6 +297,7 @@
 }
 .cm-filter-panel[hidden],
 .cm-export-menu[hidden],
+.cm-node-menu[hidden],
 .cm-appearance-panel[hidden] {
   display: none;
 }
@@ -579,18 +580,21 @@
 .cm-menu-wrapper {
   position: relative;
 }
-.cm-export-menu {
+.cm-export-menu,
+.cm-node-menu {
   position: absolute;
-  z-index: 8;
-  top: calc(100% + 5px);
-  right: 0;
   display: grid;
-  min-width: 180px;
   padding: 5px;
   border: 1px solid var(--cm-border);
   border-radius: 7px;
   background: Canvas;
   box-shadow: 0 9px 28px color-mix(in srgb, black 23%, transparent);
+}
+.cm-export-menu {
+  z-index: 8;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 180px;
 }
 .cm-export-menu button {
   justify-content: flex-start;
@@ -602,18 +606,8 @@
  * export menu so the two read as one family.
  */
 .cm-node-menu {
-  position: absolute;
   z-index: 12;
-  display: grid;
   min-width: 190px;
-  padding: 5px;
-  border: 1px solid var(--cm-border);
-  border-radius: 7px;
-  background: Canvas;
-  box-shadow: 0 9px 28px color-mix(in srgb, black 23%, transparent);
-}
-.cm-node-menu[hidden] {
-  display: none;
 }
 .cm-node-menu-item {
   justify-content: flex-start;

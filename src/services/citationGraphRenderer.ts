@@ -561,6 +561,8 @@ export class CitationGraphRenderer {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
+    // A right button belongs to the context menu: it must neither pan, drag nor clear the selection.
+    if (event.button !== 0) return;
     this.markViewAdjusted();
     this.canvas.setPointerCapture?.(event.pointerId);
     const world = this.screenToWorld(event.clientX, event.clientY);

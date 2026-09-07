@@ -1329,7 +1329,15 @@ export function renderGraphView(
       row.setAttribute("role", "listitem");
       const select = element(document, "button", "cm-focus-seed-result-main");
       select.type = "button";
-      select.title = `Select ${paper.title} in the graph`;
+      // Selecting must never build a node: only a node the graph already
+      // holds can be selected, so a row without one says so and does nothing.
+      const existingNode: CitationGraphNode | null =
+        seedNodeBySeedRowID.get(paper.id) ??
+        model.nodes.find((node) => libraryPaperID(node.itemID) === paper.id) ??
+        null;
+      select.title = existingNode
+        ? `Select ${paper.title} in the graph`
+        : "Not in this graph";
       const title = text(
         document,
         "span",
@@ -1356,10 +1364,10 @@ export function renderGraphView(
         return libraryPaper ? libraryNodeForSeedRow(libraryPaper.itemID) : null;
       };
       select.addEventListener("click", () => {
-        const node = nodeForRow();
-        // selectNode is false when the paper is not in the graph; nothing to do then.
-        if (node && renderer?.selectNode(node.key, false))
+        // selectNode is false when the node is no longer drawn; nothing to do then.
+        if (existingNode && renderer?.selectNode(existingNode.key, false)) {
           closeFocusSeedPopover();
+        }
       });
       row.appendChild(select);
       const toggle = element(
@@ -1460,23 +1468,36 @@ export function renderGraphView(
     const generation = librarySearchGeneration;
     libraryState = { status: "searching" };
     renderFocusSeedResults();
-    void rankLibraryPapers(query, generation).then((papers) => {
-      if (generation !== librarySearchGeneration || focusSeedPopover.hidden) {
-        return;
-      }
-      libraryPaperBySeedRowID.clear();
-      if (papers) {
-        for (const paper of papers) {
-          libraryPaperBySeedRowID.set(libraryPaperID(paper.itemID), paper);
+    void rankLibraryPapers(query, generation)
+      .then((papers) => {
+        if (generation !== librarySearchGeneration || focusSeedPopover.hidden) {
+          return;
         }
-      }
-      libraryState = papers
-        ? { status: "done", papers: papers.map(seedPopoverPaperForLibrary) }
-        : { status: "failed" };
-      renderFocusSeedResults();
-    });
+        libraryPaperBySeedRowID.clear();
+        if (papers) {
+          for (const paper of papers) {
+            libraryPaperBySeedRowID.set(libraryPaperID(paper.itemID), paper);
+          }
+        }
+        libraryState = papers
+          ? { status: "done", papers: papers.map(seedPopoverPaperForLibrary) }
+          : { status: "failed" };
+        renderFocusSeedResults();
+      })
+      .catch((error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        if (generation !== librarySearchGeneration || focusSeedPopover.hidden)
+          return;
+        libraryState = { status: "failed" };
+        renderFocusSeedResults();
+      });
   };
   focusSeedSearch.addEventListener("input", () => {
+    // A new keystroke retires any search still in flight, so its late result
+    // can never render over what the reader is typing now.
+    librarySearchGeneration += 1;
     libraryState = focusSeedSearch.value.trim()
       ? { status: "searching" }
       : { status: "idle" };
@@ -1495,6 +1516,9 @@ export function renderGraphView(
     librarySearchTimer = document.defaultView
       ? document.defaultView.setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS)
       : (setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS) as unknown as number);
+    // Show "Searching library…" (or the seed list again) on the keystroke
+    // rather than when the debounce finally fires.
+    renderFocusSeedResults();
   });
   focusSettingsButton.addEventListener("click", () => {
     const opening = focusSettingsPopover.hidden;

@@ -1104,30 +1104,24 @@ describe("Graph view, as the product builds it", function () {
     const first = active.model.nodes[0]!;
     controller.revealItem(first.itemID);
     await settle(active.window, 4);
-    // Where the renderer put the first node: ask it, rather than guess.
-    const position = (active as any).renderer?.nodeClientPosition?.(first.key);
-    if (position) {
-      const onNode = new view.MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-        clientX: position.x,
-        clientY: position.y,
-      });
-      active.canvas.dispatchEvent(onNode);
-      expect(menu.hidden, "a node opens it").to.equal(false);
-      expect(onNode.defaultPrevented, "and takes the event").to.equal(true);
-      const items = [...menu.querySelectorAll('[role="menuitem"]')].map(
-        (item) => item?.textContent,
-      );
-      expect(items).to.deep.equal(["Add as seed", "Explore from this paper"]);
-      const escape = new view.KeyboardEvent("keydown", {
-        bubbles: true,
-        key: "Escape",
-      });
-      menu.dispatchEvent(escape);
-      expect(menu.hidden, "Escape closes it").to.equal(true);
-    } else {
-      note("view 12: the harness exposes no renderer; node half skipped");
-    }
+    // Revealing selects the node, so the ContextMenu key asks the renderer for
+    // the menu at the node it already knows about — no client position to guess.
+    const onNode = new view.KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "ContextMenu",
+    });
+    active.canvas.dispatchEvent(onNode);
+    expect(menu.hidden, "a node opens it").to.equal(false);
+    const items = [...menu.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item?.textContent,
+    );
+    expect(items).to.deep.equal(["Add as seed", "Explore from this paper"]);
+    const escape = new view.KeyboardEvent("keydown", {
+      bubbles: true,
+      key: "Escape",
+    });
+    menu.dispatchEvent(escape);
+    expect(menu.hidden, "Escape closes it").to.equal(true);
   });
 });
