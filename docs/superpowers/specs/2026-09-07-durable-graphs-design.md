@@ -37,8 +37,8 @@ Neighbours are never saved. On load they are recomputed from the current
 citation data, as a refresh does today. A saved graph is a durable
 configuration, not a frozen picture.
 
-Global appearance (colours, node size, labels) stays in preferences and is
-not part of a graph. Map scope and pinned items stay on the instance as they
+Global appearance (axes, colours, node size, labels) stays in preferences
+and is not part of a graph, even though direction and scope share its panel. Map scope and pinned items stay on the instance as they
 do now.
 
 ### `GraphViewState`
@@ -61,8 +61,6 @@ export interface GraphViewState {
   explore: {
     direction: GraphFocusDirection;
     locality: GraphFocusLocality;
-    ranking: GraphFocusRanking;
-    maxPerDirection: number;
   };
   filters: PaperListFilterState;
   camera: GraphViewTransform | null;
@@ -78,8 +76,10 @@ export interface GraphViewState {
   after that. `identityKey` is `stableExternalWorkIdentity(work)`; a work
   with no stable identity cannot be a saved seed and is dropped on
   serialization.
-- `explore` is `GraphFocusState` without `seedKeys`, which the seeds list
-  replaces.
+- `explore` is direction and scope only. Ranking and the per-seed limit
+  are removed from the product (see below), so `GraphFocusState` keeps
+  `maxPerDirection` as an internal field set to `Infinity` and `ranking`
+  fixed at `relevance`, for the neighbour approach that follows this work.
 - `filters` is the filter controller's state verbatim, collections included.
   A collection filter on a library graph is part of what the graph is.
 - `camera` is the renderer transform. It is read on demand, never reported
@@ -88,8 +88,8 @@ export interface GraphViewState {
 Helpers:
 
 - `emptyGraphViewState(): GraphViewState`: no seeds, default Explore
-  settings (both directions, all known papers, relevance, 25), default
-  filters, null camera, null title.
+  settings (both directions, all known papers), default filters, null
+  camera, null title.
 - `serializeGraphViewState(state): string` and
   `parseGraphViewState(json): GraphViewState | null`. Parsing validates the
   shape, fills missing optional fields with defaults, and returns null for
@@ -119,11 +119,11 @@ onStateChange?: (state: GraphViewState) => void;
 
 - `getState()` reads the live view: seeds from the focus projection's
   ordered seed keys mapped through `focusSeedRegistry`, Explore settings
-  from the four selects, filters from `graphFilter.state()`, camera from
+  from the two selects, filters from `graphFilter.state()`, camera from
   `renderer.getViewTransform()`, title from the `title` option that the
   window service passes in. With no projection, `seeds` is empty and
   `explore` still reports the selects.
-- `applyState` sets the four selects and the filters first, then resolves
+- `applyState` sets the two selects and the filters first, then resolves
   the seeds and calls `addFocusSeeds` with them, then sets the camera when
   one is given and skips the fit. With no seeds it stays in, or returns to,
   the library graph. Dropped seeds are not an error; the Seeds count simply
@@ -139,6 +139,16 @@ onStateChange?: (state: GraphViewState) => void;
 
 `PaperFilterController` gains `setState(state: PaperListFilterState)`, which
 replaces the filter state, rebuilds the popup and calls `onChange` once.
+
+### Explore settings move behind the gear
+
+The toolbar's Explore button and its popover go. Direction and scope become
+an "Explore" section at the top of the graph display settings panel that the
+gear in the Key rail opens (`createAxesAppearance`), shown only while the
+graph has seeds. The section is a settings section, not appearance: it is
+saved with the graph, not in preferences. Ranking and the per-seed limit are
+removed with the popover. The toolbar then reads Filter, Seeds, Similar,
+Export, Graph, Refresh.
 
 ### Refresh restores instead of resets
 
@@ -261,8 +271,10 @@ In `menuService.ts`:
 
 - Create `src/services/graphViewState.ts`, `src/services/savedGraphService.ts`,
   `src/services/pluginDatabase.ts`.
-- Modify `src/services/graphViewService.ts` (controller methods, options,
-  Graph menu), `src/services/paperListViewService.ts` (`setState`),
+- Modify `src/services/graphViewService.ts` (Explore popover removal,
+  controller methods, options, Graph menu), `src/services/graphViewControls.ts`
+  (Explore section in the display settings panel),
+  `src/services/graphFocusService.ts` (fixed ranking, no limit), `src/services/paperListViewService.ts` (`setState`),
   `src/services/windowService.ts` (instance fields, render paths, refresh,
   open saved graph), `src/services/externalWorkCacheService.ts` (shared
   connection), `src/services/menuService.ts` (wording, Open Saved Graph),
@@ -275,7 +287,8 @@ In `menuService.ts`:
 
 ## Phases
 
-1. **Refresh preserves state.** `graphViewState.ts`, controller
+1. **Refresh preserves state.** Remove ranking and limit, move direction
+   and scope behind the gear, `graphViewState.ts`, controller
    `getState`/`applyState`, options, filter `setState`, instance
    `viewState`, all render and refresh paths. Ships on its own and fixes
    the reported bug.
@@ -291,8 +304,10 @@ saved graph service lists per library sorted by name, updates bump
 `modified`, delete removes; filter `setState` replaces and fires `onChange`
 once.
 
-Zotero visual: a seeded tab refreshed through `refreshOpenGraphViews` keeps
-its seed count, Explore settings and collection filter; Save on a scratch
+Zotero visual: the toolbar has no Explore button and the gear panel shows
+the Explore section only in a seeded graph; a seeded tab refreshed through
+`refreshOpenGraphViews` keeps its seed count, direction, scope and
+collection filter; Save on a scratch
 graph then Open from a fresh tab restores the same seeds and title.
 
 Manual, the original report: New PhD Graph, add a seed, add a node that is
@@ -303,5 +318,6 @@ menu and from Tools.
 ## Out of scope
 
 Sync across devices or profiles. Export or import of saved graphs as files.
-Frozen node membership. Saved appearance per graph. The relationship-row
+Frozen node membership. Saved appearance per graph. Any replacement for
+the per-seed limit. The relationship-row
 "Add as seed" wording noted in the seed entry points spec.
