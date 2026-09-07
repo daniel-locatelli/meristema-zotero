@@ -57,6 +57,7 @@ import {
   cancelPendingGraphRefreshes,
   closeGraphForWindow,
   closeGraphWindow,
+  flushSavedGraphWrites,
   installGraphTabHooks,
   refreshOpenGraphViews,
 } from "./services/windowService";
@@ -351,6 +352,9 @@ async function onShutdown(): Promise<void> {
   beginTeardown();
   await waitForCitationUpdates();
   await waitForProviderResponseCache();
+  await flushSavedGraphWrites().catch((error: unknown) =>
+    Zotero.logError(error instanceof Error ? error : new Error(String(error))),
+  );
   await closeExternalWorkCache().catch((error: unknown) =>
     Zotero.logError(error instanceof Error ? error : new Error(String(error))),
   );

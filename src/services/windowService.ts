@@ -2,13 +2,26 @@ import { config } from "../../package.json";
 import type { LibrarySnapshot } from "../domain/types";
 import { positiveInteger } from "../domain/valueNormalization";
 import { paneSelectedLibraryID } from "./paneLibrary";
-import type { GraphViewState } from "./graphViewState";
+import {
+  emptyGraphViewState,
+  serializeGraphViewState,
+  type GraphViewState,
+} from "./graphViewState";
 import {
   destroyGraphView,
   getGraphViewController,
   renderGraphView,
   type GraphViewOptions,
+  type GraphViewSavedGraphsHost,
 } from "./graphViewService";
+import {
+  createSavedGraph,
+  deleteSavedGraph,
+  listSavedGraphs,
+  loadSavedGraph,
+  renameSavedGraph,
+  updateSavedGraph,
+} from "./savedGraphService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import {
   installDataSourceHoverTooltips,
@@ -33,6 +46,9 @@ const NETWORK_ICON_TYPE = "meristema-network";
 const CONTEXT_HANDLER_MARKER = "__meristemaContextHandlerInstalled";
 const LIBRARY_FILTER_MARKER = "meristemaLibraryFilterInstalled";
 const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/graphWindow.xhtml`;
+const AUTOSAVE_DELAY_MS = 500;
+/** Writes in flight, so shutdown can wait for them before the database closes. */
+const savedGraphWrites = new Set<Promise<void>>();
 interface GraphInstanceState {
   instanceID: string;
   title: string;
@@ -53,6 +69,15 @@ interface GraphInstanceState {
   viewState: GraphViewState | null;
   /** Set when the next capture must throw the live view's state away. */
   discardViewState: boolean;
+  /** The saved graph this view is a document of, or null while it is scratch. */
+  savedGraphID: number | null;
+  /**
+   * The recipe last written to that row, camera stripped, so an echo of the
+   * same state (the view reports on open) is not a change to write.
+   */
+  savedGraphSerialized: string | null;
+  /** The debounce handle of a pending autosave. */
+  autosaveTimer: number | null;
   detachedWindow: Window | null;
   detachedMount: HTMLElement | null;
   lastActivatedAt: number;
@@ -103,6 +128,9 @@ function createGraphInstance(
     mapPinnedItemIDs: [],
     viewState: null,
     discardViewState: false,
+    savedGraphID: null,
+    savedGraphSerialized: null,
+    autosaveTimer: null,
     detachedWindow: null,
     detachedMount: null,
     lastActivatedAt: Date.now(),
@@ -325,6 +353,183 @@ async function selectPaper(
   host.focus();
 }
 
+/** The recipe as autosave compares it: the camera moves without being a change. */
+function comparableState(state: GraphViewState): string {
+  return serializeGraphViewState({ ...state, camera: null });
+}
+
+function instanceTitle(instance: GraphInstanceState): string | null {
+  return instance.customTitle ? instance.title : null;
+}
+
+function clearAutosave(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): void {
+  if (instance.autosaveTimer === null) return;
+  win.clearTimeout(instance.autosaveTimer);
+  instance.autosaveTimer = null;
+}
+
+/**
+ * Writes the instance's recipe to its saved graph. Resolves true when the row
+ * was written. A failure is logged and shown in the view's toolbar; the graph
+ * stays open and the next change tries again.
+ */
+function writeSavedGraph(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+  mode: "autosave" | "save",
+): Promise<boolean> {
+  const id = instance.savedGraphID;
+  const state = instance.viewState;
+  if (id === null || !state) return Promise.resolve(false);
+  const serialized = comparableState(state);
+  const write = updateSavedGraph(id, state).then(
+    () => {
+      instance.savedGraphSerialized = serialized;
+      return true;
+    },
+    (error: unknown) => {
+      reportAsyncError("Meristema: saved graph write failed", error);
+      const mount = instanceMount(win, instance);
+      if (mount) {
+        getGraphViewController(mount)?.setStatus(
+          mode === "autosave" ? "Autosave failed" : "Save failed",
+        );
+      }
+      return false;
+    },
+  );
+  const tracked = write.then(() => undefined);
+  savedGraphWrites.add(tracked);
+  void tracked.finally(() => savedGraphWrites.delete(tracked));
+  return write;
+}
+
+function scheduleAutosave(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): void {
+  if (instance.savedGraphID === null || !instance.viewState) return;
+  if (comparableState(instance.viewState) === instance.savedGraphSerialized) {
+    return;
+  }
+  clearAutosave(win, instance);
+  instance.autosaveTimer = win.setTimeout(() => {
+    instance.autosaveTimer = null;
+    void writeSavedGraph(win, instance, "autosave");
+  }, AUTOSAVE_DELAY_MS);
+}
+
+export async function flushSavedGraphWrites(): Promise<void> {
+  for (const [win, state] of graphStateByWindow) {
+    for (const instance of state.instances.values()) {
+      if (instance.autosaveTimer === null) continue;
+      clearAutosave(win, instance);
+      void writeSavedGraph(win, instance, "autosave");
+    }
+  }
+  await Promise.allSettled([...savedGraphWrites]);
+}
+
+/** Makes the instance the document of a saved graph row and names it after it. */
+function adoptSavedGraph(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+  id: number,
+  name: string,
+  state: GraphViewState,
+): void {
+  clearAutosave(win, instance);
+  instance.savedGraphID = id;
+  instance.title = name;
+  instance.customTitle = true;
+  instance.viewState = { ...state, title: name };
+  instance.savedGraphSerialized = comparableState(instance.viewState);
+  syncInstanceTitle(win, instance);
+}
+
+/** Back to scratch: the tab keeps its name and its graph, the row is left alone. */
+function releaseSavedGraph(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): void {
+  clearAutosave(win, instance);
+  instance.savedGraphID = null;
+  instance.savedGraphSerialized = null;
+}
+
+function savedGraphsHost(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): GraphViewSavedGraphsHost {
+  const libraryID = (): number => instance.libraryID ?? selectedLibraryID(win);
+  // The live view's state, camera included: Save writes the camera, which
+  // autosave never tracks.
+  const currentState = (): GraphViewState => {
+    captureViewState(instance, instanceMount(win, instance));
+    return (
+      instance.viewState ?? {
+        ...emptyGraphViewState(),
+        title: instanceTitle(instance),
+      }
+    );
+  };
+  const askName = (): string | null => {
+    const answer = (win as any).prompt?.("Save graph as", instance.title);
+    if (answer === null || answer === undefined) return null;
+    const name = String(answer).trim();
+    return name || null;
+  };
+  const createAs = async (): Promise<string | null> => {
+    const name = askName();
+    if (!name) return null;
+    const state = { ...currentState(), title: name };
+    const summary = await createSavedGraph(libraryID(), name, state);
+    adoptSavedGraph(win, instance, summary.id, name, state);
+    return name;
+  };
+  return {
+    list: async () =>
+      (await listSavedGraphs(libraryID())).map(({ id, name, modified }) => ({
+        id,
+        name,
+        modified,
+      })),
+    save: async () => {
+      if (instance.savedGraphID === null) return createAs();
+      instance.viewState = currentState();
+      clearAutosave(win, instance);
+      const written = await writeSavedGraph(win, instance, "save");
+      return written ? instance.title : null;
+    },
+    saveAs: createAs,
+    open: (id) => openSavedGraph(id, win),
+    remove: async (id) => {
+      const entry = (await listSavedGraphs(libraryID())).find(
+        (summary) => summary.id === id,
+      );
+      const name = entry?.name ?? "this graph";
+      const confirmed = Boolean(
+        (win as any).confirm?.(
+          `Delete the saved graph “${name}”? Open tabs keep their graph; only the saved copy is removed.`,
+        ),
+      );
+      if (!confirmed) return false;
+      await deleteSavedGraph(id);
+      // Every view of that row, in any window, is scratch again. Each timer
+      // is cleared through the window that set it.
+      for (const [owner, state] of graphStateByWindow) {
+        for (const other of state.instances.values()) {
+          if (other.savedGraphID === id) releaseSavedGraph(owner, other);
+        }
+      }
+      return true;
+    },
+  };
+}
+
 /**
  * What the live view knows that the instance does not yet: the camera, which
  * the view never reports on its own, and any change still waiting for its
@@ -353,19 +558,24 @@ function captureViewState(
 }
 
 function viewStateOptions(
+  win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   libraryID: number,
-): Pick<GraphViewOptions, "title" | "onStateChange"> {
+): Pick<GraphViewOptions, "title" | "onStateChange" | "savedGraphs"> {
   // A view moving to another library keeps nothing: its seeds are that
   // library's items and its collections are that library's folders.
   if (instance.libraryID !== null && instance.libraryID !== libraryID) {
     instance.viewState = null;
   }
   return {
-    title: instance.customTitle ? instance.title : null,
+    title: instanceTitle(instance),
     onStateChange: (state) => {
-      instance.viewState = state;
+      // The view only knows the title it was rendered with; the instance's
+      // is current, and it is the one the saved row should carry.
+      instance.viewState = { ...state, title: instanceTitle(instance) };
+      scheduleAutosave(win, instance);
     },
+    savedGraphs: savedGraphsHost(win, instance),
   };
 }
 
@@ -384,7 +594,11 @@ function renderDetachedWindow(
   const mount = instance.detachedMount;
   if (!popup || popup.closed || !mount) return;
   captureViewState(instance, mount);
-  const stateOptions = viewStateOptions(instance, snapshot.libraryID);
+  const stateOptions = viewStateOptions(
+    hostWindow,
+    instance,
+    snapshot.libraryID,
+  );
   instance.libraryID = snapshot.libraryID;
   instance.lastActivatedAt = Date.now();
   instance.dirty = false;
@@ -751,7 +965,7 @@ function renderTab(
   snapshot: LibrarySnapshot,
 ): void {
   captureViewState(instance, container);
-  const stateOptions = viewStateOptions(instance, snapshot.libraryID);
+  const stateOptions = viewStateOptions(win, instance, snapshot.libraryID);
   instance.libraryID = snapshot.libraryID;
   instance.dirty = false;
   instance.renderGeneration += 1;
@@ -879,6 +1093,12 @@ interface OpenGraphOptions {
    * re-scoping a graph does not rename the tab out from under the user.
    */
   titleBase?: string;
+  /**
+   * Opens a saved graph into the new instance: its name becomes the tab
+   * title, its recipe the initial state, and the instance autosaves to it.
+   * Only meaningful with `newInstance`.
+   */
+  savedGraph?: { id: number; name: string; state: GraphViewState };
 }
 
 function requestedInstance(
@@ -951,8 +1171,17 @@ export async function openGraphWindow(
   if (!instance) {
     instance = createGraphInstance(win, targetLibraryID, options.titleBase);
   }
+  if (options.savedGraph && options.newInstance) {
+    const { id, name, state } = options.savedGraph;
+    instance.savedGraphID = id;
+    instance.title = name;
+    instance.customTitle = true;
+    instance.viewState = { ...state, title: name };
+    instance.savedGraphSerialized = comparableState(instance.viewState);
+  }
   const previousLibraryID = instance.libraryID;
   if (previousLibraryID !== null && previousLibraryID !== targetLibraryID) {
+    releaseSavedGraph(win, instance);
     instance.mapScopeItemIDs = null;
     instance.mapPinnedItemIDs = [];
     instance.viewState = null;
@@ -1017,6 +1246,11 @@ export async function openGraphWindow(
     onClose: () => {
       destroyGraphView(result.container);
       if (instance.tabID === result.id) instance.tabID = null;
+      // A pending autosave is written now rather than dropped with the tab.
+      if (instance.autosaveTimer !== null) {
+        clearAutosave(win, instance);
+        void writeSavedGraph(win, instance, "autosave");
+      }
       instance.pendingSelectionItemIDs = [];
       instance.pendingSelectionMode = "replace";
       instance.pendingFocusItemIDs = [];
@@ -1046,6 +1280,27 @@ export async function openNewGraphWindow(
   libraryID?: number | null,
 ): Promise<void> {
   await openGraphWindow(hostWindow, libraryID, { newInstance: true });
+}
+
+export async function openSavedGraph(
+  id: number,
+  hostWindow?: _ZoteroTypes.MainWindow,
+): Promise<"opened" | "deleted"> {
+  const win = hostWindow ?? defaultMainWindow();
+  const open = liveInstances(win).find(
+    (instance) => instance.savedGraphID === id,
+  );
+  if (open) {
+    activateInstance(win, open);
+    return "opened";
+  }
+  const loaded = await loadSavedGraph(id);
+  if (!loaded) return "deleted";
+  await openGraphWindow(win, loaded.summary.libraryID, {
+    newInstance: true,
+    savedGraph: { id, name: loaded.summary.name, state: loaded.state },
+  });
+  return "opened";
 }
 
 export interface OpenGraphViewInfo {
@@ -1097,6 +1352,14 @@ export function renameGraphView(
   if (instance.viewState)
     instance.viewState = { ...instance.viewState, title: normalized };
   syncInstanceTitle(win, instance);
+  if (instance.savedGraphID !== null) {
+    const id = instance.savedGraphID;
+    void renameSavedGraph(id, normalized).catch((error: unknown) =>
+      reportAsyncError("Meristema: saved graph rename failed", error),
+    );
+    // The row's state carries the title too.
+    scheduleAutosave(win, instance);
+  }
 }
 
 interface OpenItemViewOptions {
