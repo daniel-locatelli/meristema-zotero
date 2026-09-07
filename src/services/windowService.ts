@@ -455,6 +455,7 @@ async function openDetachedGraphWindow(
     "unload",
     () => {
       if (instance.detachedWindow !== popup) return;
+      captureViewState(instance, mount);
       destroyGraphView(mount);
       uninstallDataSourceHoverTooltips(popup.document);
       instance.detachedWindow = null;
@@ -765,6 +766,7 @@ function renderTab(
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
+      initialState: instance.viewState,
     });
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
@@ -934,6 +936,7 @@ export async function openGraphWindow(
   if (previousLibraryID !== null && previousLibraryID !== targetLibraryID) {
     instance.mapScopeItemIDs = null;
     instance.mapPinnedItemIDs = [];
+    instance.viewState = null;
   }
   if (options.request) setPendingRequest(instance, options.request);
   instance.libraryID = targetLibraryID;
