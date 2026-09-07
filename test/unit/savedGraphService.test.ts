@@ -180,4 +180,25 @@ describe("saved graph store", function () {
       title: "Corrupt",
     });
   });
+
+  it("rejects and rolls back if valueQueryAsync returns false for last_insert_rowid", async function () {
+    const db = new DatabaseSync(":memory:");
+    const baseConnection = fakeConnection(db);
+    const brokenConnection: SavedGraphConnection = {
+      ...baseConnection,
+      async valueQueryAsync() {
+        return false;
+      },
+    };
+    const store = createSavedGraphStore(brokenConnection);
+    await store.ensureSchema();
+    let failed = false;
+    try {
+      await store.create(1, "Failed", emptyGraphViewState());
+    } catch {
+      failed = true;
+    }
+    expect(failed, "create rejected").to.equal(true);
+    expect((await store.list(1)).length, "transaction rolled back").to.equal(0);
+  });
 });

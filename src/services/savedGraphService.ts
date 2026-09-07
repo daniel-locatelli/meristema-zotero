@@ -133,9 +133,13 @@ export function createSavedGraphStore(
            VALUES (?, ?, ?, ?, ?)`,
           [libraryID, normalized, serializeGraphViewState(state), stamp, stamp],
         );
-        return Number(
+        const id = Number(
           await connection.valueQueryAsync("SELECT last_insert_rowid()"),
         );
+        if (!Number.isInteger(id) || id <= 0) {
+          throw new Error("The saved graph row has no id.");
+        }
+        return id;
       });
       return {
         id,
@@ -178,9 +182,7 @@ function store(): Promise<SavedGraphStore> {
   if (boundStore) return boundStore;
   boundStore = (async () => {
     const connection = await openPluginDatabase();
-    const created = createSavedGraphStore(
-      connection as unknown as SavedGraphConnection,
-    );
+    const created = createSavedGraphStore(connection);
     await created.ensureSchema();
     return created;
   })().catch((error: unknown) => {
