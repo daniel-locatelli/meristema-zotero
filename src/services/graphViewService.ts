@@ -26,6 +26,7 @@ import {
   refreshExternalRelationships,
   selectedRelationshipCacheIsFresh,
 } from "./externalDiscoveryService";
+import { normalizeDOI } from "../domain/workIdentity";
 import {
   emptyGraphViewState,
   resolveGraphViewSeeds,
@@ -1092,10 +1093,6 @@ export function renderGraphView(
     const base = `${formatCount(renderedKeys.size)} nodes - ${formatCount(
       renderer?.getVisibleEdgeCount() ?? 0,
     )} links`;
-    if (!focusProjection) {
-      summary.textContent = base;
-      return;
-    }
     summary.textContent = base;
   };
 
@@ -1859,6 +1856,7 @@ export function renderGraphView(
         !focusProjection?.seedKeys.has(seed.key)
       ) {
         focusPostRefreshFitSeeds.delete(seed.key);
+        // `restoredCamera` stays armed here; the next fit consumes it.
         return;
       }
       void loadFocusConnections([seed], {
@@ -3478,9 +3476,12 @@ export function renderGraphView(
     // Entering Explore stashes the library's collection scope and clears the
     // control, so the scope a seeded graph belongs to is the stashed one.
     const filters = graphFilter.state();
-    if (focusProjection && libraryCollectionFilterBeforeFocus !== undefined) {
-      filters.collectionIDs = [...libraryCollectionFilterBeforeFocus];
-    }
+    // `state()` is a shallow copy, so the array has to be copied too.
+    filters.collectionIDs = [
+      ...(focusProjection && libraryCollectionFilterBeforeFocus !== undefined
+        ? libraryCollectionFilterBeforeFocus
+        : filters.collectionIDs),
+    ];
     return {
       ...emptyGraphViewState(),
       seeds,
@@ -3514,10 +3515,15 @@ export function renderGraphView(
     // the collection scope, so it comes back when the last seed goes.
     if (focusProjection) exitFocus();
     graphFilter.setState(state.filters);
-    const paperByKey = localPaperByKey(snapshot);
-    const { nodes } = resolveGraphViewSeeds(state.seeds, (itemKey) => {
+    const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
       const paper = paperByKey.get(itemKey);
       return paper ? libraryNodeForItem(paper.itemID) : null;
+    };
+    const { nodes } = resolveGraphViewSeeds(state.seeds, {
+      nodeForItemKey,
+      nodeForDOI: (doi) =>
+        libraryModel.nodes.find((node) => normalizeDOI(node.doi) === doi) ??
+        null,
     });
     if (nodes.length) {
       restoredCamera = state.camera;
@@ -3527,11 +3533,16 @@ export function renderGraphView(
       }
       return "selected";
     }
+    if (state.seeds.length) {
+      // That camera framed a projection that no longer resolves; pointing the
+      // library graph at it would land on nothing.
+      return "not-found";
+    }
     if (state.camera) {
       const camera = state.camera;
       scheduleCameraAction(() => renderer?.setViewTransform(camera));
     }
-    return state.seeds.length ? "not-found" : "selected";
+    return "selected";
   };
 
   syncMapPinnedKeys(false);
@@ -3605,12 +3616,25 @@ export function renderGraphView(
       options.initialItemID,
     );
     if (request) {
-      // The request already shaped the graph; the state only fills in what
-      // the request does not name.
+      // The request already shaped the graph; the state fills in what the
+      // request does not name, and a request never names filters.
       focusDirection.value = options.initialState.explore.direction;
       focusLocality.value = options.initialState.explore.locality;
-      if (!focusProjection) graphFilter.setState(options.initialState.filters);
-      else scheduleFocusRebuild();
+      // Entering Explore stashes and clears the collection scope, but that
+      // happened before this state arrived. Route the collections into the
+      // stash instead, or they would hide every neighbour outside them.
+      if (focusProjection) {
+        libraryCollectionFilterBeforeFocus = [
+          ...options.initialState.filters.collectionIDs,
+        ];
+        graphFilter.setState({
+          ...options.initialState.filters,
+          collectionIDs: [],
+        });
+      } else {
+        graphFilter.setState(options.initialState.filters);
+      }
+      if (focusProjection) scheduleFocusRebuild();
     } else {
       applyState(options.initialState);
     }

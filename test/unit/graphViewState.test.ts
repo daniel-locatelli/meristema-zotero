@@ -88,7 +88,7 @@ describe("resolveGraphViewSeeds", function () {
         { kind: "item", itemKey: "BBBB0002" },
         { kind: "item", itemKey: "AAAA0001" },
       ],
-      (itemKey) => library.get(itemKey) ?? null,
+      { nodeForItemKey: (itemKey) => library.get(itemKey) ?? null },
     );
     expect(result.dropped).to.equal(0);
     expect(result.nodes.map((node) => node.itemID)).to.deep.equal([2, 1]);
@@ -100,7 +100,10 @@ describe("resolveGraphViewSeeds", function () {
         { kind: "item", itemKey: "GONE0000" },
         { kind: "item", itemKey: "AAAA0001" },
       ],
-      (itemKey) => (itemKey === "AAAA0001" ? localNode(1, itemKey) : null),
+      {
+        nodeForItemKey: (itemKey) =>
+          itemKey === "AAAA0001" ? localNode(1, itemKey) : null,
+      },
     );
     expect(result.dropped).to.equal(1);
     expect(result.nodes.map((node) => node.itemKey)).to.deep.equal([
@@ -111,7 +114,7 @@ describe("resolveGraphViewSeeds", function () {
   it("builds an external seed node from the inline work", function () {
     const result = resolveGraphViewSeeds(
       [{ kind: "external", identityKey: "doi:10.1000/seed", work: work() }],
-      () => null,
+      { nodeForItemKey: () => null },
     );
     expect(result.dropped).to.equal(0);
     const node = result.nodes[0]!;
@@ -119,6 +122,39 @@ describe("resolveGraphViewSeeds", function () {
     expect(node.itemID).to.equal(0);
     expect(node.title).to.equal("An external seed");
     expect(node.externalWork?.doi).to.equal("10.1000/seed");
+  });
+
+  it("resolves an imported external seed to its library item", function () {
+    const result = resolveGraphViewSeeds(
+      [
+        {
+          kind: "external",
+          identityKey: "doi:10.1000/seed",
+          work: work({ inLibraryItemKey: "CCCC0003" }),
+        },
+      ],
+      {
+        nodeForItemKey: (itemKey) =>
+          itemKey === "CCCC0003" ? localNode(3, itemKey) : null,
+      },
+    );
+    expect(result.dropped).to.equal(0);
+    const node = result.nodes[0]!;
+    expect(node.itemID).to.equal(3);
+    expect(node.itemKey).to.equal("CCCC0003");
+  });
+
+  it("resolves an external seed whose DOI now matches a library paper", function () {
+    const local = { ...localNode(4, "DDDD0004"), doi: "10.1000/SEED" };
+    const result = resolveGraphViewSeeds(
+      [{ kind: "external", identityKey: "doi:10.1000/seed", work: work() }],
+      {
+        nodeForItemKey: () => null,
+        nodeForDOI: (doi) => (doi === "10.1000/seed" ? local : null),
+      },
+    );
+    expect(result.dropped).to.equal(0);
+    expect(result.nodes[0]!.itemID).to.equal(4);
   });
 });
 
@@ -187,5 +223,31 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
     expect(parsed?.filters.excludeRetracted).to.equal(true);
     expect(parsed?.camera).to.equal(null);
     expect(parsed?.title).to.equal(null);
+  });
+
+  it("drops an external seed whose inline work is malformed", function () {
+    const messy = JSON.stringify({
+      version: 1,
+      seeds: [
+        {
+          kind: "external",
+          identityKey: "doi:10.1000/bad",
+          work: work({ title: 9 as unknown as string }),
+        },
+        {
+          kind: "external",
+          identityKey: "doi:10.1000/seed",
+          work: work(),
+        },
+      ],
+    });
+    const parsed = parseGraphViewState(messy);
+    expect(parsed?.seeds).to.deep.equal([
+      {
+        kind: "external",
+        identityKey: "doi:10.1000/seed",
+        work: work(),
+      },
+    ]);
   });
 });

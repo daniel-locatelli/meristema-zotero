@@ -148,7 +148,10 @@ gear in the Key rail opens (`createAxesAppearance`), shown only while the
 graph has seeds. The section is a settings section, not appearance: it is
 saved with the graph, not in preferences. Ranking and the per-seed limit are
 removed with the popover. The toolbar then reads Filter, Seeds, Similar,
-Export, Graph, Refresh.
+Export, Graph, Refresh. Within one view the two settings persist across
+Explore sessions: leaving Explore and seeding again starts from the last
+chosen direction and scope, while a new view starts at both directions and
+all known papers.
 
 ### Refresh restores instead of resets
 

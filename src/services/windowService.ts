@@ -51,6 +51,8 @@ interface GraphInstanceState {
    * back into it.
    */
   viewState: GraphViewState | null;
+  /** Set when the next capture must throw the live view's state away. */
+  discardViewState: boolean;
   detachedWindow: Window | null;
   detachedMount: HTMLElement | null;
   lastActivatedAt: number;
@@ -100,6 +102,7 @@ function createGraphInstance(
     mapScopeItemIDs: null,
     mapPinnedItemIDs: [],
     viewState: null,
+    discardViewState: false,
     detachedWindow: null,
     detachedMount: null,
     lastActivatedAt: Date.now(),
@@ -331,22 +334,34 @@ function captureViewState(
   instance: GraphInstanceState,
   mount: Element | null,
 ): void {
+  if (instance.discardViewState) {
+    // The view is moving to another library; what the old view knows is
+    // that library's items and folders.
+    instance.discardViewState = false;
+    instance.viewState = null;
+    return;
+  }
   if (!mount) return;
   const live = getGraphViewController(mount)?.getState();
-  if (live) instance.viewState = live;
+  // The view only knows the title it was rendered with, which a rename since
+  // then has already made stale on the instance's side.
+  if (live)
+    instance.viewState = {
+      ...live,
+      title: instance.customTitle ? instance.title : null,
+    };
 }
 
 function viewStateOptions(
   instance: GraphInstanceState,
   libraryID: number,
-): Pick<GraphViewOptions, "initialState" | "title" | "onStateChange"> {
+): Pick<GraphViewOptions, "title" | "onStateChange"> {
   // A view moving to another library keeps nothing: its seeds are that
   // library's items and its collections are that library's folders.
   if (instance.libraryID !== null && instance.libraryID !== libraryID) {
     instance.viewState = null;
   }
   return {
-    initialState: instance.viewState,
     title: instance.customTitle ? instance.title : null,
     onStateChange: (state) => {
       instance.viewState = state;
@@ -376,6 +391,7 @@ function renderDetachedWindow(
   const host = liveHostWindow(hostWindow);
   renderGraphView(popup.document, mount, snapshot, {
     mode: "window",
+    initialState: instance.viewState,
     onSelectPaper: (itemID) => {
       void selectPaper(host, itemID).catch((error) =>
         reportAsyncError("Meristema: paper selection failed", error),
@@ -651,6 +667,9 @@ export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
       const libraryID = tabLibraryID(tab, win, instance);
       const snapshot = await loadWholeLibrary(libraryID);
       const request = consumePendingRequest(instance);
+      // The tab is about to close; its camera and seeds live only in the
+      // view until they are read out here.
+      captureViewState(instance, manager.getTabContent(tab.id));
       await openDetachedGraphWindow(win, instance, snapshot, request);
       instance.tabID = null;
       manager.close(tab.id);
@@ -937,6 +956,9 @@ export async function openGraphWindow(
     instance.mapScopeItemIDs = null;
     instance.mapPinnedItemIDs = [];
     instance.viewState = null;
+    // The render below captures the still-live old-library view first; tell
+    // that capture to throw it away rather than write it back.
+    instance.discardViewState = true;
   }
   if (options.request) setPendingRequest(instance, options.request);
   instance.libraryID = targetLibraryID;
@@ -1001,8 +1023,9 @@ export async function openGraphWindow(
       instance.pendingCollectionIDs = [];
       instance.mapScopeItemIDs = null;
       instance.mapPinnedItemIDs = [];
-      instance.viewState = null;
       if (!instance.detachedWindow || instance.detachedWindow.closed) {
+        // A detached window is still showing this graph and owns the state.
+        instance.viewState = null;
         graphStateByWindow.get(win)?.instances.delete(instance.instanceID);
       }
     },

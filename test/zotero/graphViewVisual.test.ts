@@ -15,7 +15,10 @@ import {
   type ViewStage,
 } from "./visualHarness";
 import { setGraphAppearance } from "../../src/services/citationPreferences";
-import { getGraphViewController } from "../../src/services/graphViewService";
+import {
+  getGraphViewController,
+  renderGraphView,
+} from "../../src/services/graphViewService";
 
 const APPEARANCE_PREF = "browser.theme.toolbar-theme";
 
@@ -1193,5 +1196,22 @@ describe("Graph view, as the product builds it", function () {
       "Filter papers (1 active)",
     );
     expect(second.errors, "nothing threw in the background").to.deep.equal([]);
+
+    // The seam a refresh goes through: the same mount, re-rendered in place
+    // from the state the live view just reported.
+    renderGraphView(second.document, second.mount, second.snapshot, {
+      mode: "window",
+      onSelectPaper: () => undefined,
+      initialState: rebuilt.getState(),
+    });
+    await settle(second.window, 12);
+    const rerendered = getGraphViewController(second.mount)!;
+    expect(rerendered.getState().seeds).to.deep.equal(state.seeds);
+    // `stage.root` still points at the torn-down root, so ask the mount.
+    const rerenderedSeedsButton = second.mount.querySelector(
+      'button[aria-controls="meristema-focus-seed-popover"]',
+    ) as HTMLButtonElement;
+    expect(rerenderedSeedsButton.textContent?.trim()).to.equal("2 seeds");
+    expect(second.errors, "nothing threw on re-render").to.deep.equal([]);
   });
 });
