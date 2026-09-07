@@ -70,6 +70,7 @@ import {
   ARROWHEAD_SIZE_CSS,
   EDGE_CURVE_APEX_CSS,
 } from "./graphEdgeStyle";
+import { isContextMenuKey } from "./nodeMenu";
 
 interface Position {
   x: number;
@@ -102,6 +103,16 @@ export interface CitationGraphRendererOptions {
   onSelectionChange: (node: CitationGraphNode | null) => void;
   onOpenNode: (node: CitationGraphNode) => void;
   onBackgroundInteraction?: () => void;
+  /**
+   * A right-click, Shift+F10 or the ContextMenu key on a node, after the node
+   * has been selected. Client coordinates, so the caller can place a menu
+   * with `getBoundingClientRect()` on whatever pane it lives in.
+   */
+  onNodeContextMenu?: (
+    node: CitationGraphNode,
+    clientX: number,
+    clientY: number,
+  ) => void;
 }
 
 const WORLD_WIDTH = 1100;
@@ -166,6 +177,11 @@ export class CitationGraphRenderer {
   private readonly onSelectionChange: (node: CitationGraphNode | null) => void;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
+  private readonly onNodeContextMenu: (
+    node: CitationGraphNode,
+    clientX: number,
+    clientY: number,
+  ) => void;
   private visibleKeys: Set<string>;
   /**
    * The keys the *filter* admits, before the search box narrows them further.
@@ -224,6 +240,7 @@ export class CitationGraphRenderer {
     this.onOpenNode = options.onOpenNode;
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
+    this.onNodeContextMenu = options.onNodeContextMenu ?? (() => undefined);
     this.visibleKeys = new Set(this.model.nodes.map((node) => node.key));
     this.scopeKeys = new Set(this.visibleKeys);
 
@@ -406,6 +423,7 @@ export class CitationGraphRenderer {
     this.canvas.addEventListener("pointercancel", this.onPointerUp);
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
     this.canvas.addEventListener("dblclick", this.onDoubleClick);
+    this.canvas.addEventListener("contextmenu", this.onContextMenu);
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
     this.canvas.addEventListener("keydown", this.onKeyDown);
   }
@@ -651,6 +669,18 @@ export class CitationGraphRenderer {
     if (node) this.onOpenNode(node);
   };
 
+  private onContextMenu = (event: MouseEvent): void => {
+    const world = this.screenToWorld(event.clientX, event.clientY);
+    const node = this.hitTest(world.x, world.y);
+    // The background keeps the browser's own menu.
+    if (!node) return;
+    event.preventDefault();
+    this.selectedKey = node.key;
+    this.onSelectionChange(node);
+    this.draw();
+    this.onNodeContextMenu(node, event.clientX, event.clientY);
+  };
+
   private onWheel = (event: WheelEvent): void => {
     this.markViewAdjusted();
     event.preventDefault();
@@ -673,6 +703,15 @@ export class CitationGraphRenderer {
     if (event.key === "Escape") {
       this.clearSelection();
       this.onBackgroundInteraction();
+    }
+    if (isContextMenuKey(event) && this.selectedKey !== null) {
+      const node = this.model.nodes.find(
+        (candidate) => candidate.key === this.selectedKey,
+      );
+      const position = this.nodeClientPosition(this.selectedKey);
+      if (!node || !position) return;
+      event.preventDefault();
+      this.onNodeContextMenu(node, position.x, position.y);
     }
   };
 
@@ -1514,6 +1553,20 @@ export class CitationGraphRenderer {
   }
 
   /**
+   * Where a node is on screen, in client coordinates, or null when the node
+   * has no position. The inverse of `screenToWorld`, for a menu that opens
+   * from the keyboard and has no pointer to sit under.
+   */
+  public nodeClientPosition(key: string): { x: number; y: number } | null {
+    const position = this.positions.get(key);
+    if (!position) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = devicePixelScale(this.canvas.width, rect.width);
+    const screen = this.projectToScreen(position);
+    return { x: rect.left + screen.x / ratio, y: rect.top + screen.y / ratio };
+  }
+
+  /**
    * Add a local Zotero node discovered after this graph snapshot was opened.
    * It remains outside the filter result until the view is refreshed, but can
    * immediately be selected and rendered through the same filtered-selection
@@ -1783,6 +1836,7 @@ export class CitationGraphRenderer {
     this.canvas.removeEventListener("pointercancel", this.onPointerUp);
     this.canvas.removeEventListener("pointerleave", this.onPointerLeave);
     this.canvas.removeEventListener("dblclick", this.onDoubleClick);
+    this.canvas.removeEventListener("contextmenu", this.onContextMenu);
     this.canvas.removeEventListener("wheel", this.onWheel);
     this.canvas.removeEventListener("keydown", this.onKeyDown);
   }
