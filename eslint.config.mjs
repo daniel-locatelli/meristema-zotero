@@ -10,6 +10,8 @@ const COLOR_LITERAL = "/^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\\(.*)$/";
 
 export default [
   ...zotero(),
+  // Design input handed over for future work, not code this repo maintains.
+  { ignores: ["docs/design_handoff_citation_chain_depth/**"] },
   {
     files: [
       "src/services/citationGraphRenderer.ts",

@@ -13,3 +13,4 @@ FILE_MANIFEST.sha256
 *.sqlite-wal
 /prefs.js
 .superpowers/
+docs/design_handoff_citation_chain_depth/

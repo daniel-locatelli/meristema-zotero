@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><style>body{margin:0;background:#141412;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e8e9e3}a{color:#e8e9e3}a:hover{color:#fff}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#e8e9e3;color:#141412;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#e8e9e3}.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(255,255,255,.12);color:#e8e9e3;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:#9a9c93}.dv-card{max-width:100%;background:#1c1c1a;border:1px solid #35352f;border-radius:8px;overflow:hidden}.dv-opt:target .dv-oid{background:#96bf54;color:#141412}.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:#9a9c93}</style></helmet>
+<section class="dv-turn" id="t6">
+<div class="dv-thd"><a class="dv-tid" href="#t6">6</a><span class="dv-tname">One merged Graph view — no "Explore" identity; toolbar in the repo's order; Zotero collections as a Scope filter in the rail</span></div>
+<div style="max-width:760px;margin:-8px 0 22px;font-size:12px;line-height:1.55;color:#9a9c93">Rail toolbar carries only the identity (logo + counts, as <span style="font-family:ui-monospace,Menlo,monospace">cm-command-identity</span>) and the collapse toggle. Plot toolbar keeps <span style="font-family:ui-monospace,Menlo,monospace">graphViewService.ts</span> order: Filter · Similar · Export · Refresh · search. History arrows and the Explore settings button are dropped: everything they opened now lives in the rail. Add Node and the Seeds popover are dropped: seeds are managed at the top of the rail's Scope section (hover to emphasise, × to remove, + Add seed searches the library), and any pinned paper on the plot offers "Make seed". Collections move from the Filter popover into the rail's Scope section as a checkbox tree (indented like <span style="font-family:ui-monospace,Menlo,monospace">indentedCollectionLabel</span>); the toolbar Filter keeps tags, type and data-quality. Collections only apply to papers in Zotero; papers outside the library are a separate row so the seeded graph never silently loses them.</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="6a"><div class="dv-olabel"><a class="dv-oid" href="#6a">6a</a>Merged view. Tick collections, hops, floor and shared-citer mode in Scope; Key emphasises only. Everything live.</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;height:41px;border-bottom:1px solid #35352f">
+    <div style="width:{{ x.railW }};flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;border-right:1px solid #35352f;background:#1c1c1a"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;flex:none;display:{{ x.railFooterDisplay }}"></span><span style="font-size:11px;color:#9a9c93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:{{ x.railFooterDisplay }}">{{ x.shownCount }} nodes - {{ x.edgeCount }} links</span><span onClick="{{ x.onToggleRail }}" style="margin-left:auto;width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:4px;color:#9a9c93;cursor:pointer;font-size:16px" style-hover="background:rgba(232,233,227,.08)">{{ x.railChevron }}</span></div>
+    <div style="width:900px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;background:#232320;white-space:nowrap;overflow:hidden;font-size:12px">
+      <span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px;display:flex;gap:6px;align-items:center"><span style="width:10px;height:8px;border-top:2px solid #9a9c93;border-bottom:2px solid #9a9c93;display:inline-block"></span>Filter</span>
+      <span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px">Similar</span>
+      <span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px">Export</span>
+      <span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px">Refresh</span>
+      <span style="margin-left:auto;flex:1;max-width:220px;border:1px solid #35352f;border-radius:5px;padding:4px 9px;color:#9a9c93;display:flex;gap:6px;align-items:center"><span style="width:9px;height:9px;border-radius:50%;border:1.5px solid #9a9c93;display:inline-block"></span>Search all fields</span>
+    </div>
+    <div style="width:264px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;box-sizing:border-box;border-left:1px solid #35352f;background:#1c1c1a;font-size:11px;color:#9a9c93"><span style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:16px">›</span><span style="padding:4px 8px;border-radius:4px;background:#2b2b27;color:#e8e9e3">Overview</span><span style="padding:4px 8px">References</span><span style="padding:4px 8px">Cited by</span></div>
+  </div>
+  <div style="display:flex;height:600px">
+    <div style="width:{{ x.railW }};flex:none;display:flex;flex-direction:column;box-sizing:border-box;border-right:1px solid #35352f;background:#1c1c1a;font-size:12px">
+      <div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 8px 10px;display:{{ x.railBodyDisplay }}">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9a9c93">Scope</div>
+        <div style="margin:1px 0 4px;color:#e8e9e3">{{ x.shownCount }} of {{ x.totalCount }} papers</div>
+        <div style="display:flex;border:1px solid #35352f;border-radius:5px;overflow:hidden;margin:0 0 8px;font-size:11px"><sc-for list="{{ x.presets }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="flex:1;text-align:center;padding:4px 0;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 2px;font-size:11px;color:#9a9c93"><span>Seeds · {{ x.seedCount }}</span><span style="color:#96bf54;cursor:pointer">+ Add seed</span></div>
+        <sc-for list="{{ x.seedRows }}" as="sd" hint-placeholder-count="4"><div onMouseEnter="{{ sd.onEnter }}" onMouseLeave="{{ sd.onLeave }}" style="display:grid;grid-template-columns:20px 1fr 14px;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;cursor:pointer;background:{{ sd.bg }}"><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:6px;height:6px;border-radius:50%;background:{{ sd.color }};box-shadow:0 0 0 1.5px #1c1c1a,0 0 0 3px {{ sd.color }}"></span></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ sd.label }}</span><span onClick="{{ sd.onRemove }}" style="color:#9a9c93;text-align:center;font-size:13px;line-height:1">×</span></div></sc-for>
+        <div style="margin:8px 0 2px;font-size:11px;color:#9a9c93">Collections</div>
+        <sc-for list="{{ x.collections }}" as="c" hint-placeholder-count="5"><div onClick="{{ c.onToggle }}" style="display:grid;grid-template-columns:1fr auto 14px;align-items:center;gap:7px;padding:2px 4px;padding-left:{{ c.indent }};border-radius:4px;cursor:pointer" style-hover="background:rgba(232,233,227,.08)"><span style="display:flex;align-items:center;gap:6px;color:{{ c.color }};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-left:4px"><span style="width:11px;height:9px;border:1.5px solid #9a9c93;border-radius:2px;border-top-width:3px;flex:none"></span>{{ c.label }}</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ c.count }}</span><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ c.checkBg }}"></span></div></sc-for>
+        <div onClick="{{ x.onToggleLocal }}" style="display:grid;grid-template-columns:1fr auto 14px;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;cursor:pointer" style-hover="background:rgba(232,233,227,.08)"><span style="display:flex;align-items:center;gap:6px;color:{{ x.localColor }};padding-left:4px"><span style="width:11px;height:11px;border-radius:50%;border:1.5px dashed #9a9c93;flex:none"></span>Not in Zotero</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ x.externalCount }}</span><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ x.localCheckBg }}"></span></div>
+        <div style="margin:8px 0 2px;font-size:11px;color:#9a9c93">Citation hops</div>
+        <sc-for list="{{ x.ladder }}" as="r" hint-placeholder-count="7">
+          <div onClick="{{ r.onToggle }}" style="display:grid;grid-template-columns:20px 1fr auto 14px;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;opacity:{{ r.rowOpacity }};cursor:pointer" style-hover="background:rgba(232,233,227,.08)">
+            <span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:13px;height:13px;border-radius:50%;background:{{ r.color }};border:1.5px solid {{ r.ring }}"></span></span>
+            <span style="color:{{ r.countColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
+            <span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ r.countLabel }}</span>
+            <sc-if value="{{ r.fetched }}" hint-placeholder-val="{{ true }}"><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ r.checkBg }}"></span></sc-if>
+            <sc-if value="{{ r.loadable }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.onLoad }}" style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;margin:2px 0 2px 27px;border:1px solid #35352f;border-radius:5px;padding:3px 8px;font-size:11px;color:#e8e9e3" style-hover="border-color:#96bf54"><span>Fetch hop {{ $index }}</span><span style="color:#9a9c93">{{ r.estimate }}</span></span></sc-if>
+            <sc-if value="{{ r.isLoading }}" hint-placeholder-val="{{ false }}"><span style="grid-column:1 / -1;margin:2px 0 2px 27px;font-size:11px"><span style="display:flex;justify-content:space-between;color:#9a9c93"><span>Querying providers</span><span>{{ r.loadPct }}</span></span><span style="display:block;height:3px;background:#35352f;border-radius:2px;margin-top:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ r.loadPct }};background:#96bf54"></span></span></span></sc-if>
+          </div>
+        </sc-for>
+        <div style="display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:2px 4px;margin-top:2px"><span style="width:20px;display:flex;justify-content:center"><span style="width:14px;border-top:1.5px dashed #96bf54"></span></span><span>Citation floor</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">≥ {{ x.minCitations }} · {{ x.hiddenCount }} below</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px 0"><span>Shared citers</span><span style="display:flex;border:1px solid #35352f;border-radius:5px;overflow:hidden;font-size:11px"><sc-for list="{{ x.sharedModes }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="padding:3px 8px;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></span></div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #2b2b27"></div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9a9c93">Key</div>
+        <div style="margin:1px 0 4px;color:#e8e9e3">Shared citers · {{ x.hop1Count }} at hop 1</div>
+        <sc-for list="{{ x.tiers }}" as="t" hint-placeholder-count="4"><div onMouseEnter="{{ t.onEnter }}" onMouseLeave="{{ t.onLeave }}" style="display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;cursor:pointer;background:{{ t.bg }}"><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:13px;height:13px;border-radius:50%;background:#96bf54;opacity:{{ t.opacity }}"></span></span><span style="color:{{ t.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.label }}</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ t.count }}</span></div></sc-for>
+        <div style="margin:4px 0 0;font-size:11px;line-height:1.35;color:#9a9c93">{{ x.sharedNote }}</div>
+      </div>
+      <div style="margin-top:auto;justify-content:space-between;gap:6px;padding:7px 8px;border-top:1px solid #2b2b27;display:{{ x.railFooterDisplay }}"><span style="display:flex;gap:6px"><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px">+</span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px">−</span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px">⌖</span></span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9a9c93">⚙</span></div>
+    </div>
+    <div ref="{{ plotRef2 }}" onPointerMove="{{ x.onMove }}" onPointerUp="{{ x.onUp }}" onMouseLeave="{{ x.onLeavePlot }}" style="position:relative;flex:none;width:900px;background:#232320;height:600px;user-select:none">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ gl.y }}" y2="{{ gl.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ gl.x }}" x2="{{ gl.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <rect x="60" y="{{ x.floorY }}" width="820" height="{{ x.floorH }}" fill="#141412" fill-opacity="0.45"></rect>
+        <sc-for list="{{ x.ghosts }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="#9a9c93" stroke-opacity="0.22" stroke-width="0.8"></circle></sc-for>
+        <sc-for list="{{ x.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+        <sc-for list="{{ x.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="{{ n.haloColor }}" stroke-width="2.5"></circle></sc-for>
+        <sc-for list="{{ x.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="cursor:{{ n.cursor }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" onClick="{{ n.onClick }}"></circle></sc-for>
+        <line x1="60" x2="880" y1="{{ x.floorY }}" y2="{{ x.floorY }}" stroke="#96bf54" stroke-dasharray="4 4" stroke-width="1.2"></line>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ gl.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ gl.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};right:{{ n.right }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+        <span onPointerDown="{{ x.onFloorDown }}" style="pointer-events:auto;position:absolute;left:64px;top:{{ x.floorHandleTop }};display:flex;align-items:center;gap:10px;font-size:10.5px;white-space:nowrap;cursor:ns-resize"><span style="background:#1c1c1a;border:1px solid #96bf54;border-radius:4px;padding:3px 8px;color:#e8e9e3">⇕ floor: ≥ {{ x.minCitations }} citations</span><span style="color:#9a9c93">{{ x.hiddenCount }} papers below, drawn as outlines</span></span>
+        <sc-if value="{{ x.tip.show }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:{{ x.tip.left }};top:{{ x.tip.top }};background:#1c1c1a;border:1px solid #35352f;border-radius:6px;padding:8px 10px;font-size:11px;box-shadow:0 8px 24px rgba(0,0,0,.45)"><div style="font-weight:600">{{ x.tip.title }}</div><div style="color:#9a9c93;margin-top:2px">{{ x.tip.meta }}</div><div style="color:#96bf54;margin-top:2px">{{ x.tip.chain }}</div><sc-if value="{{ x.tip.pinned }}" hint-placeholder-val="{{ false }}"><div onClick="{{ x.tip.onMakeSeed }}" style="pointer-events:auto;margin-top:8px;border:1px solid #35352f;border-radius:5px;padding:4px 8px;text-align:center;color:#e8e9e3;cursor:pointer" style-hover="border-color:#96bf54">Make seed</div></sc-if></div></sc-if>
+      </div>
+    </div>
+    <div style="width:264px;flex:none;box-sizing:border-box;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93;background:#1c1c1a"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "regenerate the handoff from <a class="dv-oid" href="#6a">6a</a>" · "show the unseeded (library-only) state of the same rail" · "collapse Collections by default with a count badge"</p>
+</section>
+<section class="dv-turn" id="t5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Controls moved into the left sidebar (the plugin's Key rail, Zotero collections-pane shape) — no floating panel</span></div>
+<div style="max-width:760px;margin:-8px 0 22px;font-size:12px;line-height:1.55;color:#9a9c93">Follows <span style="font-family:ui-monospace,Menlo,monospace">graphKeyRail.ts</span>: three toolbars cut by pane splitters, rail sections with uppercase headings, 12px entries with a 20px mark and a right-aligned count, view controls in the rail footer. The repo's rule "the Key never filters" is kept: <span style="color:#e8e9e3">Scope</span> is the filter section (checkboxes, floor, presets), <span style="color:#e8e9e3">Key</span> is emphasis only — hovering a seed, hop tier or shared-citer tier lights those papers and dims the rest, nothing is removed. "Only" for shared citers is a filter, so it lives under Scope.</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>Sidebar: Scope (filters) · Key (emphasis) · footer controls. Collapse with ‹. Same interactions as <a class="dv-oid" href="#4a">4a</a>.</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;height:41px;border-bottom:1px solid #35352f">
+    <div style="width:{{ x.railW }};flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;border-right:1px solid #35352f;background:#1c1c1a"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:{{ x.railFooterDisplay }}"></span><span style="font-size:13px;font-weight:600;display:{{ x.railFooterDisplay }}">Explore</span><span onClick="{{ x.onToggleRail }}" style="margin-left:auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:4px;color:#9a9c93;cursor:pointer;font-size:16px" style-hover="background:rgba(232,233,227,.08)">{{ x.railChevron }}</span></div>
+    <div style="width:900px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;background:#232320;white-space:nowrap;overflow:hidden">
+      <span style="font-size:12px;font-weight:600">Focus: {{ x.S }} seeds</span>
+      <sc-for list="{{ x.seeds }}" as="sd" hint-placeholder-count="4"><span style="border:1px solid #35352f;border-radius:14px;padding:4px 9px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ sd.color }};box-shadow:0 0 0 1.5px #232320,0 0 0 3px {{ sd.color }};display:inline-block;margin:0 2px"></span>{{ sd.label }} <span style="color:#9a9c93">×</span></span></sc-for>
+      <span style="border:1px solid #35352f;border-radius:6px;padding:4px 9px;font-size:12px">Cited by</span>
+      <span style="margin-left:auto;font-size:11px;color:#9a9c93">{{ x.shownCount }} papers · {{ x.edgeCount }} links</span>
+    </div>
+    <div style="width:264px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;box-sizing:border-box;border-left:1px solid #35352f;background:#1c1c1a"><span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:5px;padding:4px 9px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;height:600px">
+    <div style="width:{{ x.railW }};flex:none;display:flex;flex-direction:column;box-sizing:border-box;border-right:1px solid #35352f;background:#1c1c1a;font-size:12px">
+      <div style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 8px 10px;display:{{ x.railBodyDisplay }}">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9a9c93">Scope</div>
+        <div style="margin:1px 0 6px;color:#e8e9e3">{{ x.shownCount }} of {{ x.totalCount }} papers</div>
+        <div style="display:flex;border:1px solid #35352f;border-radius:5px;overflow:hidden;margin:0 0 8px;font-size:11px"><sc-for list="{{ x.presets }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="flex:1;text-align:center;padding:4px 0;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></div>
+        <sc-for list="{{ x.ladder }}" as="r" hint-placeholder-count="7">
+          <div onClick="{{ r.onToggle }}" style="display:grid;grid-template-columns:20px 1fr auto 14px;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;opacity:{{ r.rowOpacity }};cursor:pointer" style-hover="background:rgba(232,233,227,.08)">
+            <span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:13px;height:13px;border-radius:50%;background:{{ r.color }};border:1.5px solid {{ r.ring }}"></span></span>
+            <span style="color:{{ r.countColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
+            <span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ r.countLabel }}</span>
+            <sc-if value="{{ r.fetched }}" hint-placeholder-val="{{ true }}"><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ r.checkBg }}"></span></sc-if>
+            <sc-if value="{{ r.loadable }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.onLoad }}" style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;margin:2px 0 2px 27px;border:1px solid #35352f;border-radius:5px;padding:3px 8px;font-size:11px;color:#e8e9e3" style-hover="border-color:#96bf54"><span>Fetch hop {{ $index }}</span><span style="color:#9a9c93">{{ r.estimate }}</span></span></sc-if>
+            <sc-if value="{{ r.isLoading }}" hint-placeholder-val="{{ false }}"><span style="grid-column:1 / -1;margin:2px 0 2px 27px;font-size:11px"><span style="display:flex;justify-content:space-between;color:#9a9c93"><span>Querying providers</span><span>{{ r.loadPct }}</span></span><span style="display:block;height:3px;background:#35352f;border-radius:2px;margin-top:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ r.loadPct }};background:#96bf54"></span></span></span></sc-if>
+          </div>
+        </sc-for>
+        <div style="display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:3px 4px;margin-top:2px"><span style="width:20px;display:flex;justify-content:center"><span style="width:14px;border-top:1.5px dashed #96bf54"></span></span><span>Citation floor</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">≥ {{ x.minCitations }} · {{ x.hiddenCount }} below</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px 0"><span>Shared citers</span><span style="display:flex;border:1px solid #35352f;border-radius:5px;overflow:hidden;font-size:11px"><sc-for list="{{ x.sharedModes }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="padding:3px 8px;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></span></div>
+        
+
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #2b2b27"></div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9a9c93">Key</div>
+        <div style="margin:1px 0 4px;color:#e8e9e3">Seeds</div>
+        <sc-for list="{{ x.seedRows }}" as="sd" hint-placeholder-count="4"><div onMouseEnter="{{ sd.onEnter }}" onMouseLeave="{{ sd.onLeave }}" style="display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;cursor:pointer;background:{{ sd.bg }}"><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:6px;height:6px;border-radius:50%;background:{{ sd.color }};box-shadow:0 0 0 1.5px #1c1c1a,0 0 0 3px {{ sd.color }}"></span></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ sd.label }}</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ sd.count }}</span></div></sc-for>
+        <div style="margin:6px 0 4px;color:#e8e9e3">Shared citers · {{ x.hop1Count }} at hop 1</div>
+        <sc-for list="{{ x.tiers }}" as="t" hint-placeholder-count="4"><div onMouseEnter="{{ t.onEnter }}" onMouseLeave="{{ t.onLeave }}" style="display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;padding:2px 4px;border-radius:4px;cursor:pointer;background:{{ t.bg }}"><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center"><span style="width:13px;height:13px;border-radius:50%;background:#96bf54;opacity:{{ t.opacity }}"></span></span><span style="color:{{ t.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.label }}</span><span style="font-size:11px;font-variant-numeric:tabular-nums;color:#9a9c93">{{ t.count }}</span></div></sc-for>
+        <div style="margin:4px 0 0;font-size:11px;line-height:1.35;color:#9a9c93">{{ x.sharedNote }}</div>
+      </div>
+      <div style="margin-top:auto;justify-content:space-between;gap:6px;padding:7px 8px;border-top:1px solid #2b2b27;display:{{ x.railFooterDisplay }}"><span style="display:flex;gap:6px"><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px">+</span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px">−</span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px">⌖</span></span><span style="width:26px;height:26px;border:1px solid #35352f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9a9c93">⚙</span></div>
+    </div>
+    <div ref="{{ plotRef2 }}" onPointerMove="{{ x.onMove }}" onPointerUp="{{ x.onUp }}" onMouseLeave="{{ x.onLeavePlot }}" style="position:relative;flex:none;width:900px;background:#232320;height:600px;user-select:none">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ gl.y }}" y2="{{ gl.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ gl.x }}" x2="{{ gl.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <rect x="60" y="{{ x.floorY }}" width="820" height="{{ x.floorH }}" fill="#141412" fill-opacity="0.45"></rect>
+        <sc-for list="{{ x.ghosts }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="#9a9c93" stroke-opacity="0.22" stroke-width="0.8"></circle></sc-for>
+        <sc-for list="{{ x.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+        <sc-for list="{{ x.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="{{ n.haloColor }}" stroke-width="2.5"></circle></sc-for>
+        <sc-for list="{{ x.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="cursor:{{ n.cursor }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" onClick="{{ n.onClick }}"></circle></sc-for>
+        <line x1="60" x2="880" y1="{{ x.floorY }}" y2="{{ x.floorY }}" stroke="#96bf54" stroke-dasharray="4 4" stroke-width="1.2"></line>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ gl.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ gl.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};right:{{ n.right }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+        <span onPointerDown="{{ x.onFloorDown }}" style="pointer-events:auto;position:absolute;left:64px;top:{{ x.floorHandleTop }};display:flex;align-items:center;gap:10px;font-size:10.5px;white-space:nowrap;cursor:ns-resize"><span style="background:#1c1c1a;border:1px solid #96bf54;border-radius:4px;padding:3px 8px;color:#e8e9e3">⇕ floor: ≥ {{ x.minCitations }} citations</span><span style="color:#9a9c93">{{ x.hiddenCount }} papers below, drawn as outlines</span></span>
+        <sc-if value="{{ x.tip.show }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:{{ x.tip.left }};top:{{ x.tip.top }};background:#1c1c1a;border:1px solid #35352f;border-radius:6px;padding:8px 10px;font-size:11px;box-shadow:0 8px 24px rgba(0,0,0,.45)"><div style="font-weight:600">{{ x.tip.title }}</div><div style="color:#9a9c93;margin-top:2px">{{ x.tip.meta }}</div><div style="color:#96bf54;margin-top:2px">{{ x.tip.chain }}</div></div></sc-if>
+      </div>
+    </div>
+    <div style="width:264px;flex:none;box-sizing:border-box;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93;background:#1c1c1a"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "regenerate the handoff from <a class="dv-oid" href="#5a">5a</a>" · "show the collapsed-rail state side by side" · "light theme version of <a class="dv-oid" href="#5a">5a</a>"</p>
+</section>
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname"><a class="dv-oid" href="#2a">2a</a> + <a class="dv-oid" href="#3c">3c</a> merged — one rail: Scope (depth + floor) above, Shared citers below. Everything interactive.</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Drag the floor · tick hops · fetch hop 3 · Off / Dim / Only for shared citers · hover a seed or a paper · click to pin a chain</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;width:1196px;box-sizing:border-box">
+    <div><div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:inline-block"></span>Explore</div><div style="font-size:11px;color:#9a9c93;margin-top:2px">{{ x.shownCount }} papers · {{ x.edgeCount }} links · {{ x.hiddenCount }} below the floor</div></div>
+    <div style="display:flex;gap:8px"><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px;border-bottom:1px solid #35352f;white-space:nowrap;width:1196px;box-sizing:border-box;overflow:hidden">
+    <span style="font-size:12px;font-weight:600">Focus: {{ x.S }} seeds</span>
+    <sc-for list="{{ x.seeds }}" as="sd" hint-placeholder-count="4"><span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ sd.color }};box-shadow:0 0 0 1.5px #1c1c1a,0 0 0 3px {{ sd.color }};display:inline-block;margin:0 2px"></span>{{ sd.label }} <span style="color:#9a9c93">×</span></span></sc-for>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="margin-left:auto;border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center">Scope <span style="color:#96bf54;font-weight:600;font-variant-numeric:tabular-nums">{{ x.depth }} · ≥{{ x.minCitations }}</span></span>
+    <span style="border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#96bf54;display:inline-block"></span>Shared citers <span style="color:#96bf54;font-weight:600">{{ x.sharedState }}</span></span>
+  </div>
+  <div style="display:flex">
+    <div ref="{{ plotRef2 }}" onPointerMove="{{ x.onMove }}" onPointerUp="{{ x.onUp }}" onMouseLeave="{{ x.onLeavePlot }}" style="position:relative;flex:none;width:900px;background:#232320;height:600px;user-select:none">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ gl.y }}" y2="{{ gl.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ gl.x }}" x2="{{ gl.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <rect x="60" y="{{ x.floorY }}" width="820" height="{{ x.floorH }}" fill="#141412" fill-opacity="0.45"></rect>
+        <sc-for list="{{ x.ghosts }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="#9a9c93" stroke-opacity="0.22" stroke-width="0.8"></circle></sc-for>
+        <sc-for list="{{ x.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+        <sc-for list="{{ x.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="{{ n.haloColor }}" stroke-width="2.5"></circle></sc-for>
+        <sc-for list="{{ x.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="cursor:{{ n.cursor }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" onClick="{{ n.onClick }}"></circle></sc-for>
+        <line x1="60" x2="880" y1="{{ x.floorY }}" y2="{{ x.floorY }}" stroke="#96bf54" stroke-dasharray="4 4" stroke-width="1.2"></line>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">
+        <sc-for list="{{ x.gridY }}" as="gl" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ gl.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.gridX }}" as="gl" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ gl.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+        <sc-for list="{{ x.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};right:{{ n.right }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+        <span onPointerDown="{{ x.onFloorDown }}" style="pointer-events:auto;position:absolute;left:64px;top:{{ x.floorHandleTop }};display:flex;align-items:center;gap:10px;font-size:10.5px;white-space:nowrap;cursor:ns-resize"><span style="background:#1c1c1a;border:1px solid #96bf54;border-radius:4px;padding:3px 8px;color:#e8e9e3">⇕ floor: ≥ {{ x.minCitations }} citations</span><span style="color:#9a9c93">{{ x.hiddenCount }} papers below, drawn as outlines</span></span>
+        <sc-if value="{{ x.tip.show }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:{{ x.tip.left }};top:{{ x.tip.top }};background:#1c1c1a;border:1px solid #35352f;border-radius:6px;padding:8px 10px;font-size:11px;box-shadow:0 8px 24px rgba(0,0,0,.45)"><div style="font-weight:600">{{ x.tip.title }}</div><div style="color:#9a9c93;margin-top:2px">{{ x.tip.meta }}</div><div style="color:#96bf54;margin-top:2px">{{ x.tip.chain }}</div></div></sc-if>
+      </div>
+      <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 8px"><span style="color:#e8e9e3;font-weight:600">Scope</span><span>{{ x.shownCount }} of {{ x.totalCount }}</span></div>
+        <div style="display:flex;border:1px solid #35352f;border-radius:6px;overflow:hidden;margin:0 0 10px"><sc-for list="{{ x.presets }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="flex:1;text-align:center;padding:5px 0;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></div>
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 4px"><span style="color:#e8e9e3;font-weight:600">Citation hops</span><span>{{ x.selectedLabel }}</span></div>
+        <sc-for list="{{ x.ladder }}" as="r" hint-placeholder-count="7">
+          <div onClick="{{ r.onToggle }}" style="display:grid;grid-template-columns:14px 1fr auto 16px;align-items:center;gap:8px;padding:3px 4px;border-radius:5px;opacity:{{ r.rowOpacity }};cursor:pointer" style-hover="background:#2b2b27">
+            <span style="width:11px;height:11px;border-radius:50%;background:{{ r.color }};border:2px solid {{ r.ring }}"></span>
+            <span style="color:{{ r.countColor }}">{{ r.name }}</span>
+            <span style="font-variant-numeric:tabular-nums;color:#9a9c93">{{ r.countLabel }}</span>
+            <sc-if value="{{ r.fetched }}" hint-placeholder-val="{{ true }}"><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ r.checkBg }}"></span></sc-if>
+            <sc-if value="{{ r.loadable }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.onLoad }}" style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;margin:2px 0 0 22px;border:1px solid #35352f;border-radius:5px;padding:4px 8px;color:#e8e9e3" style-hover="border-color:#96bf54"><span>Fetch hop {{ $index }}</span><span style="color:#9a9c93">{{ r.estimate }}</span></span></sc-if>
+            <sc-if value="{{ r.isLoading }}" hint-placeholder-val="{{ false }}"><span style="grid-column:1 / -1;margin:2px 0 0 22px"><span style="display:flex;justify-content:space-between;color:#9a9c93"><span>Querying providers</span><span>{{ r.loadPct }}</span></span><span style="display:block;height:3px;background:#35352f;border-radius:2px;margin-top:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ r.loadPct }};background:#96bf54"></span></span></span></sc-if>
+          </div>
+        </sc-for>
+        <div style="border-top:1px solid #35352f;margin:10px 0 8px"></div>
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 6px"><span style="color:#e8e9e3;font-weight:600">Shared citers</span><span>{{ x.hop1Count }} at hop 1</span></div>
+        <div style="display:flex;border:1px solid #35352f;border-radius:6px;overflow:hidden;margin:0 0 8px"><sc-for list="{{ x.sharedModes }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="flex:1;text-align:center;padding:5px 0;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></div>
+        <div style="display:flex;flex-direction:column;gap:1px"><sc-for list="{{ x.tiers }}" as="t" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:8px;padding:3px 4px;border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;background:#96bf54;opacity:{{ t.opacity }}"></span><span style="color:{{ t.color }};white-space:nowrap">{{ t.label }}</span><span style="font-variant-numeric:tabular-nums;color:#9a9c93">{{ t.count }}</span></div></sc-for></div>
+        <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">{{ x.sharedNote }}</div>
+      </div>
+    </div>
+    <div style="width:264px;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "regenerate the handoff from <a class="dv-oid" href="#4a">4a</a>" · "put the Shared citers section first when 2+ seeds are active" · "fill the Paper details pane for a pinned chain"</p>
+</section>
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Two seeds — highlight papers that cite both ("bridges"), on top of <a class="dv-oid" href="#2a">2a</a></span></div>
+<div style="max-width:760px;margin:-8px 0 22px;font-size:12px;line-height:1.55;color:#9a9c93">Second seed added (Hasegawa 2009, violet so seeds stay tellable apart; hops keep the ramp). A bridge is a hop-1 paper whose parents include both seeds. Bridges get a white ring + halo, are always labelled, and both of their seed edges are lit white. Two treatments of everything else:</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Graded by seeds cited — seeds are double-ringed in their own colour, citers are plain hop-green; full opacity goes to the highest tier present (Tweaks → seeds: 2–6)</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 10px;border-bottom:1px solid #35352f;white-space:nowrap;width:900px;box-sizing:border-box;overflow:hidden">
+    <span style="font-size:12px;font-weight:600">Focus: {{ g.S }} seeds</span>
+    <sc-for list="{{ g.seeds }}" as="sd" hint-placeholder-count="4"><span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{ sd.color }};box-shadow:0 0 0 1.5px #1c1c1a,0 0 0 3px {{ sd.color }};display:inline-block;margin:0 2px"></span>{{ sd.label }} <span style="color:#9a9c93">×</span></span></sc-for>
+    <span style="border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#96bf54;display:inline-block"></span>Shared citers <span style="color:#96bf54;font-weight:600">On</span></span>
+  </div>
+  <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+    <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+      <sc-for list="{{ g.gridY }}" as="gl" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ gl.y }}" y2="{{ gl.y }}" stroke="#2b2b27"></line></sc-for>
+      <sc-for list="{{ g.gridX }}" as="gl" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ gl.x }}" x2="{{ gl.x }}" stroke="#2b2b27"></line></sc-for>
+      <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+      <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+      <sc-for list="{{ g.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+      <sc-for list="{{ g.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="{{ n.haloColor }}" stroke-opacity="{{ n.haloOp }}" stroke-width="2.5"></circle></sc-for>
+      <sc-for list="{{ g.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="cursor:{{ n.cursor }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}"></circle></sc-for>
+    </svg>
+    <div style="position:absolute;inset:0;pointer-events:none">
+      <sc-for list="{{ g.gridY }}" as="gl" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ gl.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+      <sc-for list="{{ g.gridX }}" as="gl" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ gl.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ gl.label }}</span></sc-for>
+      <sc-for list="{{ g.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};right:{{ n.right }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+    </div>
+    <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 2px"><span style="color:#e8e9e3;font-weight:600">Shared citers</span><span>{{ g.hop1Count }} at hop 1</span></div><div style="padding:0 4px 8px;color:#96bf54">{{ g.chip }} · {{ g.topCount }} papers</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px;color:#e8e9e3"><span>Grade by seeds cited</span><span style="width:26px;height:14px;border-radius:7px;background:#96bf54;position:relative;display:inline-block"><span style="position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#141412"></span></span></div>
+      <div style="display:flex;flex-direction:column;gap:2px;margin:6px 0 0"><sc-for list="{{ g.tiers }}" as="t" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:8px;padding:4px;border-radius:5px"><span style="width:11px;height:11px;border-radius:50%;background:#96bf54;opacity:{{ t.opacity }};border:2px solid {{ t.ring }}"></span><span style="color:{{ t.color }};white-space:nowrap">{{ t.label }}</span><span style="font-variant-numeric:tabular-nums;color:#9a9c93">{{ t.count }}</span></div></sc-for></div>
+      <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">{{ g.note }} Hover a seed to restore its full colour and light its edges. Seeds are the only double-ringed, colour-coded nodes; a shared citer's edges take the colour of each seed it cites.</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Dim others — full context stays, bridges pop</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 10px;border-bottom:1px solid #35352f;white-space:nowrap;width:900px;box-sizing:border-box;overflow:hidden">
+    <span style="font-size:12px;font-weight:600">Focus: 2 seeds</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#ab8efe;display:inline-block"></span>Hasegawa (2009) <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#96bf54;display:inline-block"></span>Shared citers <span style="color:#96bf54;font-weight:600">On</span></span>
+    <span style="margin-left:auto;border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center">Scope <span style="color:#96bf54;font-weight:600">{{ m1.depth }} · ≥{{ m1.minCitations }}</span></span>
+  </div>
+  <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+    <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+      <sc-for list="{{ m1.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+      <sc-for list="{{ m1.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+      <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+      <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+      <sc-for list="{{ m1.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+      <sc-for list="{{ m1.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1"></circle></sc-for>
+      <sc-for list="{{ m1.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+    </svg>
+    <div style="position:absolute;inset:0;pointer-events:none">
+      <sc-for list="{{ m1.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+      <sc-for list="{{ m1.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+      <sc-for list="{{ m1.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;white-space:nowrap">{{ n.label }}</span></sc-for>
+    </div>
+    <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 8px"><span style="color:#e8e9e3;font-weight:600">Shared citers</span><span>{{ m1.bridgeCount }} of {{ m1.hop1Count }} at hop 1</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px;color:#e8e9e3"><span>Highlight papers citing both seeds</span><span style="width:26px;height:14px;border-radius:7px;background:#96bf54;position:relative;display:inline-block"><span style="position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#141412"></span></span></div>
+      <div style="display:flex;border:1px solid #35352f;border-radius:6px;overflow:hidden;margin:6px 4px 10px"><span style="flex:1;text-align:center;padding:5px 0;background:{{ m1.dimBg }};color:{{ m1.dimColor }}">Dim others</span><span style="flex:1;text-align:center;padding:5px 0;background:{{ m1.onlyBg }};color:{{ m1.onlyColor }}">Show only</span></div>
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 4px"><span style="color:#e8e9e3;font-weight:600">Top bridges</span><span>cites</span></div>
+      <sc-for list="{{ m1.bridgeList }}" as="b" hint-placeholder-count="5"><div style="display:flex;justify-content:space-between;padding:3px 4px;border-radius:4px" style-hover="background:#2b2b27"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><span style="width:9px;height:9px;border-radius:50%;background:#96bf54;border:1.5px solid #fff"></span>{{ b.label }}</span><span style="color:#9a9c93;font-variant-numeric:tabular-nums">{{ b.cites }}</span></div></sc-for>
+      <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">Also available as a Y-axis metric: "Seeds cited" (1–2), and as a node colour.</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Show only — filter to bridges; the plot becomes a shortlist</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 10px;border-bottom:1px solid #35352f;white-space:nowrap;width:900px;box-sizing:border-box;overflow:hidden">
+    <span style="font-size:12px;font-weight:600">Focus: 2 seeds</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#ab8efe;display:inline-block"></span>Hasegawa (2009) <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#96bf54;display:inline-block"></span>Shared citers <span style="color:#96bf54;font-weight:600">Only</span></span>
+    <span style="margin-left:auto;border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center">Scope <span style="color:#96bf54;font-weight:600">{{ m2.depth }} · ≥{{ m2.minCitations }}</span></span>
+  </div>
+  <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+    <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+      <sc-for list="{{ m2.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+      <sc-for list="{{ m2.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+      <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+      <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+      <sc-for list="{{ m2.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+      <sc-for list="{{ m2.halos }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.halo }}" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1"></circle></sc-for>
+      <sc-for list="{{ m2.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+    </svg>
+    <div style="position:absolute;inset:0;pointer-events:none">
+      <sc-for list="{{ m2.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+      <sc-for list="{{ m2.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+      <sc-for list="{{ m2.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;white-space:nowrap">{{ n.label }}</span></sc-for>
+    </div>
+    <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 8px"><span style="color:#e8e9e3;font-weight:600">Shared citers</span><span>{{ m2.bridgeCount }} of {{ m2.hop1Count }} at hop 1</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px;color:#e8e9e3"><span>Highlight papers citing both seeds</span><span style="width:26px;height:14px;border-radius:7px;background:#96bf54;position:relative;display:inline-block"><span style="position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#141412"></span></span></div>
+      <div style="display:flex;border:1px solid #35352f;border-radius:6px;overflow:hidden;margin:6px 4px 10px"><span style="flex:1;text-align:center;padding:5px 0;background:{{ m2.dimBg }};color:{{ m2.dimColor }}">Dim others</span><span style="flex:1;text-align:center;padding:5px 0;background:{{ m2.onlyBg }};color:{{ m2.onlyColor }}">Show only</span></div>
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 4px"><span style="color:#e8e9e3;font-weight:600">Top bridges</span><span>cites</span></div>
+      <sc-for list="{{ m2.bridgeList }}" as="b" hint-placeholder-count="5"><div style="display:flex;justify-content:space-between;padding:3px 4px;border-radius:4px" style-hover="background:#2b2b27"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><span style="width:9px;height:9px;border-radius:50%;background:#96bf54;border:1.5px solid #fff"></span>{{ b.label }}</span><span style="color:#9a9c93;font-variant-numeric:tabular-nums">{{ b.cites }}</span></div></sc-for>
+      <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">Hop-2 papers that cite bridges are hidden here; "Dim others" keeps them.</div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "extend bridges to hop 2: papers whose chain reaches both seeds" · "with 3+ seeds, grade by how many seeds are cited (ring thickness)" · "merge this into <a class="dv-oid" href="#2a">2a</a> as a rail section"</p>
+</section>
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname"><a class="dv-oid" href="#1c">1c</a> made interactive, presets folded into the Key rail; plus the worst-case scene</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Interactive — drag the floor line, tick hops, load the next hop, hover to trace a chain, click to pin it</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px">
+    <div><div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:inline-block"></span>Explore</div><div style="font-size:11px;color:#9a9c93;margin-top:2px">{{ i.shownCount }} papers · {{ i.edgeCount }} links · {{ i.hiddenCount }} below the floor</div></div>
+    <div style="display:flex;gap:8px"><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px;border-bottom:1px solid #35352f">
+    <span style="font-size:12px;font-weight:600">Focus: 1 seed</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) — Zonal flows in plasma <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">All known papers</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Relevance</span>
+    <span style="margin-left:auto;border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center">Scope <span style="color:#96bf54;font-weight:600;font-variant-numeric:tabular-nums">depth {{ i.chipDepth }} · ≥ {{ i.chipMin }}</span></span>
+  </div>
+  <div style="display:flex">
+    <div ref="{{ plotRef }}" onPointerMove="{{ i.onMove }}" onPointerUp="{{ i.onUp }}" onMouseLeave="{{ i.onLeavePlot }}" style="position:relative;flex:none;width:900px;background:#232320;height:600px;user-select:none">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ i.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ i.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <rect x="60" y="{{ i.floorY }}" width="820" height="{{ i.floorH }}" fill="#141412" fill-opacity="0.45"></rect>
+        <sc-for list="{{ i.ghosts }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="#9a9c93" stroke-opacity="0.22" stroke-width="0.8"></circle></sc-for>
+        <sc-for list="{{ i.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="{{ e.width }}"></line></sc-for>
+        <sc-for list="{{ i.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="cursor:{{ n.cursor }}" onMouseEnter="{{ n.onEnter }}" onClick="{{ n.onClick }}"></circle></sc-for>
+        <line x1="60" x2="880" y1="{{ i.floorY }}" y2="{{ i.floorY }}" stroke="#96bf54" stroke-dasharray="4 4" stroke-width="1.2"></line>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">
+        <sc-for list="{{ i.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+        <sc-for list="{{ i.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+        <sc-for list="{{ i.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+        <span onPointerDown="{{ i.onFloorDown }}" style="pointer-events:auto;position:absolute;left:64px;top:{{ i.floorHandleTop }};display:flex;align-items:center;gap:10px;font-size:10.5px;white-space:nowrap;cursor:ns-resize"><span style="background:#1c1c1a;border:1px solid #96bf54;border-radius:4px;padding:3px 8px;color:#e8e9e3">⇕ floor: ≥ {{ i.minCitations }} citations</span><span style="color:#9a9c93">{{ i.hiddenCount }} papers below, drawn as outlines</span></span>
+        <sc-if value="{{ i.tip.show }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:{{ i.tip.left }};top:{{ i.tip.top }};background:#1c1c1a;border:1px solid #35352f;border-radius:6px;padding:8px 10px;font-size:11px;box-shadow:0 8px 24px rgba(0,0,0,.45)"><div style="font-weight:600">{{ i.tip.title }}</div><div style="color:#9a9c93;margin-top:2px">{{ i.tip.meta }}</div><div style="color:#96bf54;margin-top:2px">{{ i.tip.chain }}</div></div></sc-if>
+      </div>
+      <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 8px"><span style="color:#e8e9e3;font-weight:600">Scope</span><span>{{ i.shownCount }} of {{ i.totalCount }}</span></div>
+        <div style="display:flex;border:1px solid #35352f;border-radius:6px;overflow:hidden;margin:0 0 10px"><sc-for list="{{ i.presets }}" as="p" hint-placeholder-count="3"><span onClick="{{ p.onClick }}" style="flex:1;text-align:center;padding:5px 0;cursor:pointer;background:{{ p.bg }};color:{{ p.color }}">{{ p.label }}</span></sc-for></div>
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 6px"><span style="color:#e8e9e3;font-weight:600">Citation hops</span><span>{{ i.selectedLabel }}</span></div>
+        <sc-for list="{{ i.ladder }}" as="r" hint-placeholder-count="7">
+          <div onClick="{{ r.onToggle }}" style="display:grid;grid-template-columns:14px 1fr auto 16px;align-items:center;gap:8px;padding:4px;border-radius:5px;opacity:{{ r.rowOpacity }};cursor:pointer" style-hover="background:#2b2b27">
+            <span style="width:11px;height:11px;border-radius:50%;background:{{ r.color }};border:2px solid {{ r.ring }}"></span>
+            <span style="color:{{ r.countColor }}">{{ r.name }}</span>
+            <span style="font-variant-numeric:tabular-nums;color:#9a9c93">{{ r.countLabel }}</span>
+            <sc-if value="{{ r.fetched }}" hint-placeholder-val="{{ true }}"><span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ r.checkBg }}"></span></sc-if>
+            <sc-if value="{{ r.loadable }}" hint-placeholder-val="{{ false }}"><span onClick="{{ r.onLoad }}" style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;margin:2px 0 0 22px;border:1px solid #35352f;border-radius:5px;padding:4px 8px;color:#e8e9e3" style-hover="border-color:#96bf54"><span>Fetch hop {{ $index }}</span><span style="color:#9a9c93">{{ r.estimate }}</span></span></sc-if>
+            <sc-if value="{{ r.isLoading }}" hint-placeholder-val="{{ false }}"><span style="grid-column:1 / -1;margin:2px 0 0 22px"><span style="display:flex;justify-content:space-between;color:#9a9c93"><span>Querying Semantic Scholar · OpenAlex · Crossref</span><span>{{ r.loadPct }}</span></span><span style="display:block;height:3px;background:#35352f;border-radius:2px;margin-top:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ r.loadPct }};background:#96bf54"></span></span></span></sc-if>
+          </div>
+        </sc-for>
+        <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">Untick a hop to hide it and everything downstream. Drag the floor line on the plot to raise the citation threshold. Presets set both at once; any manual change returns to a custom scope.</div>
+      </div>
+    </div>
+    <div style="width:264px;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Worst case — all 6 hops fetched, floor at 0: {{ w.shownCount }} papers, {{ w.edgeCount }} links, hop opacity alone carrying the structure</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex">
+    <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ w.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ w.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <sc-for list="{{ w.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="0.8"></line></sc-for>
+        <sc-for list="{{ w.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">
+        <sc-for list="{{ w.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+        <sc-for list="{{ w.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for>
+        <sc-for list="{{ w.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for>
+      </div>
+      <div style="position:absolute;left:64px;bottom:44px;display:flex;gap:10px;align-items:center;font-size:10.5px;color:#9a9c93;background:rgba(28,28,26,.85);border:1px solid #35352f;border-radius:6px;padding:6px 10px"><sc-for list="{{ w.legend }}" as="l" hint-placeholder-count="7"><span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:{{ l.color }};display:inline-block"></span>{{ l.label }}</span></sc-for></div>
+    </div>
+    <div style="width:264px;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93;line-height:1.5"><div style="font-size:15px;font-weight:600;color:#e8e9e3">What holds up</div><div style="margin-top:6px">Hops 4–6 drop below 0.5 opacity and become texture; hop 1–2 still read as the skeleton. Labels stay capped at 16 (hops ≤ 2 only).</div><div style="margin-top:10px;font-size:15px;font-weight:600;color:#e8e9e3">What breaks</div><div style="margin-top:6px">The 0–2 citation band at the bottom stacks into a stripe. This is the case the floor line exists for: dragging it to 5 in <a class="dv-oid" href="#2a">2a</a> removes most of it.</div></div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "in <a class="dv-oid" href="#2a">2a</a>, move the floor handle to the Y axis instead of the plot" · "add a 'scope applies per hop' mode: different floor per hop" · "show the Paper details pane filled for a pinned chain"</p>
+</section>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Citation chain depth + citation-count threshold — three placements of the same two controls</span></div>
+<div style="max-width:760px;margin:-8px 0 22px;font-size:12px;line-height:1.55;color:#9a9c93">
+<div><span style="color:#e8e9e3;font-weight:600">Context.</span> Focus View toolbar and dark theme from the plugin (<span style="font-family:ui-monospace,Menlo,monospace">graphTheme.ts</span>). Depth uses the theme's sequential ramp, bright at the seed and darker + more transparent per hop, so it survives greyscale. Edges run seed → citer → citer-of-citer, tinted by the source hop. X = publication year, Y = citations (log). Same synthetic dataset in all three: 1 seed, 6 hops available, 352 papers total.</div>
+<div style="margin-top:6px"><span style="color:#e8e9e3;font-weight:600">Design rule.</span> Depth and threshold are one pair: every place the depth appears, the threshold sits next to it, and the "hidden" count updates live so going full-view ↔ scoped is one gesture, never a dialog.</div>
+</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Toolbar chips — depth stepper + threshold popover, lives in the existing focus bar</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px">
+    <div><div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:inline-block"></span>Explore</div><div style="font-size:11px;color:#9a9c93;margin-top:2px">{{ a.shownCount }} papers · {{ a.edgeCount }} links · {{ a.hiddenCount }} hidden by scope</div></div>
+    <div style="display:flex;gap:8px"><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px;border-bottom:1px solid #35352f;flex-wrap:wrap">
+    <span style="font-size:12px;font-weight:600">Focus: 1 seed</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) — Zonal flows in plasma <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">All known papers</span>
+    <span style="display:flex;align-items:center;border:1px solid #96bf54;border-radius:6px;overflow:hidden;font-size:12px"><span style="padding:5px 10px;border-right:1px solid #35352f">Depth</span><span style="padding:5px 9px;color:#9a9c93;border-right:1px solid #35352f">−</span><span style="padding:5px 10px;font-weight:600;font-variant-numeric:tabular-nums;min-width:12px;text-align:center">{{ a.depth }}</span><span style="padding:5px 9px;color:#9a9c93;border-left:1px solid #35352f">+</span><span style="padding:5px 10px;color:#9a9c93;border-left:1px solid #35352f">of 6</span></span>
+    <span style="display:flex;align-items:center;border:1px solid #96bf54;border-radius:6px;font-size:12px;padding:5px 10px;gap:6px">Min citations <span style="font-weight:600;font-variant-numeric:tabular-nums">≥ {{ a.minCitations }}</span><span style="color:#9a9c93">▾</span></span>
+    <span style="font-size:11px;color:#9a9c93;margin-left:auto">Full view</span><span style="width:26px;height:14px;border-radius:7px;background:#35352f;position:relative;display:inline-block"><span style="position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:#9a9c93"></span></span>
+  </div>
+  <div style="display:flex">
+    <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+      <div style="position:absolute;top:16px;left:400px;width:230px;background:#1c1c1a;border:1px solid #35352f;border-radius:8px;padding:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:2;font-size:11px">
+        <div style="display:flex;justify-content:space-between;color:#9a9c93"><span>Hide papers with fewer than</span><span style="color:#e8e9e3;font-weight:600">{{ a.minCitations }} citations</span></div>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:10px"><sc-for list="{{ a.hist }}" as="b" hint-placeholder-count="12"><span style="flex:1;background:{{ b.color }};height:{{ b.h }}"></span></sc-for></div>
+        <div style="position:relative;height:14px;margin-top:4px"><span style="position:absolute;left:0;right:0;top:6px;height:2px;background:#35352f"></span><span style="position:absolute;left:0;top:6px;height:2px;width:{{ a.sliderPct }};background:#96bf54"></span><span style="position:absolute;top:1px;left:{{ a.sliderPct }};width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#e8e9e3"></span></div>
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;margin-top:2px"><span>0</span><span>5</span><span>20</span><span>50</span><span>200+</span></div>
+        <div style="margin-top:8px;color:#9a9c93">Seeds are always shown. {{ a.hiddenCount }} papers hidden.</div>
+      </div>
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ a.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ a.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <sc-for list="{{ a.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="0.8"></line></sc-for>
+        <sc-for list="{{ a.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+              </svg>
+      <div style="position:absolute;inset:0;pointer-events:none"><sc-for list="{{ a.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ a.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ a.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for></div>
+      <div style="position:absolute;left:64px;bottom:44px;display:flex;gap:10px;align-items:center;font-size:10.5px;color:#9a9c93;background:rgba(28,28,26,.85);border:1px solid #35352f;border-radius:6px;padding:6px 10px"><sc-for list="{{ a.legend }}" as="l" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:{{ l.color }};opacity:{{ l.opacity }};display:inline-block"></span>{{ l.label }}</span></sc-for></div>
+    </div>
+    <div style="width:264px;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Scope pane — depth ladder with per-hop counts and one threshold slider; presets Full / Balanced / Core</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px">
+    <div><div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:inline-block"></span>Explore</div><div style="font-size:11px;color:#9a9c93;margin-top:2px">{{ b.shownCount }} papers · {{ b.edgeCount }} links · {{ b.hiddenCount }} hidden by scope</div></div>
+    <div style="display:flex;gap:8px"><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px;border-bottom:1px solid #35352f">
+    <span style="font-size:12px;font-weight:600">Focus: 1 seed</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) — Zonal flows in plasma <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">All known papers</span>
+    <span style="margin-left:auto;border:1px solid #96bf54;background:rgba(150,191,84,.12);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center">Scope <span style="color:#96bf54;font-weight:600">depth {{ b.depth }} · ≥ {{ b.minCitations }}</span></span>
+  </div>
+  <div style="display:flex">
+    <div style="width:236px;border-right:1px solid #35352f;padding:14px 14px 16px;font-size:11.5px;background:#1c1c1a">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;font-weight:600">Scope</span><span style="color:#9a9c93">{{ b.shownCount }} of {{ b.totalCount }}</span></div>
+      <div style="display:flex;margin-top:10px;border:1px solid #35352f;border-radius:6px;overflow:hidden"><span style="flex:1;text-align:center;padding:5px 0;color:#9a9c93">Full</span><span style="flex:1;text-align:center;padding:5px 0;background:#35352f;color:#e8e9e3;font-weight:600">Balanced</span><span style="flex:1;text-align:center;padding:5px 0;color:#9a9c93">Core</span></div>
+      <div style="margin-top:18px;display:flex;justify-content:space-between;color:#9a9c93"><span style="color:#e8e9e3;font-weight:600">Citation chain depth</span><span>{{ b.depth }} of 6</span></div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-top:8px"><sc-for list="{{ b.ladder }}" as="r" hint-placeholder-count="7">
+        <div style="display:grid;grid-template-columns:18px 1fr 44px;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;background:{{ r.rowBg }};opacity:{{ r.rowOpacity }}">
+          <span style="width:12px;height:12px;border-radius:50%;background:{{ r.color }};border:2px solid {{ r.ring }}"></span>
+          <span style="position:relative;height:14px"><span style="position:absolute;left:0;top:3px;height:8px;width:{{ r.barW }};background:{{ r.color }};border-radius:2px"></span><span style="position:absolute;left:0;top:3px;height:8px;width:{{ r.barAllW }};border:1px solid {{ r.color }};box-sizing:border-box;border-radius:2px;opacity:.45"></span></span>
+          <span style="text-align:right;font-variant-numeric:tabular-nums;color:{{ r.countColor }}">{{ r.countLabel }}</span>
+        </div>
+      </sc-for></div>
+      <div style="color:#9a9c93;margin-top:6px;line-height:1.45">Hop 0 is the seed. Filled bar = shown after the threshold below; outline = available at that hop.</div>
+      <div style="margin-top:18px;display:flex;justify-content:space-between"><span style="font-weight:600">Min citations</span><span style="font-variant-numeric:tabular-nums">≥ {{ b.minCitations }}</span></div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:36px;margin-top:8px"><sc-for list="{{ b.hist }}" as="h" hint-placeholder-count="12"><span style="flex:1;background:{{ h.color }};height:{{ h.h }}"></span></sc-for></div>
+      <div style="position:relative;height:14px;margin-top:4px"><span style="position:absolute;left:0;right:0;top:6px;height:2px;background:#35352f"></span><span style="position:absolute;left:0;top:6px;height:2px;width:{{ b.sliderPct }};background:#96bf54"></span><span style="position:absolute;top:1px;left:{{ b.sliderPct }};width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#e8e9e3"></span></div>
+      <div style="display:flex;justify-content:space-between;color:#9a9c93;margin-top:2px"><span>0</span><span>5</span><span>20</span><span>50</span><span>200+</span></div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><span style="border:1px solid #35352f;border-radius:10px;padding:2px 8px;color:#9a9c93">0</span><span style="border:1px solid #35352f;border-radius:10px;padding:2px 8px;color:#9a9c93">5</span><span style="border:1px solid #96bf54;border-radius:10px;padding:2px 8px">10</span><span style="border:1px solid #35352f;border-radius:10px;padding:2px 8px;color:#9a9c93">50</span><span style="border:1px solid #35352f;border-radius:10px;padding:2px 8px;color:#9a9c93">Top 10%</span></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #35352f;color:#9a9c93;line-height:1.45">Applies per hop: the threshold never hides the seed, and a hidden paper also hides the chain below it.</div>
+    </div>
+    <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ b.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ b.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <sc-for list="{{ b.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="0.8"></line></sc-for>
+        <sc-for list="{{ b.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+              </svg>
+      <div style="position:absolute;inset:0;pointer-events:none"><sc-for list="{{ b.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ b.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ b.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>On-plot strata key — each hop is a toggle row in the Key rail; threshold is a draggable floor line on the Y axis</div>
+<div class="dv-card" style="width:max-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px">
+    <div><div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #96bf54;display:inline-block"></span>Explore</div><div style="font-size:11px;color:#9a9c93;margin-top:2px">{{ c.shownCount }} papers · {{ c.edgeCount }} links · {{ c.hiddenCount }} below the floor</div></div>
+    <div style="display:flex;gap:8px"><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">+ Add Node</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Export</span><span style="border:1px solid #35352f;border-radius:6px;padding:6px 12px;font-size:12px">Refresh</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px;border-bottom:1px solid #35352f">
+    <span style="font-size:12px;font-weight:600">Focus: 1 seed</span>
+    <span style="border:1px solid #35352f;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#e0c64a;display:inline-block"></span>Diamond (2005) — Zonal flows in plasma <span style="color:#9a9c93">×</span></span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Cited by</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">All known papers</span>
+    <span style="border:1px solid #35352f;border-radius:6px;padding:5px 10px;font-size:12px">Relevance</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:#9a9c93"><span style="border:1px solid #35352f;border-radius:6px;padding:4px 8px;color:#e8e9e3">Full view</span><span style="border:1px solid #35352f;border-radius:6px;padding:4px 8px;color:#e8e9e3">Core</span><span>presets</span></span>
+  </div>
+  <div style="display:flex">
+    <div style="position:relative;flex:none;width:900px;background:#232320;height:600px">
+      <svg width="900" height="600" viewBox="0 0 900 600" style="display:block">
+        <sc-for list="{{ c.gridY }}" as="g" hint-placeholder-count="3"><line x1="60" x2="880" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#2b2b27"></line></sc-for>
+        <sc-for list="{{ c.gridX }}" as="g" hint-placeholder-count="5"><line y1="20" y2="560" x1="{{ g.x }}" x2="{{ g.x }}" stroke="#2b2b27"></line></sc-for>
+        <text x="470" y="596" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600">Publication year</text>
+        <text x="14" y="290" fill="#9a9c93" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 290)">Citations</text>
+        <rect x="60" y="{{ c.floorY }}" width="820" height="{{ c.floorH }}" fill="#141412" fill-opacity="0.45"></rect>
+        <sc-for list="{{ c.ghosts }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="#9a9c93" stroke-opacity="0.22" stroke-width="0.8"></circle></sc-for>
+        <sc-for list="{{ c.edges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-opacity="{{ e.opacity }}" stroke-width="0.8"></line></sc-for>
+        <sc-for list="{{ c.nodes }}" as="n" hint-placeholder-count="0"><circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.color }}" fill-opacity="{{ n.opacity }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle></sc-for>
+                <line x1="60" x2="880" y1="{{ c.floorY }}" y2="{{ c.floorY }}" stroke="#96bf54" stroke-dasharray="4 4" stroke-width="1.2"></line>
+                      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none"><sc-for list="{{ c.gridY }}" as="g" hint-placeholder-count="3"><span style="position:absolute;left:0;width:52px;text-align:right;top:{{ g.top }};transform:translateY(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ c.gridX }}" as="g" hint-placeholder-count="5"><span style="position:absolute;top:570px;left:{{ g.left }};transform:translateX(-50%);font-size:10px;color:#9a9c93">{{ g.label }}</span></sc-for><sc-for list="{{ c.labels }}" as="n" hint-placeholder-count="0"><span style="position:absolute;left:{{ n.left }};top:{{ n.top }};transform:translateY(-50%);font-size:10.5px;color:#e8e9e3;opacity:{{ n.opacity }};white-space:nowrap">{{ n.label }}</span></sc-for><span style="position:absolute;left:64px;top:{{ c.floorTop }};display:flex;align-items:center;gap:10px;font-size:10.5px;white-space:nowrap"><span style="background:#1c1c1a;border:1px solid #96bf54;border-radius:4px;padding:3px 8px;color:#e8e9e3">⇕ floor: ≥ {{ c.minCitations }} citations</span><span style="color:#9a9c93">{{ c.hiddenCount }} papers below, drawn as outlines</span></span></div>
+      <div style="position:absolute;right:14px;top:14px;width:224px;background:rgba(28,28,26,.94);border:1px solid #35352f;border-radius:8px;padding:10px 10px 12px;font-size:11px">
+        <div style="display:flex;justify-content:space-between;color:#9a9c93;padding:0 4px 8px"><span style="color:#e8e9e3;font-weight:600">Key · citation hops</span><span>{{ c.shownCount }} shown</span></div>
+        <sc-for list="{{ c.ladder }}" as="r" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:14px 1fr auto 16px;align-items:center;gap:8px;padding:4px;border-radius:5px;opacity:{{ r.rowOpacity }}">
+            <span style="width:11px;height:11px;border-radius:50%;background:{{ r.color }};border:2px solid {{ r.ring }}"></span>
+            <span style="color:{{ r.countColor }}">{{ r.name }}</span>
+            <span style="font-variant-numeric:tabular-nums;color:#9a9c93">{{ r.countLabel }}</span>
+            <span style="width:12px;height:12px;border-radius:3px;border:1px solid #9a9c93;background:{{ r.checkBg }}"></span>
+          </div>
+        </sc-for>
+        <div style="margin:8px 4px 0;display:flex;justify-content:space-between;align-items:center;color:#9a9c93"><span>Fetch hop {{ c.nextHop }}</span><span style="border:1px solid #35352f;border-radius:5px;padding:3px 8px;color:#e8e9e3">Load ≈ {{ c.nextHopEstimate }}</span></div>
+        <div style="margin:8px 4px 0;color:#9a9c93;line-height:1.45">Untick a hop to hide it and everything downstream. Drag the floor line on the plot to raise the citation threshold.</div>
+      </div>
+    </div>
+    <div style="width:264px;border-left:1px solid #35352f;padding:16px;font-size:12px;color:#9a9c93"><div style="font-size:15px;font-weight:600;color:#e8e9e3">Paper details</div><div style="margin-top:4px">Select a paper to inspect its metrics, references and citing works.</div></div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "<a class="dv-oid" href="#1a">1a</a> chips but with the <a class="dv-oid" href="#1b">1b</a> hop ladder in the threshold popover" · "make the floor line from <a class="dv-oid" href="#1c">1c</a> the only threshold control" · "show the same scene with depth 4 and min 0 to see worst-case clutter"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;seeds&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:2,&quot;max&quot;:6,&quot;step&quot;:1,&quot;section&quot;:&quot;Turn 3 · shared citers&quot;},&quot;depth&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:null,&quot;tsType&quot;:&quot;number | null&quot;,&quot;min&quot;:1,&quot;max&quot;:6,&quot;step&quot;:1,&quot;section&quot;:&quot;Override all scenes&quot;},&quot;minCitations&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:null,&quot;tsType&quot;:&quot;number | null&quot;,&quot;min&quot;:0,&quot;max&quot;:200,&quot;step&quot;:1,&quot;section&quot;:&quot;Override all scenes&quot;}}">
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.data = this.generate();
+    this.byId = new Map(this.data.map(n => [n.id, n]));
+    this.plotRef = React.createRef();
+    this.plotRef2 = React.createRef();
+    this.state = { depth: 2, minC: 20, loaded: 2, enabled: [true, true, true, true, true, true, true], hover: null, selected: null, dragging: false, loading: null, preset: "custom", shared: "on", hoverSeed: null, hoverTier: null, railCollapsed: false, colsOff: [], localOnly: false, extraSeeds: [], removedSeeds: [] };
+  }
+  invY(y) { return Math.max(0, Math.round(Math.pow(10, ((545 - y) / 520) * 3.3) - 1)); }
+  plotPoint(e, ref = this.plotRef) {
+    const el = ref.current; if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  setPreset(name) {
+    const s = this.state;
+    if (name === "full") this.setState({ preset: name, minC: 0, depth: s.loaded, enabled: s.enabled.map(() => true) });
+    else if (name === "balanced") this.setState({ preset: name, minC: 10, depth: s.loaded, enabled: s.enabled.map(() => true) });
+    else if (name === "core") this.setState({ preset: name, minC: 50, depth: Math.min(2, s.loaded), enabled: s.enabled.map(() => true) });
+  }
+  loadHop(hop) {
+    if (this.loading) return;
+    this.loading = { hop, pct: 0 };
+    this.setState({ loading: this.loading });
+    const tick = () => {
+      if (!this.loading) return;
+      if (this.loading.pct >= 100) {
+        this.loading = null;
+        this.setState(st => { const en = [...st.enabled]; en[hop] = true; return { loading: null, loaded: hop, depth: hop, enabled: en, preset: "custom" }; });
+        return;
+      }
+      this.loading = { hop, pct: Math.min(100, this.loading.pct + 4 + Math.random() * 9) };
+      this.setState({ loading: this.loading });
+      this.forceUpdate();
+      this.loadTimer = setTimeout(tick, 120);
+    };
+    this.loadTimer = setTimeout(tick, 120);
+  }
+  componentWillUnmount() { clearTimeout(this.loadTimer); }
+  chainOf(id, visible) {
+    const set = new Set();
+    let n = this.byId.get(id);
+    while (n) { set.add(n.id); n = n.parent === null ? null : this.byId.get(n.parent); }
+    const stack = [id];
+    while (stack.length) { const cur = stack.pop(); for (const v of visible.values()) if (v.parent === cur && !set.has(v.id)) { set.add(v.id); stack.push(v.id); } }
+    return set;
+  }
+  rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  generate() {
+    const r = this.rng(20260906);
+    const names = ["Krieger","Pitts","Eich","Wiesen","Fujisawa","Brizard","Garbet","Chen","Loarte","Hinton","Horton","Jenko","Lin","Ikeda","Johansen","Campbell","Salewski","Neu","Rizzi","Wagner","Sawan","Abdou","Kovari","Pearson","Eyrolle","Stott","Kuan","Ni","Zheng","Coleman","Lore","Sheffield","Busigin","Asaoka","Cristescu","Sarigiannis","Mordijck","Glugla","Baquan","Konishi","Miyazawa","Nie","Bayer","Wong","Harvey","Zhang","Li","Wang","Silva","Moreau","Okada","Rossi","Hansen","Petrov","Dubois","Meyer","Novak","Ferreira","Tanaka","Ivanov"];
+    const nodes = [{ id: 0, depth: 0, year: 2005, cites: 940, parent: null, name: "Diamond" }];
+    const perHopFan = [0, 26, 5.2, 2.6, 1.6, 1.1, 0.8];
+    let id = 1;
+    for (let d = 1; d <= 6; d++) {
+      const parents = nodes.filter(n => n.depth === d - 1);
+      for (const p of parents) {
+        const fan = d === 1 ? perHopFan[1] : Math.round(perHopFan[d] * Math.pow(Math.log1p(p.cites) / 3, 1.2) * (0.5 + r()));
+        for (let i = 0; i < fan && id < 1400; i++) {
+          const year = Math.min(2026, p.year + 1 + Math.floor(Math.pow(r(), 1.6) * (2026 - p.year)));
+          const age = 2026 - year;
+          const base = Math.exp(r() * r() * 5.6) * (0.4 + age / 12) * (d === 1 ? 1.6 : 1);
+          const cites = Math.max(0, Math.round(base - 1));
+          nodes.push({ id: id++, depth: d, year, cites, parent: p.id, name: names[Math.floor(r() * names.length)] });
+        }
+      }
+    }
+    return nodes;
+  }
+  ramp() { return ["#e0c64a", "#96bf54", "#4f9a5e", "#1e6b52", "#0f3b33", "#0b2e28", "#082420"]; }
+  op(d) { return [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4][d]; }
+  scene(depth, minC, opts = {}) {
+    const all = this.data, ramp = this.ramp();
+    const X = y => 60 + ((y - 2004) / 23) * 810;
+    const Y = c => 545 - (Math.log10(c + 1) / 3.3) * 520;
+    const R = c => 2.2 + Math.sqrt(c) * 0.55;
+    const visible = new Map();
+    for (const n of all) {
+      if (n.depth > depth) continue;
+      if (n.depth === 0) { visible.set(n.id, n); continue; }
+      if (opts.enabled && !opts.enabled[n.depth]) continue;
+      if (n.cites < minC) continue;
+      if (!visible.has(n.parent)) continue;
+      visible.set(n.id, n);
+    }
+    const jit = this.rng(7);
+    const pos = new Map();
+    for (const n of all) pos.set(n.id, { x: X(n.year) + (jit() - 0.5) * 22, y: Y(n.cites) + (jit() - 0.5) * 8 });
+    const focusId = opts.focus ?? null;
+    const chain = focusId !== null && visible.has(focusId) ? this.chainOf(focusId, visible) : null;
+    const nodes = [...visible.values()].sort((a, b) => (b.depth - a.depth) || ((chain && chain.has(a.id)) ? 1 : 0) - ((chain && chain.has(b.id)) ? 1 : 0)).map(n => {
+      const p = pos.get(n.id);
+      const lit = !chain || chain.has(n.id);
+      const isFocus = n.id === focusId;
+      return { ...n, x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1), color: ramp[n.depth], opacity: lit ? this.op(n.depth) : 0.12,
+        stroke: isFocus ? "#ffffff" : n.depth === 0 ? "#e8e9e3" : "none", sw: isFocus ? 2.5 : n.depth === 0 ? 2 : 0,
+        cursor: opts.interactive ? "pointer" : "default",
+        onEnter: opts.interactive ? () => this.setState({ hover: n.id }) : undefined,
+        onClick: opts.interactive ? () => this.setState(st => ({ selected: st.selected === n.id ? null : n.id })) : undefined };
+    });
+    const edges = [...visible.values()].filter(n => n.parent !== null).sort((a, b) => ((chain && chain.has(a.id)) ? 1 : 0) - ((chain && chain.has(b.id)) ? 1 : 0)).map(n => {
+      const a = pos.get(n.id), b = pos.get(n.parent);
+      const lit = chain && chain.has(n.id) && chain.has(n.parent);
+      return { x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), color: lit ? "#96bf54" : ramp[Math.max(0, n.depth - 1)], opacity: chain ? (lit ? 0.95 : 0.06) : (0.55 * this.op(n.depth)).toFixed(2), width: lit ? 1.6 : 0.8 };
+    });
+    const fY = Y(minC);
+    const labels = [...visible.values()].filter(n => n.depth <= 2 && !(opts.rail && pos.get(n.id).x > 620 && pos.get(n.id).y < 340) && !(opts.ghosts && Math.abs(pos.get(n.id).y - fY) < 18 && pos.get(n.id).x < 460)).sort((a, b) => b.cites - a.cites).slice(0, 16).map(n => {
+      const p = pos.get(n.id);
+      return { left: `${((p.x + R(n.cites) + 4) / 900 * 100).toFixed(2)}%`, top: `${p.y.toFixed(1)}px`, opacity: chain && !chain.has(n.id) ? 0.15 : this.op(n.depth), label: `${n.name} (${n.year})` };
+    });
+    const ghosts = opts.ghosts ? all.filter(n => n.depth > 0 && n.depth <= depth && !visible.has(n.id) && visible.has(n.parent)).map(n => { const p = pos.get(n.id); return { x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1) }; }) : [];
+    const perHopAll = [0,0,0,0,0,0,0], perHopShown = [0,0,0,0,0,0,0];
+    for (const n of all) perHopAll[n.depth]++;
+    for (const n of visible.values()) perHopShown[n.depth]++;
+    const maxHop = Math.max(...perHopAll.slice(1));
+    const loaded = opts.loaded ?? 6;
+    const ladder = perHopAll.map((cnt, d) => {
+      const fetched = d <= loaded;
+      const active = d <= depth && fetched && (!opts.enabled || opts.enabled[d]);
+      return {
+        fetched, loadable: !fetched && d === loaded + 1 && !opts.loading, isLoading: opts.loading && opts.loading.hop === d,
+        loadPct: opts.loading && opts.loading.hop === d ? `${opts.loading.pct.toFixed(0)}%` : "0%",
+        estimate: fetched ? "" : `≈ ${cnt} papers`,
+        onToggle: opts.interactive && d > 0 && fetched ? () => this.setState(st => { const en = [...st.enabled]; en[d] = !en[d]; return { enabled: en, depth: Math.max(st.depth, d), preset: "custom" }; }) : undefined,
+        onLoad: opts.interactive && !fetched ? () => this.loadHop(d) : undefined, name: d === 0 ? "Seed" : `Hop ${d}`, color: ramp[d], ring: d === 0 ? "#e8e9e3" : "transparent", rowBg: d === depth ? "#2b2b27" : "transparent", rowOpacity: active ? 1 : 0.45, barW: d === 0 ? "100%" : `${Math.max(2, (perHopShown[d] / maxHop) * 100)}%`, barAllW: d === 0 ? "100%" : `${Math.max(2, (cnt / maxHop) * 100)}%`, countLabel: !fetched ? "not fetched" : active ? `${perHopShown[d]}/${cnt}` : `${cnt}`, countColor: active ? "#e8e9e3" : "#9a9c93", checkBg: active ? "#96bf54" : "transparent" };
+    });
+    const pool = all.filter(n => n.depth > 0 && n.depth <= depth);
+    const bins = [0,1,2,3,5,8,12,20,35,50,100,200];
+    const hist = bins.map((lo, i) => {
+      const hi = bins[i + 1] ?? Infinity;
+      const cnt = pool.filter(n => n.cites >= lo && n.cites < hi).length;
+      return { lo, cnt };
+    });
+    const hmax = Math.max(...hist.map(h => h.cnt));
+    const histOut = hist.map(h => ({ h: `${Math.max(3, (h.cnt / hmax) * 100)}%`, color: h.lo < minC ? "#35352f" : "#4f9a5e" }));
+    const sliderPct = `${Math.min(100, (Math.log10(minC + 1) / Math.log10(201)) * 100).toFixed(1)}%`;
+    const gridY = [1, 10, 100, 1000].map(c => ({ y: Y(c).toFixed(1), top: `${Y(c).toFixed(1)}px`, label: String(c) }));
+    const gridX = [2005, 2010, 2015, 2020, 2025].map(y => ({ x: X(y).toFixed(1), left: `${(X(y) / 900 * 100).toFixed(2)}%`, label: String(y) }));
+    const floorY = Y(minC);
+    const focusNode = focusId !== null && visible.has(focusId) ? this.byId.get(focusId) : null;
+    const fp = focusNode ? pos.get(focusNode.id) : null;
+    const tip = focusNode ? { show: true, left: `${Math.min(700, fp.x + 14).toFixed(1)}px`, top: `${Math.max(60, fp.y - 10).toFixed(1)}px`, title: `${focusNode.name} (${focusNode.year})`, meta: `${focusNode.cites} citations · hop ${focusNode.depth}`, chain: `${chain.size - 1} papers in this chain` } : { show: false };
+    const total = all.length - 1;
+    return { depth, minCitations: minC, nodes, edges, labels, ghosts, ladder, hist: histOut, sliderPct, gridY, gridX,
+      shownCount: visible.size, edgeCount: edges.length, hiddenCount: pool.length - (visible.size - 1), totalCount: total,
+      floorY: floorY.toFixed(1), floorH: (545 - floorY + 10).toFixed(1), floorTop: `${(floorY + 8).toFixed(1)}px`,
+      nextHop: Math.min(6, depth + 1), nextHopEstimate: perHopAll[Math.min(6, depth + 1)], tip, hasChain: Boolean(chain),
+      floorHandleTop: `${(floorY - 10).toFixed(1)}px`, floorPct: `${Math.round(minC)}`,
+      legend: ladder.slice(0, depth + 1).map(l => ({ label: l.name, color: l.color, opacity: 1 })) };
+  }
+  interactive() {
+    const s = this.state;
+    const sc = this.scene(s.depth, s.minC, { ghosts: true, rail: true, interactive: true, enabled: s.enabled, loaded: s.loaded, loading: s.loading, focus: s.selected ?? s.hover });
+    const presetBtn = (name) => ({ active: s.preset === name, bg: s.preset === name ? "#35352f" : "transparent", color: s.preset === name ? "#e8e9e3" : "#9a9c93", onClick: () => this.setPreset(name) });
+    return { ...sc,
+      presets: [{ label: "Full", ...presetBtn("full") }, { label: "Balanced", ...presetBtn("balanced") }, { label: "Core", ...presetBtn("core") }],
+      isCustom: s.preset === "custom", selectedLabel: s.selected !== null ? "click again to release" : "hover to trace · click to pin",
+      onFloorDown: (e) => { e.preventDefault(); this.setState({ dragging: true }); },
+      onMove: (e) => { if (!this.state.dragging) return; const p = this.plotPoint(e); if (p) this.setState({ minC: Math.min(500, this.invY(Math.max(20, Math.min(545, p.y)))), preset: "custom" }); },
+      onUp: () => { if (this.state.dragging) this.setState({ dragging: false }); },
+      onLeavePlot: () => this.setState({ hover: null, dragging: false }),
+      floorCursor: s.dragging ? "ns-resize" : "ns-resize",
+      loadingHop: s.loading ? s.loading.hop : null, loadingPct: s.loading ? `${s.loading.pct.toFixed(0)}%` : "0%", isLoading: Boolean(s.loading),
+      chipDepth: s.depth, chipMin: s.minC,
+    };
+  }
+  multiData() {
+    if (this.data2) return this.data2;
+    const r = this.rng(99);
+    const nodes = this.data.map(n => ({ ...n, parents: n.parent === null ? [] : [n.parent] }));
+    const S2 = 9000;
+    nodes.push({ id: S2, depth: 0, year: 2009, cites: 610, parent: null, parents: [], name: "Hasegawa", seed2: true });
+    let id = 9001;
+    for (const n of nodes) if (n.depth === 1 && n.year >= 2011 && r() < 0.3) { n.parents.push(S2); n.bridge = true; }
+    const names = ["Wakatani", "Terry", "Scott", "Hahm", "Rogers", "Dorland", "Waltz", "Candy", "Görler", "Told", "Bañón", "Grandgirard"];
+    for (let i = 0; i < 12; i++) {
+      const year = 2010 + Math.floor(r() * 16), cites = Math.round(Math.exp(r() * 4.6));
+      nodes.push({ id: id++, depth: 1, year, cites, parent: S2, parents: [S2], name: names[i], tree2: true });
+    }
+    for (const p of nodes.filter(n => n.tree2)) for (let i = 0; i < 1 + Math.floor(r() * 3); i++) {
+      const year = Math.min(2026, p.year + 1 + Math.floor(r() * 8)), cites = Math.round(Math.exp(r() * 3.4));
+      nodes.push({ id: id++, depth: 2, year, cites, parent: p.id, parents: [p.id], name: names[Math.floor(r() * names.length)], tree2: true });
+    }
+    this.data2 = nodes;
+    return nodes;
+  }
+  sceneMulti(depth, minC, mode) {
+    const all = this.multiData(), ramp = this.ramp();
+    const X = y => 60 + ((y - 2004) / 23) * 810;
+    const Y = c => 545 - (Math.log10(c + 1) / 3.3) * 520;
+    const R = c => 2.2 + Math.sqrt(c) * 0.55;
+    const byId = new Map(all.map(n => [n.id, n]));
+    const visible = new Map();
+    for (const n of all) {
+      if (n.depth > depth) continue;
+      if (n.depth === 0) { visible.set(n.id, n); continue; }
+      if (n.cites < minC) continue;
+      if (!n.parents.some(p => visible.has(p))) continue;
+      if (mode === "only" && !(n.bridge || n.depth === 0)) continue;
+      visible.set(n.id, n);
+    }
+    const jit = this.rng(7);
+    const pos = new Map();
+    for (const n of all) pos.set(n.id, { x: X(n.year) + (jit() - 0.5) * 22, y: Y(n.cites) + (jit() - 0.5) * 8 });
+    const dim = mode === "dim";
+    const nodes = [...visible.values()].sort((a, b) => (b.depth - a.depth) || (a.bridge ? 1 : 0) - (b.bridge ? 1 : 0)).map(n => {
+      const p = pos.get(n.id);
+      const color = n.seed2 ? "#ab8efe" : ramp[n.depth];
+      const lit = n.bridge || n.depth === 0 || !dim;
+      return { x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1), color, opacity: lit ? this.op(n.depth) : 0.22,
+        stroke: n.bridge ? "#ffffff" : n.depth === 0 ? "#e8e9e3" : "none", sw: n.bridge ? 1.8 : n.depth === 0 ? 2 : 0, halo: n.bridge ? (R(n.cites) + 4).toFixed(1) : 0 };
+    });
+    const halos = nodes.filter(n => n.halo);
+    const edges = [];
+    for (const n of visible.values()) for (const pid of n.parents) {
+      if (!visible.has(pid)) continue;
+      const a = pos.get(n.id), b = pos.get(pid);
+      const lit = n.bridge && byId.get(pid).depth === 0;
+      edges.push({ x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), color: lit ? "#ffffff" : ramp[Math.max(0, n.depth - 1)], opacity: lit ? 0.7 : dim ? 0.08 : (0.55 * this.op(n.depth)).toFixed(2), width: lit ? 1.4 : 0.8 });
+    }
+    edges.sort((a, b) => a.width - b.width);
+    const labelled = [...visible.values()].filter(n => n.depth === 0 || n.bridge).sort((a, b) => b.cites - a.cites).slice(0, 18);
+    const labels = labelled.filter(n => !(pos.get(n.id).x > 620 && pos.get(n.id).y < 300)).map(n => {
+      const p = pos.get(n.id);
+      return { left: `${((p.x + R(n.cites) + 6) / 900 * 100).toFixed(2)}%`, top: `${p.y.toFixed(1)}px`, opacity: 1, label: `${n.name} (${n.year})` };
+    });
+    const hop1 = all.filter(n => n.depth === 1 && n.cites >= minC);
+    const bridges = hop1.filter(n => n.bridge);
+    const gridY = [1, 10, 100, 1000].map(c => ({ y: Y(c).toFixed(1), top: `${Y(c).toFixed(1)}px`, label: String(c) }));
+    const gridX = [2005, 2010, 2015, 2020, 2025].map(y => ({ x: X(y).toFixed(1), left: `${(X(y) / 900 * 100).toFixed(2)}%`, label: String(y) }));
+    return { depth, minCitations: minC, nodes, halos, edges, labels, gridY, gridX, shownCount: visible.size, edgeCount: edges.length,
+      bridgeCount: bridges.length, hop1Count: hop1.length, bridgeList: bridges.sort((a, b) => b.cites - a.cites).slice(0, 5).map(n => ({ label: `${n.name} (${n.year})`, cites: `${n.cites}` })),
+      dimBg: dim ? "#35352f" : "transparent", dimColor: dim ? "#e8e9e3" : "#9a9c93", onlyBg: dim ? "transparent" : "#35352f", onlyColor: dim ? "#9a9c93" : "#e8e9e3" };
+  }
+  gradedData(S) {
+    if (this.data3 && this.data3.S === S) return this.data3.nodes;
+    const r = this.rng(300 + S);
+    const seedDefs = [{ name: "Diamond", year: 2005, cites: 940 }, { name: "Hasegawa", year: 2009, cites: 610 }, { name: "Terry", year: 2006, cites: 180 }, { name: "Scott", year: 2012, cites: 260 }, { name: "Waltz", year: 2004, cites: 520 }, { name: "Dorland", year: 2014, cites: 120 }];
+    const nodes = this.data.map(n => ({ ...n, parents: n.parent === null ? [] : [n.parent] }));
+    const seedIds = [0];
+    for (let i = 1; i < S; i++) { const id = 9000 + i; seedIds.push(id); nodes.push({ id, depth: 0, ...seedDefs[i], parent: null, parents: [], seedIndex: i }); }
+    for (const n of nodes) if (n.depth === 1) {
+      const minYear = Math.min(...seedDefs.slice(0, S).map(d => d.year));
+      if (n.year < minYear + 2) continue;
+      // Skewed: most cite 1 seed, few cite many.
+      let extra = 0; let p = 0.42;
+      for (let i = 1; i < S; i++) { if (r() < p) extra++; p *= 0.5; }
+      const others = seedIds.slice(1).filter(id => nodes.find(x => x.id === id).year < n.year).sort(() => r() - 0.5).slice(0, extra);
+      n.parents.push(...others);
+      n.k = 1 + others.length;
+    }
+    const rc = this.rng(77);
+    for (const n of nodes) { if (n.depth === 0) { n.col = n.seedIndex ? "zonal" : "turb"; continue; } const u = rc(); n.col = u < 0.14 ? "zonal" : u < 0.24 ? "transport" : u < 0.31 ? "turb" : u < 0.36 ? "materials" : u < 0.42 ? "toread" : null; }
+    this.data3 = { S, nodes };
+    return nodes;
+  }
+  sceneGraded(S, depth, minC, hoverSeed = null) {
+    const all = this.gradedData(S), ramp = this.ramp();
+    const seedColors = ["#e0c64a", "#ab8efe", "#07bcbd", "#fe6d8a", "#0066af", "#a44c00"];
+    const X = y => 60 + ((y - 2003) / 24) * 810;
+    const Y = c => 545 - (Math.log10(c + 1) / 3.3) * 520;
+    const R = c => 2.2 + Math.sqrt(c) * 0.55;
+    const byId = new Map(all.map(n => [n.id, n]));
+    const visible = new Map();
+    for (const n of all) {
+      if (n.depth > depth) continue;
+      if (n.depth === 0) { visible.set(n.id, n); continue; }
+      if (n.cites < minC) continue;
+      if (!n.parents.some(p => visible.has(p))) continue;
+      visible.set(n.id, n);
+    }
+    const hop1 = [...visible.values()].filter(n => n.depth === 1);
+    const kmax = Math.max(1, ...hop1.map(n => n.k ?? 1));
+    const grade = k => kmax <= 1 ? 1 : 0.15 + 0.85 * Math.pow((k - 1) / (kmax - 1), 1.4);
+    const nodeOp = n => n.depth === 0 ? 1 : n.depth === 1 ? grade(n.k ?? 1) : 0.15 * this.op(2);
+    const dimSeed = c => `color-mix(in oklab, ${c} 60%, #232320)`;
+    const jit = this.rng(7);
+    const pos = new Map();
+    for (const n of all) pos.set(n.id, { x: X(n.year) + (jit() - 0.5) * 22, y: Y(n.cites) + (jit() - 0.5) * 8 });
+    const nodes = [...visible.values()].sort((a, b) => (b.depth - a.depth) || ((a.k ?? 0) - (b.k ?? 0))).map(n => {
+      const p = pos.get(n.id), seed = n.depth === 0, sc = seedColors[n.seedIndex ?? 0], hot = seed && hoverSeed === n.id;
+      return { x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1), color: seed ? (hot ? sc : dimSeed(sc)) : ramp[n.depth], opacity: nodeOp(n).toFixed(2),
+        stroke: seed ? "#232320" : "none", sw: seed ? 2.5 : 0, halo: seed ? (R(n.cites) + 6).toFixed(1) : 0, haloColor: hot ? sc : dimSeed(sc), haloOp: 1,
+        cursor: seed ? "pointer" : "default", onEnter: seed ? () => this.setState({ hoverSeed: n.id }) : undefined, onLeave: seed ? () => this.setState({ hoverSeed: null }) : undefined };
+    });
+    const halos = nodes.filter(n => n.halo);
+    const edges = [];
+    for (const n of visible.values()) for (const pid of n.parents) {
+      if (!visible.has(pid)) continue;
+      const a = pos.get(n.id), b = pos.get(pid), parent = byId.get(pid);
+      const op = nodeOp(n);
+      const toSeed = parent.depth === 0, shared = toSeed && (n.k ?? 1) > 1;
+      const hotEdge = toSeed && hoverSeed === pid;
+      edges.push({ x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), color: hotEdge || shared ? seedColors[parent.seedIndex ?? 0] : ramp[Math.max(0, n.depth - 1)], opacity: hotEdge ? "0.9" : (op * (shared ? 0.85 : 0.45)).toFixed(2), width: hotEdge ? 1.4 : shared ? 1.2 : 0.8, k: hotEdge ? 99 : n.k ?? 1 });
+    }
+    edges.sort((a, b) => a.k - b.k);
+    const labelled = [...visible.values()].filter(n => n.depth === 0 || (n.depth === 1 && (n.k ?? 1) >= Math.max(2, kmax - 1))).sort((a, b) => ((b.k ?? 9) - (a.k ?? 9)) || b.cites - a.cites).slice(0, 18);
+    const seedNodes = all.filter(n => n.depth === 0);
+    const labels = labelled.filter(n => !(pos.get(n.id).x > 620 && pos.get(n.id).y < 330)).map(n => {
+      const p = pos.get(n.id), label = `${n.name} (${n.year})`;
+      const off = R(n.cites) + (n.depth === 0 ? 12 : 6), w = label.length * 5.6;
+      const hits = (x0, x1) => seedNodes.some(o => o.id !== n.id && Math.abs(pos.get(o.id).y - p.y) < R(o.cites) + 14 && pos.get(o.id).x + R(o.cites) + 8 > x0 && pos.get(o.id).x - R(o.cites) - 8 < x1);
+      const flip = hits(p.x + off, p.x + off + w) && !hits(p.x - off - w, p.x - off);
+      return flip
+        ? { right: `${((900 - (p.x - off)) / 900 * 100).toFixed(2)}%`, left: "auto", top: `${p.y.toFixed(1)}px`, opacity: n.depth === 0 ? (hoverSeed === n.id ? "1" : "0.7") : nodeOp(n).toFixed(2), label }
+        : { left: `${((p.x + off) / 900 * 100).toFixed(2)}%`, right: "auto", top: `${p.y.toFixed(1)}px`, opacity: n.depth === 0 ? (hoverSeed === n.id ? "1" : "0.7") : nodeOp(n).toFixed(2), label };
+    });
+    const tiers = [];
+    for (let k = kmax; k >= 1; k--) {
+      const cnt = hop1.filter(n => (n.k ?? 1) === k).length;
+      tiers.push({ label: k === S ? `Cite all ${S} seeds` : k === 1 ? "Cite 1 seed" : `Cite ${k} of ${S} seeds`, count: String(cnt), opacity: grade(k).toFixed(2), top: k === kmax && kmax > 1, ring: "transparent", color: k === kmax && kmax > 1 ? "#e8e9e3" : "#9a9c93" });
+    }
+    const topCount = hop1.filter(n => (n.k ?? 1) === kmax).length;
+    const chip = kmax === S ? `Cite all ${S} seeds` : kmax === 1 ? "No shared citers yet" : `Cite ${kmax} of ${S} seeds`;
+    const seeds = seedIds(all).map((id, i) => { const n = byId.get(id); return { label: `${n.name} (${n.year})`, color: seedColors[i] }; });
+    function seedIds(list) { return list.filter(n => n.depth === 0).sort((a, b) => (a.seedIndex ?? 0) - (b.seedIndex ?? 0)).map(n => n.id); }
+    const gridY = [1, 10, 100, 1000].map(c => ({ y: Y(c).toFixed(1), top: `${Y(c).toFixed(1)}px`, label: String(c) }));
+    const gridX = [2005, 2010, 2015, 2020, 2025].map(y => ({ x: X(y).toFixed(1), left: `${(X(y) / 900 * 100).toFixed(2)}%`, label: String(y) }));
+    return { S: String(S), depth, minCitations: minC, nodes, halos, edges, labels, gridY, gridX, tiers, seeds, kmax: String(kmax), chip, topCount: String(topCount), hop1Count: String(hop1.length), shownCount: visible.size,
+      note: kmax < S ? `No paper cites all ${S} seeds yet, so full opacity goes to the ${kmax}-of-${S} tier.` : `Full opacity goes to papers citing every seed.` };
+  }
+  sceneCombined() {
+    const st = this.state, S = this.props.seeds ?? 4, depth = st.depth, minC = st.minC, shared = st.shared;
+    const base = this.gradedData(S), ramp = this.ramp();
+    const all = base.filter(n => !(n.depth === 0 && st.removedSeeds.includes(n.id))).map(n => st.extraSeeds.includes(n.id) ? { ...n, depth: 0, seedIndex: S + st.extraSeeds.indexOf(n.id), promoted: true } : n);
+    const seedColors = ["#e0c64a", "#ab8efe", "#07bcbd", "#fe6d8a", "#0066af", "#a44c00", "#039f6c", "#ae8f06"];
+    const X = y => 60 + ((y - 2003) / 24) * 810;
+    const Y = c => 545 - (Math.log10(c + 1) / 3.3) * 520;
+    const R = c => 2.2 + Math.sqrt(c) * 0.55;
+    const dimSeed = c => `color-mix(in oklab, ${c} 60%, #232320)`;
+    const byId = new Map(all.map(n => [n.id, n]));
+    const visible = new Map(), ghostsRaw = [];
+    for (const n of all) {
+      if (n.depth > depth) continue;
+      if (n.depth === 0) { visible.set(n.id, n); continue; }
+      if (!st.enabled[n.depth]) continue;
+      if (!n.parents.some(p => visible.has(p))) continue;
+      if (n.col && st.colsOff.includes(n.col)) continue;
+      if (!n.col && st.localOnly) continue;
+      if (n.cites < minC) { ghostsRaw.push(n); continue; }
+      if (shared === "only" && n.depth === 1 && (n.k ?? 1) < 2) continue;
+      visible.set(n.id, n);
+    }
+    const hop1 = [...visible.values()].filter(n => n.depth === 1);
+    const kmax = Math.max(1, ...hop1.map(n => n.k ?? 1));
+    const grade = k => kmax <= 1 ? 1 : 0.15 + 0.85 * Math.pow((k - 1) / (kmax - 1), 1.4);
+    const baseOp = n => n.depth === 0 ? 1 : shared === "off" ? this.op(n.depth) : n.depth === 1 ? grade(n.k ?? 1) : this.op(n.depth) * 0.35;
+    const focusId = st.selected ?? st.hover;
+    const chain = focusId !== null && visible.has(focusId) ? this.chainOfMulti(focusId, visible, byId) : null;
+    const tier = st.hoverTier;
+    const nodeOp = n => chain ? (chain.has(n.id) ? Math.max(0.6, baseOp(n)) : 0.12) : tier !== null ? (n.depth === 0 ? 1 : n.depth === 1 && (n.k ?? 1) === tier ? 1 : 0.1) : baseOp(n);
+    const jit = this.rng(7);
+    const pos = new Map();
+    for (const n of all) pos.set(n.id, { x: X(n.year) + (jit() - 0.5) * 22, y: Y(n.cites) + (jit() - 0.5) * 8 });
+    const nodes = [...visible.values()].sort((a, b) => (b.depth - a.depth) || ((a.k ?? 0) - (b.k ?? 0))).map(n => {
+      const p = pos.get(n.id), seed = n.depth === 0, sc = seedColors[n.seedIndex ?? 0], hot = seed && st.hoverSeed === n.id, isFocus = n.id === focusId;
+      return { x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1), color: seed ? (hot ? sc : dimSeed(sc)) : ramp[n.depth], opacity: nodeOp(n).toFixed(2),
+        stroke: isFocus ? "#ffffff" : seed ? "#232320" : "none", sw: isFocus ? 2.5 : seed ? 2.5 : 0, halo: seed ? (R(n.cites) + 6).toFixed(1) : 0, haloColor: hot ? sc : dimSeed(sc),
+        cursor: "pointer",
+        onEnter: seed ? () => this.setState({ hoverSeed: n.id }) : () => this.setState({ hover: n.id }),
+        onLeave: seed ? () => this.setState({ hoverSeed: null }) : undefined,
+        onClick: seed ? undefined : () => this.setState(s2 => ({ selected: s2.selected === n.id ? null : n.id })) };
+    });
+    const halos = nodes.filter(n => n.halo);
+    const edges = [];
+    for (const n of visible.values()) for (const pid of n.parents) {
+      if (!visible.has(pid)) continue;
+      const a = pos.get(n.id), b = pos.get(pid), parent = byId.get(pid);
+      const toSeed = parent.depth === 0, sharedEdge = toSeed && (n.k ?? 1) > 1 && shared !== "off", hotEdge = toSeed && st.hoverSeed === pid;
+      const inChain = chain && chain.has(n.id) && chain.has(pid);
+      const op = nodeOp(n);
+      edges.push({ x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1),
+        color: inChain ? "#96bf54" : hotEdge || sharedEdge ? seedColors[parent.seedIndex ?? 0] : ramp[Math.max(0, n.depth - 1)],
+        opacity: inChain ? "0.95" : hotEdge ? "0.9" : chain ? "0.05" : (op * (sharedEdge ? 0.85 : 0.45)).toFixed(2),
+        width: inChain || hotEdge ? 1.5 : sharedEdge ? 1.2 : 0.8, z: inChain ? 100 : hotEdge ? 99 : n.k ?? 1 });
+    }
+    edges.sort((a, b) => a.z - b.z);
+    const ghosts = ghostsRaw.map(n => { const p = pos.get(n.id); return { x: p.x.toFixed(1), y: p.y.toFixed(1), r: R(n.cites).toFixed(1) }; });
+    const fY = Y(minC);
+    const seedNodes = all.filter(n => n.depth === 0);
+    const labelled = [...visible.values()].filter(n => n.depth === 0 || (n.depth === 1 && (shared === "off" || (n.k ?? 1) >= Math.max(2, kmax - 1)))).sort((a, b) => (a.depth - b.depth) || ((b.k ?? 1) - (a.k ?? 1)) || b.cites - a.cites).slice(0, 18);
+    const labels = labelled.filter(n => { const p = pos.get(n.id); return !(p.x > 620 && p.y < 420) && !(Math.abs(p.y - fY) < 18 && p.x < 460); }).map(n => {
+      const p = pos.get(n.id), label = `${n.name} (${n.year})`;
+      const off = R(n.cites) + (n.depth === 0 ? 12 : 6), w = label.length * 5.6;
+      const hits = (x0, x1) => seedNodes.some(o => o.id !== n.id && Math.abs(pos.get(o.id).y - p.y) < R(o.cites) + 14 && pos.get(o.id).x + R(o.cites) + 8 > x0 && pos.get(o.id).x - R(o.cites) - 8 < x1);
+      const flip = hits(p.x + off, p.x + off + w) && !hits(p.x - off - w, p.x - off);
+      const opacity = n.depth === 0 ? (st.hoverSeed === n.id ? "1" : "0.7") : nodeOp(n).toFixed(2);
+      return flip ? { right: `${((900 - (p.x - off)) / 900 * 100).toFixed(2)}%`, left: "auto", top: `${p.y.toFixed(1)}px`, opacity, label }
+                  : { left: `${((p.x + off) / 900 * 100).toFixed(2)}%`, right: "auto", top: `${p.y.toFixed(1)}px`, opacity, label };
+    });
+    const tiers = [];
+    for (let k = kmax; k >= 1; k--) tiers.push({ label: k === S ? `Cite all ${S} seeds` : k === 1 ? "Cite 1 seed" : `Cite ${k} of ${S} seeds`, count: String(hop1.filter(n => (n.k ?? 1) === k).length), opacity: shared === "off" ? "1" : grade(k).toFixed(2), color: k === kmax && kmax > 1 && shared !== "off" ? "#e8e9e3" : "#9a9c93",
+      bg: tier === k ? "rgba(232,233,227,.08)" : "transparent", onEnter: () => this.setState({ hoverTier: k }), onLeave: () => this.setState({ hoverTier: null }) });
+    const perHopAll = [0,0,0,0,0,0,0], perHopShown = [0,0,0,0,0,0,0];
+    for (const n of all) perHopAll[n.depth]++;
+    for (const n of visible.values()) perHopShown[n.depth]++;
+    const maxHop = Math.max(...perHopAll.slice(1));
+    const ladder = perHopAll.map((cnt, d) => {
+      const fetched = d <= st.loaded, active = d <= depth && fetched && st.enabled[d];
+      return { name: d === 0 ? "Seeds" : `Hop ${d}`, color: d === 0 ? "#9a9c93" : ramp[d], ring: d === 0 ? "#e8e9e3" : "transparent", rowOpacity: active ? 1 : 0.45,
+        fetched, loadable: !fetched && d === st.loaded + 1 && !st.loading, isLoading: st.loading && st.loading.hop === d, loadPct: st.loading && st.loading.hop === d ? `${st.loading.pct.toFixed(0)}%` : "0%", estimate: fetched ? "" : `≈ ${cnt} papers`,
+        countLabel: !fetched ? "not fetched" : active ? `${perHopShown[d]}/${cnt}` : `${cnt}`, countColor: active ? "#e8e9e3" : "#9a9c93", checkBg: active ? "#96bf54" : "transparent",
+        onToggle: d > 0 && fetched ? () => this.setState(s2 => { const en = [...s2.enabled]; en[d] = !en[d]; return { enabled: en, depth: Math.max(s2.depth, d), preset: "custom" }; }) : undefined,
+        onLoad: !fetched ? () => this.loadHop(d) : undefined };
+    });
+    const pool = all.filter(n => n.depth > 0 && n.depth <= depth);
+    const focusNode = focusId !== null && visible.has(focusId) ? byId.get(focusId) : null;
+    const fp = focusNode ? pos.get(focusNode.id) : null;
+    const tip = focusNode ? { show: true, left: `${Math.min(660, fp.x + 14).toFixed(1)}px`, top: `${Math.max(60, fp.y - 10).toFixed(1)}px`, title: `${focusNode.name} (${focusNode.year})`, meta: `${focusNode.cites} citations · hop ${focusNode.depth}${focusNode.depth === 1 ? ` · cites ${focusNode.k ?? 1} of ${S} seeds` : ""}`, chain: `${chain.size - 1} papers in this chain`, pinned: st.selected !== null && focusNode.depth > 0, onMakeSeed: () => this.setState(s2 => ({ extraSeeds: [...s2.extraSeeds, focusNode.id], selected: null, hover: null })) } : { show: false };
+    const presetBtn = (name) => ({ label: name[0].toUpperCase() + name.slice(1), bg: st.preset === name ? "#35352f" : "transparent", color: st.preset === name ? "#e8e9e3" : "#9a9c93", onClick: () => this.setPreset(name) });
+    const sharedBtn = (v, label) => ({ label, bg: shared === v ? "#35352f" : "transparent", color: shared === v ? "#e8e9e3" : "#9a9c93", onClick: () => this.setState({ shared: v }) });
+    const gridY = [1, 10, 100, 1000].map(c => ({ y: Y(c).toFixed(1), top: `${Y(c).toFixed(1)}px`, label: String(c) }));
+    const gridX = [2005, 2010, 2015, 2020, 2025].map(y => ({ x: X(y).toFixed(1), left: `${(X(y) / 900 * 100).toFixed(2)}%`, label: String(y) }));
+    return { S: String(S), depth, minCitations: minC, nodes, halos, edges, ghosts, labels, gridY, gridX, tiers, ladder, tip,
+      seeds: seedNodes.sort((a, b) => (a.seedIndex ?? 0) - (b.seedIndex ?? 0)).map(n => ({ label: `${n.name} (${n.year})`, color: seedColors[n.seedIndex ?? 0] })),
+      shownCount: visible.size, edgeCount: edges.length, hiddenCount: ghostsRaw.length, totalCount: all.length - seedNodes.length, hop1Count: String(hop1.length),
+      floorY: fY.toFixed(1), floorH: (545 - fY + 10).toFixed(1), floorHandleTop: `${(fY + 8).toFixed(1)}px`,
+      presets: [presetBtn("full"), presetBtn("balanced"), presetBtn("core")],
+      sharedModes: [sharedBtn("off", "Off"), sharedBtn("on", "Dim"), sharedBtn("only", "Only")],
+      sharedState: shared === "off" ? "Off" : shared === "on" ? "On" : "Only",
+      collections: [
+        { id: "turb", label: "Plasma turbulence", depth: 0 }, { id: "zonal", label: "Zonal flows", depth: 1 }, { id: "transport", label: "Transport", depth: 1 },
+        { id: "materials", label: "Fusion materials", depth: 0 }, { id: "toread", label: "To read", depth: 0 },
+      ].map(c => { const on = !st.colsOff.includes(c.id); const cnt = all.filter(n => n.col === c.id).length; return { ...c, indent: `${c.depth * 14}px`, count: String(cnt), on, checkBg: on ? "#96bf54" : "transparent", color: on ? "#e8e9e3" : "#9a9c93",
+        onToggle: () => this.setState(s2 => ({ colsOff: s2.colsOff.includes(c.id) ? s2.colsOff.filter(x => x !== c.id) : [...s2.colsOff, c.id] })) }; }),
+      externalCount: String(all.filter(n => !n.col).length), localOnly: st.localOnly, localCheckBg: st.localOnly ? "transparent" : "#96bf54", localColor: st.localOnly ? "#9a9c93" : "#e8e9e3",
+      onToggleLocal: () => this.setState(s2 => ({ localOnly: !s2.localOnly })),
+      railW: st.railCollapsed ? "28px" : "220px", railBodyDisplay: st.railCollapsed ? "none" : "block", railFooterDisplay: st.railCollapsed ? "none" : "flex", railChevron: st.railCollapsed ? "›" : "‹",
+      onToggleRail: () => this.setState(s2 => ({ railCollapsed: !s2.railCollapsed })),
+      seedRows: seedNodes.sort((a, b) => (a.seedIndex ?? 0) - (b.seedIndex ?? 0)).map(n => ({ label: `${n.name} (${n.year})`, color: seedColors[n.seedIndex ?? 0], count: String(all.filter(m => m.parents.includes(n.id)).length), bg: st.hoverSeed === n.id ? "rgba(232,233,227,.08)" : "transparent", onEnter: () => this.setState({ hoverSeed: n.id }), onLeave: () => this.setState({ hoverSeed: null }), onRemove: (e) => { e.stopPropagation(); this.setState(s2 => n.promoted ? { extraSeeds: s2.extraSeeds.filter(x => x !== n.id), hoverSeed: null } : { removedSeeds: [...s2.removedSeeds, n.id], hoverSeed: null }); } })),
+      seedCount: String(seedNodes.length),
+      sharedNote: shared === "off" ? "Hop opacity follows depth only." : kmax < S ? `No visible paper cites all ${S} seeds; full opacity goes to the ${kmax}-of-${S} tier. Grading is computed after the floor.` : "Full opacity goes to papers citing every seed. Grading is computed after the floor.",
+      selectedLabel: st.selected !== null ? "click again to release" : "hover to trace · click to pin",
+      onFloorDown: (e) => { e.preventDefault(); this.setState({ dragging: true }); },
+      onMove: (e) => { if (!this.state.dragging) return; const p = this.plotPoint(e, this.plotRef2); if (p) this.setState({ minC: Math.min(500, this.invY(Math.max(20, Math.min(545, p.y)))), preset: "custom" }); },
+      onUp: () => { if (this.state.dragging) this.setState({ dragging: false }); },
+      onLeavePlot: () => this.setState({ hover: null, hoverSeed: null, dragging: false }) };
+  }
+  chainOfMulti(id, visible, byId) {
+    const set = new Set();
+    const up = (nid) => { const n = byId.get(nid); if (!n || set.has(nid)) return; set.add(nid); for (const p of n.parents) if (visible.has(p)) up(p); };
+    up(id);
+    const stack = [id];
+    while (stack.length) { const cur = stack.pop(); for (const v of visible.values()) if (v.parents.includes(cur) && !set.has(v.id)) { set.add(v.id); stack.push(v.id); } }
+    return set;
+  }
+  renderVals() {
+    const D = this.props.depth ?? null, T = this.props.minCitations ?? null;
+    return {
+      a: this.scene(D ?? 2, T ?? 5),
+      b: this.scene(D ?? 3, T ?? 10),
+      c: this.scene(D ?? 2, T ?? 20, { ghosts: true, rail: true }),
+      w: this.scene(6, 0),
+      m1: this.sceneMulti(D ?? 2, T ?? 10, "dim"),
+      m2: this.sceneMulti(D ?? 2, T ?? 10, "only"),
+      g: this.sceneGraded(this.props.seeds ?? 4, D ?? 2, T ?? 10, this.state.hoverSeed ?? null),
+      i: this.interactive(),
+      x: this.sceneCombined(),
+    };
+  }
+}
+</script>
+</body>
+</html>

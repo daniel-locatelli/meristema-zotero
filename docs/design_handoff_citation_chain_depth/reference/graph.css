@@ -1,0 +1,1102 @@
+/*
+ * The --cm-surface-*, --cm-ink-*, --cm-ramp-*, --cm-category-*, --cm-edge-* and
+ * --cm-state-* custom properties are written onto this element at runtime from
+ * src/services/graphTheme.ts, so the chrome and the canvas draw the same
+ * colours. Everything below is the quiet, Zotero-native chrome, which stays on
+ * system colours on purpose.
+ */
+.meristema-root {
+  /*
+   * Zotero's own furniture, so the graph's panes are the same rather than a
+   * near miss. These tokens resolve inside the Zotero window, which is where
+   * the graph tab lives; the standalone graph window loads only
+   * chrome://global/skin/, so the fallbacks carry the values Zotero would have
+   * given (#zotero-collections-pane is 200px on --color-sidepane; .toolbar is
+   * 41px on --color-toolbar).
+   *
+   * `--color-panedivider`, not `--material-panedivider`: the material token is
+   * a whole border shorthand, `1px solid var(--color-panedivider)`, so putting
+   * it where a colour goes expands to `1px solid 1px solid #dadada` and the
+   * declaration is dropped — inside a tab, where the token actually resolves.
+   */
+  --cm-sidepane: var(--material-sidepane, #f2f2f2);
+  --cm-toolbar: var(--material-toolbar, #f9f9f9);
+  --cm-panedivider: var(--color-panedivider, #dadada);
+  /*
+   * Only a fallback: the rail's width is normally an inline `width` written
+   * from Zotero's collections pane, which outranks this. It matters for the
+   * first paint, and if the binding ever has no pane to follow.
+   */
+  --cm-sidepane-width: 200px;
+  --cm-toolbar-height: 41px;
+  --cm-border: color-mix(in srgb, CanvasText 18%, transparent);
+  --cm-border-soft: color-mix(in srgb, CanvasText 10%, transparent);
+  --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
+  --cm-surface-raised: color-mix(in srgb, Canvas 98%, CanvasText 2%);
+  --cm-muted: color-mix(in srgb, CanvasText 68%, transparent);
+  /*
+   * Zotero's own two inks for a pane's secondary text and for the rules
+   * between an item pane's sections: `--fill-secondary` is 55% of the ink in
+   * both schemes and `--fill-quinary` is 5%. They resolve inside the tab; the
+   * fallbacks carry the same values into the standalone window.
+   */
+  --cm-fill-secondary: var(
+    --fill-secondary,
+    color-mix(in srgb, CanvasText 55%, transparent)
+  );
+  --cm-fill-quinary: var(
+    --fill-quinary,
+    color-mix(in srgb, CanvasText 5%, transparent)
+  );
+  --cm-accent: var(--accent-blue, #2563eb);
+  --cm-icon-color: #3f4650;
+  color-scheme: light dark;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: Canvas;
+  color: CanvasText;
+  font: menu;
+}
+.meristema-root *,
+.meristema-root *::before,
+.meristema-root *::after {
+  box-sizing: border-box;
+}
+/*
+ * The two pane toolbars. Zotero's `.toolbar` is 41px with `padding: 0 8px`,
+ * so both are that, and the trees below them start at the same y as the
+ * collections tree and the items tree do in the library tab. Nothing here
+ * wraps: the search is the only elastic item and everything beside it keeps
+ * its own width, so a narrow window shortens the search rather than starting a
+ * second row.
+ *
+ * They are painted differently, because Zotero paints them differently. The
+ * `--material-toolbar` fill is `#zotero-layout-switcher .zotero-toolbar` — and
+ * `#zotero-collections-pane` sits *outside* the layout switcher, beside it in
+ * `#zotero-trees`. So only the items toolbar takes the toolbar colour; the
+ * collections toolbar keeps the sidepane under it, and Zotero explicitly
+ * cancels its bottom edge with `border-bottom: 1px solid rgba(0,0,0,0)`. The
+ * left pane reads as one unbroken column, and so does this one.
+ */
+.cm-rail-toolbar,
+.cm-plot-toolbar,
+.cm-detail-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-height: var(--cm-toolbar-height);
+  height: var(--cm-toolbar-height);
+  padding: 0 8px;
+}
+.cm-rail-toolbar {
+  /* Seamless with the rail below it: #zotero-toolbar-collection-tree. */
+  border-bottom: 1px solid transparent;
+  background: var(--cm-sidepane);
+}
+.cm-plot-toolbar {
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-toolbar);
+  /* Above the plot's overlays, and above the popups anchored in the rail. */
+  position: relative;
+  z-index: 12;
+}
+/*
+ * The third pane's toolbar. Zotero's item pane has no toolbar of its own: it
+ * sits under the window's, which runs on past the items pane to the right
+ * edge. Splitting that band per pane, as this view does, leaves the right pane
+ * owing the window a toolbar — but it takes the *pane's* fill, not the
+ * toolbar's, exactly as the Key rail's does. A side pane is one column of one
+ * colour; painting a 41px strip of `--material-toolbar` across its top left a
+ * visible step where the tab row met the title under it, in a place Zotero has
+ * no step at all. Only the middle pane sits inside the layout switcher, and so
+ * only the middle pane wears the toolbar fill. The rule under the band stays,
+ * so the line still crosses the window unbroken.
+ * Six pixels of gap rather than eight: what it holds is a set of three, not a
+ * row of separate controls.
+ */
+.cm-detail-toolbar {
+  gap: 6px;
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
+}
+/* The plot and its toolbar, as one column: #zotero-items-pane-container. */
+.cm-plot-pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+/*
+ * The rail's toolbar holds the identity, and the collapse toggle at its far
+ * end — the shape of #zotero-collections-toolbar, which is a button, a
+ * spacer, and a control on the right. A collapsed rail is 28px wide and can
+ * show only the toggle.
+ */
+.cm-key-rail[data-collapsed="true"] .cm-rail-toolbar {
+  padding: 0;
+  gap: 0;
+}
+.cm-key-rail[data-collapsed="true"] .cm-command-identity {
+  display: none;
+}
+/*
+ * The logo, the hidden heading and the counts, in the rail's toolbar. It is
+ * the one thing here that may be squeezed: the toggle beside it keeps its
+ * 26px whatever width the rail has been dragged to.
+ */
+.cm-command-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+/*
+ * Out of the layout, still in the accessible tree. The window and the tab
+ * already carry the view's name on screen; a screen reader navigating by
+ * heading would have nothing without this.
+ */
+.cm-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.cm-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-history-controls {
+  display: inline-flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+/*
+ * `.meristema-root` on the front is load-bearing, not decoration. The shared
+ * button rule below is `.meristema-root button`, which outranks a bare class,
+ * so a square icon button written as one class quietly kept `padding: 4px 9px`
+ * — a 16px glyph inside a 6px content box, pushed against one edge. Anything
+ * here that overrides that rule has to match its specificity.
+ */
+.meristema-root .cm-history-controls button {
+  min-width: 26px;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  justify-content: center;
+}
+.cm-title-row h1,
+.cm-appearance-panel h2 {
+  margin: 0;
+}
+.cm-title-row h1 {
+  font-size: 20px;
+  line-height: 1.1;
+}
+.cm-title-row {
+  flex: 0 0 auto;
+}
+.cm-network-logo {
+  display: inline-block;
+  /* 16px, the size Zotero draws its own toolbar icons at. */
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  background-color: var(--cm-icon-color);
+  -webkit-mask: url("chrome://__addonRef__/content/icons/network.svg") center /
+    contain no-repeat;
+  mask: url("chrome://__addonRef__/content/icons/network.svg") center / contain
+    no-repeat;
+}
+.cm-library-summary,
+.cm-help {
+  margin: 3px 0 0;
+  color: var(--cm-muted);
+  line-height: 1.35;
+}
+.cm-library-summary {
+  /* Tabular figures so the counts do not jitter as the filter changes them. */
+  margin: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.cm-command-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 6px;
+  align-items: center;
+}
+.cm-plot-toolbar .cm-search-wrap {
+  /*
+   * The one elastic item in the toolbar, and it absorbs every narrowing. The
+   * auto margin is Zotero's `<spacer flex="1">`: the quick search sits at the
+   * right end of #zotero-items-toolbar with the buttons gathered on the left.
+   */
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  min-width: 90px;
+  max-width: 430px;
+}
+/*
+ * Zotero sizes everything in these toolbars 28px tall. `min-height` is not
+ * redundant beside `height`, and neither is the `.meristema-root` prefix: the
+ * shared field rule is `.meristema-root input[type="search"]`, which carries a
+ * `min-height: 30px` and outranks a two-class selector. The search box was
+ * therefore 30px inside a 28px slot, hanging 4px below its own wrap — so the
+ * magnifier, correctly centred in the wrap, sat 3px above the text beside it.
+ * The icon was never the thing that was wrong.
+ */
+.meristema-root .cm-plot-toolbar .cm-toolbar-button,
+.meristema-root .cm-plot-toolbar .cm-secondary-button,
+.meristema-root .cm-plot-toolbar .cm-search,
+.meristema-root .cm-plot-toolbar .cm-search-wrap {
+  min-height: 28px;
+  height: 28px;
+}
+.cm-search-wrap {
+  position: relative;
+  display: flex;
+  /* The field fills the wrap rather than being stretched past it. */
+  align-items: center;
+  flex: 1 1 230px;
+  max-width: 430px;
+  min-width: 180px;
+}
+.cm-add-node-wrap {
+  position: relative;
+}
+/*
+ * Start-anchored like the Explore popovers, and flipped to the button's right
+ * edge by `alignPopover` only when that keeps it inside the plot pane; the
+ * pane's `overflow: hidden` clips it, so anchoring right unconditionally ran
+ * it under the key rail whenever the button sat near the pane's left edge.
+ */
+.cm-add-node-popup {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto auto minmax(100px, 1fr) auto auto auto;
+  gap: 7px;
+  width: 560px;
+  max-height: min(660px, calc(100vh - 125px));
+  padding: 11px;
+  border: 1px solid var(--cm-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, Canvas 97%, transparent);
+  box-shadow: 0 14px 42px color-mix(in srgb, black 25%, transparent);
+  backdrop-filter: blur(14px);
+}
+.cm-add-node-popup[hidden] {
+  display: none;
+}
+.cm-add-node-search {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--cm-border);
+  border-radius: 6px;
+  background: Field;
+  color: FieldText;
+  font: inherit;
+}
+.cm-add-node-section-title {
+  margin: 1px 0 0;
+  font-size: 12px;
+  font-weight: 650;
+}
+.cm-add-node-results {
+  min-height: 100px;
+  max-height: 310px;
+  overflow: auto;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 7px;
+}
+.cm-add-node-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+  border-bottom: 1px solid var(--cm-border-soft);
+  cursor: pointer;
+}
+.cm-add-node-result:last-child {
+  border-bottom: 0;
+}
+.cm-add-node-result:hover {
+  background: color-mix(in srgb, var(--cm-accent) 8%, Canvas);
+}
+.cm-add-node-result-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cm-add-node-result-copy strong {
+  overflow-wrap: anywhere;
+}
+.cm-add-node-result-meta {
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.cm-add-node-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 105px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 7px;
+}
+.cm-add-node-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 5px 3px 7px;
+  border: 1px solid var(--cm-border);
+  border-radius: 999px;
+  background: var(--cm-surface-raised);
+}
+.cm-add-node-chip > span {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-add-node-chip button {
+  min-width: 20px !important;
+  min-height: 20px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.cm-add-node-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cm-add-node-status {
+  margin: 0;
+  color: var(--cm-muted);
+  font-size: 11px;
+}
+.cm-search-wrap > .cm-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.65;
+}
+.cm-search {
+  width: 100%;
+  padding-left: 29px !important;
+}
+/*
+ * The button, input and icon base for both roots (`.meristema-root` and
+ * `.meristema-paper-detail`) lives in paperDetail.css. ensureStyles in
+ * src/services/graphViewControls.ts puts this sheet's link directly after
+ * that one whichever order the two were first linked in, so the overrides
+ * below win their equal-specificity ties with it.
+ */
+.cm-filter-panel {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--cm-border-soft);
+  background: var(--cm-surface);
+}
+.cm-filter-panel[hidden],
+.cm-add-node-popup[hidden],
+.cm-export-menu[hidden],
+.cm-appearance-panel[hidden] {
+  display: none;
+}
+.cm-check-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.cm-filter-select {
+  min-width: 145px;
+}
+.cm-main {
+  display: flex;
+  flex: 1 1 0;
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  align-items: stretch;
+  overflow: hidden;
+}
+.cm-graph-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  /* The plot paints its own paper tone; the area behind it stays quiet. */
+  background: var(--cm-surface-panel, Canvas);
+}
+.cm-graph-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+/* In the rail's footer now, in normal flow — no longer over the plot. */
+.cm-zoom-controls {
+  display: flex;
+  gap: 6px;
+}
+.cm-empty-state {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 340px;
+  padding: 16px 18px;
+  text-align: center;
+  pointer-events: none;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, Canvas 82%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px color-mix(in srgb, black 12%, transparent);
+}
+.cm-empty-state[hidden] {
+  display: none;
+}
+.cm-empty-state-title {
+  margin: 0;
+  font-weight: 600;
+}
+.cm-empty-state-body {
+  margin: 6px 0 0;
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.cm-appearance-control {
+  position: relative;
+  z-index: 6;
+}
+.cm-appearance-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: min(360px, calc(100vw - 38px));
+  max-height: min(720px, calc(100vh - 130px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--cm-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, Canvas 96%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px color-mix(in srgb, black 24%, transparent);
+}
+.cm-appearance-panel h2 {
+  margin-bottom: 9px;
+  font-size: 16px;
+}
+.cm-appearance-section {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 7px;
+}
+.cm-appearance-section legend {
+  padding: 0 5px;
+  font-weight: 650;
+}
+.cm-appearance-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.cm-appearance-row-wrap {
+  display: grid;
+  gap: 4px;
+}
+.cm-metric-help {
+  margin: 0;
+  padding: 6px 7px;
+  border-radius: 5px;
+  background: var(--cm-surface);
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.cm-appearance-actions {
+  display: flex;
+  gap: 7px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.cm-detail-shell {
+  position: relative;
+  display: grid;
+  height: 100%;
+  grid-template-columns: [resizer] 8px [panel] minmax(0, 1fr);
+  flex: 0 0 auto;
+  min-width: 8px;
+  max-width: 70%;
+  min-height: 0;
+  /* Zotero paints #zotero-item-pane-content with the same token as its left
+   * pane, so the graph's two side panels match each other and match Zotero. */
+  border-left: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
+}
+/*
+ * Collapsed, the pane keeps its toolbar and its toggle, the way the Key rail
+ * keeps a 28px strip rather than vanishing. A pane that could only be reopened
+ * by finding an 8px splitter and double-clicking it was a pane most people
+ * would not get back.
+ */
+.cm-detail-shell[data-collapsed="true"] .cm-detail-header,
+.cm-detail-shell[data-collapsed="true"] .cm-detail-body,
+.cm-detail-shell[data-collapsed="true"] .cm-detail-nav {
+  display: none;
+}
+.cm-detail-shell[data-collapsed="true"] .cm-detail-toolbar {
+  padding: 0;
+  gap: 0;
+}
+/*
+ * Collapsed, the resizer is hidden, and a `display: none` grid item is not
+ * placed at all — so without this the panel would slide into the 8px track and
+ * the collapsed strip would be 8px of clipped toolbar. Both children name their
+ * column, and the collapsed shell drops the resizer's track entirely.
+ */
+.cm-detail-shell[data-collapsed="true"] {
+  grid-template-columns: [panel] minmax(0, 1fr);
+}
+/* The tab row on the left of the toolbar, the toggle at its far end. */
+.cm-detail-nav {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cm-detail-resizer {
+  grid-column: resizer;
+  position: relative;
+  z-index: 2;
+  cursor: ew-resize;
+}
+.cm-detail-resizer:hover {
+  background: color-mix(in srgb, var(--cm-accent) 30%, transparent);
+}
+.cm-detail-resizer[hidden] {
+  display: none;
+}
+/*
+ * A header that does not scroll over a body that does — Zotero's item pane,
+ * which is `item-pane-header` above `item-details`. The panel itself no longer
+ * carries the padding: the header has its own, and so has the body, because
+ * the header's bottom rule has to run the full width of the pane the way
+ * Zotero's does.
+ *
+ * `container-type` makes the panel the container the tab row asks about. It is
+ * `inline-size`, so only the width is contained and the body still sizes
+ * itself from its content.
+ */
+.cm-detail-panel {
+  grid-column: panel;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+/*
+ * `item-pane-header`: `padding: 8px`, `max-height: 25%`, and a rule under it.
+ * It has no floor of its own any more — the toolbar above it holds the 41px
+ * line, so a one-line title makes a short header instead of a padded one, and
+ * a three-line title is free to be three lines without shifting the band the
+ * other two panes share.
+ */
+.cm-detail-header {
+  flex: 0 0 auto;
+  max-height: 25%;
+  overflow-y: auto;
+  padding: 8px;
+  border-bottom: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
+}
+/*
+ * The badges say what the paper is — open access, retracted, top 1% — so they
+ * belong with the title rather than in a section of their own below the tabs,
+ * where they read as the first row of the metrics.
+ */
+.cm-detail-header .cm-badges {
+  margin-top: 6px;
+}
+/*
+ * The paper's address, under its name. It replaces an "Open DOI" button that
+ * only ever did what clicking an identifier does — while the identifier itself
+ * was nowhere on screen to click. `anywhere` because a DOI has no spaces and a
+ * long one would otherwise push the pane wider than the reader set it.
+ */
+.cm-detail-doi {
+  display: block;
+  margin-top: 5px;
+  color: var(--cm-accent);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cm-detail-doi:hover {
+  text-decoration: underline;
+}
+/*
+ * Zotero's item-pane title is `font-weight: 600; line-height: 1.333` at the
+ * pane's own size. It was 17px here, which is a heading out of a web page: the
+ * one piece of type in the view larger than anything Zotero draws.
+ */
+.cm-detail-title {
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.333;
+  overflow-wrap: anywhere;
+}
+/*
+ * Below this the counts have nowhere to go: at 260px each tab has about 76px
+ * of it, which "Cited by" fills on its own. The tab keeps its name and drops
+ * the number rather than clipping both.
+ */
+@container (max-width: 320px) {
+  .cm-detail-tab-count {
+    display: none;
+  }
+  /* And the padding goes with them, so "References" is still the whole word
+   * rather than "Referenc…" in the 65px a 260px pane leaves each tab. */
+  .cm-detail-toolbar {
+    padding: 0 4px;
+  }
+  .meristema-paper-detail .cm-detail-tabs button {
+    padding: 4px 2px;
+  }
+}
+.cm-menu-wrapper {
+  position: relative;
+}
+.cm-export-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 180px;
+  padding: 5px;
+  border: 1px solid var(--cm-border);
+  border-radius: 7px;
+  background: Canvas;
+  box-shadow: 0 9px 28px color-mix(in srgb, black 23%, transparent);
+}
+.cm-export-menu button {
+  justify-content: flex-start;
+  border-color: transparent;
+}
+/*
+ * A narrow window drops the counts before it lets anything wrap. Each toolbar
+ * is a single 41px row at every width; the alternative was a second row
+ * appearing under it.
+ */
+@media (max-width: 760px) {
+  .cm-rail-toolbar .cm-library-summary {
+    display: none;
+  }
+  .cm-plot-toolbar .cm-search-wrap {
+    max-width: none;
+  }
+}
+
+/*
+ * The scheme is stamped on the root by applyGraphThemeToDocument, not read from
+ * a media query. Setting Zotero's appearance triggers no restyle of an open
+ * chrome document, so a `prefers-color-scheme` rule here would go stale exactly
+ * when the user changes the theme.
+ */
+.meristema-root[data-cm-scheme="dark"] {
+  --cm-icon-color: #f2f2f2;
+  --cm-sidepane: var(--material-sidepane, #303030);
+  --cm-toolbar: var(--material-toolbar, #272727);
+  --cm-panedivider: var(--color-panedivider, #404040);
+}
+
+.meristema-root[data-seeded="false"] .cm-focus-only {
+  display: none;
+}
+/*
+ * The seeds label swings between "1 seed" and "12 seeds" as the projection
+ * changes; without a floor the button resizes under the pointer. The width and
+ * the nowrap are what the old `.cm-focus-seed-button` carried in the band.
+ */
+.cm-focus-seed-menu .cm-toolbar-button {
+  min-width: 86px;
+  white-space: nowrap;
+}
+/*
+ * The popovers get their upper bound from `alignPopover`, which sets an inline
+ * `max-width` from the plot pane's width. A `100vw` bound here would measure
+ * the window, and the pane — which is what clips them — is narrower than the
+ * window by the key rail and the detail shell.
+ */
+.cm-appearance-panel--below {
+  top: calc(100% + 6px);
+  bottom: auto;
+  width: 320px;
+}
+.cm-appearance-panel--below.cm-popover-end,
+.cm-focus-seed-popover.cm-popover-end,
+.cm-add-node-popup.cm-popover-end {
+  right: 0;
+  left: auto;
+}
+/* Both panels' rows, so an Explore select matches an appearance one. */
+.cm-appearance-row .cm-select {
+  min-height: 28px;
+}
+.cm-focus-seed-popover {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 7px;
+  width: 430px;
+  padding: 8px;
+  border: 1px solid var(--cm-border);
+  border-radius: 8px;
+  background: Canvas;
+  box-shadow: 0 12px 32px color-mix(in srgb, black 25%, transparent);
+}
+.cm-focus-seed-popover[hidden] {
+  display: none;
+}
+.cm-focus-seed-search-wrap {
+  position: relative;
+  display: block;
+}
+.cm-focus-seed-search-wrap > .cm-icon {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  z-index: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.65;
+}
+.cm-focus-seed-search {
+  width: 100%;
+  padding-left: 30px !important;
+}
+.cm-focus-seed-results {
+  display: grid;
+  gap: 3px;
+  max-height: min(360px, 52vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.cm-focus-seed-result {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  border-radius: 6px;
+}
+.cm-focus-seed-result:hover {
+  background: color-mix(in srgb, var(--cm-accent) 8%, Canvas);
+}
+.cm-focus-seed-result-main {
+  display: grid !important;
+  flex: 1 1 auto;
+  gap: 2px !important;
+  min-width: 0;
+  padding: 7px 8px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  text-align: left;
+  justify-items: start;
+}
+.cm-focus-seed-result-title,
+.cm-focus-seed-result-meta {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-focus-seed-result-title {
+  font-weight: 600;
+}
+.cm-focus-seed-result-meta {
+  color: color-mix(in srgb, CanvasText 68%, transparent);
+  font-size: 11px;
+}
+.cm-focus-seed-result-remove {
+  align-self: center;
+  flex: 0 0 auto;
+  min-width: 28px !important;
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  padding: 0 !important;
+  justify-content: center;
+  border-color: transparent !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  font-size: 16px;
+}
+
+/*
+ * The Key rail. It states the graph's whole active encoding — what the colours,
+ * sizes, links and states mean — and it is the element the redesign exists for.
+ *
+ * It emphasises and never filters, so nothing here hides a row or changes a
+ * count; a pressed entry is `aria-pressed`, not a checkbox. The marks carry
+ * their colours inline from `graphKeyModel.ts`, which reads them from the same
+ * theme the canvas draws with, so the rail can never name a colour the plot is
+ * not using.
+ */
+.cm-key-rail {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: var(--cm-sidepane-width);
+  min-width: 0;
+  height: 100%;
+  border-right: 1px solid var(--cm-panedivider);
+  background: var(--cm-sidepane);
+}
+.cm-key-rail[data-collapsed="true"] {
+  width: 28px;
+}
+.cm-key-rail[data-collapsed="true"] .cm-key-body {
+  display: none;
+}
+/*
+ * The rail's drag handle, on the edge it shares with the plot. Zotero's
+ * `#zotero-collections-splitter` sits between the two panes; here it lies
+ * over the rail's own last 8px so the layout has no extra column.
+ */
+.cm-rail-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.cm-rail-resizer:hover {
+  background: color-mix(in srgb, var(--cm-accent) 30%, transparent);
+}
+.cm-rail-resizer[hidden] {
+  display: none;
+}
+/* Specificity as above: a bare `.cm-key-toggle` loses to `.meristema-root
+ * button` on padding, and the chevron ends up against the left edge. */
+.meristema-root .cm-key-toggle,
+.meristema-root .cm-detail-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* The spacer that puts it at the toolbar's far end, as Zotero's is. */
+  margin-inline-start: auto;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cm-muted);
+  line-height: 1;
+  cursor: pointer;
+}
+.meristema-root .cm-key-toggle:hover,
+.meristema-root .cm-detail-toggle:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-key-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 8px 14px;
+}
+.cm-key-body[hidden] {
+  display: none;
+}
+/*
+ * The view's own controls, at the foot of the rail. Pinned to the bottom so
+ * they sit in the same place whether the Key above them is long or empty.
+ */
+.cm-key-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+  padding: 7px 8px;
+  border-top: 1px solid var(--cm-border-soft);
+}
+.cm-key-rail[data-collapsed="true"] .cm-key-footer {
+  display: none;
+}
+.meristema-root .cm-rail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 1px solid var(--cm-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cm-ink);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.meristema-root .cm-rail-button:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-key-section + .cm-key-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cm-border-soft);
+}
+.cm-key-heading {
+  margin: 0;
+  color: var(--cm-muted);
+  font-size: 10px;
+  font-weight: 600;
+  /* Set in sentence case so a screen reader is not handed an acronym. */
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.cm-key-subheading {
+  margin: 1px 0 6px;
+  overflow: hidden;
+  color: CanvasText;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/*
+ * Zotero's chrome gives a bare `button` a raised chip. That made the pressable
+ * rows sit on a panel while the static ones did not, which reads as two kinds
+ * of thing rather than one list, so it is suppressed here and the hover and
+ * pressed states below carry the affordance instead.
+ */
+.meristema-root button.cm-key-entry {
+  appearance: none;
+  border: 0;
+  outline-offset: -2px;
+  box-shadow: none;
+  background-color: transparent;
+}
+.cm-key-entry {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: CanvasText;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.cm-key-entry:not(.cm-key-entry-static) {
+  cursor: pointer;
+}
+.cm-key-entry:not(.cm-key-entry-static):hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-key-entry[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--cm-accent) 18%, transparent);
+}
+.cm-key-entry svg {
+  flex: 0 0 auto;
+}
+.cm-key-entry-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-key-entry-detail,
+.cm-key-entry-count {
+  flex: 0 0 auto;
+  color: var(--cm-muted);
+  font-size: 11px;
+  /* Counts read as a column, so they line up rather than shimmer. */
+  font-variant-numeric: tabular-nums;
+}
+.cm-key-entry-detail {
+  overflow: hidden;
+  max-width: 96px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-key-note {
+  margin: 6px 0 0;
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
