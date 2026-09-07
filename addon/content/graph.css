@@ -265,129 +265,6 @@
   max-width: 430px;
   min-width: 180px;
 }
-.cm-add-node-wrap {
-  position: relative;
-}
-/*
- * Start-anchored like the Explore popovers, and flipped to the button's right
- * edge by `alignPopover` only when that keeps it inside the plot pane; the
- * pane's `overflow: hidden` clips it, so anchoring right unconditionally ran
- * it under the key rail whenever the button sat near the pane's left edge.
- */
-.cm-add-node-popup {
-  position: absolute;
-  top: calc(100% + 7px);
-  left: 0;
-  z-index: 40;
-  display: grid;
-  grid-template-rows: auto auto minmax(100px, 1fr) auto auto auto;
-  gap: 7px;
-  width: 560px;
-  max-height: min(660px, calc(100vh - 125px));
-  padding: 11px;
-  border: 1px solid var(--cm-border);
-  border-radius: 9px;
-  background: color-mix(in srgb, Canvas 97%, transparent);
-  box-shadow: 0 14px 42px color-mix(in srgb, black 25%, transparent);
-  backdrop-filter: blur(14px);
-}
-.cm-add-node-popup[hidden] {
-  display: none;
-}
-.cm-add-node-search {
-  width: 100%;
-  min-height: 32px;
-  padding: 5px 8px;
-  border: 1px solid var(--cm-border);
-  border-radius: 6px;
-  background: Field;
-  color: FieldText;
-  font: inherit;
-}
-.cm-add-node-section-title {
-  margin: 1px 0 0;
-  font-size: 12px;
-  font-weight: 650;
-}
-.cm-add-node-results {
-  min-height: 100px;
-  max-height: 310px;
-  overflow: auto;
-  border: 1px solid var(--cm-border-soft);
-  border-radius: 7px;
-}
-.cm-add-node-result {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  padding: 8px;
-  border-bottom: 1px solid var(--cm-border-soft);
-  cursor: pointer;
-}
-.cm-add-node-result:last-child {
-  border-bottom: 0;
-}
-.cm-add-node-result:hover {
-  background: color-mix(in srgb, var(--cm-accent) 8%, Canvas);
-}
-.cm-add-node-result-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.cm-add-node-result-copy strong {
-  overflow-wrap: anywhere;
-}
-.cm-add-node-result-meta {
-  color: var(--cm-muted);
-  font-size: 11px;
-  line-height: 1.3;
-}
-.cm-add-node-selected {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  max-height: 105px;
-  overflow: auto;
-  padding: 6px;
-  border: 1px solid var(--cm-border-soft);
-  border-radius: 7px;
-}
-.cm-add-node-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  padding: 3px 5px 3px 7px;
-  border: 1px solid var(--cm-border);
-  border-radius: 999px;
-  background: var(--cm-surface-raised);
-}
-.cm-add-node-chip > span {
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cm-add-node-chip button {
-  min-width: 20px !important;
-  min-height: 20px !important;
-  padding: 0 4px !important;
-  border: 0 !important;
-  background: transparent !important;
-}
-.cm-add-node-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.cm-add-node-status {
-  margin: 0;
-  color: var(--cm-muted);
-  font-size: 11px;
-}
 .cm-search-wrap > .cm-icon {
   position: absolute;
   left: 8px;
@@ -419,7 +296,6 @@
   background: var(--cm-surface);
 }
 .cm-filter-panel[hidden],
-.cm-add-node-popup[hidden],
 .cm-export-menu[hidden],
 .cm-appearance-panel[hidden] {
   display: none;
@@ -768,8 +644,7 @@
   width: 320px;
 }
 .cm-appearance-panel--below.cm-popover-end,
-.cm-focus-seed-popover.cm-popover-end,
-.cm-add-node-popup.cm-popover-end {
+.cm-focus-seed-popover.cm-popover-end {
   right: 0;
   left: auto;
 }
@@ -853,7 +728,8 @@
   color: color-mix(in srgb, CanvasText 68%, transparent);
   font-size: 11px;
 }
-.cm-focus-seed-result-remove {
+.cm-focus-seed-result-remove,
+.cm-focus-seed-result-add {
   align-self: center;
   flex: 0 0 auto;
   min-width: 28px !important;

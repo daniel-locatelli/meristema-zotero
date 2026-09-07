@@ -54,6 +54,13 @@ import {
   exportGraphJSON,
   exportGraphPNG,
 } from "./exportService";
+import {
+  libraryPaperID,
+  seedPaperID,
+  seedPopoverList,
+  type LibrarySearchState,
+  type SeedPopoverPaper,
+} from "./seedPopoverRows";
 import { createMetricNodeForItem } from "./itemMetricContext";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { createUpdateProgress } from "./updateProgressService";
@@ -404,60 +411,6 @@ export function renderGraphView(
   identity.append(titleRow, summary);
 
   const toolbar = element(document, "div", "cm-command-actions");
-  const addNodeWrap = element(document, "div", "cm-add-node-wrap");
-  const addNodeButton = element(document, "button", "cm-toolbar-button");
-  addNodeButton.type = "button";
-  addNodeButton.append(iconButtonContent(document, "add", "Add Node"));
-  addNodeButton.title =
-    "Search the complete Zotero library and add papers to this view.";
-  addNodeButton.setAttribute("aria-expanded", "false");
-  const addNodePopup = element(document, "section", "cm-add-node-popup");
-  addNodePopup.hidden = true;
-  addNodePopup.setAttribute("role", "dialog");
-  addNodePopup.setAttribute("aria-label", "Add papers to this graph");
-  const addNodeSearch = element(document, "input", "cm-add-node-search");
-  addNodeSearch.type = "search";
-  addNodeSearch.placeholder = "Search title, creator, or year";
-  addNodeSearch.setAttribute(
-    "aria-label",
-    "Search titles, creators, and years in the complete Zotero library",
-  );
-  const addNodeResultsLabel = text(
-    document,
-    "h2",
-    "Results",
-    "cm-add-node-section-title",
-  );
-  const addNodeResults = element(document, "div", "cm-add-node-results");
-  const addNodeSelectedLabel = text(
-    document,
-    "h2",
-    "Selected",
-    "cm-add-node-section-title",
-  );
-  const addNodeSelected = element(document, "div", "cm-add-node-selected");
-  const addNodeStatus = text(
-    document,
-    "p",
-    "No papers selected.",
-    "cm-add-node-status",
-  );
-  const addSelectedButton = element(document, "button", "cm-primary-button");
-  addSelectedButton.type = "button";
-  addSelectedButton.textContent = "Add selected to view";
-  addSelectedButton.disabled = true;
-  const addNodeFooter = element(document, "div", "cm-add-node-footer");
-  addNodeFooter.append(addNodeStatus, addSelectedButton);
-  addNodePopup.append(
-    addNodeSearch,
-    addNodeResultsLabel,
-    addNodeResults,
-    addNodeSelectedLabel,
-    addNodeSelected,
-    addNodeFooter,
-  );
-  addNodeWrap.append(addNodeButton, addNodePopup);
-
   const graphFilterDescriptors = new Map<string, PaperListDescriptor>();
   const descriptorForGraphNode = (
     node: CitationGraphNode,
@@ -558,7 +511,7 @@ export function renderGraphView(
   focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
   // A tooltip before any projection exists; updateFocusBar replaces it with
   // the seed count once there is one.
-  focusSeedButton.title = "Papers this graph was built from.";
+  focusSeedButton.title = "Add seeds from the library.";
   const focusSeedButtonLabel = focusSeedButton.querySelector(
     "span",
   ) as HTMLSpanElement;
@@ -575,8 +528,11 @@ export function renderGraphView(
   focusSeedSearchWrap.appendChild(icon(document, "search"));
   const focusSeedSearch = element(document, "input", "cm-focus-seed-search");
   focusSeedSearch.type = "search";
-  focusSeedSearch.placeholder = "Search seeds";
-  focusSeedSearch.setAttribute("aria-label", "Search Explore seeds");
+  focusSeedSearch.placeholder = "Search seeds or library";
+  focusSeedSearch.setAttribute(
+    "aria-label",
+    "Search seeds and the Zotero library",
+  );
   focusSeedSearchWrap.appendChild(focusSeedSearch);
   const focusSeedResults = element(document, "div", "cm-focus-seed-results");
   focusSeedResults.setAttribute("role", "list");
@@ -670,7 +626,6 @@ export function renderGraphView(
     graphFilter.root,
     focusSeedMenu,
     focusSettingsMenu,
-    addNodeWrap,
     similarButton,
     exportWrap,
     refreshButton,
@@ -678,11 +633,11 @@ export function renderGraphView(
   plotToolbar.append(toolbar, searchWrap);
 
   // The Seeds and Explore buttons stay in the toolbar on every path so the
-  // view keeps one shape; without seeds there is nothing for them to show,
-  // so they are disabled rather than hidden.
+  // view keeps one shape. Seeds is how the first seed is added, so it is
+  // always live; Explore has nothing to set until there is one, so it is
+  // disabled rather than hidden.
   const setSeeded = (seeded: boolean): void => {
     root.dataset.seeded = seeded ? "true" : "false";
-    focusSeedButton.disabled = !seeded;
     focusSettingsButton.disabled = !seeded;
     refreshButton.title = seeded
       ? "Refresh references and citing papers for the current Explore seeds."
@@ -865,7 +820,7 @@ export function renderGraphView(
    * appearance panel had a closer, but it was on the graph area — and since
    * the panel moved into the rail's footer, a click on the rail, on either
    * toolbar or on the detail pane never reached it. These sit on the document,
-   * like the Add-node popup's and the Focus seed popover's above, so any
+   * like the Focus seed popover's above, so any
    * pointer landing outside the control dismisses it. Capture phase, so the
    * click that closes still does whatever it was aimed at.
    */
@@ -981,52 +936,11 @@ export function renderGraphView(
   root.appendChild(main);
   mount.appendChild(root);
 
-  let addLibraryItemsToView = (_itemIDs: readonly number[]): GraphFocusResult =>
-    "not-found";
-  const selectedLibraryItemIDs = new Set<number>();
   const libraryPaperByID = new Map(
     snapshot.papers.map((paper) => [paper.itemID, paper]),
   );
   let librarySearchGeneration = 0;
   let librarySearchTimer: number | null = null;
-
-  const closeAddNodePopup = (): void => {
-    addNodePopup.hidden = true;
-    addNodeButton.setAttribute("aria-expanded", "false");
-  };
-
-  const renderSelectedLibraryPapers = (): void => {
-    clear(addNodeSelected);
-    const selectedPapers = [...selectedLibraryItemIDs]
-      .map((itemID) => libraryPaperByID.get(itemID))
-      .filter((paper): paper is ZoteroPaper => Boolean(paper));
-    if (!selectedPapers.length) {
-      addNodeSelected.appendChild(
-        text(document, "p", "No papers selected.", "cm-placeholder"),
-      );
-    } else {
-      for (const paper of selectedPapers) {
-        const chip = element(document, "span", "cm-add-node-chip");
-        const label = text(document, "span", paper.title || "Untitled item");
-        label.title = paper.title || "Untitled item";
-        const remove = element(document, "button");
-        remove.type = "button";
-        remove.textContent = "×";
-        remove.title = `Deselect ${paper.title || "paper"}`;
-        remove.addEventListener("click", () => {
-          selectedLibraryItemIDs.delete(paper.itemID);
-          renderSelectedLibraryPapers();
-          void renderLibrarySearchResults();
-        });
-        chip.append(label, remove);
-        addNodeSelected.appendChild(chip);
-      }
-    }
-    addNodeStatus.textContent = selectedPapers.length
-      ? `${selectedPapers.length} paper${selectedPapers.length === 1 ? "" : "s"} selected.`
-      : "No papers selected.";
-    addSelectedButton.disabled = selectedPapers.length === 0;
-  };
 
   const searchLibraryPapers = async (
     query: string,
@@ -1077,38 +991,23 @@ export function renderGraphView(
     );
   };
 
-  async function renderLibrarySearchResults(): Promise<void> {
-    const generation = ++librarySearchGeneration;
-    const query = addNodeSearch.value.trim();
-    clear(addNodeResults);
-    if (!query) {
-      addNodeResults.appendChild(
-        text(
-          document,
-          "p",
-          "Search by title, creator, publication title, year, or citation key.",
-          "cm-placeholder",
-        ),
-      );
-      return;
-    }
-    addNodeResults.appendChild(
-      text(document, "p", "Searching library…", "cm-placeholder"),
-    );
+  /**
+   * The library papers that match `query`, best first, capped at fifty. Null
+   * when the search failed. Resolves early and empty when a newer search has
+   * started, so a stale result is never rendered over a fresh one.
+   */
+  async function rankLibraryPapers(
+    query: string,
+    generation: number,
+  ): Promise<ZoteroPaper[] | null> {
     const index = await searchLibraryPapers(query).catch((error) => {
       Zotero.logError(
         error instanceof Error ? error : new Error(String(error)),
       );
       return null;
     });
-    if (generation !== librarySearchGeneration || addNodePopup.hidden) return;
-    if (!index) {
-      clear(addNodeResults);
-      addNodeResults.appendChild(
-        text(document, "p", "Library search failed.", "cm-placeholder"),
-      );
-      return;
-    }
+    if (generation !== librarySearchGeneration) return [];
+    if (!index) return null;
     const matches: Array<{
       entry: LibraryPaperSearchEntry;
       score: number;
@@ -1136,117 +1035,8 @@ export function renderGraphView(
       },
       { forceEvery: 100 },
     );
-    if (generation !== librarySearchGeneration || addNodePopup.hidden) return;
-    clear(addNodeResults);
-    if (!matches.length) {
-      addNodeResults.appendChild(
-        text(document, "p", "No matching papers found.", "cm-placeholder"),
-      );
-      return;
-    }
-    for (const { entry } of matches) {
-      const paper = entry.paper;
-      const row = element(document, "label", "cm-add-node-result");
-      const checkbox = element(document, "input");
-      checkbox.type = "checkbox";
-      checkbox.checked = selectedLibraryItemIDs.has(paper.itemID);
-      const content = element(document, "span", "cm-add-node-result-copy");
-      content.append(
-        text(document, "strong", paper.title || "Untitled item"),
-        text(
-          document,
-          "span",
-          [
-            paper.authors.slice(0, 3).join(", "),
-            paper.year === null ? "" : String(paper.year),
-            paper.sourceTitle ?? "",
-          ]
-            .filter(Boolean)
-            .join(" · "),
-          "cm-add-node-result-meta",
-        ),
-      );
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) selectedLibraryItemIDs.add(paper.itemID);
-        else selectedLibraryItemIDs.delete(paper.itemID);
-        renderSelectedLibraryPapers();
-      });
-      row.append(checkbox, content);
-      addNodeResults.appendChild(row);
-    }
+    return matches.map(({ entry }) => entry.paper);
   }
-
-  addNodeButton.addEventListener("click", () => {
-    const opening = addNodePopup.hidden;
-    addNodePopup.hidden = !opening;
-    addNodeButton.setAttribute("aria-expanded", String(opening));
-    if (!opening) return;
-    alignPopover(addNodeWrap, addNodePopup);
-    renderSelectedLibraryPapers();
-    void renderLibrarySearchResults();
-    document.defaultView?.setTimeout(() => addNodeSearch.focus(), 0);
-  });
-  addNodeSearch.addEventListener("input", () => {
-    librarySearchGeneration += 1;
-    if (librarySearchTimer !== null) {
-      if (document.defaultView) {
-        document.defaultView.clearTimeout(librarySearchTimer);
-      } else {
-        clearTimeout(librarySearchTimer);
-      }
-      librarySearchTimer = null;
-    }
-    const query = addNodeSearch.value.trim();
-    clear(addNodeResults);
-    if (!query) {
-      addNodeResults.appendChild(
-        text(
-          document,
-          "p",
-          "Search by title, creator, publication title, year, or citation key.",
-          "cm-placeholder",
-        ),
-      );
-      return;
-    }
-    addNodeResults.appendChild(
-      text(document, "p", "Searching library…", "cm-placeholder"),
-    );
-    const run = (): void => {
-      librarySearchTimer = null;
-      void renderLibrarySearchResults();
-    };
-    librarySearchTimer = document.defaultView
-      ? document.defaultView.setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS)
-      : (setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS) as unknown as number);
-  });
-  addSelectedButton.addEventListener("click", () => {
-    const itemIDs = [...selectedLibraryItemIDs];
-    if (!itemIDs.length) return;
-    addLibraryItemsToView(itemIDs);
-    selectedLibraryItemIDs.clear();
-    renderSelectedLibraryPapers();
-    closeAddNodePopup();
-  });
-  const closeAddNodePopupOnOutsidePointer = (event: Event): void => {
-    if (addNodePopup.hidden) return;
-    const target = event.target as Node | null;
-    if (target && addNodeWrap.contains(target)) return;
-    closeAddNodePopup();
-  };
-  const closeAddNodePopupOnEscape = (event: KeyboardEvent): void => {
-    if (event.key === "Escape" && !addNodePopup.hidden) {
-      closeAddNodePopup();
-      addNodeButton.focus();
-    }
-  };
-  document.addEventListener(
-    "pointerdown",
-    closeAddNodePopupOnOutsidePointer,
-    true,
-  );
-  document.addEventListener("keydown", closeAddNodePopupOnEscape, true);
-  renderSelectedLibraryPapers();
 
   const updateEmptyState = (visibleCount: number): void => {
     // A seeded view fetches its own neighbours, so an empty projection there
@@ -1451,10 +1241,22 @@ export function renderGraphView(
 
   let removeFocusSeed = (_key: string): void => undefined;
 
+  // Assigned once libraryNodeForItem exists (below); a library search row
+  // needs the node for a paper so it can be seeded or selected.
+  let libraryNodeForSeedRow = (_itemID: number): CitationGraphNode | null =>
+    null;
+  let libraryState: LibrarySearchState = { status: "idle" };
+  /** The library paper behind each listed row, by `libraryPaperID`. */
+  const libraryPaperBySeedRowID = new Map<string, ZoteroPaper>();
+  /** The seed node behind each listed seed row, by `seedPaperID`. */
+  const seedNodeBySeedRowID = new Map<string, CitationGraphNode>();
+
   const closeFocusSeedPopover = (restoreFocus = false): void => {
     focusSeedPopover.hidden = true;
     focusSeedButton.setAttribute("aria-expanded", "false");
     focusSeedSearch.value = "";
+    librarySearchGeneration += 1;
+    libraryState = { status: "idle" };
     clear(focusSeedResults);
     if (restoreFocus) focusSeedButton.focus();
   };
@@ -1465,44 +1267,60 @@ export function renderGraphView(
     if (restoreFocus) focusSettingsButton.focus();
   };
 
+  const seedPopoverPaperForNode = (
+    node: CitationGraphNode,
+  ): SeedPopoverPaper => ({
+    id: seedPaperID(node),
+    title: node.title || "Untitled paper",
+    authors: node.authors,
+    year: node.year,
+    sourceTitle: node.sourceTitle,
+  });
+  const seedPopoverPaperForLibrary = (
+    paper: ZoteroPaper,
+  ): SeedPopoverPaper => ({
+    id: libraryPaperID(paper.itemID),
+    title: paper.title || "Untitled item",
+    authors: paper.authors,
+    year: paper.year,
+    sourceTitle: paper.sourceTitle,
+  });
+
   const renderFocusSeedResults = (): void => {
+    // Adding or removing a seed re-renders the list; the reader's place in
+    // it and the box they are typing in both survive.
+    const scrollTop = focusSeedResults.scrollTop;
     clear(focusSeedResults);
-    if (!focusProjection) return;
-    const query = normalizeSearch(focusSeedSearch.value.trim());
-    const matches = focusProjection.seeds.filter((seed) => {
-      if (!query) return true;
-      return normalizeSearch(
-        [
-          seed.title,
-          seed.authors.join(" "),
-          seed.year ?? "",
-          seed.sourceTitle ?? "",
-          seed.doi ?? "",
-        ].join(" "),
-      ).includes(query);
+    seedNodeBySeedRowID.clear();
+    const seeds = focusProjection?.seeds ?? [];
+    for (const seed of seeds) seedNodeBySeedRowID.set(seedPaperID(seed), seed);
+    const list = seedPopoverList({
+      query: focusSeedSearch.value,
+      seeds: seeds.map(seedPopoverPaperForNode),
+      library: libraryState,
     });
-    if (!matches.length) {
+    if (list.kind === "placeholder") {
       focusSeedResults.appendChild(
-        text(document, "p", "No matching seeds.", "cm-placeholder"),
+        text(document, "p", list.message, "cm-placeholder"),
       );
       return;
     }
-    for (const seed of matches) {
+    for (const { paper, isSeed } of list.rows) {
       const row = element(document, "div", "cm-focus-seed-result");
       row.setAttribute("role", "listitem");
       const select = element(document, "button", "cm-focus-seed-result-main");
       select.type = "button";
-      select.title = `Select ${seed.title} in the graph`;
+      select.title = `Select ${paper.title} in the graph`;
       const title = text(
         document,
         "span",
-        seed.title || "Untitled paper",
+        paper.title,
         "cm-focus-seed-result-title",
       );
       const metadata = [
-        seed.authors.slice(0, 2).join(", "),
-        seed.year === null ? "" : String(seed.year),
-        seed.sourceTitle ?? "",
+        paper.authors.slice(0, 2).join(", "),
+        paper.year === null ? "" : String(paper.year),
+        paper.sourceTitle ?? "",
       ]
         .filter(Boolean)
         .join(" · ");
@@ -1512,37 +1330,51 @@ export function renderGraphView(
           text(document, "span", metadata, "cm-focus-seed-result-meta"),
         );
       }
+      const nodeForRow = (): CitationGraphNode | null => {
+        const seed = seedNodeBySeedRowID.get(paper.id);
+        if (seed) return seed;
+        const libraryPaper = libraryPaperBySeedRowID.get(paper.id);
+        return libraryPaper ? libraryNodeForSeedRow(libraryPaper.itemID) : null;
+      };
       select.addEventListener("click", () => {
-        renderer?.selectNode(seed.key, false);
-        closeFocusSeedPopover();
+        const node = nodeForRow();
+        // selectNode is false when the paper is not in the graph; nothing to do then.
+        if (node && renderer?.selectNode(node.key, false))
+          closeFocusSeedPopover();
       });
       row.appendChild(select);
-      if (focusProjection.seeds.length > 1) {
-        const remove = element(
-          document,
-          "button",
-          "cm-focus-seed-result-remove",
-        );
-        remove.type = "button";
-        remove.textContent = "×";
-        remove.title = `Remove ${seed.title} from the seeds`;
-        remove.setAttribute("aria-label", remove.title);
-        remove.addEventListener("click", (event) => {
-          event.stopPropagation();
-          removeFocusSeed(seed.key);
-        });
-        row.appendChild(remove);
-      }
+      const toggle = element(
+        document,
+        "button",
+        isSeed ? "cm-focus-seed-result-remove" : "cm-focus-seed-result-add",
+      );
+      toggle.type = "button";
+      toggle.textContent = isSeed ? "×" : "+";
+      toggle.title = isSeed
+        ? `Remove ${paper.title} from the seeds`
+        : `Add ${paper.title} as a seed`;
+      toggle.setAttribute("aria-label", toggle.title);
+      toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const node = nodeForRow();
+        if (!node) return;
+        if (isSeed) removeFocusSeed(node.key);
+        else addFocusSeed(node);
+        // The projection change re-rendered the list; the box keeps the query
+        // and the focus so the next seed is one keystroke away.
+        focusSeedSearch.focus();
+      });
+      row.appendChild(toggle);
       focusSeedResults.appendChild(row);
     }
+    focusSeedResults.scrollTop = scrollTop;
   };
 
   const updateFocusBar = (): void => {
     if (!focusProjection) {
-      closeFocusSeedPopover();
       closeFocusSettingsPopover();
       focusSeedButtonLabel.textContent = "0 seeds";
-      focusSeedButton.title = "Papers this graph was built from.";
+      focusSeedButton.title = "Add seeds from the library.";
       return;
     }
     focusSeedButtonLabel.textContent = `${focusProjection.seeds.length} seed${
@@ -1596,7 +1428,51 @@ export function renderGraphView(
     alignPopover(focusSeedMenu, focusSeedPopover);
     document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
   });
-  focusSeedSearch.addEventListener("input", renderFocusSeedResults);
+  const runLibrarySearch = (): void => {
+    const query = focusSeedSearch.value.trim();
+    librarySearchGeneration += 1;
+    if (!query) {
+      libraryState = { status: "idle" };
+      libraryPaperBySeedRowID.clear();
+      renderFocusSeedResults();
+      return;
+    }
+    const generation = librarySearchGeneration;
+    libraryState = { status: "searching" };
+    renderFocusSeedResults();
+    void rankLibraryPapers(query, generation).then((papers) => {
+      if (generation !== librarySearchGeneration || focusSeedPopover.hidden) {
+        return;
+      }
+      libraryPaperBySeedRowID.clear();
+      if (papers) {
+        for (const paper of papers) {
+          libraryPaperBySeedRowID.set(libraryPaperID(paper.itemID), paper);
+        }
+      }
+      libraryState = papers
+        ? { status: "done", papers: papers.map(seedPopoverPaperForLibrary) }
+        : { status: "failed" };
+      renderFocusSeedResults();
+    });
+  };
+  focusSeedSearch.addEventListener("input", () => {
+    if (librarySearchTimer !== null) {
+      if (document.defaultView) {
+        document.defaultView.clearTimeout(librarySearchTimer);
+      } else {
+        clearTimeout(librarySearchTimer);
+      }
+      librarySearchTimer = null;
+    }
+    const run = (): void => {
+      librarySearchTimer = null;
+      runLibrarySearch();
+    };
+    librarySearchTimer = document.defaultView
+      ? document.defaultView.setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS)
+      : (setTimeout(run, LIBRARY_SEARCH_DEBOUNCE_MS) as unknown as number);
+  });
   focusSettingsButton.addEventListener("click", () => {
     const opening = focusSettingsPopover.hidden;
     if (opening) closeFocusSeedPopover();
@@ -3396,6 +3272,8 @@ export function renderGraphView(
     return node;
   };
 
+  libraryNodeForSeedRow = libraryNodeForItem;
+
   const mapNodesForItems = (itemIDs: readonly number[]): CitationGraphNode[] =>
     normalizedScopeItemIDs(itemIDs)
       .map((itemID) => {
@@ -3462,10 +3340,6 @@ export function renderGraphView(
   const addMapItems = (itemIDs: readonly number[]): GraphFocusResult =>
     applyMapItems(itemIDs, "add", true);
 
-  const addMapItemsRespectingFilters = (
-    itemIDs: readonly number[],
-  ): GraphFocusResult => applyMapItems(itemIDs, "add", false);
-
   const revealItems = (itemIDs: readonly number[]): GraphFocusResult =>
     addMapItems(itemIDs);
 
@@ -3517,11 +3391,6 @@ export function renderGraphView(
       .filter((node): node is CitationGraphNode => Boolean(node));
     return nodes.length && addFocusSeeds(nodes) ? "selected" : "not-found";
   };
-
-  addLibraryItemsToView = (itemIDs) =>
-    focusProjection
-      ? addFocusItems(itemIDs)
-      : addMapItemsRespectingFilters(itemIDs);
 
   syncMapPinnedKeys(false);
   applyFilters();
@@ -3664,12 +3533,6 @@ export function renderGraphView(
     unsubscribeRelationshipMutations();
     unsubscribeRelationshipPublications();
     graphFilter.destroy();
-    document.removeEventListener(
-      "pointerdown",
-      closeAddNodePopupOnOutsidePointer,
-      true,
-    );
-    document.removeEventListener("keydown", closeAddNodePopupOnEscape, true);
     document.removeEventListener(
       "pointerdown",
       closeAppearanceOnOutsidePointer,

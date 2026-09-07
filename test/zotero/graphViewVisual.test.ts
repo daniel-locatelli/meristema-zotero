@@ -260,6 +260,22 @@ describe("Graph view, as the product builds it", function () {
       ).to.equal(null);
     }
 
+    // A seedless graph has no seeds to show, but the Seeds button is how the
+    // first one is added, so it stays live. Explore has nothing to set yet.
+    const seeds = active.root.querySelector(
+      'button[aria-controls="meristema-focus-seed-popover"]',
+    ) as HTMLButtonElement;
+    const explore = active.root.querySelector(
+      'button[aria-controls="meristema-focus-settings-popover"]',
+    ) as HTMLButtonElement;
+    expect(seeds, "there is a Seeds button").to.not.equal(null);
+    expect(seeds.disabled, "and it is enabled while seedless").to.equal(false);
+    expect(explore.disabled, "while Explore waits for a seed").to.equal(true);
+    expect(
+      active.root.querySelector(".cm-add-node-wrap"),
+      "Add Node is gone",
+    ).to.equal(null);
+
     // The heading left the layout but not the document.
     const heading = active.root.querySelector("h1") as HTMLElement;
     expect(heading, "the view still has a heading").to.not.equal(null);

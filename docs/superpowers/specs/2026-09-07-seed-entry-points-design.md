@@ -50,9 +50,8 @@ scoring in `scoreLibraryPaperSearch`, and the 50-result cap.
   library of tens of thousands of papers does not stall typing.
 
 The `cm-add-node-*` elements, their CSS rules, and the Add Node event
-handlers are removed. `addLibraryItemsToView` loses its seedless branch;
-`addMapItemsRespectingFilters` stays because the controller's `addMapItems`
-still uses it.
+handlers are removed. `addLibraryItemsToView` and
+`addMapItemsRespectingFilters` are removed; Add Node was their only caller.
 
 The "search seeds" placeholder and aria-label become "Search seeds or
 library" and "Search seeds and the Zotero library".
