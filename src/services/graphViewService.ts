@@ -2639,7 +2639,9 @@ export function renderGraphView(
     toggle.addEventListener("click", () => {
       if (isSeed) {
         removeFocusSeed(node.key);
-        renderOverview(node);
+        // Removing the last seed exits Explore, and that path restores the
+        // library selection and re-renders the pane itself a frame later.
+        if (focusProjection) renderOverview(node);
         return;
       }
       if (addFocusSeed(node)) renderOverview(node);
