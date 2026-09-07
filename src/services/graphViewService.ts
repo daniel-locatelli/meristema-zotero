@@ -2623,6 +2623,30 @@ export function renderGraphView(
     };
   }
 
+  /**
+   * "Add as seed" or "Remove seed" for the paper the detail pane shows. One
+   * button in one slot, so the pane reads the same on a library paper and on
+   * an external work, seeded graph or not.
+   */
+  const seedToggleButton = (node: CitationGraphNode): HTMLButtonElement => {
+    const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
+    const toggle = element(document, "button", "cm-secondary-button");
+    toggle.type = "button";
+    toggle.textContent = isSeed ? "Remove seed" : "Add as seed";
+    toggle.title = isSeed
+      ? "Remove this paper from the seeds of this graph."
+      : "Add this paper as a seed of this graph without changing Zotero.";
+    toggle.addEventListener("click", () => {
+      if (isSeed) {
+        removeFocusSeed(node.key);
+        renderOverview(node);
+        return;
+      }
+      if (addFocusSeed(node)) renderOverview(node);
+    });
+    return toggle;
+  };
+
   function renderOverview(node: CitationGraphNode | null): void {
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
@@ -2710,18 +2734,6 @@ export function renderGraphView(
       focus.addEventListener("click", () => focusOnPaper(node));
       actions.appendChild(focus);
 
-      if (focusProjection && !focusProjection.seedKeys.has(node.key)) {
-        const addSeed = element(document, "button", "cm-secondary-button");
-        addSeed.type = "button";
-        addSeed.textContent = "Add as seed";
-        addSeed.title =
-          "Add this paper as a seed of this graph without adding it to Zotero.";
-        addSeed.addEventListener("click", () => {
-          if (addFocusSeed(node)) renderOverview(node);
-        });
-        actions.appendChild(addSeed);
-      }
-
       const similar = element(document, "button", "cm-primary-button");
       similar.type = "button";
       similar.textContent = "Similar";
@@ -2733,6 +2745,7 @@ export function renderGraphView(
         });
       });
       actions.appendChild(similar);
+      actions.appendChild(seedToggleButton(node));
 
       const update = element(document, "button", "cm-secondary-button");
       update.type = "button";
@@ -2806,8 +2819,9 @@ export function renderGraphView(
        * whole view out from under the reader, which is not what a button in a
        * detail panel should do; and "Refresh" repeated the toolbar's, which
        * covers this paper along with every other visible one. What is left is
-       * the one action that fetches something the reader cannot reach by
-       * clicking what is already on screen.
+       * the action that fetches something the reader cannot reach by
+       * clicking what is already on screen, and the seed toggle, which is
+       * one of the three ways to add a seed.
        */
       const actions = element(document, "div", "cm-detail-actions");
       const similar = element(document, "button", "cm-primary-button");
@@ -2832,17 +2846,7 @@ export function renderGraphView(
           });
       });
       actions.appendChild(similar);
-      if (focusProjection && !focusProjection.seedKeys.has(node.key)) {
-        const addSeed = element(document, "button", "cm-secondary-button");
-        addSeed.type = "button";
-        addSeed.textContent = "Add as seed";
-        addSeed.title =
-          "Add this paper as a seed of this graph without changing Zotero.";
-        addSeed.addEventListener("click", () => {
-          if (addFocusSeed(node)) renderOverview(node);
-        });
-        actions.appendChild(addSeed);
-      }
+      actions.appendChild(seedToggleButton(node));
       detailBody.appendChild(detailSection(document, actions));
     }
   }
