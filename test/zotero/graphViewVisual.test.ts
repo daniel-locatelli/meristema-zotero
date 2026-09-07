@@ -1214,4 +1214,92 @@ describe("Graph view, as the product builds it", function () {
     expect(rerenderedSeedsButton.textContent?.trim()).to.equal("2 seeds");
     expect(second.errors, "nothing threw on re-render").to.deep.equal([]);
   });
+
+  it("view 14 — the Graph menu saves through the host and lists what it has", async function () {
+    this.timeout(60_000);
+    const calls: string[] = [];
+    let entries = [
+      { id: 7, name: "PhD map", modified: "2026-09-01T10:00:00.000Z" },
+      { id: 9, name: "Reading list", modified: "2026-09-05T09:30:00.000Z" },
+    ];
+    const first = await open(30);
+    stage = await openViewStage(first.model, {
+      savedGraphs: {
+        list: async () => entries,
+        save: async () => {
+          calls.push("save");
+          return "PhD map";
+        },
+        saveAs: async () => {
+          calls.push("save-as");
+          return "Copy";
+        },
+        open: async (id) => {
+          calls.push(`open:${id}`);
+          return id === 9 ? "deleted" : "opened";
+        },
+        remove: async (id) => {
+          calls.push(`remove:${id}`);
+          entries = entries.filter((entry) => entry.id !== id);
+          return true;
+        },
+      },
+    });
+    first.close();
+    const view = stage;
+    await settle(view.window, 6);
+
+    const button = view.root.querySelector(
+      'button[aria-controls="meristema-graph-menu"]',
+    ) as HTMLButtonElement;
+    expect(button, "the toolbar has a Graph button").to.not.equal(null);
+    const menu = view.root.querySelector(
+      "#meristema-graph-menu",
+    ) as HTMLElement;
+    expect(menu.hidden, "closed at first").to.equal(true);
+
+    button.click();
+    await settle(view.window, 4);
+    expect(menu.hidden, "open after a click").to.equal(false);
+    const rows = menu.querySelectorAll(".cm-graph-menu-row");
+    expect(rows.length, "one row per saved graph").to.equal(2);
+    expect(
+      rows[0]?.querySelector('button[data-action="open"]')?.textContent,
+      "named, with its date",
+    ).to.include("PhD map");
+
+    (
+      menu.querySelector('button[data-action="save"]') as HTMLButtonElement
+    ).click();
+    await settle(view.window, 4);
+    expect(calls).to.deep.equal(["save"]);
+    expect(menu.hidden, "closed after Save").to.equal(true);
+    const status = view.root.querySelector(".cm-toolbar-status") as HTMLElement;
+    expect(status.textContent).to.equal("Saved");
+    expect(status.hidden).to.equal(false);
+
+    button.click();
+    await settle(view.window, 4);
+    (
+      menu.querySelector(
+        'button[data-action="open"][data-id="9"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(view.window, 4);
+    expect(calls).to.deep.equal(["save", "open:9"]);
+    expect(menu.hidden, "stays open to say what happened").to.equal(false);
+    expect(menu.querySelector(".cm-graph-menu-empty")?.textContent).to.equal(
+      "This graph was deleted.",
+    );
+
+    (
+      menu.querySelector(
+        'button[data-action="delete"][data-id="7"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(view.window, 4);
+    expect(calls).to.deep.equal(["save", "open:9", "remove:7"]);
+    expect(menu.querySelectorAll(".cm-graph-menu-row").length).to.equal(1);
+    expect(view.errors, "nothing threw in the background").to.deep.equal([]);
+  });
 });

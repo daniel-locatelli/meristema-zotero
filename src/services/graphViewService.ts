@@ -162,6 +162,33 @@ import {
 
 export type GraphFocusResult = "selected" | "revealed" | "not-found";
 
+export interface SavedGraphMenuEntry {
+  id: number;
+  name: string;
+  /** ISO 8601, shown beside the name so two graphs with one name can be told apart. */
+  modified: string;
+}
+
+/**
+ * What the Graph menu asks its host for. The view knows nothing about the
+ * database or the instance; it shows what the host lists and reports what
+ * the host returns.
+ */
+export interface GraphViewSavedGraphsHost {
+  list(): Promise<SavedGraphMenuEntry[]>;
+  /**
+   * Saves the graph, prompting for a name when it is still scratch. Resolves
+   * to the saved name, or null when the user cancelled or the write failed.
+   */
+  save(): Promise<string | null>;
+  /** Always prompts for a name. Resolves as `save` does. */
+  saveAs(): Promise<string | null>;
+  /** "deleted" when the row vanished between listing and opening. */
+  open(id: number): Promise<"opened" | "deleted">;
+  /** Asks the user to confirm. Resolves true when the row was deleted. */
+  remove(id: number): Promise<boolean>;
+}
+
 export interface GraphViewController {
   revealItem(itemID: number): GraphFocusResult;
   revealItems(itemIDs: readonly number[]): GraphFocusResult;
@@ -175,6 +202,8 @@ export interface GraphViewController {
   getState(): GraphViewState;
   /** Rebuilds the graph from a recipe. Seeds whose item is gone are dropped. */
   applyState(state: GraphViewState): GraphFocusResult;
+  /** Shows a short message in the toolbar for a moment; null clears it. */
+  setStatus(message: string | null): void;
   setActive(active: boolean): void;
 }
 
@@ -224,6 +253,8 @@ export interface GraphViewOptions {
    * the camera when it is needed.
    */
   onStateChange?: (state: GraphViewState) => void;
+  /** Backs the toolbar's Graph menu. Without it the menu is disabled. */
+  savedGraphs?: GraphViewSavedGraphsHost | null;
 }
 
 function localPaperByKey(snapshot: LibrarySnapshot): Map<string, ZoteroPaper> {
@@ -510,6 +541,50 @@ export function renderGraphView(
     exportMenu.appendChild(button);
   }
   exportWrap.append(exportButton, exportMenu);
+  // The Graph menu: the document commands. Built like the Export menu, one
+  // popup under one toolbar button, so the two read as siblings. Open is a
+  // group inside the same popup rather than a nested hover menu: a hand-built
+  // submenu is a second thing to keep open, and a list of names with a
+  // heading says "open one of these" just as well.
+  const graphWrap = element(
+    document,
+    "div",
+    "cm-menu-wrapper cm-graph-menu-wrap",
+  );
+  const graphButton = element(document, "button", "cm-toolbar-button");
+  graphButton.type = "button";
+  graphButton.append(iconButtonContent(document, "document", "Graph"));
+  graphButton.title = "Save this graph, or open a saved one.";
+  graphButton.setAttribute("aria-expanded", "false");
+  graphButton.setAttribute("aria-controls", "meristema-graph-menu");
+  const graphMenu = element(document, "div", "cm-export-menu cm-graph-menu");
+  graphMenu.id = "meristema-graph-menu";
+  graphMenu.hidden = true;
+  const saveButton = element(document, "button");
+  saveButton.type = "button";
+  saveButton.dataset.action = "save";
+  saveButton.textContent = "Save";
+  const saveAsButton = element(document, "button");
+  saveAsButton.type = "button";
+  saveAsButton.dataset.action = "save-as";
+  saveAsButton.textContent = "Save as…";
+  const graphMenuHeading = text(
+    document,
+    "div",
+    "Open",
+    "cm-graph-menu-heading",
+  );
+  const graphMenuList = element(document, "div", "cm-graph-menu-list");
+  graphMenu.append(saveButton, saveAsButton, graphMenuHeading, graphMenuList);
+  graphWrap.append(graphButton, graphMenu);
+  if (!options.savedGraphs) {
+    graphButton.disabled = true;
+    graphButton.title = "Saved graphs are not available in this view.";
+  }
+  // Short confirmations ("Saved", "Autosave failed") beside the toolbar.
+  const toolbarStatus = element(document, "span", "cm-toolbar-status");
+  toolbarStatus.setAttribute("role", "status");
+  toolbarStatus.hidden = true;
   const refreshButton = element(document, "button", "cm-toolbar-button");
   refreshButton.type = "button";
   refreshButton.append(iconButtonContent(document, "refresh", "Refresh"));
@@ -616,9 +691,10 @@ export function renderGraphView(
     focusSeedMenu,
     similarButton,
     exportWrap,
+    graphWrap,
     refreshButton,
   );
-  plotToolbar.append(toolbar, searchWrap);
+  plotToolbar.append(toolbar, toolbarStatus, searchWrap);
 
   // The Seeds button stays in the toolbar on every path so the view keeps one
   // shape: it is how the first seed is added, so it is always live. The
@@ -3071,6 +3147,7 @@ export function renderGraphView(
     exportButton.setAttribute("aria-expanded", "false");
   };
   exportButton.addEventListener("click", () => {
+    closeGraphMenu();
     exportMenu.hidden = !exportMenu.hidden;
     exportButton.setAttribute("aria-expanded", String(!exportMenu.hidden));
   });
@@ -3110,6 +3187,176 @@ export function renderGraphView(
         error instanceof Error ? error : new Error(String(error)),
       );
     });
+  });
+  let statusTimer = 0;
+  const setStatus = (message: string | null): void => {
+    const view = document.defaultView;
+    if (statusTimer) {
+      if (view) view.clearTimeout(statusTimer);
+      else clearTimeout(statusTimer);
+      statusTimer = 0;
+    }
+    toolbarStatus.textContent = message ?? "";
+    toolbarStatus.hidden = !message;
+    if (!message) return;
+    const hide = (): void => {
+      statusTimer = 0;
+      toolbarStatus.hidden = true;
+      toolbarStatus.textContent = "";
+    };
+    statusTimer = view
+      ? view.setTimeout(hide, 2500)
+      : (setTimeout(hide, 2500) as unknown as number);
+  };
+
+  const formatSavedDate = (iso: string): string => {
+    const time = Date.parse(iso);
+    return Number.isFinite(time)
+      ? new Date(time).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "";
+  };
+  const setGraphMenuMessage = (message: string): void => {
+    graphMenuList.replaceChildren(
+      text(document, "p", message, "cm-graph-menu-empty"),
+    );
+  };
+  let graphMenuListGeneration = 0;
+  const rebuildGraphMenuList = async (): Promise<void> => {
+    const host = options.savedGraphs;
+    if (!host) return;
+    const generation = ++graphMenuListGeneration;
+    let entries: SavedGraphMenuEntry[];
+    try {
+      entries = await host.list();
+    } catch (error) {
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      if (generation === graphMenuListGeneration) {
+        setGraphMenuMessage("Saved graphs could not be listed.");
+      }
+      return;
+    }
+    if (generation !== graphMenuListGeneration || cleaned) return;
+    if (!entries.length) {
+      setGraphMenuMessage("No saved graphs yet.");
+      return;
+    }
+    graphMenuList.replaceChildren(
+      ...entries.map((entry) => {
+        const row = element(document, "div", "cm-graph-menu-row");
+        const openButton = element(document, "button");
+        openButton.type = "button";
+        openButton.dataset.action = "open";
+        openButton.dataset.id = String(entry.id);
+        openButton.append(
+          text(document, "span", entry.name, "cm-graph-menu-name"),
+          text(
+            document,
+            "span",
+            formatSavedDate(entry.modified),
+            "cm-graph-menu-date",
+          ),
+        );
+        const deleteButton = element(
+          document,
+          "button",
+          "cm-graph-menu-delete",
+        );
+        deleteButton.type = "button";
+        deleteButton.dataset.action = "delete";
+        deleteButton.dataset.id = String(entry.id);
+        deleteButton.textContent = "×";
+        deleteButton.setAttribute("aria-label", `Delete ${entry.name}`);
+        deleteButton.title = `Delete ${entry.name}`;
+        row.append(openButton, deleteButton);
+        return row;
+      }),
+    );
+  };
+  const closeGraphMenu = (): void => {
+    graphMenu.hidden = true;
+    graphButton.setAttribute("aria-expanded", "false");
+  };
+  const openGraphMenu = (): void => {
+    closeExportMenu();
+    graphMenu.hidden = false;
+    graphButton.setAttribute("aria-expanded", "true");
+    setGraphMenuMessage("Loading…");
+    void rebuildGraphMenuList();
+  };
+  graphButton.addEventListener("click", () => {
+    if (graphButton.disabled) return;
+    if (graphMenu.hidden) openGraphMenu();
+    else closeGraphMenu();
+  });
+  const closeGraphMenuOnOutsidePointer = (event: Event): void => {
+    if (graphMenu.hidden) return;
+    const target = event.target as Node | null;
+    if (target && graphWrap.contains(target)) return;
+    closeGraphMenu();
+  };
+  const closeGraphMenuOnEscape = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || graphMenu.hidden) return;
+    closeGraphMenu();
+    graphButton.focus();
+  };
+  document.addEventListener(
+    "pointerdown",
+    closeGraphMenuOnOutsidePointer,
+    true,
+  );
+  document.addEventListener("keydown", closeGraphMenuOnEscape, true);
+  let graphMenuBusy = false;
+  graphMenu.addEventListener("click", (event) => {
+    const host = options.savedGraphs;
+    const target = (event.target as Element).closest(
+      "button",
+    ) as HTMLButtonElement | null;
+    if (!host || !target || graphMenuBusy) return;
+    const action = target.dataset.action;
+    const id = Number(target.dataset.id);
+    const run = async (): Promise<void> => {
+      if (action === "save" || action === "save-as") {
+        closeGraphMenu();
+        const name = await (action === "save" ? host.save() : host.saveAs());
+        if (name) setStatus("Saved");
+        return;
+      }
+      if (action === "open" && Number.isInteger(id)) {
+        const result = await host.open(id);
+        if (result === "opened") {
+          closeGraphMenu();
+          return;
+        }
+        setGraphMenuMessage("This graph was deleted.");
+        // Let the message be read before the list replaces it.
+        const view = document.defaultView;
+        await new Promise<void>((resolve) =>
+          view ? view.setTimeout(resolve, 1200) : setTimeout(resolve, 1200),
+        );
+        if (!graphMenu.hidden) await rebuildGraphMenuList();
+        return;
+      }
+      if (action === "delete" && Number.isInteger(id)) {
+        if (await host.remove(id)) await rebuildGraphMenuList();
+      }
+    };
+    graphMenuBusy = true;
+    void run()
+      .catch((error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        setStatus(action === "open" ? "Could not open" : "Save failed");
+      })
+      .finally(() => {
+        graphMenuBusy = false;
+      });
   });
   refreshButton.addEventListener("click", () => {
     if (refreshButton.disabled) return;
@@ -3580,6 +3827,7 @@ export function renderGraphView(
     },
     getState,
     applyState,
+    setStatus,
     setActive(active) {
       viewActive = active;
       if (!active) {
@@ -3679,6 +3927,19 @@ export function renderGraphView(
     : 0;
   const cleanup = (): void => {
     cleaned = true;
+    document.removeEventListener(
+      "pointerdown",
+      closeGraphMenuOnOutsidePointer,
+      true,
+    );
+    document.removeEventListener("keydown", closeGraphMenuOnEscape, true);
+    if (statusTimer) {
+      const view = document.defaultView;
+      if (view) view.clearTimeout(statusTimer);
+      else clearTimeout(statusTimer);
+      statusTimer = 0;
+    }
+    graphMenuListGeneration += 1;
     if (stateChangeFrame) {
       const view = document.defaultView;
       if (view) view.cancelAnimationFrame(stateChangeFrame);

@@ -600,6 +600,68 @@
   justify-content: flex-start;
   border-color: transparent;
 }
+.cm-graph-menu {
+  min-width: 240px;
+}
+.cm-graph-menu-heading {
+  margin: 6px 6px 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cm-border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.cm-graph-menu-list {
+  display: grid;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.cm-graph-menu-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+}
+.cm-graph-menu-row button[data-action="open"] {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  min-width: 0;
+}
+.cm-graph-menu-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-graph-menu-date {
+  font-size: 11px;
+  opacity: 0.65;
+}
+.cm-graph-menu-delete {
+  padding-inline: 8px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.6;
+}
+.cm-graph-menu-delete:hover {
+  opacity: 1;
+}
+.cm-graph-menu-empty {
+  margin: 4px 8px 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.cm-toolbar-status {
+  align-self: center;
+  margin-inline: 8px;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+.cm-toolbar-status[hidden] {
+  display: none;
+}
 /*
  * The node's right-click menu. Absolute inside `.cm-graph-area`, placed by
  * `clampMenuPosition` so it never leaves the plot; the same surface as the
