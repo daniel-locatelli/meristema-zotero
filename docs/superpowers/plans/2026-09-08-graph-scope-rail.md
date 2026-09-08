@@ -2949,7 +2949,7 @@ seed has no meaning.
   `purgeHiddenKeys(hiddenKeys: ReadonlySet<string>, seedKeys: readonly string[]): Set<string>`
   in `graphScopeModel.ts`.
 
-- [ ] **Step 1: Write the failing purge test**
+- [x] **Step 1: Write the failing purge test**
 
 Append to `test/unit/graphScopeModel.test.ts` (add `purgeHiddenKeys` to the
 import):
@@ -2971,12 +2971,12 @@ describe("purgeHiddenKeys", function () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `purgeHiddenKeys is not a function`.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 Append to `src/services/graphScopeModel.ts`:
 
@@ -2998,7 +2998,7 @@ export function purgeHiddenKeys(
 Run: `npm run test:unit`
 Expected: PASS.
 
-- [ ] **Step 4: Add the node menu entry**
+- [x] **Step 4: Add the node menu entry**
 
 In `src/services/graphViewService.ts`, beside `nodeMenuSeed`, build the entry
 and delete `nodeMenuExplore`:
@@ -3051,7 +3051,7 @@ const hideFromGraph = (key: string): void => {
 };
 ```
 
-- [ ] **Step 5: Purge a hide when the paper is seeded**
+- [x] **Step 5: Purge a hide when the paper is seeded**
 
 In `addFocusSeeds`, immediately after `missingSeeds` is computed and before
 the state is activated, spend the hide:
@@ -3068,7 +3068,7 @@ for (const key of purged) hiddenKeys.add(key);
 Do the same in `enterFocusSeeds`, after `seeds` is resolved, using
 `seeds.map((seed) => seed.key)`.
 
-- [ ] **Step 6: Delete Explore from this paper**
+- [x] **Step 6: Delete Explore from this paper**
 
 In `graphHost.rowActions`, drop the first action so the array starts empty and
 only Add as seed is pushed:
@@ -3096,7 +3096,7 @@ Delete the detail pane's Explore button around line 2894 (the one whose
 `focusOnPaper` once nothing calls it. The detail pane keeps **Add as seed**
 and **Remove seed** in every state, which it already does.
 
-- [ ] **Step 7: Run the gate and the suite**
+- [x] **Step 7: Run the gate and the suite**
 
 Run: `npm run check`
 Expected: PASS. `eslint` will report `focusOnPaper` as unused if a call site
@@ -3106,7 +3106,7 @@ Expected: only the three known failures. Note that `test/zotero/graphViewVisual.
 "view 12" asserts the node menu's entries; update its expectations to
 Open / Add as seed / Remove from graph in this task, not later.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/services/graphViewService.ts src/services/graphScopeModel.ts \

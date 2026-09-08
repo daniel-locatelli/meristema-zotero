@@ -72,3 +72,10 @@ nothing about a finished task is kept anywhere else.
   title/meta rules were kept, since the replacement block carries no
   `font-weight`/`color`, and `.cm-focus-seed-menu .cm-toolbar-button` is
   now dead CSS the plan did not list for deletion.
+- Task 10, cb70343: Remove from graph replaces Explore from this paper in the
+  node menu, the row action and the detail pane; pure `purgeHiddenKeys`
+  spends a hide when the paper is seeded. That is D2. "view 12" updated in
+  the same task. `npm run check` green, 293 unit tests. Surprise:
+  `focusOnPaper` was the only caller of the single-seed `enterFocus`
+  wrapper, so that went too — `enterFocusSeeds([node], options)` replaces
+  it if a later stage wants one.
