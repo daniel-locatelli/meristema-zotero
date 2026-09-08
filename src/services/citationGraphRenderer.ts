@@ -48,6 +48,7 @@ import {
   projectToScreen,
   projectToWorld,
   screenLengthToWorld,
+  wheelZoomFactor,
 } from "./graphViewport";
 import {
   axisInsets,
@@ -691,7 +692,7 @@ export class CitationGraphRenderer {
     const ratio = this.canvas.width / Math.max(1, rect.width);
     const screenX = (event.clientX - rect.left) * ratio;
     const screenY = (event.clientY - rect.top) * ratio;
-    const factor = Math.exp(-event.deltaY * 0.0012);
+    const factor = wheelZoomFactor(event.deltaY, event.deltaMode);
     const nextScale = clamp(this.transform.scale * factor, 0.15, 8);
     const worldX = (screenX - this.transform.x) / this.transform.scale;
     const worldY = (screenY - this.transform.y) / this.transform.scale;

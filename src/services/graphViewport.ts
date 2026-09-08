@@ -85,3 +85,33 @@ export function offscreenPanDelta(
   };
   return { x: shift(point.x, width), y: shift(point.y, height) };
 }
+
+/** Scale multiplier per pixel of wheel travel; 100 pixels is one mouse notch. */
+const WHEEL_ZOOM_RATE = 0.0025;
+/** Wheel travel a single event may count for, in pixels. */
+const WHEEL_ZOOM_MAX_TRAVEL = 400;
+const WHEEL_PIXELS_PER_LINE = 16;
+const WHEEL_PIXELS_PER_PAGE = 800;
+
+/**
+ * The factor a wheel event multiplies the zoom by. Negative travel zooms in.
+ *
+ * Browsers report `deltaY` in pixels, lines or pages depending on the mouse
+ * driver, so the three are first put on one pixel scale. One event's travel is
+ * then capped, which keeps an inertial trackpad fling or a page-mode wheel
+ * from throwing the view across the whole zoom range in one frame, while a
+ * trackpad's small deltas still produce a gentle, continuous zoom.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode: number): number {
+  const pixels =
+    deltaMode === 1
+      ? deltaY * WHEEL_PIXELS_PER_LINE
+      : deltaMode === 2
+        ? deltaY * WHEEL_PIXELS_PER_PAGE
+        : deltaY;
+  const travel = Math.max(
+    -WHEEL_ZOOM_MAX_TRAVEL,
+    Math.min(WHEEL_ZOOM_MAX_TRAVEL, pixels),
+  );
+  return Math.exp(-travel * WHEEL_ZOOM_RATE);
+}

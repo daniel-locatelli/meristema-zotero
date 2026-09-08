@@ -6,6 +6,7 @@ import {
   projectToScreen,
   projectToWorld,
   screenLengthToWorld,
+  wheelZoomFactor,
 } from "../../src/services/graphViewport";
 
 const TRANSFORMS = [
@@ -92,5 +93,45 @@ describe("Off-screen pan", function () {
     expect(
       offscreenPanDelta({ x: 900, y: -100 }, margin, width, height),
     ).to.deep.equal({ x: -110, y: 110 });
+  });
+});
+
+describe("Wheel zoom factor", function () {
+  it("zooms in on a negative delta and out on a positive one, symmetrically", function () {
+    const zoomIn = wheelZoomFactor(-100, 0);
+    const zoomOut = wheelZoomFactor(100, 0);
+    expect(zoomIn).to.be.greaterThan(1);
+    expect(zoomOut).to.be.lessThan(1);
+    expect(zoomIn * zoomOut).to.be.closeTo(1, 1e-9);
+  });
+
+  it("covers the zoom range in about sixteen wheel notches", function () {
+    // A Windows mouse sends 100 pixels per notch. The old coefficient needed
+    // more than thirty notches from the minimum scale to the maximum, which is
+    // what "I have to scroll a lot" meant.
+    const notches = Math.log(8 / 0.15) / Math.log(wheelZoomFactor(-100, 0));
+    expect(notches).to.be.within(14, 18);
+  });
+
+  it("treats one line as sixteen pixels and a page as one screen", function () {
+    expect(wheelZoomFactor(-3, 1)).to.be.closeTo(wheelZoomFactor(-48, 0), 1e-9);
+    expect(wheelZoomFactor(-1, 2)).to.be.closeTo(
+      wheelZoomFactor(-800, 0),
+      1e-9,
+    );
+  });
+
+  it("keeps a trackpad's small deltas gentle", function () {
+    expect(wheelZoomFactor(-4, 0)).to.be.within(1.005, 1.02);
+  });
+
+  it("caps a single event so an inertial fling cannot jump the view", function () {
+    expect(wheelZoomFactor(-5000, 0)).to.equal(wheelZoomFactor(-400, 0));
+    expect(wheelZoomFactor(5000, 0)).to.equal(wheelZoomFactor(400, 0));
+    expect(wheelZoomFactor(-400, 0)).to.be.lessThan(3);
+  });
+
+  it("does nothing on a zero delta", function () {
+    expect(wheelZoomFactor(0, 0)).to.equal(1);
   });
 });
