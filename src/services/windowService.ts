@@ -1154,14 +1154,11 @@ function renderTab(
       initialState: instance.viewState,
     });
     const current = selectionBinding(win).current().itemIDs;
-    if (tabs(win).selectedID === instance.tabID) {
-      instance.pendingLibrarySelection = null;
-      // Adopt only: a list selection this graph cannot show must not undo the
-      // selection the render just restored.
-      applyLibrarySelectionToInstance(win, instance, current, { adopt: true });
-    } else {
-      instance.pendingLibrarySelection = current;
-    }
+    instance.pendingLibrarySelection = null;
+    // Adopt only: a list selection this graph cannot show must not undo the
+    // selection the render just restored. Applies whether or not the tab is
+    // showing, since an adopt-apply only ever adds and is safe on a hidden view.
+    applyLibrarySelectionToInstance(win, instance, current, { adopt: true });
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
     );

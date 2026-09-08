@@ -3911,7 +3911,7 @@ export function renderGraphView(
       if (options?.adopt && !resolution.select && !resolution.emphasise) return;
       // Nothing to do: the same node is selected and no emphasis moves.
       if (
-        resolution.select === (selectedNode?.key ?? null) &&
+        resolution.select === active.getSelectedKey() &&
         !resolution.emphasise &&
         !libraryEmphasisKeys
       ) {

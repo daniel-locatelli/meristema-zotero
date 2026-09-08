@@ -1349,9 +1349,10 @@ describe("Graph view, as the product builds it", function () {
 
     controller.applyLibrarySelection([-1]);
     await settle(view.window, 2);
-    expect(placeholder(), "an absent item clears, with no adopt").to.not.equal(
-      null,
-    );
+    // Nothing is selected and no emphasis is set, so an absent item resolves
+    // to nothing and hits the early return: it changes nothing and reports
+    // nothing.
+    expect(placeholder(), "an absent item changes nothing").to.not.equal(null);
     expect(reported).to.deep.equal([]);
 
     // A user command that selects a node is reported exactly once.

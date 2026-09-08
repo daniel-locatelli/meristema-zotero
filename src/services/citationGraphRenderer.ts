@@ -1537,6 +1537,10 @@ export class CitationGraphRenderer {
     this.draw();
   }
 
+  public getSelectedKey(): string | null {
+    return this.selectedKey;
+  }
+
   public selectNode(key: string, center = true): boolean {
     const node = this.model.nodes.find((candidate) => candidate.key === key);
     if (!node) return false;

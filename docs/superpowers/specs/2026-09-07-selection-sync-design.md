@@ -139,11 +139,11 @@ Behaviour:
   the same window. Nothing loops, because the view that made the click
   re-applies that same single selection with reporting suppressed and hits
   its own early return.
-- **`selectListed`.** A no-op when the IDs already equal `current()`.
-  Otherwise it calls `selectItems(ids, true)` and does not await it; a
-  rejection is debug-logged. Nothing moves in the binding until the tree
-  fires `onSelect`, so a select that lists no row (a count of 0) leaves
-  `current()` where it was and publishes nothing.
+- **`selectListed`.** A no-op on an empty set and when the IDs already equal
+  `current()`. Otherwise it calls `selectItems(ids, true)` and does not
+  await it; a rejection is debug-logged. Nothing moves in the binding until
+  the tree fires `onSelect`, so a select that lists no row (a count of 0)
+  leaves `current()` where it was and publishes nothing.
 - **Publishing.** Each subscriber is called in its own try/catch with a copy
   of the array; a throwing subscriber is logged and the rest still run.
 - **Late tree.** If `itemsView()` is null when bound, the binder logs once
@@ -155,8 +155,11 @@ Behaviour:
 ### Window service: `src/services/windowService.ts`
 
 - `selectionBindingByWindow: Map<MainWindow, ZoteroSelectionBinding>`. The
-  binding is created in `openGraphWindow` after `installGraphTabHooks`, when
-  the window has no binding yet, and disposed in `closeGraphForWindow`.
+  binding is created on first use: in `openGraphWindow` after
+  `installGraphTabHooks`, and by either render path (`renderTab`,
+  `renderDetachedWindow`) when they seed the freshly mounted view with the
+  current selection, whichever runs first. It is disposed in
+  `closeGraphForWindow`.
 - One subscriber per window keeps only the latest published set and
   schedules a single `win.setTimeout(flush, 0)`. Zotero awaits its `onSelect`
   listeners one after another, so the fan-out never runs inside that chain,
@@ -175,11 +178,12 @@ Behaviour:
   the same, so shutdown leaves no listener on any item tree.
 - Both render paths (`renderTab`, `renderDetachedWindow`) pass a new view
   option `onGraphSelection` and, once the view has mounted, apply
-  `binding.current()` with `{ adopt: true }`, so a fresh graph takes on the
-  list's selection without undoing the one the render just restored.
-  `applyLibrarySelectionToInstance` carries that option through; nothing else
-  passes it, so the live fan-out and the pending-selection apply on tab
-  switch keep the syncing semantics, where an empty set clears.
+  `binding.current()` with `{ adopt: true }` at once, whether or not the tab
+  is showing, so a fresh graph takes on the list's selection without undoing
+  the one the render just restored. `applyLibrarySelectionToInstance` carries
+  that option through; nothing else passes it, so the live fan-out and the
+  pending-selection apply on tab switch keep the syncing semantics, where an
+  empty set clears.
 - `onGraphSelection(itemID)` calls `selectListed([itemID])` on the window's
   existing binding, looked up in the map. It never creates one: with no graph
   open in the window there is nothing to have clicked. A null (graph
@@ -192,7 +196,10 @@ Behaviour:
 - New option `onGraphSelection?: (itemID: number | null) => void`.
 - New controller method
   `applyLibrarySelection(itemIDs: readonly number[], options?: { adopt?: boolean }): void`.
-  It never throws; with no renderer it is a no-op.
+  With no renderer it is a no-op. The resolve step never throws; the
+  renderer apply that follows is not itself guarded here, but the window
+  service's `applyLibrarySelectionToInstance` calls the controller inside a
+  try/catch, so a throw from the apply never escapes to the caller.
 - A private `suppressSelectionReport` flag and a `withoutSelectionReport(run)`
   helper that sets it, runs, and restores what it was.
   `handleGraphSelection` always updates the overview; when the flag is false
