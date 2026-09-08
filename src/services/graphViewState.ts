@@ -6,6 +6,11 @@ import {
 } from "../domain/workIdentity";
 import type { GraphViewTransform } from "./citationGraphRenderer";
 import {
+  allCollectionsTicked,
+  onlyCollectionsTicked,
+  type GraphViewCollectionTicks,
+} from "./graphScopeModel";
+import {
   externalWorkToFocusNode,
   type GraphFocusDirection,
   type GraphFocusLocality,
@@ -14,6 +19,8 @@ import {
   defaultPaperListFilterState,
   type PaperListFilterState,
 } from "./paperListViewService";
+
+export type { GraphViewCollectionTicks };
 
 /**
  * A graph as a recipe: what to seed it with and how to show it. Neighbours
@@ -24,7 +31,7 @@ import {
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 1;
+export const GRAPH_VIEW_STATE_VERSION = 2;
 
 export type GraphViewSeed =
   /** A Zotero item, by key rather than ID: keys survive sync, IDs do not. */
@@ -46,9 +53,26 @@ export interface GraphViewState {
   seeds: GraphViewSeed[];
   explore: GraphViewExploreSettings;
   filters: PaperListFilterState;
+  /** Which of the library's folders are drawn. */
+  collections: GraphViewCollectionTicks;
+  /** Papers in no folder are drawn. */
+  includeUnfiled: boolean;
+  /** Papers outside Zotero are drawn. */
+  includeExternal: boolean;
+  /** Papers the reader removed one by one. */
+  hiddenKeys: string[];
   camera: GraphViewTransform | null;
   /** The custom tab title, or null when the title is derived. */
   title: string | null;
+  /**
+   * True when the ticks came out of the version 1 migration and still name
+   * only the folders that recipe listed. The view expands them once through
+   * the library's folder tree, because version 1 drew a scoped parent's whole
+   * subtree. Never serialised: it is a fact about this parse, not about the
+   * graph, and ticks the rail wrote must never be expanded — a child unticked
+   * under a ticked parent would come back.
+   */
+  ticksNeedDescendants?: boolean;
 }
 
 const DIRECTIONS: readonly GraphFocusDirection[] = [
@@ -64,6 +88,10 @@ export function emptyGraphViewState(): GraphViewState {
     seeds: [],
     explore: { direction: "both", locality: "all" },
     filters: defaultPaperListFilterState(),
+    collections: allCollectionsTicked(),
+    includeUnfiled: true,
+    includeExternal: true,
+    hiddenKeys: [],
     camera: null,
     title: null,
   };
@@ -139,7 +167,8 @@ export function resolveGraphViewSeeds(
 }
 
 export function serializeGraphViewState(state: GraphViewState): string {
-  return JSON.stringify(state);
+  const { ticksNeedDescendants: _migrated, ...persisted } = state;
+  return JSON.stringify(persisted);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -256,6 +285,57 @@ function parseCamera(value: unknown): GraphViewTransform | null {
     : { x, y, scale };
 }
 
+function parseTicks(value: unknown): GraphViewCollectionTicks | null {
+  if (!isRecord(value)) return null;
+  if (value.base !== "all" && value.base !== "none") return null;
+  if (!Array.isArray(value.except)) return null;
+  const except = value.except.filter(
+    (id): id is number => Number.isInteger(id) && (id as number) > 0,
+  );
+  return value.base === "all"
+    ? { base: "all", except }
+    : { base: "none", except };
+}
+
+function parseKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [
+    ...new Set(
+      value.filter((key): key is string => typeof key === "string" && !!key),
+    ),
+  ];
+}
+
+/**
+ * A version 1 recipe stored the folders a graph was scoped to — a whitelist —
+ * so an empty list is the whole library and a non-empty one is exactly those
+ * folders. Nothing was hidden, and neither Unfiled nor Not in Zotero existed,
+ * so both are on. The list is lifted out of `filters`, because a graph's
+ * folders live in the ticks now.
+ */
+function migrateFromVersion1(
+  filters: PaperListFilterState,
+): Pick<
+  GraphViewState,
+  | "collections"
+  | "includeUnfiled"
+  | "includeExternal"
+  | "hiddenKeys"
+  | "ticksNeedDescendants"
+> {
+  const scoped = filters.collectionIDs;
+  filters.collectionIDs = [];
+  return {
+    collections: scoped.length
+      ? onlyCollectionsTicked(scoped)
+      : allCollectionsTicked(),
+    includeUnfiled: true,
+    includeExternal: true,
+    hiddenKeys: [],
+    ticksNeedDescendants: scoped.length > 0,
+  };
+}
+
 export function parseGraphViewState(json: string): GraphViewState | null {
   let raw: unknown;
   try {
@@ -263,11 +343,29 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   } catch {
     return null;
   }
-  if (!isRecord(raw) || raw.version !== GRAPH_VIEW_STATE_VERSION) return null;
+  if (!isRecord(raw)) return null;
+  if (raw.version !== GRAPH_VIEW_STATE_VERSION && raw.version !== 1) {
+    return null;
+  }
   const empty = emptyGraphViewState();
   const explore = isRecord(raw.explore) ? raw.explore : {};
   const direction = DIRECTIONS.find((d) => d === explore.direction);
   const locality = LOCALITIES.find((l) => l === explore.locality);
+  const filters = parseFilters(raw.filters);
+  const scope =
+    raw.version === 1
+      ? migrateFromVersion1(filters)
+      : {
+          collections: parseTicks(raw.collections) ?? empty.collections,
+          includeUnfiled:
+            typeof raw.includeUnfiled === "boolean" ? raw.includeUnfiled : true,
+          includeExternal:
+            typeof raw.includeExternal === "boolean"
+              ? raw.includeExternal
+              : true,
+          hiddenKeys: parseKeys(raw.hiddenKeys),
+          ticksNeedDescendants: false,
+        };
   return {
     version: GRAPH_VIEW_STATE_VERSION,
     seeds: Array.isArray(raw.seeds)
@@ -279,7 +377,8 @@ export function parseGraphViewState(json: string): GraphViewState | null {
       direction: direction ?? empty.explore.direction,
       locality: locality ?? empty.explore.locality,
     },
-    filters: parseFilters(raw.filters),
+    filters,
+    ...scope,
     camera: parseCamera(raw.camera),
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : null,
   };

@@ -57,6 +57,7 @@ function seededState(itemKey: string) {
     ...emptyGraphViewState(),
     seeds: [{ kind: "item" as const, itemKey }],
     title: "Seeded",
+    ticksNeedDescendants: false,
   };
 }
 

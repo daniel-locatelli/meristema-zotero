@@ -4,6 +4,7 @@ import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
 import {
   emptyGraphViewState,
+  GRAPH_VIEW_STATE_VERSION,
   markExternalSeedImported,
   parseGraphViewState,
   resolveGraphViewSeeds,
@@ -174,6 +175,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
     },
     camera: { x: 12, y: -4, scale: 1.5 },
     title: "My graph",
+    ticksNeedDescendants: false,
   };
 
   it("round-trips through JSON", function () {
@@ -189,13 +191,16 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 2 });
+    const other = JSON.stringify({ ...state, version: 4 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
   it("fills missing optional fields with defaults", function () {
     const sparse = JSON.stringify({ version: 1, seeds: [] });
-    expect(parseGraphViewState(sparse)).to.deep.equal(emptyGraphViewState());
+    expect(parseGraphViewState(sparse)).to.deep.equal({
+      ...emptyGraphViewState(),
+      ticksNeedDescendants: false,
+    });
   });
 
   it("drops malformed seeds and unknown Explore values", function () {
@@ -250,6 +255,71 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
         work: work(),
       },
     ]);
+  });
+
+  it("round-trips a version 2 state", function () {
+    const state: GraphViewState = {
+      ...emptyGraphViewState(),
+      collections: { base: "none", except: [4, 7] },
+      includeUnfiled: false,
+      includeExternal: false,
+      hiddenKeys: ["item:9"],
+      ticksNeedDescendants: false,
+    };
+    expect(parseGraphViewState(serializeGraphViewState(state))).to.deep.equal(
+      state,
+    );
+  });
+
+  it("migrates a version 1 recipe with no folder filter to the all base", function () {
+    const v1 = JSON.stringify({
+      version: 1,
+      seeds: [],
+      explore: { direction: "both", locality: "all" },
+      filters: { collectionIDs: [] },
+      camera: null,
+      title: null,
+    });
+    const parsed = parseGraphViewState(v1);
+    expect(parsed?.version).to.equal(GRAPH_VIEW_STATE_VERSION);
+    expect(parsed?.collections).to.deep.equal({ base: "all", except: [] });
+    expect(parsed?.includeUnfiled).to.equal(true);
+    expect(parsed?.includeExternal).to.equal(true);
+    expect(parsed?.hiddenKeys).to.deep.equal([]);
+    // Nothing to expand: the whole library was already ticked.
+    expect(parsed?.ticksNeedDescendants).to.equal(false);
+  });
+
+  it("migrates a version 1 recipe naming folders to the none base", function () {
+    const v1 = JSON.stringify({
+      version: 1,
+      seeds: [],
+      explore: { direction: "both", locality: "all" },
+      filters: { collectionIDs: [7, 4] },
+      camera: null,
+      title: null,
+    });
+    const parsed = parseGraphViewState(v1);
+    expect(parsed?.collections).to.deep.equal({ base: "none", except: [4, 7] });
+    // Version 1 drew a scoped parent's whole subtree, so the view expands
+    // these once against the library's folder tree.
+    expect(parsed?.ticksNeedDescendants).to.equal(true);
+    expect(parsed?.filters.collectionIDs).to.deep.equal([]);
+  });
+
+  it("keeps the migration flag out of the serialised recipe", function () {
+    const state: GraphViewState = {
+      ...emptyGraphViewState(),
+      ticksNeedDescendants: true,
+    };
+    expect(serializeGraphViewState(state)).to.not.contain(
+      "ticksNeedDescendants",
+    );
+  });
+
+  it("still returns null for a version it does not know", function () {
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 3 });
+    expect(parseGraphViewState(future)).to.equal(null);
   });
 });
 
