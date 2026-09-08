@@ -34,6 +34,7 @@ import {
 } from "./graphMetricScale";
 import {
   graphThemeFor,
+  inLibraryRingColor,
   observeGraphScheme,
   resolveGraphScheme,
   type GraphTheme,
@@ -203,6 +204,10 @@ export class CitationGraphRenderer {
   private selectedKey: string | null = null;
   private pinnedKeys = new Set<string>();
   private seedKeys = new Set<string>();
+  /** Each seed's own colour, so the rail's bullseye and the plot's agree. */
+  private seedColors = new Map<string, string>();
+  /** Papers a seed reached that the library already holds. */
+  private inLibraryReachedKeys = new Set<string>();
   private hoverKey: string | null = null;
   private ghostPreview: GhostPreview | null = null;
   private transform = { x: 0, y: 0, scale: 1 };
@@ -865,13 +870,33 @@ export class CitationGraphRenderer {
       context.strokeStyle = this.theme.states.searchMatch;
       context.stroke();
     }
+    if (
+      this.inLibraryReachedKeys.has(node.key) &&
+      !this.seedKeys.has(node.key)
+    ) {
+      // A result you already own, told from one you do not. Thin, and a tint
+      // of the node's own fill: stage 4 reserves unfilled outlines for papers
+      // below the citation floor, and two outline meanings cannot be told
+      // apart on one plot.
+      context.save();
+      context.beginPath();
+      context.arc(position.x, position.y, radius + 2.5 * ratio, 0, Math.PI * 2);
+      context.lineWidth = 1.4 * ratio;
+      context.strokeStyle = inLibraryRingColor(
+        colors[0] ?? this.theme.inks.primary,
+        this.theme,
+      );
+      context.stroke();
+      context.restore();
+    }
     if (this.seedKeys.has(node.key)) {
       context.save();
       context.beginPath();
       context.arc(position.x, position.y, radius + 4 * ratio, 0, Math.PI * 2);
       context.lineWidth = 2.4 * ratio;
       if (ghosted) context.setLineDash([5 * ratio, 3 * ratio]);
-      context.strokeStyle = this.theme.states.seed;
+      context.strokeStyle =
+        this.seedColors.get(node.key) ?? this.theme.states.seed;
       context.stroke();
       context.restore();
     }
@@ -1409,6 +1434,16 @@ export class CitationGraphRenderer {
     if (draw) this.draw();
   }
 
+  public setSeedColors(colors: ReadonlyMap<string, string>, draw = true): void {
+    this.seedColors = new Map(colors);
+    if (draw) this.draw();
+  }
+
+  public setInLibraryReachedKeys(keys: ReadonlySet<string>, draw = true): void {
+    this.inLibraryReachedKeys = new Set(keys);
+    if (draw) this.draw();
+  }
+
   public syncModel(options: { project?: boolean; draw?: boolean } = {}): void {
     const validKeys = new Set(this.model.nodes.map((node) => node.key));
     for (const key of [...this.positions.keys()]) {
@@ -1429,6 +1464,12 @@ export class CitationGraphRenderer {
     );
     this.seedKeys = new Set(
       [...this.seedKeys].filter((key) => validKeys.has(key)),
+    );
+    this.seedColors = new Map(
+      [...this.seedColors].filter(([key]) => validKeys.has(key)),
+    );
+    this.inLibraryReachedKeys = new Set(
+      [...this.inLibraryReachedKeys].filter((key) => validKeys.has(key)),
     );
     if (this.selectedKey && !validKeys.has(this.selectedKey)) {
       this.selectedKey = null;

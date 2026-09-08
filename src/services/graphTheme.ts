@@ -45,6 +45,11 @@ export interface GraphStateTokens {
   seed: string;
   searchMatch: string;
   retracted: string;
+  /**
+   * The in-library ring's colour when a node's fill cannot be brightened —
+   * a ramp stop given as `rgba(...)`, or a missing fill.
+   */
+  inLibraryRing: string;
 }
 
 export interface GraphCategoricalTokens {
@@ -117,6 +122,7 @@ const LIGHT_THEME: GraphTheme = {
     seed: "#63665d",
     searchMatch: "#0f110d",
     retracted: "#a33a3a",
+    inLibraryRing: "#4f9a5e",
   },
 };
 
@@ -159,6 +165,7 @@ const DARK_THEME: GraphTheme = {
     seed: "#9a9c93",
     searchMatch: "#ffffff",
     retracted: "#d98b8b",
+    inLibraryRing: "#96bf54",
   },
 };
 
@@ -189,6 +196,7 @@ export function graphThemeCustomProperties(
     ["--cm-edge-dimmed", theme.edges.dimmed],
     ["--cm-state-selected", theme.states.selected],
     ["--cm-state-seed", theme.states.seed],
+    ["--cm-state-in-library-ring", theme.states.inLibraryRing],
     ["--cm-state-search-match", theme.states.searchMatch],
     ["--cm-state-retracted", theme.states.retracted],
   ];
@@ -263,4 +271,38 @@ export function observeGraphScheme(
     services?.prefs?.removeObserver?.(GRAPH_APPEARANCE_PREF, observer);
     query?.removeEventListener?.("change", onMediaChange);
   };
+}
+
+/**
+ * Seeds are told apart by colour, and the rail's bullseye has to name the same
+ * paper the plot's does. The categorical swatches are already validated for
+ * separation, so seeds draw from them in order and wrap round.
+ */
+export function seedColorAt(index: number, theme: GraphTheme): string {
+  const swatches = theme.categorical.swatches;
+  const position = Number.isInteger(index) && index > 0 ? index : 0;
+  return swatches[position % swatches.length];
+}
+
+function hexChannel(value: string, start: number): number | null {
+  const parsed = Number.parseInt(value.slice(start, start + 2), 16);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * A brighter tint of a node's own fill: a hop result already in the library
+ * wears a thin ring, so a paper you own is told from one you do not at a
+ * glance while still reading as the same category. Only `#rrggbb` fills can be
+ * brightened; anything else takes the theme's token.
+ */
+export function inLibraryRingColor(fill: string, theme: GraphTheme): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(fill)) return theme.states.inLibraryRing;
+  const channels = [1, 3, 5].map((start) => hexChannel(fill, start));
+  if (channels.some((channel) => channel === null)) {
+    return theme.states.inLibraryRing;
+  }
+  const brightened = (channels as number[]).map((channel) =>
+    Math.min(255, Math.round(channel + (255 - channel) * 0.45)),
+  );
+  return `#${brightened.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
