@@ -325,7 +325,9 @@ does not stop the others.
 1. Open a graph in a detached window with a few seeds. Click items in the
    library list: present nodes select and pan into view when off-screen;
    absent items do nothing. Select three items: present nodes emphasise,
-   the overview empties. Click empty list space: everything clears.
+   the overview empties. Ctrl+click each selected row until none is
+   selected (Zotero's list does not deselect on an empty-space click):
+   everything clears.
 2. Click a node in the detached window: the library row selects and
    scrolls into view; the library tab does not come to the front; the
    quick search, if any, stays. Apply a quick search that hides the item and
