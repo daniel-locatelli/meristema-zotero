@@ -61,6 +61,28 @@ order are both settled.
   — a graph saved before this release opening on the same papers — is the one
   that matters most, because it is the one that would lose the user's work.
 
+## Time-sensitive, and not Stage 2
+
+The user applied for a Semantic Scholar API key on 2026-09-08. Checking the
+code against the application's checkboxes turned up two things, filed as
+backlog **B9** and **B10** and listed in Filler above:
+
+- **B9, before the key arrives.** `providerExecutionPolicy.ts` treats a key as
+  permission to speed up: keyless is 1 request in flight at ≥1100 ms apart,
+  keyed is `requestParallelism: 2` at `minimumStartDelayMs: 150`, about six or
+  seven requests a second. The standard authenticated plan is one per second.
+  Nothing is wrong today; it goes wrong the moment the key is pasted in. Do
+  this one **before** that happens.
+- **B10, to match a commitment already made.** `http.ts` has
+  `RETRY_DELAYS_MS = [1500]`: one retry, fixed, no backoff. The user ticked
+  the application's "I will apply exponential backoff" box, so the code should
+  match. `Retry-After` handling and the 15 s abandon rule are deliberate and
+  stay.
+
+Both are small and independent of Stage 2. One plan covers them, and if the
+key arrives mid-Stage-2 they are worth interrupting for — B9 especially, since
+its cost is 429s for the key's owner.
+
 ## Unexplained, worth a glance
 
 Partway through this session, nineteen tracked files under

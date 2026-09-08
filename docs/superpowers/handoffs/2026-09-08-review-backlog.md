@@ -304,6 +304,60 @@ Process: short brainstorm, then a small plan.
 
 ---
 
+## B9. A Semantic Scholar key makes the plugin request faster than its plan allows
+
+Found 2026-09-08 while checking the code against Semantic Scholar's API
+key application, not from a user report. Nothing is broken today, because
+nobody has a key yet; it breaks on the day one is pasted in.
+
+`providerExecutionPolicy.ts` treats a key as permission to speed up. The
+keyless path is one request in flight with at least 1100 ms between
+starts; with a key, `STATIC_POLICY["semantic-scholar"]` applies —
+`requestParallelism: 2`, `minimumStartDelayMs: 150` — which starts
+roughly six or seven requests a second. Semantic Scholar's standard
+authenticated plan is one request per second. So entering a key would
+take the plugin from comfortably inside the limit to several times over
+it, and the key's owner would see 429s where they saw none.
+
+The keyed policy should match the plan the key actually grants rather
+than assume a key means "go faster". Decide with the user which plan
+theirs is before choosing the numbers; the same question applies to the
+OpenAlex key, whose policy has the identical shape.
+
+Pointers: `src/services/providerExecutionPolicy.ts` (`STATIC_POLICY` and
+the two keyless overrides), `src/providers/http.ts` (the per-provider
+queue that enforces them).
+
+---
+
+## B10. There is no backoff; one fixed retry is all a 429 gets
+
+Found alongside B9, and the reason it matters more once B9 is fixed:
+throttling keeps requests under a limit, backoff is what recovers when
+the limit is hit anyway.
+
+`http.ts` has `RETRY_DELAYS_MS = [1500]` — a single retry at a fixed
+1.5 seconds, whatever the failure. It does honour `Retry-After`, capped
+at `MAX_RETRY_AFTER_MS` (15 s), and abandons the request when the header
+asks for longer, which is deliberate: a long wait used to freeze every
+request queued behind one unavailable provider. That much should stay.
+
+What is missing is exponential backoff with jitter across three or four
+attempts for a 429 or a 5xx that carries no `Retry-After`. Semantic
+Scholar's key application asks the applicant to commit to exactly this,
+and the user has ticked that box, so the code should match the
+commitment.
+
+Watch the interaction with the queue: `postponeProvider` already delays
+the whole provider rather than the one request, which is the right level
+for a shared rate limit. Backoff should raise that delay, not add a
+second, competing wait inside `requestJSON`.
+
+Pointers: `src/providers/http.ts` (`RETRY_DELAYS_MS`, `parseRetryAfter`,
+`postponeProvider`, the retry loop in `requestJSON`).
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
