@@ -32,3 +32,10 @@ nothing about a finished task is kept anywhere else.
   `a>b:focus`, so the merge's dedupe by `edge.key` cannot collapse a
   citation that both sides carry. Worth a look in the manual walk-through
   (doubled edge between two library papers a seed also reached).
+- Task 5, 4b4052f: `seedColorAt` and `inLibraryRingColor` in the theme (with
+  the new `inLibraryRing` token in both palettes and its custom property),
+  and the renderer draws per-seed rings plus the in-library ring.
+  `npm run check` green, 291 unit tests. Surprise: only two of the plan's
+  lines needed rewrapping for `printWidth: 80`; the new token's two values
+  are existing ramp stops, so the ring is not distinguishable from a
+  ramp-coloured fill if a later stage needs that.

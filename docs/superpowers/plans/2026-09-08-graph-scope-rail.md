@@ -1580,7 +1580,7 @@ reserves them for papers below the citation floor.
   renderer gains `setSeedColors(colors: ReadonlyMap<string, string>, draw?: boolean): void`
   and `setInLibraryReachedKeys(keys: ReadonlySet<string>, draw?: boolean): void`.
 
-- [ ] **Step 1: Write the failing theme tests**
+- [x] **Step 1: Write the failing theme tests**
 
 Create `test/unit/graphTheme.test.ts`:
 
@@ -1633,12 +1633,12 @@ describe("the in-library ring", function () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `seedColorAt is not a function`.
 
-- [ ] **Step 3: Extend the theme**
+- [x] **Step 3: Extend the theme**
 
 In `src/services/graphTheme.ts`, add the token to the interface:
 
@@ -1712,12 +1712,12 @@ export function inLibraryRingColor(fill: string, theme: GraphTheme): string {
 }
 ```
 
-- [ ] **Step 4: Run the theme tests**
+- [x] **Step 4: Run the theme tests**
 
 Run: `npm run test:unit`
 Expected: PASS.
 
-- [ ] **Step 5: Draw the two marks**
+- [x] **Step 5: Draw the two marks**
 
 In `src/services/citationGraphRenderer.ts`, import the helper:
 
@@ -1799,12 +1799,12 @@ this.inLibraryReachedKeys = new Set(
 );
 ```
 
-- [ ] **Step 6: Run the gate**
+- [x] **Step 6: Run the gate**
 
 Run: `npm run check`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/services/graphTheme.ts src/services/citationGraphRenderer.ts \
