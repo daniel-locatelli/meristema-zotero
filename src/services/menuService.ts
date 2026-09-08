@@ -4,6 +4,10 @@ import { paneSelectedLibraryID } from "./paneLibrary";
 import { updateCitationDataForItems } from "./citationUpdateService";
 import { multiCollectionGraphTitle } from "./graphInstancePolicy";
 import { contextCollectionIDs, contextRegularItems } from "./menuContext";
+import {
+  fillSavedGraphPopup as fillSavedGraphRows,
+  hasSavedGraphRows,
+} from "./savedGraphMenu";
 import { listSavedGraphs } from "./savedGraphService";
 import {
   getDefaultHostWindow,
@@ -22,7 +26,6 @@ import {
 const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
 const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
-const SAVED_GRAPH_DYNAMIC_ATTR = "data-meristema-saved-graph";
 
 // Menu labels do not convey what the two intents cost: showing papers only
 // draws connections already in the library, while exploring fetches
@@ -394,70 +397,38 @@ function collectionMenus(): MenuData[] {
   ];
 }
 
-// The submenu's rows are only known when it shows, so, like the item menu's
-// per-view entries, they are injected while the popup is open and removed
-// when it hides. One static entry, "No saved graphs yet.", is declared up
-// front: it is the anchor the rows are inserted after, and the message when
-// there are none. Deleting is not offered here; the graph's own menu has it.
-async function fillSavedGraphPopup(
+// Row building lives in savedGraphMenu.ts, which knows nothing of Zotero, so
+// the first-showing behaviour is unit-tested; this only supplies the DOM,
+// the listing and the open action.
+function fillSavedGraphPopup(
   popup: HTMLElement,
   libraryID: number,
   hostWindow: MainWindow,
 ): Promise<void> {
-  const clear = (): void => {
-    popup
-      .querySelectorAll(`[${SAVED_GRAPH_DYNAMIC_ATTR}]`)
-      .forEach((node) => node.remove());
-  };
-  clear();
-  const anchor = Array.from(popup.children).find(
-    (child) => !child.hasAttribute(SAVED_GRAPH_DYNAMIC_ATTR),
-  ) as HTMLElement | undefined;
-  if (!anchor) return;
-  let graphs;
-  try {
-    graphs = await listSavedGraphs(libraryID);
-  } catch (error) {
-    // The submenu must never render completely empty: put the anchor back
-    // and let the caller's .catch(report) log the failure.
-    anchor.hidden = false;
-    throw error;
-  }
-  clear();
-  anchor.hidden = graphs.length > 0;
   const document = popup.ownerDocument as any;
-  let previous: HTMLElement = anchor;
-  for (const graph of graphs) {
-    const item = document.createXULElement("menuitem");
-    item.setAttribute(SAVED_GRAPH_DYNAMIC_ATTR, String(graph.id));
-    item.setAttribute("class", "menuitem-iconic");
-    item.setAttribute("image", ICON);
-    item.setAttribute("label", graph.name);
-    item.setAttribute(
-      "acceltext",
-      new Date(graph.modified).toLocaleDateString(undefined, {
+  return fillSavedGraphRows(popup as any, {
+    list: () => listSavedGraphs(libraryID),
+    createRow: () => {
+      const item = document.createXULElement("menuitem");
+      item.setAttribute("image", ICON);
+      return item;
+    },
+    open: (graph) => {
+      void openSavedGraph(graph.id, hostWindow)
+        .then((result) => {
+          if (result === "deleted") {
+            (hostWindow as any).alert?.("This graph was deleted.");
+          }
+        })
+        .catch(report);
+    },
+    formatModified: (iso) =>
+      new Date(iso).toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
         day: "numeric",
       }),
-    );
-    item.addEventListener(
-      "command",
-      () => {
-        void openSavedGraph(graph.id, hostWindow)
-          .then((result) => {
-            if (result === "deleted") {
-              (hostWindow as any).alert?.("This graph was deleted.");
-            }
-          })
-          .catch(report);
-      },
-      { once: true },
-    );
-    previous.after(item);
-    previous = item;
-  }
-  popup.addEventListener("popuphidden", clear, { once: true });
+  });
 }
 
 function openSavedGraphSubmenu(): MenuData {
@@ -485,6 +456,12 @@ function openSavedGraphSubmenu(): MenuData {
         l10nID: `${config.addonRef}-open-saved-graph-empty-command`,
         onShowing: (_event: Event, context: any) => {
           context.setEnabled(false);
+          // Created on the submenu's first showing, after the fill above has
+          // usually already run, so decide visibility from the rows present.
+          const entry = safeContextValue(context, "menuElem") as
+            HTMLElement | undefined;
+          const popup = entry?.parentElement;
+          if (popup) context.setVisible(!hasSavedGraphRows(popup as any));
         },
       },
     ],
