@@ -244,6 +244,62 @@ authors; (2) enrichment should not skip such items when a DOI or title
 exists; (3) matching by title+year only. Brainstorm briefly, then a
 small plan.
 
+## B8. The saved-graph dialogs are cramped, and Delete paints white edges
+
+Symptom (user's words, walking the 2026-09-08 verification batch): "The
+dialogs should be more spacious (including rename and all the others).
+Right now it is too tight, the content too close to one another: the
+buttons, the text, the icon, the edge. Also, right now the delete is
+loading with some errors in the colors. The right and bottom edges load
+white lines as if there was an error."
+
+Affects every dialog B1 introduced: Save as, Rename View, and the Delete
+confirm.
+
+Cause: B1 moved these to `Services.prompt` to get a real title and drop
+the question-mark icon, and `Services.prompt` renders Firefox's own
+`commonDialog`. Its padding is chrome we do not own, and the white right
+and bottom edges are that dialog's frame failing to pick up Zotero's dark
+theme. No stylesheet of ours reaches it. B1's assertions all passed; this
+is the cost of how they were met.
+
+Pointers: `src/services/windowService.ts:546` (`askName`, prompt) and
+`:587` (`remove`, `confirmEx`, `DELETE_CANCEL_BUTTONS`);
+`src/services/menuService.ts:550` (Rename View). Spec:
+`docs/superpowers/specs/2026-09-07-durable-graphs-design.md`.
+
+Design call for the session, confirm with the user before building: keep
+the native dialogs and accept their look, or replace all three with an
+in-window modal built from the plugin's own DOM and `graph.css`, which is
+how every other surface in this plugin is drawn and would give full
+control of spacing and theme. The second is more work and is not an OS
+dialog, and Rename View is raised from Zotero's tab context menu, outside
+the graph view, so it would need a window-level host.
+
+Process: short brainstorm, then spec and plan.
+
+## F4. Show the selected paper's abstract in the graph
+
+Symptom (user's words, alongside the F1 check): "would be nice to also
+see the papers abstract directly in the graph when you select one."
+
+The detail pane already holds the abstract for a selected paper; the ask
+is to have it without leaving the plot. Decide with the user whether this
+is the pane being opened or widened on selection, an addition to the
+node's hover tooltip, or a new block in the Overview tab.
+
+Pointers: `src/services/paperDetailModel.ts` and `paperDetailView.ts`
+(the Overview tab and what it already reads), the tooltip in
+`src/services/citationGraphRenderer.ts`, and the 6a design's tooltip,
+which is specified in
+`docs/design_handoff_citation_chain_depth/README.md` and gains a
+`Make seed` button in stage 3.
+
+Note the interaction with Stage 2: `2026-09-08-graph-scope-rail-design.md`
+leaves the detail pane alone, so this can land before or after it.
+
+Process: short brainstorm, then a small plan.
+
 ---
 
 ## Answers the user asked for
