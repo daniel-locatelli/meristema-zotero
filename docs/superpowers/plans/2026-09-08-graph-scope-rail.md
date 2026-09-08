@@ -84,7 +84,7 @@ migration would silently destroy every saved graph. That is why this is first.
   `includeUnfiled: boolean`, `includeExternal: boolean`,
   `hiddenKeys: string[]`, and the non-persisted `ticksNeedDescendants?: boolean`.
 
-- [ ] **Step 1: Write the failing tick tests**
+- [x] **Step 1: Write the failing tick tests**
 
 Create `test/unit/graphScopeModel.test.ts`:
 
@@ -152,12 +152,12 @@ describe("collection ticks", function () {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `Cannot find module '../../src/services/graphScopeModel'`.
 
-- [ ] **Step 3: Write the tick module**
+- [x] **Step 3: Write the tick module**
 
 Create `src/services/graphScopeModel.ts`:
 
@@ -276,12 +276,12 @@ export function collectionTickState(
 }
 ```
 
-- [ ] **Step 4: Run the tick tests**
+- [x] **Step 4: Run the tick tests**
 
 Run: `npm run test:unit`
 Expected: PASS, with the six new cases green.
 
-- [ ] **Step 5: Write the failing state tests**
+- [x] **Step 5: Write the failing state tests**
 
 In `test/unit/graphViewState.test.ts`, add `GRAPH_VIEW_STATE_VERSION` to the
 import from `graphViewState`, and append these cases inside the existing
@@ -357,13 +357,13 @@ against `emptyGraphViewState()`; a sparse version 2 object now parses with
 `ticksNeedDescendants: false`, so change that expectation to
 `{ ...emptyGraphViewState(), ticksNeedDescendants: false }`.
 
-- [ ] **Step 6: Run them and watch them fail**
+- [x] **Step 6: Run them and watch them fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — the round-trip case reports `collections` missing, and both
 migration cases get `null` because version 1 is rejected.
 
-- [ ] **Step 7: Take `graphViewState.ts` to version 2**
+- [x] **Step 7: Take `graphViewState.ts` to version 2**
 
 Add the import and the re-export near the top of
 `src/services/graphViewState.ts`:
@@ -547,7 +547,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
 }
 ```
 
-- [ ] **Step 8: Run the gate**
+- [x] **Step 8: Run the gate**
 
 Run: `npm run check`
 Expected: PASS. `tsc` flags any `GraphViewState` literal built without the new
@@ -555,7 +555,7 @@ fields; there should be none, because callers spread `emptyGraphViewState()`.
 If one appears, spread `emptyGraphViewState()` there rather than listing
 fields by hand.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/services/graphViewState.ts src/services/graphScopeModel.ts \
