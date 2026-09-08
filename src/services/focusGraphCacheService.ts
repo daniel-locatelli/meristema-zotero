@@ -192,6 +192,12 @@ function cloneProjection(
     edges: projection.edges.map((edge) => ({ ...edge })),
     seedKeys: new Set(projection.seedKeys),
     externalKeys: new Set(projection.externalKeys),
+    reachedBySeed: new Map(
+      [...projection.reachedBySeed].map(([seedKey, reached]) => [
+        seedKey,
+        new Set(reached),
+      ]),
+    ),
     hidden: { ...projection.hidden },
   };
 }

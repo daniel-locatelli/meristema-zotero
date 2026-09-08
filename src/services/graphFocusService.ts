@@ -51,10 +51,17 @@ export interface GraphFocusInput {
 export interface GraphFocusProjection {
   state: GraphFocusState;
   seeds: CitationGraphNode[];
+  /**
+   * The papers the seeds reached, as nodes. No longer the graph: the view
+   * merges these into the library model rather than swapping the model for
+   * them, so adding a seed only ever adds papers.
+   */
   nodes: CitationGraphNode[];
   edges: CitationGraphEdge[];
   seedKeys: Set<string>;
   externalKeys: Set<string>;
+  /** Which papers each seed reached, keyed by seed node key. */
+  reachedBySeed: Map<string, Set<string>>;
   hidden: { references: number; citedBy: number };
 }
 
@@ -529,6 +536,8 @@ export function buildGraphFocusProjection(
   const nodes = new Map<string, CitationGraphNode>();
   for (const seed of seeds) nodes.set(seed.key, seed);
   const edges = new Map<string, CitationGraphEdge>();
+  const reachedBySeed = new Map<string, Set<string>>();
+  for (const seed of seeds) reachedBySeed.set(seed.key, new Set<string>());
 
   // Preserve direct seed-to-seed relations already known in the library graph.
   if (input.index) {
@@ -574,6 +583,7 @@ export function buildGraphFocusProjection(
       : { ...entry.node, kind: entry.node.kind ?? "local", focusRole };
     nodes.set(node.key, node);
     for (const seedKey of entry.seedKeys) {
+      reachedBySeed.get(seedKey)?.add(node.key);
       const relation =
         role === "reference"
           ? edge(seedKey, node.key, [...entry.provenances][0] ?? "focus")
@@ -603,9 +613,49 @@ export function buildGraphFocusProjection(
         .filter((node) => node.kind === "external")
         .map((node) => node.key),
     ),
+    reachedBySeed,
     hidden: {
       references: selectedReferenceResult.hidden,
       citedBy: selectedCitedByResult.hidden,
     },
   };
+}
+
+/** Every paper some seed reached. Rule 1 of the scope order reads this. */
+export function reachedKeysOf(projection: GraphFocusProjection): Set<string> {
+  const keys = new Set<string>();
+  for (const reached of projection.reachedBySeed.values()) {
+    for (const key of reached) keys.add(key);
+  }
+  return keys;
+}
+
+/**
+ * The library graph plus what the seeds brought in. The library's own node
+ * always wins: the projection's copy carries a focus role and a cloned
+ * identity, and the graph is already drawing the original.
+ */
+export function additiveGraphModel(
+  base: {
+    nodes: readonly CitationGraphNode[];
+    edges: readonly CitationGraphEdge[];
+  },
+  projection: GraphFocusProjection | null,
+): { nodes: CitationGraphNode[]; edges: CitationGraphEdge[] } {
+  const nodes = [...base.nodes];
+  const edges = [...base.edges];
+  if (!projection) return { nodes, edges };
+  const nodeKeys = new Set(nodes.map((node) => node.key));
+  for (const node of projection.nodes) {
+    if (nodeKeys.has(node.key)) continue;
+    nodeKeys.add(node.key);
+    nodes.push(node);
+  }
+  const edgeKeys = new Set(edges.map((edge) => edge.key));
+  for (const edge of projection.edges) {
+    if (edgeKeys.has(edge.key)) continue;
+    edgeKeys.add(edge.key);
+    edges.push(edge);
+  }
+  return { nodes, edges };
 }
