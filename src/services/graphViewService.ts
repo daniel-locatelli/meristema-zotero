@@ -58,11 +58,21 @@ import {
   type RelationshipPublicationEvent,
 } from "./relationshipEvents";
 import {
+  collectionScopeIDs,
   createPaperFilterController,
   describeExternalWork,
   describeZoteroPaper,
   type PaperListDescriptor,
 } from "./paperListViewService";
+import {
+  allCollectionsTicked,
+  computeGraphScope,
+  expandTicksThroughDescendants,
+  onlyCollectionsTicked,
+  type GraphScopeResult,
+  type GraphViewCollectionTicks,
+  type ScopePaper,
+} from "./graphScopeModel";
 import {
   exportGraphCSV,
   exportGraphJSON,
@@ -134,9 +144,12 @@ import {
   graphThemeFor,
   observeGraphScheme,
   resolveGraphScheme,
+  seedColorAt,
 } from "./graphTheme";
 import {
+  additiveGraphModel,
   buildGraphFocusProjection,
+  reachedKeysOf,
   externalWorkToFocusNode,
   synchronizeExternalFocusNode,
   type GraphFocusDirection,
@@ -153,7 +166,6 @@ import {
   setFocusRelationshipFragment,
 } from "./focusGraphCacheService";
 import {
-  getFocusGraphAppearance,
   getGraphAppearance,
   resetFocusGraphAppearance,
   resetGraphAppearance,
@@ -339,6 +351,37 @@ export function renderGraphView(
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
   /** What the filter admits, before the search box. See `applyFilters`. */
   let scopeKeys = new Set(visibleKeys);
+  /** Folder tree lookups, built once: the snapshot's folders never move. */
+  const descendantsByID = new Map<number, readonly number[]>(
+    snapshot.collections.map((collection) => [
+      collection.collectionID,
+      collection.includedCollectionIDs.filter(
+        (id) => id !== collection.collectionID,
+      ),
+    ]),
+  );
+  /**
+   * A graph opened on folders is `none`, so a folder made later does not
+   * quietly appear in it; a library graph is `all`, so it does. The base is
+   * set here, once, and unticking rows never flips it.
+   */
+  let collectionTicks: GraphViewCollectionTicks = options.initialCollectionIDs
+    ?.length
+    ? onlyCollectionsTicked([
+        ...collectionScopeIDs(
+          options.initialCollectionIDs,
+          snapshot.collections,
+        ),
+      ])
+    : allCollectionsTicked();
+  let includeUnfiled = true;
+  let includeExternal = true;
+  /** Papers the reader removed one by one, by node key. */
+  const hiddenKeys = new Set<string>();
+  /** What the last `applyFilters` decided, for the rail to print. */
+  // The Scope rail reads it once its handlers are wired.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let lastScope: GraphScopeResult | null = null;
   let mapScopeItemIDs = options.initialMapScopeItemIDs
     ? replaceItemScope(options.initialMapScopeItemIDs)
     : null;
@@ -426,7 +469,6 @@ export function renderGraphView(
   let focusRefreshCount = 0;
   let focusLoadActive = false;
   let focusRebuildFrame = 0;
-  let librarySelectedKeyBeforeFocus: string | null = null;
   let activeRelationshipView: {
     itemKey: string;
     direction: "references" | "cited-by";
@@ -855,9 +897,6 @@ export function renderGraphView(
   let nodeMenuTarget: CitationGraphNode | null = null;
   let nodeMenuOpenEntry: OpenPaperEntry | null = null;
   let currentLayout = initialLayout;
-  let libraryLayoutBeforeFocus: GraphLayoutOptions | null = null;
-  let libraryViewBeforeFocus: GraphViewTransform | null = null;
-  let libraryCollectionFilterBeforeFocus: number[] | undefined;
   let cameraFrame = 0;
   /**
    * A camera handed in with a state. The seeds' automatic relationship check
@@ -984,9 +1023,7 @@ export function renderGraphView(
     },
     () =>
       focusProjection
-        ? resetFocusGraphAppearance(
-            libraryLayoutBeforeFocus ?? getGraphAppearance(),
-          )
+        ? resetFocusGraphAppearance(getGraphAppearance())
         : resetGraphAppearance(),
   );
   appearance.panel.prepend(exploreSection);
@@ -1688,29 +1725,60 @@ export function renderGraphView(
   );
   document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
 
-  const applyFocusProjection = (
+  /** Seeds take the categorical swatches in the order they were added. */
+  const seedColorsFor = (
+    projection: GraphFocusProjection,
+  ): Map<string, string> =>
+    new Map(
+      projection.state.seedKeys.map((key, index) => [
+        key,
+        seedColorAt(index, renderer?.getTheme() ?? graphThemeFor("light")),
+      ]),
+    );
+
+  /** Reached papers the library already holds; they wear the thin ring. */
+  const inLibraryReachedKeys = (
+    projection: GraphFocusProjection,
+  ): Set<string> => {
+    const local = new Set(
+      libraryModel.nodes
+        .filter((node) => node.kind !== "external")
+        .map((node) => node.key),
+    );
+    return new Set(
+      [...reachedKeysOf(projection)].filter((key) => local.has(key)),
+    );
+  };
+
+  const applySeedProjection = (
     projection: GraphFocusProjection,
     projectionOptions: { fit?: boolean } = {},
   ): void => {
     setSeeded(true);
     focusProjection = projection;
-    model.nodes.splice(0, model.nodes.length, ...projection.nodes);
-    model.edges.splice(0, model.edges.length, ...projection.edges);
-    model.statistics.nodes = projection.nodes.length;
-    model.statistics.edges = projection.edges.length;
-    model.statistics.resolvedNodes = projection.nodes.filter(
+    // The projection is an addition, not a replacement: the library graph
+    // stays, and the seeds' external neighbours are merged into it. Unticking
+    // a folder can then never remove a paper a seed brought in, and adding a
+    // seed can never remove anything at all.
+    const merged = additiveGraphModel(libraryModel, projection);
+    model.nodes.splice(0, model.nodes.length, ...merged.nodes);
+    model.edges.splice(0, model.edges.length, ...merged.edges);
+    model.statistics.nodes = merged.nodes.length;
+    model.statistics.edges = merged.edges.length;
+    model.statistics.resolvedNodes = merged.nodes.filter(
       (node) => node.citationCount !== null || node.referenceCount !== null,
     ).length;
-    model.statistics.isolatedNodes = projection.nodes.filter(
+    model.statistics.isolatedNodes = merged.nodes.filter(
       (node) =>
-        !projection.edges.some(
+        !merged.edges.some(
           (edge) => edge.source === node.key || edge.target === node.key,
         ),
     ).length;
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
     renderer?.setSeedKeys(projection.seedKeys, false);
-    renderer?.setPinnedKeys(new Set(), false);
+    renderer?.setSeedColors(seedColorsFor(projection), false);
+    renderer?.setInLibraryReachedKeys(inLibraryReachedKeys(projection), false);
     applyFilters();
     if (projectionOptions.fit) scheduleFocusFit();
     updateFocusBar();
@@ -1766,7 +1834,7 @@ export function renderGraphView(
       focusStateFromControls(focusProjection.state.seedKeys),
     );
     if (!projection) return false;
-    applyFocusProjection(projection, options);
+    applySeedProjection(projection, options);
     return true;
   };
 
@@ -1794,7 +1862,7 @@ export function renderGraphView(
     if (!projection) return false;
     focusDirection.value = projection.state.direction;
     focusLocality.value = projection.state.locality;
-    applyFocusProjection(projection, { fit: options.fit });
+    applySeedProjection(projection, { fit: options.fit });
     const selectedKey = options.selectKey ?? projection.seeds[0].key;
     if (visibleKeys.has(selectedKey)) {
       // The seed the projection lands on is the view's own choice, not a
@@ -2056,18 +2124,6 @@ export function renderGraphView(
     if (!seeds.length) return false;
     const enteringFromLibrary = !focusProjection;
     if (!enteringFromLibrary) resetFocusRefreshTracking();
-    if (enteringFromLibrary) {
-      librarySelectedKeyBeforeFocus = selectedNode?.key ?? null;
-      libraryLayoutBeforeFocus = { ...currentLayout };
-      libraryViewBeforeFocus = renderer?.getViewTransform() ?? null;
-      libraryCollectionFilterBeforeFocus = graphFilter.state().collectionIDs;
-      // A collection is a library-map scope, not a property of an external
-      // neighbour. Keeping it active in Focus View hides every cited/citing
-      // paper that is not already filed in those Zotero collections.
-      if (libraryCollectionFilterBeforeFocus.length) {
-        graphFilter.setCollectionIDs([]);
-      }
-    }
     const state =
       options.state ?? focusStateFromControls(seeds.map((seed) => seed.key));
     const normalizedState = {
@@ -2082,21 +2138,7 @@ export function renderGraphView(
         selectKey: seeds[0].key,
       })
     ) {
-      if (enteringFromLibrary) {
-        libraryLayoutBeforeFocus = null;
-        libraryViewBeforeFocus = null;
-        if (libraryCollectionFilterBeforeFocus !== undefined) {
-          graphFilter.setCollectionIDs(libraryCollectionFilterBeforeFocus);
-          libraryCollectionFilterBeforeFocus = undefined;
-        }
-      }
       return false;
-    }
-    if (enteringFromLibrary) {
-      appearance.setLayout(
-        getFocusGraphAppearance(libraryLayoutBeforeFocus ?? currentLayout),
-        false,
-      );
     }
     scheduleFocusFit();
     for (const seed of seeds) {
@@ -2157,7 +2199,7 @@ export function renderGraphView(
       (seedKey) => seedKey !== key,
     );
     if (!remaining.length) {
-      exitFocus();
+      clearSeeds();
       return;
     }
     activateFocusState(focusStateFromControls(remaining), { fit: true });
@@ -2190,7 +2232,7 @@ export function renderGraphView(
     applyFilters();
   };
 
-  const exitFocus = (): void => {
+  const clearSeeds = (): void => {
     resetFocusRefreshTracking();
     focusProjection = null;
     setSeeded(false);
@@ -2203,47 +2245,10 @@ export function renderGraphView(
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
     renderer?.setSeedKeys(new Set(), false);
-    syncMapPinnedKeys(false);
-    const restoreLayout = libraryLayoutBeforeFocus;
-    const restoreView = libraryViewBeforeFocus;
-    const restoreCollectionFilter = libraryCollectionFilterBeforeFocus;
-    const restoreSelectedKey = librarySelectedKeyBeforeFocus;
-    libraryLayoutBeforeFocus = null;
-    libraryViewBeforeFocus = null;
-    libraryCollectionFilterBeforeFocus = undefined;
-    librarySelectedKeyBeforeFocus = null;
-    if (restoreLayout) appearance.setLayout(restoreLayout, false);
-    if (restoreCollectionFilter !== undefined) {
-      graphFilter.setCollectionIDs(restoreCollectionFilter);
-    }
+    renderer?.setSeedColors(new Map(), false);
+    renderer?.setInLibraryReachedKeys(new Set(), false);
     updateFocusBar();
     applyFilters();
-    // Putting back the selection Explore stashed is not a user gesture.
-    const restoreSelection = (): void =>
-      withoutSelectionReport(() => {
-        const node = restoreSelectedKey
-          ? model.nodes.find(
-              (candidate) => candidate.key === restoreSelectedKey,
-            )
-          : null;
-        if (node) renderer?.selectNode(node.key, false);
-        else renderer?.clearSelection();
-      });
-    if (restoreView) {
-      scheduleCameraAction(() => {
-        if (!focusProjection) {
-          renderer?.setViewTransform(restoreView);
-          restoreSelection();
-        }
-      });
-    } else {
-      restoreSelection();
-      if (!restoreLayout) {
-        scheduleCameraAction(() => {
-          if (!focusProjection) renderer?.fitView();
-        });
-      }
-    }
     notifyStateChange();
   };
 
@@ -3225,56 +3230,43 @@ export function renderGraphView(
 
   applyFilters = (): void => {
     const tokens = normalizeSearch(search.value).split(/\s+/).filter(Boolean);
-    const focusScopeKeys = focusProjection
-      ? new Set(focusProjection.nodes.map((node) => node.key))
-      : null;
-    // Inherited from the single-collection scope: an external Focus neighbour
-    // belongs to no Zotero collection, so an active collection filter would
-    // hide it. The descriptor below fabricates membership to exempt it. With a
-    // set scope, claiming the first selected folder preserves that behaviour
-    // exactly — it is a hack carried forward, not one introduced here.
-    const activeCollectionID = graphFilter.state().collectionIDs[0] ?? null;
-    // Two sets, not one. `scopeKeys` is what the filter admits and is what the
-    // graph is a graph *of* — the Key and the colour assignment are built from
-    // it, so a folder graph names that folder's folders. `visibleKeys` narrows
-    // it further by the search box, which is a transient lens and must not
-    // reshuffle the swatches under the reader as they type.
-    const inScope = (node: CitationGraphNode): boolean => {
-      if (focusScopeKeys && !focusScopeKeys.has(node.key)) return false;
-      if (
-        !focusProjection &&
-        mapScopeItemIDs &&
-        !mapScopeItemIDs.has(node.itemID)
-      ) {
-        return false;
-      }
-      const descriptor = graphFilterDescriptors.get(node.key);
-      if (!descriptor) return false;
-      // Collection membership scopes the library map. It must never hide
-      // external Focus neighbours, even if a collection is selected while
-      // Focus View is already open. Other metadata filters still apply.
-      const filterDescriptor =
-        focusProjection && activeCollectionID !== null
-          ? {
-              ...descriptor,
-              collectionIDs: descriptor.collectionIDs.includes(
-                activeCollectionID,
-              )
-                ? descriptor.collectionIDs
-                : [...descriptor.collectionIDs, activeCollectionID],
-            }
-          : descriptor;
-      if (!graphFilter.matches(filterDescriptor)) return false;
-      return true;
-    };
+    const scope = computeGraphScope({
+      papers: model.nodes.map((node): ScopePaper => ({
+        key: node.key,
+        collectionIDs: node.collectionIDs,
+        inLibrary: node.kind !== "external",
+      })),
+      seedKeys: focusProjection?.seedKeys ?? new Set<string>(),
+      reachedKeys: focusProjection
+        ? reachedKeysOf(focusProjection)
+        : new Set<string>(),
+      ticks: collectionTicks,
+      includeUnfiled,
+      includeExternal,
+      hiddenKeys,
+      // Tags, item type, year and the data-quality switches. Not the search
+      // box: it narrows what is drawn without moving a count the rail prints.
+      facetAdmits: (key) => {
+        const descriptor = graphFilterDescriptors.get(key);
+        return descriptor ? graphFilter.matches(descriptor) : false;
+      },
+    });
+    lastScope = scope;
+    // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
+    // Key and the colour assignment are built from it. `visibleKeys` narrows
+    // it by the search box, which is a transient lens and must not reshuffle
+    // the swatches under the reader as they type.
+    scopeKeys = scope.visibleKeys;
     const matchesSearch = (node: CitationGraphNode): boolean => {
       if (!tokens.length) return true;
       const searchable = graphNodeSearchText(node);
       return tokens.every((token) => searchable.includes(token));
     };
-    const scoped = model.nodes.filter(inScope);
-    scopeKeys = new Set(scoped.map((node) => node.key));
-    visibleKeys = new Set(scoped.filter(matchesSearch).map((node) => node.key));
+    visibleKeys = new Set(
+      model.nodes
+        .filter((node) => scopeKeys.has(node.key) && matchesSearch(node))
+        .map((node) => node.key),
+    );
     renderer?.setScopeKeys(scopeKeys);
     renderer?.setVisibleKeys(visibleKeys, false);
     if (libraryEmphasisKeys) {
@@ -3288,6 +3280,7 @@ export function renderGraphView(
     searchMatchKeys = matches;
     renderer?.setSearchMatches(matches);
     updateSummary();
+    refreshKeyRail();
   };
   search.addEventListener("input", applyFilters);
   for (const control of [focusDirection, focusLocality]) {
@@ -3801,7 +3794,7 @@ export function renderGraphView(
     pinAdded: boolean,
   ): GraphFocusResult => {
     if (!renderer) return "not-found";
-    if (focusProjection) exitFocus();
+    if (focusProjection) clearSeeds();
     const renderedNodes = mapNodesForItems(itemIDs);
     if (!renderedNodes.length) return "not-found";
     const normalizedIDs = renderedNodes.map((node) => node.itemID);
@@ -3905,15 +3898,11 @@ export function renderGraphView(
           .map(seedFromNode)
           .filter((seed): seed is NonNullable<typeof seed> => seed !== null)
       : [];
-    // Entering Explore stashes the library's collection scope and clears the
-    // control, so the scope a seeded graph belongs to is the stashed one.
     const filters = graphFilter.state();
-    // `state()` is a shallow copy, so the array has to be copied too.
-    filters.collectionIDs = [
-      ...(focusProjection && libraryCollectionFilterBeforeFocus !== undefined
-        ? libraryCollectionFilterBeforeFocus
-        : filters.collectionIDs),
-    ];
+    // The graph's folders live in the ticks now. The field stays on the type
+    // because the detail pane's relationship lists still filter by folder
+    // through the same controller.
+    filters.collectionIDs = [];
     return {
       ...emptyGraphViewState(),
       seeds,
@@ -3922,6 +3911,10 @@ export function renderGraphView(
         locality: focusLocality.value as GraphFocusLocality,
       },
       filters,
+      collections: collectionTicks,
+      includeUnfiled,
+      includeExternal,
+      hiddenKeys: [...hiddenKeys],
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
     };
@@ -3946,10 +3939,20 @@ export function renderGraphView(
     withoutSelectionReport(() => {
       focusDirection.value = state.explore.direction;
       focusLocality.value = state.explore.locality;
-      // Filters first, collections included: entering Explore below stashes
-      // the collection scope, so it comes back when the last seed goes.
-      if (focusProjection) exitFocus();
-      graphFilter.setState(state.filters);
+      if (focusProjection) clearSeeds();
+      graphFilter.setState({ ...state.filters, collectionIDs: [] });
+      // A version 1 recipe named the folders it was scoped to and drew each
+      // one's whole subtree, so its ticks are expanded once here — and only
+      // here. Ticks the rail wrote are already closed under the cascade, and
+      // expanding them would resurrect a child unticked under a ticked parent.
+      collectionTicks = state.ticksNeedDescendants
+        ? expandTicksThroughDescendants(state.collections, descendantsByID)
+        : state.collections;
+      includeUnfiled = state.includeUnfiled;
+      includeExternal = state.includeExternal;
+      hiddenKeys.clear();
+      for (const key of state.hiddenKeys) hiddenKeys.add(key);
+      applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
         const paper = paperByKey.get(itemKey);
         return paper ? libraryNodeForItem(paper.itemID) : null;
@@ -4076,12 +4079,11 @@ export function renderGraphView(
       if (!known.length || known.length !== collectionIDs.length) {
         return "not-found";
       }
-      if (focusProjection) exitFocus();
-      mapScopeItemIDs = null;
-      mapPinnedItemIDs = new Set();
-      publishMapScope();
-      syncMapPinnedKeys(false);
-      graphFilter.setCollectionIDs(known);
+      if (focusProjection) clearSeeds();
+      collectionTicks = onlyCollectionsTicked([
+        ...collectionScopeIDs(known, snapshot.collections),
+      ]);
+      applyFilters();
       scheduleCameraAction(() => renderer?.fitVisibleNodes());
       return "selected";
     },
@@ -4131,20 +4133,12 @@ export function renderGraphView(
         // request does not name, and a request never names filters.
         focusDirection.value = options.initialState.explore.direction;
         focusLocality.value = options.initialState.explore.locality;
-        // Entering Explore stashes and clears the collection scope, but that
-        // happened before this state arrived. Route the collections into the
-        // stash instead, or they would hide every neighbour outside them.
-        if (focusProjection) {
-          libraryCollectionFilterBeforeFocus = [
-            ...options.initialState.filters.collectionIDs,
-          ];
-          graphFilter.setState({
-            ...options.initialState.filters,
-            collectionIDs: [],
-          });
-        } else {
-          graphFilter.setState(options.initialState.filters);
-        }
+        // The graph's folders live in the ticks the request already set; the
+        // filter controller no longer scopes the graph by folder.
+        graphFilter.setState({
+          ...options.initialState.filters,
+          collectionIDs: [],
+        });
         if (focusProjection) scheduleFocusRebuild();
       } else {
         applyState(options.initialState);
