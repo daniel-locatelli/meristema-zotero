@@ -111,7 +111,7 @@ export interface PaperDetailHost {
   showInZotero(itemKey: string): void;
   /** Whether Add to Zotero opens the collection chooser first. */
   collectionChooser: boolean;
-  /** Extra chip buttons on a row (Explore from this paper, Add as seed). */
+  /** Extra chip buttons on a row (Add as seed). */
   rowActions?(work: ExternalWork): readonly RowAction[];
   /** A click handler for a row when clicking it previews on the plot. */
   previewRow?(

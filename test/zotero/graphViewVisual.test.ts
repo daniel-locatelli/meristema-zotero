@@ -1148,7 +1148,7 @@ describe("Graph view, as the product builds it", function () {
         .map((item) => item.textContent ?? "");
     // The first paper has nothing to open, so the entry stays out of the menu
     // rather than sitting there dead.
-    expect(shown()).to.deep.equal(["Add as seed", "Explore from this paper"]);
+    expect(shown()).to.deep.equal(["Add as seed", "Remove from graph"]);
     const escape = new view.KeyboardEvent("keydown", {
       bubbles: true,
       key: "Escape",
@@ -1170,7 +1170,7 @@ describe("Graph view, as the product builds it", function () {
     expect(shown()).to.deep.equal([
       "Open online",
       "Add as seed",
-      "Explore from this paper",
+      "Remove from graph",
     ]);
     expect(
       view.document.activeElement?.textContent,
@@ -1186,7 +1186,7 @@ describe("Graph view, as the product builds it", function () {
     expect(
       view.document.activeElement?.textContent,
       "the arrows wrap around all three",
-    ).to.equal("Explore from this paper");
+    ).to.equal("Remove from graph");
     menu.dispatchEvent(escape);
   });
 

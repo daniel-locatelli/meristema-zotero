@@ -6,6 +6,7 @@ import {
   expandTicksThroughDescendants,
   isCollectionTicked,
   onlyCollectionsTicked,
+  purgeHiddenKeys,
   computeGraphScope,
   setCollectionTicks,
 } from "../../src/services/graphScopeModel";
@@ -191,5 +192,20 @@ describe("computeGraphScope", function () {
     expect(result.countByCollection.get(2)).to.equal(1);
     expect(result.unfiledCount).to.equal(1);
     expect(result.externalCount).to.equal(1);
+  });
+});
+
+describe("purgeHiddenKeys", function () {
+  it("forgets a hide once the paper is seeded", function () {
+    // Precedence alone would draw it, since no rule hides a seed — but the key
+    // would sit there waiting, and removing the seed later would make the
+    // paper vanish for a reason taken weeks ago and shown nowhere.
+    const purged = purgeHiddenKeys(new Set(["a", "b"]), ["b"]);
+    expect([...purged]).to.deep.equal(["a"]);
+  });
+
+  it("leaves the set alone when no seed was hidden", function () {
+    const purged = purgeHiddenKeys(new Set(["a"]), ["b"]);
+    expect([...purged]).to.deep.equal(["a"]);
   });
 });

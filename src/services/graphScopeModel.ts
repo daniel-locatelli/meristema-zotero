@@ -211,3 +211,16 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     hiddenCount,
   };
 }
+
+/**
+ * Seeding a paper is an instruction to look at it, so an earlier instruction
+ * to hide it is spent. The same applies to a paper restored by Show all,
+ * which empties the set outright.
+ */
+export function purgeHiddenKeys(
+  hiddenKeys: ReadonlySet<string>,
+  seedKeys: readonly string[],
+): Set<string> {
+  const seeds = new Set(seedKeys);
+  return new Set([...hiddenKeys].filter((key) => !seeds.has(key)));
+}

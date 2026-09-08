@@ -69,6 +69,7 @@ import {
   computeGraphScope,
   expandTicksThroughDescendants,
   onlyCollectionsTicked,
+  purgeHiddenKeys,
   setCollectionTicks,
   type GraphScopeResult,
   type GraphViewCollectionTicks,
@@ -416,14 +417,7 @@ export function renderGraphView(
     },
     rowActions: (work) => {
       const focusNode = focusNodeForWork(work);
-      const actions: RowAction[] = [
-        {
-          label: "Explore from this paper",
-          run: () => {
-            focusOnPaper(focusNode);
-          },
-        },
-      ];
+      const actions: RowAction[] = [];
       if (focusProjection && !focusProjection.seedKeys.has(focusNode.key)) {
         actions.push({
           label: "Add as seed",
@@ -879,11 +873,11 @@ export function renderGraphView(
   const nodeMenuSeed = element(document, "button", "cm-node-menu-item");
   nodeMenuSeed.type = "button";
   nodeMenuSeed.setAttribute("role", "menuitem");
-  const nodeMenuExplore = element(document, "button", "cm-node-menu-item");
-  nodeMenuExplore.type = "button";
-  nodeMenuExplore.setAttribute("role", "menuitem");
-  nodeMenuExplore.textContent = "Explore from this paper";
-  nodeMenu.append(nodeMenuOpen, nodeMenuSeed, nodeMenuExplore);
+  const nodeMenuRemove = element(document, "button", "cm-node-menu-item");
+  nodeMenuRemove.type = "button";
+  nodeMenuRemove.setAttribute("role", "menuitem");
+  nodeMenuRemove.textContent = "Remove from graph";
+  nodeMenu.append(nodeMenuOpen, nodeMenuSeed, nodeMenuRemove);
   graphArea.appendChild(nodeMenu);
   let nodeMenuTarget: CitationGraphNode | null = null;
   let nodeMenuOpenEntry: OpenPaperEntry | null = null;
@@ -2160,6 +2154,12 @@ export function renderGraphView(
       ).values(),
     ];
     if (!seeds.length) return false;
+    const purged = purgeHiddenKeys(
+      hiddenKeys,
+      seeds.map((seed) => seed.key),
+    );
+    hiddenKeys.clear();
+    for (const key of purged) hiddenKeys.add(key);
     const enteringFromLibrary = !focusProjection;
     if (!enteringFromLibrary) resetFocusRefreshTracking();
     const state =
@@ -2185,11 +2185,6 @@ export function renderGraphView(
     return true;
   };
 
-  const enterFocus = (
-    seedCandidate: CitationGraphNode,
-    options: { state?: GraphFocusState } = {},
-  ): boolean => enterFocusSeeds([seedCandidate], options);
-
   const addFocusSeeds = (candidates: readonly CitationGraphNode[]): boolean => {
     const seeds = [
       ...new Map(
@@ -2206,6 +2201,13 @@ export function renderGraphView(
       (seed) => !focusProjection?.seedKeys.has(seed.key),
     );
     if (!missingSeeds.length) return true;
+
+    const purged = purgeHiddenKeys(
+      hiddenKeys,
+      missingSeeds.map((seed) => seed.key),
+    );
+    hiddenKeys.clear();
+    for (const key of purged) hiddenKeys.add(key);
 
     for (const seed of missingSeeds) ensureFocusRelationships(seed);
     const state = focusStateFromControls(
@@ -2243,12 +2245,13 @@ export function renderGraphView(
     activateFocusState(focusStateFromControls(remaining), { fit: true });
   };
 
-  const focusOnPaper = (node: CitationGraphNode): boolean => {
-    const seed = resolveFocusSeed(node);
-    const state = focusProjection
-      ? focusStateFromControls([seed.key])
-      : undefined;
-    return enterFocus(seed, { state });
+  /** A paper the reader does not need. Seeds cannot be hidden. */
+  const hideFromGraph = (key: string): void => {
+    if (focusProjection?.seedKeys.has(key)) return;
+    if (hiddenKeys.has(key)) return;
+    hiddenKeys.add(key);
+    applyFilters();
+    notifyStateChange();
   };
 
   const replaceLibraryGraph = (
@@ -2939,13 +2942,6 @@ export function renderGraphView(
         actions.appendChild(open);
       }
 
-      const focus = element(document, "button", "cm-secondary-button");
-      focus.type = "button";
-      focus.textContent = "Explore from this paper";
-      focus.title = "Replace the current seed set with this paper.";
-      focus.addEventListener("click", () => focusOnPaper(node));
-      actions.appendChild(focus);
-
       const similar = element(document, "button", "cm-primary-button");
       similar.type = "button";
       similar.textContent = "Similar";
@@ -3112,9 +3108,7 @@ export function renderGraphView(
       .catch(() => undefined);
   };
   const nodeMenuItems = (): HTMLButtonElement[] =>
-    [nodeMenuOpen, nodeMenuSeed, nodeMenuExplore].filter(
-      (item) => !item.hidden,
-    );
+    [nodeMenuOpen, nodeMenuSeed, nodeMenuRemove].filter((item) => !item.hidden);
   const openNodeMenu = (
     node: CitationGraphNode,
     clientX: number,
@@ -3124,6 +3118,7 @@ export function renderGraphView(
     nodeMenuTarget = node;
     const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
     nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
+    nodeMenuRemove.hidden = isSeed;
     applyOpenEntry(node);
     nodeMenu.hidden = false;
     // Measured after it is shown, so offsetWidth is the laid-out width.
@@ -3163,10 +3158,10 @@ export function renderGraphView(
     if (focusProjection?.seedKeys.has(node.key)) removeFocusSeed(node.key);
     else addFocusSeed(node);
   });
-  nodeMenuExplore.addEventListener("click", () => {
+  nodeMenuRemove.addEventListener("click", () => {
     const node = nodeMenuTarget;
     closeNodeMenu(true);
-    if (node) focusOnPaper(node);
+    if (node) hideFromGraph(node.key);
   });
   nodeMenu.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
