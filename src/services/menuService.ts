@@ -544,12 +544,19 @@ function tabRenameItem(): MenuData {
         (view) => view.tabID === tabID,
       );
       if (!current) return;
-      const next = (hostWindow as any).prompt?.(
-        "Rename Meristema view",
-        current.title,
+      // Services.prompt gives the dialog a real title; window.prompt would
+      // title it "[JavaScript Application]".
+      const value = { value: current.title };
+      const accepted = Services.prompt.prompt(
+        hostWindow as unknown as mozIDOMWindowProxy,
+        "Meristema",
+        "Rename view",
+        value,
+        "",
+        { value: false },
       );
-      if (next === null || next === undefined) return;
-      const normalized = String(next).trim();
+      if (!accepted) return;
+      const normalized = String(value.value ?? "").trim();
       if (!normalized) return;
       try {
         renameGraphView(tabID, normalized, hostWindow);
