@@ -3,6 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 export type FluentMessageId =
+  | 'add-to-empty-command'
+  | 'add-to-submenu'
   | 'automatic-updates-command'
   | 'collection-new-graph-command'
   | 'meristema-item-pane-header'
@@ -72,7 +74,6 @@ export type FluentMessageId =
   | 'save-as-command'
   | 'save-command'
   | 'settings-command'
-  | 'show-items-new-tab-command'
   | 'show-update-progress-command'
   | 'tools-submenu'
   | 'update-items-command'

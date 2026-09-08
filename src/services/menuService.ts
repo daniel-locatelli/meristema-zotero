@@ -33,7 +33,6 @@ const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 // this — Gecko does not render them over an open menupopup — so the hint goes
 // in acceltext, the only secondary text a menuitem will draw.
 const MENU_HINTS: Record<string, string> = {
-  "show-items-new-tab-command": "library only",
   "collection-new-graph-command": "library only",
   "new-graph-view-command": "library only",
   "open-focus-view-new-tab-command": "fetches online",
@@ -142,31 +141,12 @@ function refreshItems(items: readonly Zotero.Item[]): void {
   }).catch(report);
 }
 
-async function openInNewMap(
-  command: MenuCommandContext,
-  hostWindow: MainWindow,
-): Promise<void> {
-  if (!command.itemIDs.length) return;
-  // Showing papers and seeding them are the same act now: there is no way to
-  // put a paper in a graph without it being a seed.
-  await openFocusItemsInNewTab(command.itemIDs, hostWindow);
-}
-
 async function openInNewFocusView(
   command: MenuCommandContext,
   hostWindow: MainWindow,
 ): Promise<void> {
   if (!command.itemIDs.length) return;
   await openFocusItemsInNewTab(command.itemIDs, hostWindow);
-}
-
-async function showInExistingView(
-  view: OpenGraphViewInfo,
-  command: MenuCommandContext,
-  hostWindow: MainWindow,
-): Promise<void> {
-  if (!command.itemIDs.length) return;
-  await openFocusItemsInView(view.instanceID, command.itemIDs, hostWindow);
 }
 
 async function exploreInExistingView(
@@ -209,52 +189,6 @@ function itemCommand(context: any): MenuCommandContext {
   };
 }
 
-// Sibling menuitems, one per open view, inserted after the anchor entry while
-// the popup is showing. They cannot be declared up front because the number of
-// open views is only known at that moment. They are removed again on
-// popuphidden so the next opening rebuilds them.
-function injectViewItems(
-  context: any,
-  group: string,
-  views: readonly OpenGraphViewInfo[],
-  hint: string | ((view: OpenGraphViewInfo) => string),
-  run: (view: OpenGraphViewInfo) => void,
-  label: (view: OpenGraphViewInfo) => string = (view) => view.title,
-): void {
-  const anchor = safeContextValue(context, "menuElem") as
-    HTMLElement | undefined;
-  const popup = anchor?.parentElement as HTMLElement | null | undefined;
-  if (!anchor || !popup) return;
-
-  // Two anchors share the item menu, so each clears only its own entries.
-  const clear = (): void => {
-    popup
-      .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}="${group}"]`)
-      .forEach((node) => node.remove());
-  };
-  clear();
-  if (!views.length) return;
-
-  const document = popup.ownerDocument as any;
-  let previous: HTMLElement = anchor;
-  for (const view of views) {
-    const item = document.createXULElement("menuitem");
-    item.setAttribute(OPEN_IN_DYNAMIC_ATTR, group);
-    item.setAttribute("class", "menuitem-iconic");
-    item.setAttribute("image", ICON);
-    const text = label(view);
-    item.setAttribute("label", view.active ? `✓ ${text}` : text);
-    item.setAttribute(
-      "acceltext",
-      typeof hint === "function" ? hint(view) : hint,
-    );
-    item.addEventListener("command", () => run(view), { once: true });
-    previous.after(item);
-    previous = item;
-  }
-  popup.addEventListener("popuphidden", clear, { once: true });
-}
-
 function contextCommandItem(
   l10nID: string,
   isAvailable: (context: any) => boolean,
@@ -282,35 +216,13 @@ function contextCommandItem(
 
 // The item context menu is deliberately flat: every Meristema action sits
 // directly in Zotero's own menu, identified by its icon rather than by a
-// parent labelled "Meristema".
+// parent labelled "Meristema". "Add to" is the one exception, because it
+// groups a row per open graph and the count of those is not known until the
+// menu is showing.
 function itemMenus(): MenuData[] {
   const hasItems = (context: any): boolean =>
     contextRegularItems(context).length > 0;
   return [
-    contextCommandItem(
-      `${config.addonRef}-show-items-new-tab-command`,
-      hasItems,
-      async (context) => {
-        await openInNewMap(itemCommand(context), contextWindow(context));
-      },
-      (context) => {
-        const hostWindow = contextWindow(context);
-        injectViewItems(
-          context,
-          "show",
-          getOpenGraphViews(hostWindow),
-          "adds to graph",
-          (view) => {
-            void showInExistingView(
-              view,
-              itemCommand(context),
-              hostWindow,
-            ).catch(report);
-          },
-          (view) => `Show in ${view.title}`,
-        );
-      },
-    ),
     contextCommandItem(
       `${config.addonRef}-open-focus-view-new-tab-command`,
       hasItems,
@@ -318,29 +230,90 @@ function itemMenus(): MenuData[] {
         await openInNewFocusView(itemCommand(context), contextWindow(context));
       },
       (context) => {
-        const hostWindow = contextWindow(context);
         const command = itemCommand(context);
         context.setL10nArgs(JSON.stringify({ count: command.itemIDs.length }));
-        injectViewItems(
-          context,
-          "explore",
-          getOpenGraphViews(hostWindow),
-          "adds as seeds",
-          (view) => {
+      },
+    ),
+    addToSubmenu(),
+  ];
+}
+
+/**
+ * One row per open graph. The rows cannot be declared up front — how many
+ * graphs are open is only known while the menu is showing — so the popup is
+ * filled on `onShowing` and emptied again on `popuphidden`, the same shape the
+ * saved-graph submenu uses.
+ */
+function addToSubmenu(): MenuData {
+  return {
+    menuType: "submenu",
+    l10nID: `${config.addonRef}-add-to-submenu`,
+    icon: ICON,
+    onShowing: (_event: Event, context: any) => {
+      const available = contextRegularItems(context).length > 0;
+      context.setVisible(available);
+      context.setEnabled(available);
+      if (!available) return;
+      const menuElem = safeContextValue(context, "menuElem") as
+        HTMLElement | undefined;
+      const popup =
+        menuElem?.localName === "menupopup"
+          ? menuElem
+          : (menuElem?.querySelector("menupopup") as HTMLElement | null);
+      if (!popup) return;
+      const hostWindow = contextWindow(context);
+      const command = itemCommand(context);
+      const document = popup.ownerDocument as any;
+      popup
+        .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}="add-to"]`)
+        .forEach((node) => node.remove());
+      for (const view of getOpenGraphViews(hostWindow)) {
+        const item = document.createXULElement("menuitem");
+        item.setAttribute(OPEN_IN_DYNAMIC_ATTR, "add-to");
+        item.setAttribute("class", "menuitem-iconic");
+        item.setAttribute("image", ICON);
+        item.setAttribute(
+          "label",
+          view.active ? `✓ ${view.title}` : view.title,
+        );
+        item.setAttribute("acceltext", "adds as seeds");
+        item.addEventListener(
+          "command",
+          () => {
             void exploreInExistingView(view, command, hostWindow).catch(report);
           },
-          (view) => `Add as seed to ${view.title}`,
+          { once: true },
         );
+        popup.appendChild(item);
+      }
+      popup.addEventListener(
+        "popuphidden",
+        () => {
+          popup
+            .querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}="add-to"]`)
+            .forEach((node) => node.remove());
+        },
+        { once: true },
+      );
+    },
+    menus: [
+      {
+        menuType: "menuitem",
+        l10nID: `${config.addonRef}-add-to-empty-command`,
+        onShowing: (_event: Event, context: any) => {
+          context.setEnabled(false);
+          const entry = safeContextValue(context, "menuElem") as
+            HTMLElement | undefined;
+          const popup = entry?.parentElement;
+          if (!popup) return;
+          context.setVisible(
+            popup.querySelectorAll(`[${OPEN_IN_DYNAMIC_ATTR}="add-to"]`)
+              .length === 0,
+          );
+        },
       },
-    ),
-    contextCommandItem(
-      `${config.addonRef}-refresh-command`,
-      hasItems,
-      (context) => {
-        refreshItems(contextRegularItems(context));
-      },
-    ),
-  ];
+    ],
+  };
 }
 
 // A folder opens as a collection-scoped graph rather than as a bag of item

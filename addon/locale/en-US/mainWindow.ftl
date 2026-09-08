@@ -43,8 +43,6 @@ provider-inspire-command =
 refresh-command =
     .label = Refresh
 
-show-items-new-tab-command =
-    .label = Show in New Graph
 
 # $count is how many items were selected. The new graph seeds from them and
 # fetches their references and citing papers.
@@ -88,3 +86,9 @@ save-as-command =
 
 open-saved-graph-empty-command =
     .label = No saved graphs yet.
+
+add-to-submenu =
+    .label = Add to
+
+add-to-empty-command =
+    .label = No graphs are open.
