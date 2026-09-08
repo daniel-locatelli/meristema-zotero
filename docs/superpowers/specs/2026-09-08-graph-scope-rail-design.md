@@ -64,6 +64,18 @@ Then removed when any of these holds:
 The search box then narrows what is left, as it does today, without changing
 any count the rail prints.
 
+Rules 3 to 5 apply to a paper a seed reached, and folder ticks do not. That
+looks inconsistent and is not. A folder is a fact about how you filed a paper,
+so it says nothing about a paper you have never filed, and letting it hide a
+citer would mean a fetched result vanishing for a reason that belongs to a
+different paper. A year, an item type, a retraction and being outside Zotero
+are facts about the paper itself, so they are true of a citer exactly as they
+are of anything else. Setting the year range to 2020 onward and then seeing a
+2015 citer would make the range a lie.
+
+So a year filter does hide a seed's citers from outside the range, and the
+tests assert it. Only a seed itself is beyond every rule.
+
 Rule 1 sitting beside rule 2 rather than under it is the whole design. Adding a seed only
 ever adds papers, and unticking a folder never removes a paper a seed brought
 in. A citer you just fetched cannot disappear because of where it happens to
@@ -118,6 +130,13 @@ the Seeds row's × is how a seed leaves. While anything is hidden the rail's
 Scope section shows a line reading `{n} hidden · Show all`, whose link clears
 the set. `hiddenKeys` travels with the saved graph.
 
+Adding a paper as a seed deletes its key from `hiddenKeys`. Precedence alone
+would draw it, since no rule can hide a seed, but the key would sit there
+waiting: remove the seed later and the paper would vanish again, for a reason
+taken weeks ago and shown nowhere. Seeding a paper is an instruction to look
+at it, so the earlier instruction to hide it is spent. The same applies to a
+paper restored by Show all, which empties the set outright.
+
 ### The rail
 
 `graphKeyRail.ts` renders a Scope section above Key. Key is unchanged in this
@@ -131,6 +150,15 @@ the module whose header comment says it never filters. Scope therefore gets
 its own model file, `graphScopeRailModel.ts`, pure and tested, returning the
 rows the rail draws; `graphKeyRail.ts` renders both sections and owns the
 column.
+
+**One emphasis channel, one owner.** Scope adds a second source of hover to a
+rail that had only the Key's, and two sources writing the same plot state is
+how highlights get stranded when the pointer crosses quickly from a Seeds row
+to a Key entry. The rail keeps a single current emphasis, whatever raised it,
+so raising one clears the last. `onEmphasise` keeps its shape and gains the
+seed and folder cases, rather than the Scope section growing a channel beside
+it. The Key's existing pin still wins over hover, and a Scope row cannot be
+pinned: a checkbox is already how a Scope row makes something stick.
 
 **Count line.** `{shown} of {total} papers`. `total` is every paper the graph
 holds, library and external together. `shown` is what survives every rule
@@ -154,9 +182,17 @@ only those ticked. Two rows close the tree:
 Every paper on the plot is therefore accounted for by exactly one tick the
 reader can find, which is what makes unticking read as subtraction.
 
-Ticking a parent folder does not tick its children. A folder's count is its
-own papers, and Zotero's "show items from subcollections" is a library
-preference this tree does not reinterpret.
+**Subfolders cascade.** A tick means one folder's own papers, and a folder's
+count is its own papers, but toggling a parent writes the same tick to every
+descendant. Ticking "PhD" ticks everything under it; unticking it unticks them
+all. Each child keeps its own checkbox, so a subfolder can then be unticked on
+its own, and a parent whose descendants disagree draws in the mixed state.
+
+This is not a free choice. `collectionScopeIDs` expands every selected folder
+through `descendants()` today, unconditionally, so a graph scoped to a parent
+folder already draws that whole subtree. A tree where a parent left its
+children alone would quietly shrink every saved folder graph the first time it
+was opened, and the reader would have no way to see why.
 
 **Hidden line.** `{n} hidden · Show all`, present only while `hiddenKeys` is
 non-empty.
@@ -319,10 +355,19 @@ constructed without `collections`, so the popover renders no folder list, and
 current one, which would silently drop every saved graph on upgrade. It gains
 a migration instead. A version 1 recipe becomes a version 2 one with Unfiled
 and Not in Zotero on and nothing hidden, and its `filters.collectionIDs`
-decides the ticks: empty gives `{ base: "all", except: [] }`, and a non-empty
-list gives `{ base: "none", except: those }`, which is exactly the graph the
-reader saved. It still returns `null` for malformed input and for a version it
-does not know, and it still never throws.
+decides the ticks. Empty gives `{ base: "all", except: [] }`. A non-empty list
+gives `{ base: "none", except: those }`.
+
+Version 1 stored the folders a graph was scoped to, a whitelist, so that
+mapping is the right shape. It is only exact because subfolders cascade: a
+version 1 graph scoped to a parent drew the whole subtree through
+`collectionScopeIDs`, and under the cascade rule ticking that parent still
+does. Without the cascade this migration would need the library's folder tree
+to expand the list, which `parseGraphViewState` has no access to and must not
+acquire, and every saved folder graph would open smaller than it was saved.
+
+The parser still returns `null` for malformed input and for a version it does
+not know, and it still never throws.
 
 The rail's collapsed state is not part of this: it is bound to Zotero's
 collections pane and stays there.
@@ -398,6 +443,15 @@ Unit, in `test/unit`:
   unticked folder's paper goes; a hidden paper goes; a seed survives both a
   hidden key and an unticked folder; Not in Zotero hides external papers but
   not an external seed.
+- A paper filed in two folders stays while either is ticked, and goes only
+  when both are unticked.
+- A year range hides a seed's citer published outside it, proving the facets
+  reach a paper the seed brought in, while the same citer filed in an unticked
+  folder stays.
+- A paper in `hiddenKeys` that is then seeded is drawn, and its key is gone
+  from the set, so removing the seed afterwards leaves it drawn.
+- Toggling a parent folder writes the same tick to every descendant, and a
+  descendant unticked afterwards leaves the parent in the mixed state.
 - The counts the rail prints: `shown` ignores the search box, folder counts
   count only papers in the graph.
 - The Scope rail model: tree indent and order, Unfiled and Not in Zotero last,
@@ -407,6 +461,8 @@ Unit, in `test/unit`:
   those two; malformed input still returns null without throwing.
 - The ticks resolve correctly for a folder invented after the recipe was
   written: ticked under `all`, unticked under `none`.
+- A version 1 recipe scoped to a parent folder opens showing that folder's
+  whole subtree, the same papers it drew before the upgrade.
 
 Zotero, in `test/zotero`:
 
