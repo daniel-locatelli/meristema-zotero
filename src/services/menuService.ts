@@ -13,8 +13,6 @@ import {
   getDefaultHostWindow,
   getOpenGraphViews,
   type OpenGraphViewInfo,
-  openGraphAndSelectItemsInNewTab,
-  openGraphAndSelectItemsInView,
   openFocusItemsInNewTab,
   openFocusItemsInView,
   openGraphForCollections,
@@ -147,7 +145,9 @@ async function openInNewMap(
   hostWindow: MainWindow,
 ): Promise<void> {
   if (!command.itemIDs.length) return;
-  await openGraphAndSelectItemsInNewTab(command.itemIDs, hostWindow);
+  // Showing papers and seeding them are the same act now: there is no way to
+  // put a paper in a graph without it being a seed.
+  await openFocusItemsInNewTab(command.itemIDs, hostWindow);
 }
 
 async function openInNewFocusView(
@@ -164,11 +164,7 @@ async function showInExistingView(
   hostWindow: MainWindow,
 ): Promise<void> {
   if (!command.itemIDs.length) return;
-  await openGraphAndSelectItemsInView(
-    view.instanceID,
-    command.itemIDs,
-    hostWindow,
-  );
+  await openFocusItemsInView(view.instanceID, command.itemIDs, hostWindow);
 }
 
 async function exploreInExistingView(

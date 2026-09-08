@@ -71,12 +71,8 @@ interface GraphInstanceState {
   customTitle: boolean;
   tabID: string | null;
   libraryID: number | null;
-  pendingSelectionItemIDs: number[];
-  pendingSelectionMode: "replace" | "add";
   pendingFocusItemIDs: number[];
   pendingCollectionIDs: number[];
-  mapScopeItemIDs: number[] | null;
-  mapPinnedItemIDs: number[];
   /**
    * The graph as a recipe, kept across renders. A refresh rebuilds the view
    * from this rather than from nothing, and the view reports every change
@@ -141,12 +137,8 @@ function createGraphInstance(
     customTitle: false,
     tabID: null,
     libraryID,
-    pendingSelectionItemIDs: [],
-    pendingSelectionMode: "replace",
     pendingFocusItemIDs: [],
     pendingCollectionIDs: [],
-    mapScopeItemIDs: null,
-    mapPinnedItemIDs: [],
     viewState: null,
     discardViewState: false,
     savedGraphID: null,
@@ -164,28 +156,22 @@ function createGraphInstance(
 }
 
 interface PendingGraphRequest {
-  selectionItemIDs: number[];
-  selectionMode: "replace" | "add";
   focusItemIDs: number[];
   collectionIDs: number[];
 }
 
 function consumePendingRequest(state: GraphInstanceState): PendingGraphRequest {
   const request = {
-    selectionItemIDs: [...state.pendingSelectionItemIDs],
-    selectionMode: state.pendingSelectionMode,
     focusItemIDs: [...state.pendingFocusItemIDs],
     collectionIDs: [...state.pendingCollectionIDs],
   };
-  state.pendingSelectionItemIDs = [];
-  state.pendingSelectionMode = "replace";
   state.pendingFocusItemIDs = [];
   state.pendingCollectionIDs = [];
   return request;
 }
 
 function firstRequestedItemID(request: PendingGraphRequest): number | null {
-  return request.selectionItemIDs[0] ?? request.focusItemIDs[0] ?? null;
+  return request.focusItemIDs[0] ?? null;
 }
 
 function defaultMainWindow(): _ZoteroTypes.MainWindow {
@@ -712,8 +698,6 @@ function renderDetachedWindow(
   instance: GraphInstanceState,
   snapshot: LibrarySnapshot,
   request: PendingGraphRequest = {
-    selectionItemIDs: [],
-    selectionMode: "replace",
     focusItemIDs: [],
     collectionIDs: [],
   },
@@ -744,14 +728,6 @@ function renderDetachedWindow(
         reportAsyncError("Meristema: opening the attachment failed", error),
       ),
     onGraphSelection: (itemID) => reportGraphSelection(host, itemID),
-    initialItemIDs: request.selectionItemIDs,
-    initialItemMode: request.selectionMode,
-    initialMapScopeItemIDs: instance.mapScopeItemIDs,
-    initialMapPinnedItemIDs: instance.mapPinnedItemIDs,
-    onMapScopeChange: (scopeItemIDs, pinnedItemIDs) => {
-      instance.mapScopeItemIDs = scopeItemIDs ? [...scopeItemIDs] : null;
-      instance.mapPinnedItemIDs = [...pinnedItemIDs];
-    },
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
@@ -781,8 +757,6 @@ async function openDetachedGraphWindow(
   instance: GraphInstanceState,
   snapshot: LibrarySnapshot,
   request: PendingGraphRequest = {
-    selectionItemIDs: [],
-    selectionMode: "replace",
     focusItemIDs: [],
     collectionIDs: [],
   },
@@ -1238,14 +1212,6 @@ function renderTab(
           reportAsyncError("Meristema: opening the attachment failed", error),
         ),
       onGraphSelection: (itemID) => reportGraphSelection(win, itemID),
-      initialItemIDs: request.selectionItemIDs,
-      initialItemMode: request.selectionMode,
-      initialMapScopeItemIDs: instance.mapScopeItemIDs,
-      initialMapPinnedItemIDs: instance.mapPinnedItemIDs,
-      onMapScopeChange: (scopeItemIDs, pinnedItemIDs) => {
-        instance.mapScopeItemIDs = scopeItemIDs ? [...scopeItemIDs] : null;
-        instance.mapPinnedItemIDs = [...pinnedItemIDs];
-      },
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
@@ -1305,20 +1271,16 @@ function activateInstance(
   }
 }
 
-function activateGraphItems(
+function activateGraphSeeds(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   itemIDs: readonly number[],
-  action: "add-map" | "add-focus",
 ): boolean {
   const mount = instanceMount(win, instance);
   if (!mount) return false;
   const controller = getGraphViewController(mount);
   controller?.setActive(true);
-  const result =
-    action === "add-focus"
-      ? controller?.addFocusItems(itemIDs)
-      : controller?.addMapItems(itemIDs);
+  const result = controller?.addFocusItems(itemIDs);
   if (!result || result === "not-found") return false;
   activateInstance(win, instance);
   return true;
@@ -1373,16 +1335,12 @@ function setPendingRequest(
   instance: GraphInstanceState,
   request: PendingGraphRequest,
 ): void {
-  instance.pendingSelectionItemIDs = [...request.selectionItemIDs];
-  instance.pendingSelectionMode = request.selectionMode;
   instance.pendingFocusItemIDs = [...request.focusItemIDs];
   instance.pendingCollectionIDs = [...request.collectionIDs];
 }
 
 function emptyRequest(): PendingGraphRequest {
   return {
-    selectionItemIDs: [],
-    selectionMode: "replace",
     focusItemIDs: [],
     collectionIDs: [],
   };
@@ -1439,8 +1397,6 @@ export async function openGraphWindow(
   const previousLibraryID = instance.libraryID;
   if (previousLibraryID !== null && previousLibraryID !== targetLibraryID) {
     releaseSavedGraph(win, instance);
-    instance.mapScopeItemIDs = null;
-    instance.mapPinnedItemIDs = [];
     instance.viewState = null;
     // The render below captures the still-live old-library view first; tell
     // that capture to throw it away rather than write it back.
@@ -1467,10 +1423,7 @@ export async function openGraphWindow(
       instance.tabID,
     ) as HTMLElement | null;
     if (tab && container) {
-      const requestItemID =
-        instance.pendingSelectionItemIDs[0] ??
-        instance.pendingFocusItemIDs[0] ??
-        null;
+      const requestItemID = instance.pendingFocusItemIDs[0] ?? null;
       updateTabData(tab, instance, snapshot, requestItemID);
       if (options.request || previousLibraryID !== snapshot.libraryID) {
         renderTab(win, instance, container, snapshot);
@@ -1482,8 +1435,6 @@ export async function openGraphWindow(
   }
 
   const request = {
-    selectionItemIDs: [...instance.pendingSelectionItemIDs],
-    selectionMode: instance.pendingSelectionMode,
     focusItemIDs: [...instance.pendingFocusItemIDs],
     collectionIDs: [...instance.pendingCollectionIDs],
   };
@@ -1508,12 +1459,8 @@ export async function openGraphWindow(
         clearAutosave(win, instance);
         void writeSavedGraph(win, instance, "autosave");
       }
-      instance.pendingSelectionItemIDs = [];
-      instance.pendingSelectionMode = "replace";
       instance.pendingFocusItemIDs = [];
       instance.pendingCollectionIDs = [];
-      instance.mapScopeItemIDs = null;
-      instance.mapPinnedItemIDs = [];
       if (!instance.detachedWindow || instance.detachedWindow.closed) {
         // A detached window is still showing this graph and owns the state.
         instance.viewState = null;
@@ -1670,58 +1617,6 @@ function itemDisplayTitle(item: any): string {
   ).trim();
 }
 
-export async function openGraphAndSelectItems(
-  itemIDs: readonly number[],
-  hostWindow?: _ZoteroTypes.MainWindow,
-  options: OpenItemViewOptions = {},
-): Promise<void> {
-  const win = hostWindow ?? defaultMainWindow();
-  const items = regularItemsByID(itemIDs);
-  if (!items.length) throw new Error("No regular Zotero items were selected.");
-  const libraryID =
-    positiveInteger(items[0].libraryID) ?? selectedLibraryID(win);
-  const ids = items
-    .filter((item) => Number(item.libraryID) === libraryID)
-    .map((item) => Number(item.id));
-  const instance = itemCommandInstance(win, options);
-  const canExtendExistingScope = instance?.libraryID === libraryID;
-  if (
-    canExtendExistingScope &&
-    activateGraphItems(win, instance, ids, "add-map")
-  ) {
-    return;
-  }
-  await openGraphWindow(win, libraryID, {
-    newInstance: options.newInstance,
-    targetInstanceID: options.targetInstanceID ?? instance?.instanceID,
-    titleBase: paperGraphTitle(itemDisplayTitle(items[0])) ?? undefined,
-    request: {
-      ...emptyRequest(),
-      selectionItemIDs: ids,
-      selectionMode: canExtendExistingScope ? "add" : "replace",
-    },
-  });
-}
-
-export async function openGraphAndSelectItemsInNewTab(
-  itemIDs: readonly number[],
-  hostWindow?: _ZoteroTypes.MainWindow,
-): Promise<void> {
-  await openGraphAndSelectItems(itemIDs, hostWindow, {
-    newInstance: true,
-  });
-}
-
-export async function openGraphAndSelectItemsInView(
-  instanceID: string,
-  itemIDs: readonly number[],
-  hostWindow?: _ZoteroTypes.MainWindow,
-): Promise<void> {
-  await openGraphAndSelectItems(itemIDs, hostWindow, {
-    targetInstanceID: instanceID,
-  });
-}
-
 export async function openFocusItem(
   itemID: number,
   hostWindow?: _ZoteroTypes.MainWindow,
@@ -1745,7 +1640,7 @@ export async function openFocusItems(
   const instance = itemCommandInstance(win, options);
   if (
     instance?.libraryID === libraryID &&
-    activateGraphItems(win, instance, ids, "add-focus")
+    activateGraphSeeds(win, instance, ids)
   ) {
     return;
   }

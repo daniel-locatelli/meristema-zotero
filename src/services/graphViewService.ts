@@ -179,12 +179,7 @@ import {
   setFocusGraphAppearance,
   setGraphAppearance,
 } from "./citationPreferences";
-import {
-  appendUniqueScopeKeys,
-  extendItemScope,
-  normalizedScopeItemIDs,
-  replaceItemScope,
-} from "./graphScopePolicy";
+import { normalizedScopeItemIDs } from "./graphScopePolicy";
 import {
   bindZoteroPane,
   PANE_MINIMUM,
@@ -221,8 +216,6 @@ export interface GraphViewSavedGraphsHost {
 }
 
 export interface GraphViewController {
-  revealItem(itemID: number): GraphFocusResult;
-  revealItems(itemIDs: readonly number[]): GraphFocusResult;
   /**
    * Mirror Zotero's item selection: select the one present node, emphasise
    * several, clear on none. Never adds nodes, never reports back. With
@@ -234,10 +227,6 @@ export interface GraphViewController {
     itemIDs: readonly number[],
     options?: { adopt?: boolean },
   ): void;
-  replaceMapItems(itemIDs: readonly number[]): GraphFocusResult;
-  addMapItems(itemIDs: readonly number[]): GraphFocusResult;
-  openFocusItem(itemID: number): GraphFocusResult;
-  openFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   addFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   openCollections(collectionIDs: readonly number[]): GraphFocusResult;
   /** The graph as a recipe: seeds, Explore settings, filters, camera, title. */
@@ -286,16 +275,6 @@ export interface GraphViewOptions {
    * selections `applyLibrarySelection` makes.
    */
   onGraphSelection?: (itemID: number | null) => void;
-  initialItemID?: number | null;
-  initialItemIDs?: readonly number[] | null;
-  initialItemMode?: "replace" | "add";
-  initialMapScopeItemIDs?: readonly number[] | null;
-  initialMapPinnedItemIDs?: readonly number[] | null;
-  onMapScopeChange?: (
-    scopeItemIDs: readonly number[] | null,
-    pinnedItemIDs: readonly number[],
-  ) => void;
-  initialFocusItemID?: number | null;
   initialFocusItemIDs?: readonly number[] | null;
   initialCollectionIDs?: readonly number[];
   /** Applied after the initial request, so a request wins where both speak. */
@@ -387,12 +366,6 @@ export function renderGraphView(
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
   let lastScope: GraphScopeResult | null = null;
-  let mapScopeItemIDs = options.initialMapScopeItemIDs
-    ? replaceItemScope(options.initialMapScopeItemIDs)
-    : null;
-  let mapPinnedItemIDs = replaceItemScope(
-    options.initialMapPinnedItemIDs ?? [],
-  );
   let selectedNode: CitationGraphNode | null = null;
   let detailTabs: ReturnType<typeof createDetailTabs> | null = null;
 
@@ -476,20 +449,6 @@ export function renderGraphView(
   let relationshipDetailRefreshFrame = 0;
   let relationshipGraphRefreshTimer = 0;
   let renderer: CitationGraphRenderer | null = null;
-  const mapPinnedKeys = (): Set<string> =>
-    new Set(
-      libraryModel.nodes
-        .filter((node) => mapPinnedItemIDs.has(node.itemID))
-        .map((node) => node.key),
-    );
-  const syncMapPinnedKeys = (draw = false): void => {
-    renderer?.setPinnedKeys(mapPinnedKeys(), draw);
-  };
-  const publishMapScope = (): void => {
-    options.onMapScopeChange?.(mapScopeItemIDs ? [...mapScopeItemIDs] : null, [
-      ...mapPinnedItemIDs,
-    ]);
-  };
   let cleaned = false;
   let viewActive = true;
   /**
@@ -624,7 +583,9 @@ export function renderGraphView(
   rebuildGraphFilterDescriptors();
   const graphFilter = createPaperFilterController({
     document,
-    collections: snapshot.collections,
+    // The rail's tree is where a graph's folders live now; a second, silent
+    // folder control inside the popover would be a way to say the same thing
+    // twice and disagree.
     buttonClassName: "cm-toolbar-button",
     getDescriptors: () => [...graphFilterDescriptors.values()],
     onChange: () => {
@@ -960,7 +921,7 @@ export function renderGraphView(
       : (setTimeout(check, 0) as unknown as number);
   };
   const fitCurrentGraph = (): void => {
-    if (focusProjection || mapScopeItemIDs) renderer?.fitVisibleNodes();
+    if (focusProjection) renderer?.fitVisibleNodes();
     else renderer?.fitView();
   };
   let sourceMetricsRefreshActive = false;
@@ -2210,12 +2171,12 @@ export function renderGraphView(
     for (const key of purged) hiddenKeys.add(key);
 
     for (const seed of missingSeeds) ensureFocusRelationships(seed);
-    const state = focusStateFromControls(
-      appendUniqueScopeKeys(
-        focusProjection.state.seedKeys,
-        missingSeeds.map((seed) => seed.key),
-      ),
-    );
+    const state = focusStateFromControls([
+      ...new Set([
+        ...focusProjection.state.seedKeys,
+        ...missingSeeds.map((seed) => seed.key),
+      ]),
+    ]);
     if (
       !activateFocusState(state, {
         fit: true,
@@ -3841,78 +3802,6 @@ export function renderGraphView(
 
   libraryNodeForSeedRow = libraryNodeForItem;
 
-  const mapNodesForItems = (itemIDs: readonly number[]): CitationGraphNode[] =>
-    normalizedScopeItemIDs(itemIDs)
-      .map((itemID) => {
-        const libraryNode = libraryNodeForItem(itemID);
-        if (!libraryNode) return null;
-        const renderedNode = model.nodes.find(
-          (candidate) => candidate.key === libraryNode.key,
-        );
-        return (
-          renderedNode ??
-          renderer?.addNode({ ...libraryNode, focusRole: null }) ??
-          libraryNode
-        );
-      })
-      .filter((node): node is CitationGraphNode => Boolean(node));
-
-  const applyMapItems = (
-    itemIDs: readonly number[],
-    mode: "replace" | "add",
-    pinAdded: boolean,
-  ): GraphFocusResult => {
-    if (!renderer) return "not-found";
-    if (focusProjection) clearSeeds();
-    const renderedNodes = mapNodesForItems(itemIDs);
-    if (!renderedNodes.length) return "not-found";
-    const normalizedIDs = renderedNodes.map((node) => node.itemID);
-
-    if (mode === "replace") {
-      mapScopeItemIDs = replaceItemScope(normalizedIDs);
-      mapPinnedItemIDs = pinAdded ? new Set(normalizedIDs) : new Set();
-      graphFilter.setCollectionIDs([]);
-    } else {
-      mapScopeItemIDs = extendItemScope(mapScopeItemIDs, normalizedIDs);
-      if (pinAdded) {
-        mapPinnedItemIDs = new Set([...mapPinnedItemIDs, ...normalizedIDs]);
-      }
-    }
-
-    publishMapScope();
-    rebuildGraphFilterDescriptors();
-    syncMapPinnedKeys(false);
-    applyFilters();
-    const visibleAddedNodes = renderedNodes.filter((node) =>
-      visibleKeys.has(node.key),
-    );
-    if (visibleAddedNodes.length) {
-      renderer.selectNode(visibleAddedNodes[0].key, false);
-      const fittedKeys =
-        mode === "replace"
-          ? new Set(visibleAddedNodes.map((node) => node.key))
-          : new Set([...mapPinnedKeys()].filter((key) => visibleKeys.has(key)));
-      if (fittedKeys.size) {
-        scheduleCameraAction(() => renderer?.fitKeys(fittedKeys));
-      }
-    }
-    return visibleAddedNodes.length === renderedNodes.length
-      ? "selected"
-      : "revealed";
-  };
-
-  const replaceMapItems = (itemIDs: readonly number[]): GraphFocusResult =>
-    applyMapItems(itemIDs, "replace", false);
-
-  const addMapItems = (itemIDs: readonly number[]): GraphFocusResult =>
-    applyMapItems(itemIDs, "add", true);
-
-  const revealItems = (itemIDs: readonly number[]): GraphFocusResult =>
-    addMapItems(itemIDs);
-
-  const revealItem = (itemID: number): GraphFocusResult =>
-    addMapItems([itemID]);
-
   const reconcileInactiveView = (): void => {
     if (!inactiveRelationshipDirty || cleaned) return;
     inactiveRelationshipDirty = false;
@@ -4073,12 +3962,9 @@ export function renderGraphView(
     else notifyStateChange();
   };
 
-  syncMapPinnedKeys(false);
   applyFilters();
 
   const controller: GraphViewController = {
-    revealItem,
-    revealItems,
     markExternalSeedImported,
     applyLibrarySelection(itemIDs, options) {
       if (!renderer) return;
@@ -4130,12 +4016,6 @@ export function renderGraphView(
         applyEmphasis();
       });
     },
-    replaceMapItems,
-    addMapItems,
-    openFocusItem(itemID) {
-      return addFocusItems([itemID]);
-    },
-    openFocusItems: addFocusItems,
     addFocusItems,
     openCollections(collectionIDs: readonly number[]) {
       const known = collectionIDs.filter((collectionID: number) =>
@@ -4175,27 +4055,14 @@ export function renderGraphView(
   // accord: none of it is a click, so Zotero's list must not follow it.
   withoutSelectionReport(() => {
     if (options.initialFocusItemIDs?.length) {
-      controller.openFocusItems(options.initialFocusItemIDs);
-    } else if (options.initialFocusItemID) {
-      controller.openFocusItem(options.initialFocusItemID);
+      controller.addFocusItems(options.initialFocusItemIDs);
     } else if (options.initialCollectionIDs?.length) {
       controller.openCollections(options.initialCollectionIDs);
-    } else if (options.initialItemIDs?.length) {
-      if (options.initialItemMode === "add") {
-        controller.addMapItems(options.initialItemIDs);
-      } else {
-        controller.replaceMapItems(options.initialItemIDs);
-      }
-    } else if (options.initialItemID) {
-      controller.replaceMapItems([options.initialItemID]);
     }
     if (options.initialState) {
       const request = Boolean(
         options.initialFocusItemIDs?.length ||
-        options.initialFocusItemID ||
-        options.initialCollectionIDs?.length ||
-        options.initialItemIDs?.length ||
-        options.initialItemID,
+        options.initialCollectionIDs?.length,
       );
       if (request) {
         // The request already shaped the graph; the state fills in what the
@@ -4216,10 +4083,7 @@ export function renderGraphView(
   });
   updateSummary();
   const localCitationWarmupItemIDs = [
-    ...(options.initialItemIDs ?? []),
     ...(options.initialFocusItemIDs ?? []),
-    ...(options.initialItemID ? [options.initialItemID] : []),
-    ...(options.initialFocusItemID ? [options.initialFocusItemID] : []),
   ].filter((itemID, index, values) => values.indexOf(itemID) === index);
   const runLocalCitationWarmup = (): void => {
     if (!localCitationWarmupItemIDs.length) return;

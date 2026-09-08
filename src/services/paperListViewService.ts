@@ -85,7 +85,6 @@ export interface PaperFilterController {
   matches(descriptor: PaperListDescriptor): boolean;
   state(): PaperListFilterState;
   hasActiveFilters(): boolean;
-  setCollectionIDs(collectionIDs: readonly number[]): void;
   /** Replaces every filter at once, then fires `onChange` once. */
   setState(state: PaperListFilterState): void;
   reset(): void;
@@ -856,42 +855,44 @@ export function createPaperFilterController(
     const latestDescriptors = options.getDescriptors();
 
     const collections = options.collections ?? [];
-    const collectionSelect = element(document, "select");
-    collectionSelect.dataset.meristemaFilterSelect = "true";
-    // Multi-select rather than a dropdown with a "Whole library" row: the
-    // scope is a set of folders, and selecting none already means the whole
-    // library. A "Whole library" option inside a multi-select would be a
-    // second, contradictory way to say the same thing.
-    collectionSelect.multiple = true;
-    collectionSelect.size = Math.min(Math.max(collections.length, 3), 8);
-    const scope = new Set(filters.collectionIDs);
-    for (const collection of collections) {
-      const option = appendOption(
+    if (collections.length) {
+      const collectionSelect = element(document, "select");
+      collectionSelect.dataset.meristemaFilterSelect = "true";
+      // Multi-select rather than a dropdown with a "Whole library" row: the
+      // scope is a set of folders, and selecting none already means the whole
+      // library. A "Whole library" option inside a multi-select would be a
+      // second, contradictory way to say the same thing.
+      collectionSelect.multiple = true;
+      collectionSelect.size = Math.min(Math.max(collections.length, 3), 8);
+      const scope = new Set(filters.collectionIDs);
+      for (const collection of collections) {
+        const option = appendOption(
+          document,
+          collectionSelect,
+          indentedCollectionLabel(collection),
+          String(collection.collectionID),
+        );
+        option.selected = scope.has(collection.collectionID);
+      }
+      const commitCollection = (): void => {
+        const next = (
+          Array.from(collectionSelect.selectedOptions) as HTMLOptionElement[]
+        )
+          .map((option) => Number(option.value))
+          .filter((id) => Number.isInteger(id) && id > 0);
+        if (sameCollectionScope(next, filters.collectionIDs)) return;
+        filters.collectionIDs = next;
+        updateFilterButton();
+        options.onChange();
+      };
+      listenForSelectCommit(collectionSelect, commitCollection);
+      appendLabelledControl(
         document,
+        menu,
+        "Collections (none = whole library)",
         collectionSelect,
-        indentedCollectionLabel(collection),
-        String(collection.collectionID),
       );
-      option.selected = scope.has(collection.collectionID);
     }
-    const commitCollection = (): void => {
-      const next = (
-        Array.from(collectionSelect.selectedOptions) as HTMLOptionElement[]
-      )
-        .map((option) => Number(option.value))
-        .filter((id) => Number.isInteger(id) && id > 0);
-      if (sameCollectionScope(next, filters.collectionIDs)) return;
-      filters.collectionIDs = next;
-      updateFilterButton();
-      options.onChange();
-    };
-    listenForSelectCommit(collectionSelect, commitCollection);
-    appendLabelledControl(
-      document,
-      menu,
-      "Collections (none = whole library)",
-      collectionSelect,
-    );
 
     const tagSelect = element(document, "select");
     tagSelect.dataset.meristemaFilterSelect = "true";
@@ -1206,18 +1207,6 @@ export function createPaperFilterController(
     matches,
     state: () => ({ ...filters }),
     hasActiveFilters: () => activeFilterCount(filters) > 0,
-    setCollectionIDs: (collectionIDs) => {
-      const normalized = [
-        ...new Set(
-          collectionIDs.filter((id) => Number.isInteger(id) && id > 0),
-        ),
-      ];
-      if (sameCollectionScope(filters.collectionIDs, normalized)) return;
-      filters.collectionIDs = normalized;
-      updateFilterButton();
-      filterPopup.close();
-      options.onChange();
-    },
     setState: (state) => {
       filters = {
         ...defaultFilterState(),

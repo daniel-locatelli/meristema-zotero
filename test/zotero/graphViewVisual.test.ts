@@ -811,7 +811,7 @@ describe("Graph view, as the product builds it", function () {
     await settle(active.window, 6);
     const controller = getGraphViewController(active.mount);
     expect(controller, "the view published a controller").to.not.equal(null);
-    controller!.revealItem(subject.itemID);
+    controller!.addFocusItems([subject.itemID]);
     await settle(active.window, 10);
 
     const panel = active.root.querySelector(".cm-detail-panel") as HTMLElement;
@@ -1061,9 +1061,9 @@ describe("Graph view, as the product builds it", function () {
       stage = await openViewStage(makeCorpus({ nodes: 60 }));
       const light = stage;
       await settle(light.window, 10);
-      getGraphViewController(light.mount)!.revealItem(
+      getGraphViewController(light.mount)!.addFocusItems([
         light.model.nodes[0]!.itemID,
-      );
+      ]);
       await settle(light.window, 10);
       notes.push(
         `view 10 light chrome: ${(light.window as any).getComputedStyle(light.root).backgroundColor}`,
@@ -1131,9 +1131,9 @@ describe("Graph view, as the product builds it", function () {
 
     const controller = getGraphViewController(active.mount)!;
     const first = active.model.nodes[0]!;
-    controller.revealItem(first.itemID);
+    controller.addFocusItems([first.itemID]);
     await settle(active.window, 4);
-    // Revealing selects the node, so the ContextMenu key asks the renderer for
+    // Seeding selects the node, so the ContextMenu key asks the renderer for
     // the menu at the node it already knows about — no client position to guess.
     const onNode = new view.KeyboardEvent("keydown", {
       bubbles: true,
@@ -1157,7 +1157,7 @@ describe("Graph view, as the product builds it", function () {
     expect(menu.hidden, "Escape closes it").to.equal(true);
 
     // A paper with a DOI can be opened online, and that entry leads the menu.
-    controller.revealItem(active.model.nodes[1]!.itemID);
+    controller.addFocusItems([active.model.nodes[1]!.itemID]);
     await settle(active.window, 4);
     active.canvas.dispatchEvent(
       new view.KeyboardEvent("keydown", {
@@ -1198,9 +1198,7 @@ describe("Graph view, as the product builds it", function () {
       (typeof first.model.nodes)[number],
       (typeof first.model.nodes)[number],
     ];
-    expect(controller.openFocusItems([a.itemID, b.itemID])).to.equal(
-      "selected",
-    );
+    expect(controller.addFocusItems([a.itemID, b.itemID])).to.equal("selected");
     await settle(first.window, 6);
 
     const direction = first.root.querySelector(
@@ -1404,7 +1402,7 @@ describe("Graph view, as the product builds it", function () {
     expect(reported).to.deep.equal([]);
 
     // A user command that selects a node is reported exactly once.
-    controller.revealItem(b);
+    controller.addFocusItems([b]);
     await settle(view.window, 4);
     expect(reported).to.deep.equal([b]);
     expect(placeholder()).to.equal(null);

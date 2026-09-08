@@ -35,11 +35,7 @@ import {
   getCachedCitationGraphForSnapshot,
 } from "./citationGraphService";
 import { ensureSourceMetricsForNodes } from "./sourceMetricsService";
-import {
-  openGraphAndSelectItemsInNewTab,
-  openFocusItemsInNewTab,
-  refreshOpenGraphViews,
-} from "./windowService";
+import { openFocusItemsInNewTab, refreshOpenGraphViews } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import { clear, text } from "./graphViewControls";
 import {
@@ -299,11 +295,6 @@ function openActionsFor(
   const itemID = Number(item.id);
   const hostWindow = document.defaultView as _ZoteroTypes.MainWindow;
   return [
-    {
-      label: "Graph",
-      title: "Show this paper in a new graph.",
-      action: () => openGraphAndSelectItemsInNewTab([itemID], hostWindow),
-    },
     {
       label: "Explore",
       title: "Open a new graph with this paper as its seed.",
