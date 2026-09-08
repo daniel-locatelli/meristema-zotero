@@ -1,7 +1,7 @@
 # The Scope Rail: an Additive Graph
 
 **Date:** 2026-09-08
-**Status:** Draft, awaiting review
+**Status:** Approved 2026-09-08, not implemented
 
 Layer 1 of the citation chain depth design
 (`docs/design_handoff_citation_chain_depth/README.md`, option 6a). Layer 2

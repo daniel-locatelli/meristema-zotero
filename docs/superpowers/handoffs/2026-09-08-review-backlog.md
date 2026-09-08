@@ -268,15 +268,17 @@ Pointers: `src/services/windowService.ts:546` (`askName`, prompt) and
 `src/services/menuService.ts:550` (Rename View). Spec:
 `docs/superpowers/specs/2026-09-07-durable-graphs-design.md`.
 
-Design call for the session, confirm with the user before building: keep
-the native dialogs and accept their look, or replace all three with an
-in-window modal built from the plugin's own DOM and `graph.css`, which is
-how every other surface in this plugin is drawn and would give full
-control of spacing and theme. The second is more work and is not an OS
-dialog, and Rename View is raised from Zotero's tab context menu, outside
-the graph view, so it would need a window-level host.
+**Decided 2026-09-08: keep the native dialogs.** The alternative was to
+replace all three with an in-window modal built from the plugin's own DOM
+and `graph.css`, which would have given full control of spacing and
+theme. The user chose the native ones, so the cramped padding and the
+white edges in dark mode stand, and no work follows.
 
-Process: short brainstorm, then spec and plan.
+This entry stays as the record of why those dialogs look the way they do,
+so a later session does not read it as an unfixed bug and re-open it. If
+the look becomes intolerable, the in-window modal is the route, and
+Rename View would need a window-level host because it is raised from
+Zotero's tab context menu, outside the graph view.
 
 ## F4. Show the selected paper's abstract in the graph
 
