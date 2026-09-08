@@ -79,3 +79,15 @@ nothing about a finished task is kept anywhere else.
   `focusOnPaper` was the only caller of the single-seed `enterFocus`
   wrapper, so that went too — `enterFocusSeeds([node], options)` replaces
   it if a later stage wants one.
+- Task 11, 6e489ff: the item scope, its pinned set and the whole show path are
+  deleted; every added paper is a seed, and the filter popover loses its
+  folder list. `npm run check` green, 290 unit tests (three architecture
+  cases went with the deleted helpers). Surprises: the plan's grep expected
+  no live callers of `openGraphAndSelectItems`, but `menuService.ts` had
+  two — bridged to the seed functions, which is Task 13's premise anyway —
+  and `itemPaneService.ts` had one, in an overview whose "Graph" and
+  "Explore" buttons now do the same thing, so "Graph" was deleted. No task
+  owns that file; the surviving button still says "Explore", which Stage 2
+  otherwise retires. Worth a look in the walk-through, and it may change the
+  known "view 10" failure, which was about that overview offering two
+  actions.

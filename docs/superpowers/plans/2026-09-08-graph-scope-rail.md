@@ -3150,7 +3150,7 @@ are on screen become one.
   `initialFocusItemID`, and keeps `initialFocusItemIDs` and
   `initialCollectionIDs`.
 
-- [ ] **Step 1: Strip `graphScopePolicy.ts`**
+- [x] **Step 1: Strip `graphScopePolicy.ts`**
 
 Delete `replaceItemScope`, `extendItemScope` and `appendUniqueScopeKeys`. The
 file keeps only `normalizedScopeItemIDs`, because the openers still normalise
@@ -3168,7 +3168,7 @@ const state = focusStateFromControls([
 ]);
 ```
 
-- [ ] **Step 2: Delete the item scope from the view**
+- [x] **Step 2: Delete the item scope from the view**
 
 Remove from `graphViewService.ts`: `mapNodesForItems`, `applyMapItems`,
 `replaceMapItems`, `addMapItems`, `revealItems`, `revealItem`,
@@ -3194,7 +3194,7 @@ Rewrite the initial-open block at the end of `renderGraphView`:
 
 Keep the rest of that block as it stands.
 
-- [ ] **Step 3: Delete the show path from `windowService.ts`**
+- [x] **Step 3: Delete the show path from `windowService.ts`**
 
 Delete `openGraphAndSelectItems`, `openGraphAndSelectItemsInNewTab` and
 `openGraphAndSelectItemsInView`; `selectionItemIDs` and `selectionMode` from
@@ -3240,7 +3240,7 @@ grep -rn "openGraphAndSelectItems" src/ test/
 
 Expected after the edit: no matches outside the deletion itself.
 
-- [ ] **Step 4: Take the folder list out of the graph's filter popover**
+- [x] **Step 4: Take the folder list out of the graph's filter popover**
 
 In `paperListViewService.ts`, delete `setCollectionIDs` from the
 `PaperFilterController` interface and from the returned object, and make the
@@ -3281,7 +3281,7 @@ const graphFilter = createPaperFilterController({
 The detail pane's relationship lists keep their folder control: they pass
 `collections` and are untouched.
 
-- [ ] **Step 5: Run the gate and the suite**
+- [x] **Step 5: Run the gate and the suite**
 
 Run: `npm run check`
 Expected: PASS. `tsc` names every stale reference; work through them.
@@ -3290,7 +3290,7 @@ Expected: only the three known failures. `test/zotero/graphVisual.test.ts` and
 `graphViewVisual.test.ts` may drive a deleted controller method; update those
 cases to seed instead.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/services/graphScopePolicy.ts src/services/graphViewService.ts \
