@@ -11,3 +11,10 @@ nothing about a finished task is kept anywhere else.
   three existing deep-equal cases fail, so the round-trip literal, the
   savedGraphService seed helper and the "another version" literal (2 -> 4,
   since 2 is now current) were adjusted with it.
+- Task 2, 5841af3: `computeGraphScope` — the visibility order as one pure
+  function, plus the counts the rail prints. `npm run check` green, 275 unit
+  tests. Surprise: the plan's own test asserted `shown === 4` for a case its
+  own implementation scores 3 (an external paper no seed reached). The
+  approved spec settles it — rule 2 admits **library** papers only, and Not
+  in Zotero is rule 3, a removal — so the implementation stands verbatim and
+  the test literal was corrected to 3 with a comment saying why.

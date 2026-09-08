@@ -593,7 +593,7 @@ then be removed by any of the rest.
   `interface GraphScopeResult { visibleKeys: Set<string>; shown: number; total: number; countByCollection: Map<number, number>; unfiledCount: number; externalCount: number; hiddenCount: number }`;
   `computeGraphScope(input: GraphScopeInput): GraphScopeResult`.
 
-- [ ] **Step 1: Write the failing visibility tests**
+- [x] **Step 1: Write the failing visibility tests**
 
 Append to `test/unit/graphScopeModel.test.ts` (extend the import from
 `graphScopeModel` with `computeGraphScope` and `type ScopePaper`):
@@ -728,12 +728,12 @@ describe("computeGraphScope", function () {
 Add `GraphScopeInput` and `GraphScopeResult` to the type import at the top of
 the file.
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `computeGraphScope is not a function`.
 
-- [ ] **Step 3: Write the visibility order**
+- [x] **Step 3: Write the visibility order**
 
 Append to `src/services/graphScopeModel.ts`:
 
@@ -840,12 +840,12 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npm run test:unit`
 Expected: PASS, with the nine new cases green.
 
-- [ ] **Step 5: Run the gate and commit**
+- [x] **Step 5: Run the gate and commit**
 
 Run: `npm run check`
 Expected: PASS.
