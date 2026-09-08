@@ -373,6 +373,27 @@ async function selectPaper(
   host.focus();
 }
 
+/**
+ * Opens the item's best attachment the way a double-click in the items list
+ * does, in the main window's reader, and brings that window forward so a
+ * detached graph window does not leave the reader hidden behind itself.
+ */
+async function openBestAttachment(
+  win: _ZoteroTypes.MainWindow,
+  itemID: number,
+): Promise<void> {
+  const item = Zotero.Items.get(itemID) as Zotero.Item | false;
+  if (!item) return;
+  const attachment = await item.getBestAttachment();
+  if (!attachment) return;
+  const host = liveHostWindow(win);
+  const pane = host.ZoteroPane as unknown as {
+    viewAttachment(itemIDs: number | number[]): Promise<void>;
+  };
+  await pane.viewAttachment(attachment.id);
+  host.focus();
+}
+
 /** The recipe as autosave compares it: the camera moves without being a change. */
 function comparableState(state: GraphViewState): string {
   return serializeGraphViewState({ ...state, camera: null });
@@ -669,6 +690,10 @@ function renderDetachedWindow(
         reportAsyncError("Meristema: paper selection failed", error),
       );
     },
+    onOpenAttachment: (itemID) =>
+      openBestAttachment(host, itemID).catch((error) =>
+        reportAsyncError("Meristema: opening the attachment failed", error),
+      ),
     onGraphSelection: (itemID) => reportGraphSelection(host, itemID),
     initialItemIDs: request.selectionItemIDs,
     initialItemMode: request.selectionMode,
@@ -1159,6 +1184,10 @@ function renderTab(
           reportAsyncError("Meristema: paper selection failed", error),
         );
       },
+      onOpenAttachment: (itemID) =>
+        openBestAttachment(win, itemID).catch((error) =>
+          reportAsyncError("Meristema: opening the attachment failed", error),
+        ),
       onGraphSelection: (itemID) => reportGraphSelection(win, itemID),
       initialItemIDs: request.selectionItemIDs,
       initialItemMode: request.selectionMode,

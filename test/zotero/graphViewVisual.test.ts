@@ -1098,7 +1098,19 @@ describe("Graph view, as the product builds it", function () {
 
   it("view 12 — a right-click on a node opens the seed menu, on the background it does not", async function () {
     this.timeout(60_000);
-    const active = await open(60);
+    // The corpus's papers are not Zotero items and carry no DOI; give one of
+    // them a DOI before mounting, since the view copies the nodes it draws.
+    const corpus = makeCorpus({ nodes: 60 });
+    corpus.nodes[1]!.doi = "10.1000/meristem.2";
+    stage = await openViewStage(corpus);
+    const active = stage;
+    await settle(active.window, 12);
+    (
+      active.root.querySelector(
+        '.cm-zoom-controls button[data-action="fit"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(active.window, 8);
     const view = active.window as any;
     const menu = active.root.querySelector(".cm-node-menu") as HTMLElement;
     expect(menu, "the menu exists").to.not.equal(null);
@@ -1130,16 +1142,52 @@ describe("Graph view, as the product builds it", function () {
     });
     active.canvas.dispatchEvent(onNode);
     expect(menu.hidden, "a node opens it").to.equal(false);
-    const items = [...menu.querySelectorAll('[role="menuitem"]')].map(
-      (item) => item?.textContent,
-    );
-    expect(items).to.deep.equal(["Add as seed", "Explore from this paper"]);
+    const shown = (): string[] =>
+      [...menu.querySelectorAll('[role="menuitem"]')]
+        .filter((item) => !(item as HTMLElement).hidden)
+        .map((item) => item.textContent ?? "");
+    // The first paper has nothing to open, so the entry stays out of the menu
+    // rather than sitting there dead.
+    expect(shown()).to.deep.equal(["Add as seed", "Explore from this paper"]);
     const escape = new view.KeyboardEvent("keydown", {
       bubbles: true,
       key: "Escape",
     });
     menu.dispatchEvent(escape);
     expect(menu.hidden, "Escape closes it").to.equal(true);
+
+    // A paper with a DOI can be opened online, and that entry leads the menu.
+    controller.revealItem(active.model.nodes[1]!.itemID);
+    await settle(active.window, 4);
+    active.canvas.dispatchEvent(
+      new view.KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "ContextMenu",
+      }),
+    );
+    expect(menu.hidden, "the second node opens it").to.equal(false);
+    expect(shown()).to.deep.equal([
+      "Open online",
+      "Add as seed",
+      "Explore from this paper",
+    ]);
+    expect(
+      view.document.activeElement?.textContent,
+      "focus starts on the open entry",
+    ).to.equal("Open online");
+    menu.dispatchEvent(
+      new view.KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "ArrowUp",
+      }),
+    );
+    expect(
+      view.document.activeElement?.textContent,
+      "the arrows wrap around all three",
+    ).to.equal("Explore from this paper");
+    menu.dispatchEvent(escape);
   });
 
   it("view 13 — a view rebuilt from its own state keeps its seeds, settings and filters", async function () {

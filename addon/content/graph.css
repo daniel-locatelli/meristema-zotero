@@ -298,6 +298,7 @@
 .cm-filter-panel[hidden],
 .cm-export-menu[hidden],
 .cm-node-menu[hidden],
+.cm-node-menu-item[hidden],
 .cm-appearance-panel[hidden] {
   display: none;
 }

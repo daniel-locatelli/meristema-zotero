@@ -3,6 +3,7 @@ import { expect } from "chai";
 import {
   clampMenuPosition,
   isContextMenuKey,
+  openPaperEntry,
 } from "../../src/services/nodeMenu";
 
 describe("clampMenuPosition", function () {
@@ -59,5 +60,70 @@ describe("isContextMenuKey", function () {
   it("is false for F10 alone and for other keys", function () {
     expect(isContextMenuKey({ key: "F10", shiftKey: false })).to.equal(false);
     expect(isContextMenuKey({ key: "Enter", shiftKey: true })).to.equal(false);
+  });
+});
+
+describe("openPaperEntry", function () {
+  const local = {
+    kind: "local" as const,
+    itemID: 42,
+    doi: null,
+    externalWork: null,
+  };
+
+  it("opens the PDF when the item has one", function () {
+    expect(
+      openPaperEntry({ ...local, doi: "10.1/x" }, "pdf", null),
+    ).to.deep.equal({
+      label: "Open PDF",
+      target: { kind: "attachment", itemID: 42 },
+    });
+  });
+
+  it("names another attachment kind honestly", function () {
+    expect(openPaperEntry(local, "snapshot", null)?.label).to.equal(
+      "Open attachment",
+    );
+    expect(openPaperEntry(local, "other", null)?.label).to.equal(
+      "Open attachment",
+    );
+  });
+
+  it("falls back to the DOI, then the item's URL, when there is no attachment", function () {
+    expect(
+      openPaperEntry({ ...local, doi: "10.1/x" }, "none", "https://a"),
+    ).to.deep.equal({
+      label: "Open online",
+      target: { kind: "url", url: "https://doi.org/10.1%2Fx" },
+    });
+    expect(openPaperEntry(local, "none", "https://a")).to.deep.equal({
+      label: "Open online",
+      target: { kind: "url", url: "https://a" },
+    });
+    expect(openPaperEntry(local, null, " ")).to.equal(null);
+  });
+
+  it("opens an external node at its provider address", function () {
+    const external = {
+      kind: "external" as const,
+      itemID: -1,
+      doi: null,
+      externalWork: {
+        provider: "openalex",
+        providerWorkID: "W1",
+        doi: null,
+      } as any,
+    };
+    const entry = openPaperEntry(external, null, null);
+    expect(entry?.label).to.equal("Open online");
+    expect(entry?.target).to.deep.equal({
+      kind: "url",
+      url: "https://openalex.org/W1",
+    });
+  });
+
+  it("offers nothing when the paper has no address", function () {
+    expect(openPaperEntry(local, "none", null)).to.equal(null);
+    expect(openPaperEntry(local, null, null)).to.equal(null);
   });
 });

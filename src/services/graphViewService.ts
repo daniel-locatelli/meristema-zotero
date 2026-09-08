@@ -102,7 +102,12 @@ import {
   text,
   type LibraryPaperSearchEntry,
 } from "./graphViewControls";
-import { clampMenuPosition } from "./nodeMenu";
+import {
+  clampMenuPosition,
+  openPaperEntry,
+  type BestAttachmentType,
+  type OpenPaperEntry,
+} from "./nodeMenu";
 import { popoverShouldAnchorEnd } from "./popoverPlacement";
 import { insideSelectDropdown } from "./selectDropdown";
 import {
@@ -246,6 +251,8 @@ export function getGraphViewController(
 export interface GraphViewOptions {
   mode: "tab" | "window";
   onSelectPaper: (itemID: number) => void | Promise<void>;
+  /** Opens the item's best attachment in Zotero; the node menu's "Open PDF". */
+  onOpenAttachment?: (itemID: number) => void | Promise<void>;
   /**
    * The graph's own selection changed by the user's hand: the local node's
    * item, or null on a deselect or an external node. Not fired for
@@ -808,6 +815,10 @@ export function renderGraphView(
   nodeMenu.hidden = true;
   nodeMenu.setAttribute("role", "menu");
   nodeMenu.setAttribute("aria-label", "Paper actions");
+  const nodeMenuOpen = element(document, "button", "cm-node-menu-item");
+  nodeMenuOpen.type = "button";
+  nodeMenuOpen.setAttribute("role", "menuitem");
+  nodeMenuOpen.hidden = true;
   const nodeMenuSeed = element(document, "button", "cm-node-menu-item");
   nodeMenuSeed.type = "button";
   nodeMenuSeed.setAttribute("role", "menuitem");
@@ -815,9 +826,10 @@ export function renderGraphView(
   nodeMenuExplore.type = "button";
   nodeMenuExplore.setAttribute("role", "menuitem");
   nodeMenuExplore.textContent = "Explore from this paper";
-  nodeMenu.append(nodeMenuSeed, nodeMenuExplore);
+  nodeMenu.append(nodeMenuOpen, nodeMenuSeed, nodeMenuExplore);
   graphArea.appendChild(nodeMenu);
   let nodeMenuTarget: CitationGraphNode | null = null;
+  let nodeMenuOpenEntry: OpenPaperEntry | null = null;
   let currentLayout = initialLayout;
   let libraryLayoutBeforeFocus: GraphLayoutOptions | null = null;
   let libraryViewBeforeFocus: GraphViewTransform | null = null;
@@ -2981,8 +2993,54 @@ export function renderGraphView(
     if (nodeMenu.hidden) return;
     nodeMenu.hidden = true;
     nodeMenuTarget = null;
+    nodeMenuOpenEntry = null;
     if (restoreFocus) canvas.focus();
   };
+  const showOpenEntry = (entry: OpenPaperEntry | null): void => {
+    nodeMenuOpenEntry = entry;
+    nodeMenuOpen.hidden = entry === null;
+    nodeMenuOpen.textContent = entry?.label ?? "";
+  };
+  /**
+   * Zotero caches the best-attachment state per item for its own list; the
+   * menu reads that cache so it can open with the right label at once and,
+   * when the cache is cold, asks for the state and relabels while it is still
+   * open on the same node.
+   */
+  const applyOpenEntry = (node: CitationGraphNode): void => {
+    const item =
+      node.kind === "external"
+        ? null
+        : (Zotero.Items.get(node.itemID) as Zotero.Item | false) || null;
+    const cached = item?.getBestAttachmentStateCached?.() ?? null;
+    const attachment: BestAttachmentType =
+      cached && "exists" in cached
+        ? cached.exists
+          ? cached.type
+          : "none"
+        : null;
+    const itemURL = item?.getField?.("url") ?? null;
+    showOpenEntry(openPaperEntry(node, attachment, itemURL));
+    if (!item || attachment !== null) return;
+    void item
+      .getBestAttachmentState()
+      .then(
+        (state: {
+          type: Exclude<BestAttachmentType, null>;
+          exists: boolean;
+        }) => {
+          if (nodeMenuTarget !== node || nodeMenu.hidden) return;
+          showOpenEntry(
+            openPaperEntry(node, state.exists ? state.type : "none", itemURL),
+          );
+        },
+      )
+      .catch(() => undefined);
+  };
+  const nodeMenuItems = (): HTMLButtonElement[] =>
+    [nodeMenuOpen, nodeMenuSeed, nodeMenuExplore].filter(
+      (item) => !item.hidden,
+    );
   const openNodeMenu = (
     node: CitationGraphNode,
     clientX: number,
@@ -2992,6 +3050,7 @@ export function renderGraphView(
     nodeMenuTarget = node;
     const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
     nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
+    applyOpenEntry(node);
     nodeMenu.hidden = false;
     // Measured after it is shown, so offsetWidth is the laid-out width.
     const pane = graphArea.getBoundingClientRect();
@@ -3005,8 +3064,24 @@ export function renderGraphView(
     });
     nodeMenu.style.left = `${left}px`;
     nodeMenu.style.top = `${top}px`;
-    nodeMenuSeed.focus();
+    nodeMenuItems()[0]?.focus();
   };
+  nodeMenuOpen.addEventListener("click", () => {
+    const entry = nodeMenuOpenEntry;
+    closeNodeMenu(true);
+    if (!entry) return;
+    if (entry.target.kind === "url") {
+      Zotero.launchURL(entry.target.url);
+      return;
+    }
+    void Promise.resolve(options.onOpenAttachment?.(entry.target.itemID)).catch(
+      (error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      },
+    );
+  });
   nodeMenuSeed.addEventListener("click", () => {
     const node = nodeMenuTarget;
     closeNodeMenu(true);
@@ -3027,9 +3102,10 @@ export function renderGraphView(
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
-    // Two items: either arrow moves to the other one.
-    const active = document.activeElement;
-    (active === nodeMenuSeed ? nodeMenuExplore : nodeMenuSeed).focus();
+    const items = nodeMenuItems();
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    items[(index + step + items.length) % items.length]?.focus();
   });
   const closeNodeMenuOnOutsidePointer = (event: Event): void => {
     if (nodeMenu.hidden) return;
