@@ -46,3 +46,14 @@ nothing about a finished task is kept anywhere else.
   291 unit tests. Surprise: `test/zotero/graphVisual.test.ts` also builds a
   KeyRail, so `tsc -p test` forced the same signature fix there; the plan's
   file list did not mention it. Scope handlers are no-ops until Task 8.
+- Task 7, b421a00: the focus projection is retired — `applySeedProjection`
+  merges instead of replacing, `clearSeeds` replaces `exitFocus`, the four
+  stash variables are gone, and `applyFilters` is now `computeGraphScope`.
+  D1 is answered in code. `npm run check` green, 291 unit tests; Step 8's
+  `npm test` deferred to the batch after Task 13, per the run's protocol.
+  Three deviations: `collectionScopeIDs` returns a Set so it is spread into
+  `onlyCollectionsTicked`; `mapScopeItemIDs`/`mapPinnedItemIDs` still
+  have live callers and stay until Task 11 deletes them (as Task 11's brief
+  expects), though `applyFilters` no longer consults them, so "Show in graph
+  (replace)" stops narrowing the graph; and `lastScope` carries an eslint
+  disable comment until Task 8 reads it — Task 8 must remove it.

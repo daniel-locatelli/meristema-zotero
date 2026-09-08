@@ -2275,7 +2275,7 @@ plus whatever the seeds brought in, and `applyFilters` asks
   `includeUnfiled`, `includeExternal`, `hiddenKeys`, `lastScope`, and
   `descendantsByID`.
 
-- [ ] **Step 1: Declare the scope state**
+- [x] **Step 1: Declare the scope state**
 
 Beside `let visibleKeys` and `let scopeKeys` in `renderGraphView`, add:
 
@@ -2313,7 +2313,7 @@ Delete `mapScopeItemIDs` and `mapPinnedItemIDs` and their initialisers; Task
 `publishMapScope` as no-ops if `tsc` still needs them, and delete them in
 Task 11.
 
-- [ ] **Step 2: Merge instead of replace**
+- [x] **Step 2: Merge instead of replace**
 
 Rename `applyFocusProjection` to `applySeedProjection` and rewrite its body:
 
@@ -2384,7 +2384,7 @@ const inLibraryReachedKeys = (
 Import `seedColorAt` and `graphThemeFor` from `./graphTheme` alongside the
 existing theme imports.
 
-- [ ] **Step 3: Nothing is stashed, so nothing is restored**
+- [x] **Step 3: Nothing is stashed, so nothing is restored**
 
 Delete `libraryLayoutBeforeFocus`, `libraryViewBeforeFocus`,
 `libraryCollectionFilterBeforeFocus` and `librarySelectedKeyBeforeFocus`, and
@@ -2420,7 +2420,7 @@ const clearSeeds = (): void => {
 
 Rename every call site of `exitFocus` and `applyFocusProjection` accordingly.
 
-- [ ] **Step 4: Ask the scope model what is drawn**
+- [x] **Step 4: Ask the scope model what is drawn**
 
 Replace the body of `applyFilters` with:
 
@@ -2485,7 +2485,7 @@ The `activeCollectionID` hack that fabricated collection membership for
 external neighbours goes with it: rule 1 admits a reached paper whatever
 folder it is filed in, so nothing has to be faked.
 
-- [ ] **Step 5: Carry the new fields in and out of the state**
+- [x] **Step 5: Carry the new fields in and out of the state**
 
 In `getState`, replace the collection-stash block with the ticks:
 
@@ -2533,7 +2533,7 @@ for (const key of state.hiddenKeys) hiddenKeys.add(key);
 applyFilters();
 ```
 
-- [ ] **Step 6: Re-scope from the folder menu through the ticks**
+- [x] **Step 6: Re-scope from the folder menu through the ticks**
 
 In the controller's `openCollections`, replace the body's scope work:
 
@@ -2550,19 +2550,19 @@ return "selected";
 `collectionScopeIDs` is what version 1 used, and it is what makes a folder
 graph draw the parent's whole subtree; ticking the expansion keeps that exact.
 
-- [ ] **Step 7: Run the gate**
+- [x] **Step 7: Run the gate**
 
 Run: `npm run check`
 Expected: PASS once every renamed call site is updated. `tsc` will name each
 one; work through them rather than guessing.
 
-- [ ] **Step 8: Prove D1 by hand before moving on**
+- [x] **Step 8: Prove D1 by hand before moving on**
 
 Run: `npm test`
 Expected: the suite runs; the three known failures listed in the Global
 Constraints are the only ones. If a fourth appears, it is yours — fix it here.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/services/graphViewService.ts
