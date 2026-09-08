@@ -3,6 +3,7 @@
 One line per task of `docs/superpowers/plans/2026-09-08-graph-scope-rail.md`,
 appended as it lands on branch `graph-scope-rail`. This file is the handoff:
 nothing about a finished task is kept anywhere else.
+
 - Task 1, b897e77: state version 2, its five new fields and the version 1
   migration; new pure `graphScopeModel.ts` (tick base/exceptions, cascade,
   descendant expansion, tri-state). `npm run check` green, 266 unit tests.

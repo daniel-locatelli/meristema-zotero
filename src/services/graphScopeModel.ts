@@ -110,3 +110,104 @@ export function collectionTickState(
   if (disagrees) return "mixed";
   return own ? "on" : "off";
 }
+
+/** A paper as the scope rules see it. Everything else about it is irrelevant. */
+export interface ScopePaper {
+  key: string;
+  /** The library folders it is filed in. Empty means unfiled or external. */
+  collectionIDs: readonly number[];
+  /** False for a paper that is not in Zotero. */
+  inLibrary: boolean;
+}
+
+export interface GraphScopeInput {
+  /** Every paper the graph holds, library and external together. */
+  papers: readonly ScopePaper[];
+  seedKeys: ReadonlySet<string>;
+  /** Every paper some seed reached, unioned across the seeds. */
+  reachedKeys: ReadonlySet<string>;
+  ticks: GraphViewCollectionTicks;
+  includeUnfiled: boolean;
+  includeExternal: boolean;
+  hiddenKeys: ReadonlySet<string>;
+  /**
+   * The Filter popover's remaining facets: tags, item type, year, and the
+   * data-quality switches. Not the search box, which narrows what is drawn
+   * without changing a single count the rail prints.
+   */
+  facetAdmits: (key: string) => boolean;
+}
+
+export interface GraphScopeResult {
+  visibleKeys: Set<string>;
+  /** What survives every rule, before the search box. */
+  shown: number;
+  /** Every paper the graph holds. */
+  total: number;
+  /** Papers in the graph filed in each folder, counting its own members only. */
+  countByCollection: Map<number, number>;
+  unfiledCount: number;
+  externalCount: number;
+  hiddenCount: number;
+}
+
+/**
+ * The spec's order, and the reason it is an order rather than a conjunction.
+ *
+ * A seed is visible, always, and no later rule can hide one. Every other paper
+ * is admitted by rule 1 or rule 2 and can then be removed by rules 3 to 5.
+ *
+ * Rule 1 sits *beside* rule 2 rather than under it: adding a seed only ever
+ * adds papers, and unticking a folder never removes a paper a seed brought in.
+ * Folder ticks are a fact about how you filed a paper, so they say nothing
+ * about one you have never filed; a year, an item type, a retraction and being
+ * outside Zotero are facts about the paper itself, so they are true of a
+ * citer exactly as they are of anything else.
+ */
+export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
+  const visibleKeys = new Set<string>();
+  const countByCollection = new Map<number, number>();
+  let unfiledCount = 0;
+  let externalCount = 0;
+  let hiddenCount = 0;
+
+  for (const paper of input.papers) {
+    if (!paper.inLibrary) externalCount += 1;
+    else if (!paper.collectionIDs.length) unfiledCount += 1;
+    for (const collectionID of paper.collectionIDs) {
+      countByCollection.set(
+        collectionID,
+        (countByCollection.get(collectionID) ?? 0) + 1,
+      );
+    }
+    if (input.hiddenKeys.has(paper.key)) hiddenCount += 1;
+
+    if (input.seedKeys.has(paper.key)) {
+      visibleKeys.add(paper.key);
+      continue;
+    }
+    const admitted =
+      input.reachedKeys.has(paper.key) ||
+      (paper.inLibrary &&
+        (paper.collectionIDs.length
+          ? paper.collectionIDs.some((collectionID) =>
+              isCollectionTicked(input.ticks, collectionID),
+            )
+          : input.includeUnfiled));
+    if (!admitted) continue;
+    if (!paper.inLibrary && !input.includeExternal) continue;
+    if (input.hiddenKeys.has(paper.key)) continue;
+    if (!input.facetAdmits(paper.key)) continue;
+    visibleKeys.add(paper.key);
+  }
+
+  return {
+    visibleKeys,
+    shown: visibleKeys.size,
+    total: input.papers.length,
+    countByCollection,
+    unfiledCount,
+    externalCount,
+    hiddenCount,
+  };
+}
