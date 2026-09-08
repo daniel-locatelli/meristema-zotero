@@ -4,6 +4,7 @@ import { positiveInteger } from "../domain/valueNormalization";
 import { paneSelectedLibraryID } from "./paneLibrary";
 import {
   emptyGraphViewState,
+  markExternalSeedImported,
   serializeGraphViewState,
   type GraphViewState,
 } from "./graphViewState";
@@ -11,6 +12,7 @@ import {
   destroyGraphView,
   getGraphViewController,
   renderGraphView,
+  type GraphViewController,
   type GraphViewOptions,
   type GraphViewSavedGraphsHost,
 } from "./graphViewService";
@@ -639,7 +641,10 @@ function viewStateOptions(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   libraryID: number,
-): Pick<GraphViewOptions, "title" | "onStateChange" | "savedGraphs"> {
+): Pick<
+  GraphViewOptions,
+  "title" | "onStateChange" | "onExternalWorkImported" | "savedGraphs"
+> {
   // A view moving to another library keeps nothing: its seeds are that
   // library's items and its collections are that library's folders.
   if (instance.libraryID !== null && instance.libraryID !== libraryID) {
@@ -654,8 +659,52 @@ function viewStateOptions(
       instance.viewState = { ...state, title: instanceTitle(instance) };
       scheduleAutosave(win, instance);
     },
+    onExternalWorkImported: (identityKey, itemKey) => {
+      // The view that ran the import may be gone by now: the new item's
+      // citation update rebuilds the tab while Add to Zotero is still
+      // running, and that rebuild restored the seed as external. So the key
+      // is written to the instance's recipe and to whichever view is live,
+      // and a refresh brings the item in so the seed resolves local.
+      if (instance.viewState) {
+        instance.viewState = {
+          ...instance.viewState,
+          seeds: markExternalSeedImported(
+            instance.viewState.seeds,
+            identityKey,
+            itemKey,
+          ),
+        };
+      }
+      liveController(win, instance)?.markExternalSeedImported(
+        identityKey,
+        itemKey,
+      );
+      scheduleAutosave(win, instance);
+      void refreshOpenGraphViews().catch((error) =>
+        reportAsyncError(
+          "Meristema: graph refresh after an import failed",
+          error,
+        ),
+      );
+    },
     savedGraphs: savedGraphsHost(win, instance),
   };
+}
+
+/** The controller of the view currently rendered for the instance, if any. */
+function liveController(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): GraphViewController | null {
+  const mount =
+    instance.detachedMount &&
+    instance.detachedWindow &&
+    !instance.detachedWindow.closed
+      ? instance.detachedMount
+      : instance.tabID
+        ? (tabs(win).getTabContent(instance.tabID) as HTMLElement | null)
+        : null;
+  return mount ? getGraphViewController(mount) : null;
 }
 
 function renderDetachedWindow(

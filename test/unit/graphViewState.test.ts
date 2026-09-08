@@ -4,6 +4,7 @@ import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
 import {
   emptyGraphViewState,
+  markExternalSeedImported,
   parseGraphViewState,
   resolveGraphViewSeeds,
   seedFromNode,
@@ -249,5 +250,54 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
         work: work(),
       },
     ]);
+  });
+});
+
+describe("markExternalSeedImported", function () {
+  it("gives the matching external seed its library key and leaves the rest alone", function () {
+    const seeds = [
+      { kind: "item" as const, itemKey: "AAAA1111" },
+      {
+        kind: "external" as const,
+        identityKey: "openalex:W1",
+        work: work({ doi: null, providerWorkID: "W1" }),
+      },
+      {
+        kind: "external" as const,
+        identityKey: "doi:10.1000/other",
+        work: work({ doi: "10.1000/other" }),
+      },
+    ];
+    const marked = markExternalSeedImported(seeds, "openalex:W1", "BBBB2222");
+    expect(marked[0]).to.equal(seeds[0]);
+    expect(marked[2]).to.equal(seeds[2]);
+    expect(marked[1]).to.not.equal(seeds[1]);
+    expect(
+      marked[1]!.kind === "external" && marked[1]!.work.inLibraryItemKey,
+    ).to.equal("BBBB2222");
+    expect(
+      seeds[1]!.kind === "external" && seeds[1]!.work.inLibraryItemKey,
+      "the input is not mutated",
+    ).to.equal(undefined);
+  });
+
+  it("resolves the marked seed to the library item on the next resolve", function () {
+    const seeds = markExternalSeedImported(
+      [
+        {
+          kind: "external",
+          identityKey: "openalex:W1",
+          work: work({ doi: null, providerWorkID: "W1" }),
+        },
+      ],
+      "openalex:W1",
+      "BBBB2222",
+    );
+    const local = localNode(7, "BBBB2222");
+    const { nodes, dropped } = resolveGraphViewSeeds(seeds, {
+      nodeForItemKey: (key) => (key === "BBBB2222" ? local : null),
+    });
+    expect(dropped).to.equal(0);
+    expect(nodes).to.deep.equal([local]);
   });
 });

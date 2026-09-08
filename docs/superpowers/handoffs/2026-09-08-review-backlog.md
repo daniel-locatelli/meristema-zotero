@@ -131,6 +131,21 @@ First step: reproduce with the Zotero error console open
 (`Zotero.debug` lines start with "Meristema:"); capture the message,
 then `superpowers:systematic-debugging`.
 
+## B7. New Graph on an empty library opens no tab
+
+Found 2026-09-08 while reproducing B6 in the Zotero suite: Tools ›
+Meristema › New Graph in a library with no regular items produces no tab
+and logs nothing the test's `Zotero.logError` stub saw. The tab appears
+once the library holds one item.
+
+Pointers: `src/services/windowService.ts` where the tab is added
+(`manager.add({ … data: { itemID: … ?? snapshot.papers[0].itemID` }})`):
+with no papers that read throws before the tab exists. A scratch graph
+should open on an empty library and show the empty state.
+
+Test: a Zotero test that empties the library (or uses a fresh group),
+runs the command from the Tools menu, and expects the tab.
+
 ---
 
 ## D1. Focus mode hides the rest of the graph; "Show in Graph" drops seeds

@@ -121,6 +121,12 @@ export interface PaperDetailHost {
   clearPreview?(): void;
   /** Called after an ignore or a restore; the host publishes or applies it. */
   onRelationshipMutation(event: RelationshipMutationEvent): void;
+  /**
+   * Called once Add to Zotero has written the item, before the pane reports
+   * it. The host records which library item the work became, so a graph
+   * seeded on the work can turn it local.
+   */
+  workImported?(work: ExternalWork, item: Zotero.Item): void;
 }
 
 function runAction(
@@ -426,6 +432,7 @@ export function createImportArea(
     const imported = items[0];
     if (!imported) throw new Error("No item was imported.");
     work.inLibraryItemKey = String(imported.key);
+    host.workImported?.(work, imported);
     root.replaceChildren(text(document, "p", "Added to Zotero.", "cm-success"));
     root.hidden = false;
     addButton.remove();

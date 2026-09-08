@@ -84,6 +84,24 @@ export function seedFromNode(node: CitationGraphNode): GraphViewSeed | null {
   };
 }
 
+/**
+ * The seed whose identity is `identityKey` learns the library item it was
+ * imported as. The next resolve then finds that item instead of building an
+ * external node, which is how an imported seed turns local. Pure: the input
+ * seeds are left as they were.
+ */
+export function markExternalSeedImported(
+  seeds: readonly GraphViewSeed[],
+  identityKey: string,
+  itemKey: string,
+): GraphViewSeed[] {
+  return seeds.map((seed) =>
+    seed.kind === "external" && seed.identityKey === identityKey
+      ? { ...seed, work: { ...seed.work, inLibraryItemKey: itemKey } }
+      : seed,
+  );
+}
+
 export interface GraphViewSeedResolvers {
   /** A library node by Zotero item key, or null when the item is gone. */
   nodeForItemKey: (itemKey: string) => CitationGraphNode | null;

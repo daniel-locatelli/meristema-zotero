@@ -30,7 +30,10 @@ import {
   refreshExternalRelationships,
   selectedRelationshipCacheIsFresh,
 } from "./externalDiscoveryService";
-import { normalizeDOI } from "../domain/workIdentity";
+import {
+  normalizeDOI,
+  stableExternalWorkIdentity,
+} from "../domain/workIdentity";
 import {
   emptyGraphViewState,
   resolveGraphViewSeeds,
@@ -222,6 +225,11 @@ export interface GraphViewController {
   getState(): GraphViewState;
   /** Rebuilds the graph from a recipe. Seeds whose item is gone are dropped. */
   applyState(state: GraphViewState): GraphFocusResult;
+  /**
+   * An external seed with this identity was imported as the item with this
+   * key. The seed turns local now when the view's library lists the item.
+   */
+  markExternalSeedImported(identityKey: string, itemKey: string): void;
   /** Shows a short message in the toolbar for a moment; null clears it. */
   setStatus(message: string | null): void;
   setActive(active: boolean): void;
@@ -281,6 +289,12 @@ export interface GraphViewOptions {
    * the camera when it is needed.
    */
   onStateChange?: (state: GraphViewState) => void;
+  /**
+   * Add to Zotero wrote the item an external work now is. The host records
+   * the key against the instance and any view rebuilt meanwhile, then
+   * refreshes so the seed resolves to the library item.
+   */
+  onExternalWorkImported?: (identityKey: string, itemKey: string) => void;
   /** Backs the toolbar's Graph menu. Without it the menu is disabled. */
   savedGraphs?: GraphViewSavedGraphsHost | null;
 }
@@ -343,6 +357,12 @@ export function renderGraphView(
     origin: "graph",
     snapshot,
     collectionChooser: true,
+    workImported: (work, item) => {
+      const identityKey = stableExternalWorkIdentity(work);
+      if (!identityKey) return;
+      markExternalSeedImported(identityKey, String(item.key));
+      options.onExternalWorkImported?.(identityKey, String(item.key));
+    },
     showInZotero: (itemKey) => {
       const paper = paperByKey.get(itemKey);
       if (paper) void selectPaper(paper.itemID);
@@ -463,6 +483,10 @@ export function renderGraphView(
    * filter controller below closes over it long before that.
    */
   let notifyStateChange: () => void = () => undefined;
+  let markExternalSeedImported = (
+    _identityKey: string,
+    _itemKey: string,
+  ): void => undefined;
   /** Rebuild the Key from the graph as it now stands. Assigned once the rail exists. */
   let refreshKeyRail = (): void => undefined;
   /** What the search is currently matching, so the Key can name that mark. */
@@ -3949,12 +3973,34 @@ export function renderGraphView(
       return "selected";
     });
 
+  /**
+   * An external seed became a library item. Its registry node learns the
+   * key, so the state carries it from now on. When the library already lists
+   * the item, which is the case for a view rebuilt after the import, the
+   * state is resolved again and the seed turns local at once; otherwise the
+   * host's refresh does it with the next snapshot.
+   */
+  markExternalSeedImported = (identityKey, itemKey): void => {
+    let touched = false;
+    for (const node of focusSeedRegistry.values()) {
+      const work = node.externalWork;
+      if (!work || node.itemID > 0) continue;
+      if (stableExternalWorkIdentity(work) !== identityKey) continue;
+      work.inLibraryItemKey = itemKey;
+      touched = true;
+    }
+    if (!touched) return;
+    if (paperByKey.has(itemKey)) applyState(getState());
+    else notifyStateChange();
+  };
+
   syncMapPinnedKeys(false);
   applyFilters();
 
   const controller: GraphViewController = {
     revealItem,
     revealItems,
+    markExternalSeedImported,
     applyLibrarySelection(itemIDs, options) {
       if (!renderer) return;
       const active = renderer;
