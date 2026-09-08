@@ -1845,7 +1845,7 @@ that both use. The Key's own rendering does not change.
   `KeyRail.renderScope(model: ScopeRailModel | null): void`;
   `KeyRail.addSeedAnchor(): HTMLElement`.
 
-- [ ] **Step 1: Split the body into two hosts**
+- [x] **Step 1: Split the body into two hosts**
 
 In `createKeyRail`, replace the single `body` with a body holding two
 containers, so rendering the Key never wipes Scope:
@@ -1869,7 +1869,7 @@ body.hidden = model.sections.length === 0 && scopeHost.hidden;
 
 In `destroy()`, replace `body.replaceChildren()` with the same on both hosts.
 
-- [ ] **Step 2: Make the emphasis channel a union**
+- [x] **Step 2: Make the emphasis channel a union**
 
 Replace the `onEmphasise` type and every call. At the top of the file:
 
@@ -1897,7 +1897,7 @@ In `entryRow`, the four hover/focus handlers and the click handler now send
 `null`. `pinned` keeps its `KeyEntry | null` type: a Scope row cannot be
 pinned, because a checkbox is already how a Scope row makes something stick.
 
-- [ ] **Step 3: Render the Scope section**
+- [x] **Step 3: Render the Scope section**
 
 Add the handler bag to `KeyRailOptions`:
 
@@ -2060,7 +2060,7 @@ import type {
 } from "./graphScopeRailModel";
 ```
 
-- [ ] **Step 4: Style the section**
+- [x] **Step 4: Style the section**
 
 Append to `addon/content/graph.css`, after the Key rail block:
 
@@ -2199,7 +2199,7 @@ Append to `addon/content/graph.css`, after the Key rail block:
 }
 ```
 
-- [ ] **Step 5: Run the gate**
+- [x] **Step 5: Run the gate**
 
 Run: `npm run check`
 Expected: FAIL on `tsc` in `graphViewService.ts`: its `onEmphasise` callback
@@ -2234,7 +2234,7 @@ const keyRail = createKeyRail({
 Run: `npm run check`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/services/graphKeyRail.ts src/services/graphViewService.ts \

@@ -39,3 +39,10 @@ nothing about a finished task is kept anywhere else.
   lines needed rewrapping for `printWidth: 80`; the new token's two values
   are existing ramp stops, so the ring is not distinguishable from a
   ramp-coloured fill if a later stage needs that.
+- Task 6, fd5019c: the rail grows a Scope section — its own host, seed rows with
+  bullseye and remove, the folder tree, Unfiled, Not in Zotero, hidden line,
+  Add seed, and a 132-line CSS block with no colour literals. One emphasis
+  channel now carries `{ kind: "key" | "scope" }`. `npm run check` green,
+  291 unit tests. Surprise: `test/zotero/graphVisual.test.ts` also builds a
+  KeyRail, so `tsc -p test` forced the same signature fix there; the plan's
+  file list did not mention it. Scope handlers are no-ops until Task 8.
