@@ -1280,6 +1280,9 @@ describe("Graph view, as the product builds it", function () {
           calls.push("save-as");
           return "Copy";
         },
+        newGraph: async () => {
+          calls.push("new");
+        },
         open: async (id) => {
           calls.push(`open:${id}`);
           return id === 9 ? "deleted" : "opened";

@@ -202,6 +202,8 @@ export interface SavedGraphMenuEntry {
  */
 export interface GraphViewSavedGraphsHost {
   list(): Promise<SavedGraphMenuEntry[]>;
+  /** Opens a fresh, empty graph in a new tab. */
+  newGraph(): Promise<void>;
   /**
    * Saves the graph, prompting for a name when it is still scratch. Resolves
    * to the saved name, or null when the user cancelled or the write failed.
@@ -630,13 +632,17 @@ export function renderGraphView(
   );
   const graphButton = element(document, "button", "cm-toolbar-button");
   graphButton.type = "button";
-  graphButton.append(iconButtonContent(document, "document", "Graph"));
-  graphButton.title = "Save this graph, or open a saved one.";
+  graphButton.append(iconButtonContent(document, "document", "File"));
+  graphButton.title = "New, open, save, or save this graph as a new one.";
   graphButton.setAttribute("aria-expanded", "false");
   graphButton.setAttribute("aria-controls", "meristema-graph-menu");
   const graphMenu = element(document, "div", "cm-export-menu cm-graph-menu");
   graphMenu.id = "meristema-graph-menu";
   graphMenu.hidden = true;
+  const newGraphButton = element(document, "button");
+  newGraphButton.type = "button";
+  newGraphButton.dataset.action = "new";
+  newGraphButton.textContent = "New Graph";
   const saveButton = element(document, "button");
   saveButton.type = "button";
   saveButton.dataset.action = "save";
@@ -652,7 +658,13 @@ export function renderGraphView(
     "cm-graph-menu-heading",
   );
   const graphMenuList = element(document, "div", "cm-graph-menu-list");
-  graphMenu.append(saveButton, saveAsButton, graphMenuHeading, graphMenuList);
+  graphMenu.append(
+    newGraphButton,
+    graphMenuHeading,
+    graphMenuList,
+    saveButton,
+    saveAsButton,
+  );
   graphWrap.append(graphButton, graphMenu);
   if (!options.savedGraphs) {
     graphButton.disabled = true;
@@ -3565,6 +3577,16 @@ export function renderGraphView(
       .finally(() => {
         graphMenuBusy = false;
       });
+  });
+  newGraphButton.addEventListener("click", () => {
+    closeGraphMenu();
+    void Promise.resolve(options.savedGraphs?.newGraph?.()).catch(
+      (error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      },
+    );
   });
   refreshButton.addEventListener("click", () => {
     if (refreshButton.disabled) return;

@@ -69,6 +69,8 @@ export type FluentMessageId =
   | 'refresh-command'
   | 'refresh-library-command'
   | 'rename-view-command'
+  | 'save-as-command'
+  | 'save-command'
   | 'settings-command'
   | 'show-items-new-tab-command'
   | 'show-update-progress-command'

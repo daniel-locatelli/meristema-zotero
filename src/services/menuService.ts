@@ -19,6 +19,8 @@ import {
   openNewGraphWindow,
   openSavedGraph,
   renameGraphView,
+  saveGraphView,
+  saveGraphViewAs,
 } from "./windowService";
 
 const registeredMenuIDs: string[] = [];
@@ -464,6 +466,34 @@ function openSavedGraphSubmenu(): MenuData {
   };
 }
 
+/**
+ * Save and Save as… act on the active graph. With no graph tab open there is
+ * nothing to save, so the entry is disabled rather than absent: a command that
+ * comes and goes is harder to find than one that is greyed.
+ */
+function graphStateCommand(
+  l10nID: string,
+  run: (view: OpenGraphViewInfo, hostWindow: MainWindow) => Promise<unknown>,
+): MenuData {
+  return {
+    menuType: "menuitem",
+    l10nID,
+    icon: ICON,
+    onShowing: (_event: Event, context: any) => {
+      const active = getOpenGraphViews(contextWindow(context)).find(
+        (view) => view.active,
+      );
+      context.setEnabled(Boolean(active));
+    },
+    onCommand: (_event: Event, context: any) => {
+      const hostWindow = contextWindow(context);
+      const active = getOpenGraphViews(hostWindow).find((view) => view.active);
+      if (!active) return;
+      void Promise.resolve(run(active, hostWindow)).catch(report);
+    },
+  };
+}
+
 function toolsSubmenu(): MenuData {
   return {
     menuType: "submenu",
@@ -474,12 +504,22 @@ function toolsSubmenu(): MenuData {
         openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
       ),
       openSavedGraphSubmenu(),
+      graphStateCommand(`${config.addonRef}-save-command`, (view, win) =>
+        saveGraphView(view.instanceID, win),
+      ),
+      graphStateCommand(`${config.addonRef}-save-as-command`, (view, win) =>
+        saveGraphViewAs(view.instanceID, win),
+      ),
+      { menuType: "separator" },
       commandItem(
         `${config.addonRef}-refresh-library-command`,
         async (context) => {
           refreshItems(await activeLibraryRegularItems(context));
         },
       ),
+      commandItem(`${config.addonRef}-refresh-command`, (context) => {
+        refreshItems(contextRegularItems(context));
+      }),
       { menuType: "separator" },
       commandItem(`${config.addonRef}-settings-command`, () => {
         openSettings();

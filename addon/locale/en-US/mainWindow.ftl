@@ -78,7 +78,13 @@ refresh-library-command =
     .label = Refresh Library
 
 open-saved-graph-submenu =
-    .label = Open Saved Graph…
+    .label = Open
+
+save-command =
+    .label = Save
+
+save-as-command =
+    .label = Save as…
 
 open-saved-graph-empty-command =
     .label = No saved graphs yet.

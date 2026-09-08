@@ -564,6 +564,7 @@ function savedGraphsHost(
       return written ? instance.title : null;
     },
     saveAs: createAs,
+    newGraph: () => openNewGraphWindow(win, libraryID()),
     open: (id) => openSavedGraph(id, win),
     remove: async (id) => {
       const entry = (await listSavedGraphs(libraryID())).find(
@@ -1505,6 +1506,31 @@ export async function openSavedGraph(
     savedGraph: { id, name: loaded.summary.name, state: loaded.state },
   });
   return "opened";
+}
+
+/**
+ * Save the graph an open view is showing, from outside that view. The Tools
+ * menu offers the same four commands the toolbar's File menu does, and these
+ * are how the two share one implementation.
+ */
+export async function saveGraphView(
+  instanceID: string,
+  hostWindow?: _ZoteroTypes.MainWindow,
+): Promise<string | null> {
+  const win = hostWindow ?? defaultMainWindow();
+  const instance = graphState(win).instances.get(instanceID);
+  if (!instance) return null;
+  return savedGraphsHost(win, instance).save();
+}
+
+export async function saveGraphViewAs(
+  instanceID: string,
+  hostWindow?: _ZoteroTypes.MainWindow,
+): Promise<string | null> {
+  const win = hostWindow ?? defaultMainWindow();
+  const instance = graphState(win).instances.get(instanceID);
+  if (!instance) return null;
+  return savedGraphsHost(win, instance).saveAs();
 }
 
 export interface OpenGraphViewInfo {
