@@ -66,3 +66,22 @@ export function screenLengthToWorld(
 ): number {
   return length / transform.scale;
 }
+
+/**
+ * How far to shift the view so a screen point sits inside the canvas with
+ * `margin` to spare, or zero on an axis where it already does. Used to bring
+ * a node selected elsewhere into view without changing the zoom.
+ */
+export function offscreenPanDelta(
+  point: ViewportPoint,
+  margin: number,
+  width: number,
+  height: number,
+): ViewportPoint {
+  const shift = (value: number, extent: number): number => {
+    if (value < margin) return margin - value;
+    if (value > extent - margin) return extent - margin - value;
+    return 0;
+  };
+  return { x: shift(point.x, width), y: shift(point.y, height) };
+}

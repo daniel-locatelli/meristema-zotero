@@ -44,6 +44,7 @@ import {
 } from "./graphCategoryAssignment";
 import {
   devicePixelScale,
+  offscreenPanDelta,
   projectToScreen,
   projectToWorld,
   screenLengthToWorld,
@@ -1550,6 +1551,30 @@ export class CitationGraphRenderer {
           this.canvas.height / 2 - position.y * this.transform.scale;
       }
     }
+    this.draw();
+    return true;
+  }
+
+  /**
+   * Bring a node into view without changing the zoom. Returns true when the
+   * view moved. A node already inside the canvas, with one node radius to
+   * spare, leaves the camera where the user put it.
+   */
+  public panToNodeIfOffscreen(key: string): boolean {
+    const node = this.model.nodes.find((candidate) => candidate.key === key);
+    const position = node ? this.positions.get(key) : undefined;
+    if (!node || !position) return false;
+    const margin = this.nodeRadius(node) * this.pixelRatio() * 2;
+    const delta = offscreenPanDelta(
+      this.projectToScreen(position),
+      margin,
+      this.canvas.width,
+      this.canvas.height,
+    );
+    if (delta.x === 0 && delta.y === 0) return false;
+    this.markViewAdjusted();
+    this.transform.x += delta.x;
+    this.transform.y += delta.y;
     this.draw();
     return true;
   }

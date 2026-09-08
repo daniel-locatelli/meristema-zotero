@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   devicePixelScale,
+  offscreenPanDelta,
   projectToScreen,
   projectToWorld,
   screenLengthToWorld,
@@ -54,5 +55,42 @@ describe("Graph viewport", function () {
     expect(devicePixelScale(2000, 1000)).to.equal(2);
     expect(devicePixelScale(1000, 1000)).to.equal(1);
     expect(devicePixelScale(4, 0)).to.equal(4);
+  });
+});
+
+describe("Off-screen pan", function () {
+  const width = 800;
+  const height = 600;
+  const margin = 10;
+
+  it("moves nothing for a point inside the margin", function () {
+    expect(
+      offscreenPanDelta({ x: 400, y: 300 }, margin, width, height),
+    ).to.deep.equal({ x: 0, y: 0 });
+    expect(
+      offscreenPanDelta({ x: 10, y: 590 }, margin, width, height),
+      "on the margin line counts as inside",
+    ).to.deep.equal({ x: 0, y: 0 });
+  });
+
+  it("moves by the minimum past each edge", function () {
+    expect(
+      offscreenPanDelta({ x: -50, y: 300 }, margin, width, height),
+    ).to.deep.equal({ x: 60, y: 0 });
+    expect(
+      offscreenPanDelta({ x: 850, y: 300 }, margin, width, height),
+    ).to.deep.equal({ x: -60, y: 0 });
+    expect(
+      offscreenPanDelta({ x: 400, y: -20 }, margin, width, height),
+    ).to.deep.equal({ x: 0, y: 30 });
+    expect(
+      offscreenPanDelta({ x: 400, y: 700 }, margin, width, height),
+    ).to.deep.equal({ x: 0, y: -110 });
+  });
+
+  it("moves on both axes past a corner", function () {
+    expect(
+      offscreenPanDelta({ x: 900, y: -100 }, margin, width, height),
+    ).to.deep.equal({ x: -110, y: 110 });
   });
 });
