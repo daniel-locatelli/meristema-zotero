@@ -488,6 +488,12 @@ function releaseSavedGraph(
   instance.savedGraphSerialized = null;
 }
 
+const DIALOG_TITLE = "Meristema";
+// confirmEx flags: a custom string on button 0, Cancel on button 1
+// (nsIPromptService BUTTON_TITLE_IS_STRING * BUTTON_POS_0 +
+// BUTTON_TITLE_CANCEL * BUTTON_POS_1).
+const DELETE_CANCEL_BUTTONS = 127 * 1 + 2 * 256;
+
 function savedGraphsHost(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
@@ -510,13 +516,20 @@ function savedGraphsHost(
       }
     );
   };
+  // Services.prompt gives the dialog a real title; window.prompt/confirm
+  // would title it "[JavaScript Application]".
   const askName = (): string | null => {
-    const answer = (dialogWindow() as any).prompt?.(
+    const value = { value: instance.title };
+    const accepted = Services.prompt.prompt(
+      dialogWindow() as unknown as mozIDOMWindowProxy,
+      DIALOG_TITLE,
       "Save graph as",
-      instance.title,
+      value,
+      "",
+      { value: false },
     );
-    if (answer === null || answer === undefined) return null;
-    const name = String(answer).trim();
+    if (!accepted) return null;
+    const name = String(value.value ?? "").trim();
     return name || null;
   };
   const createAs = async (): Promise<string | null> => {
@@ -548,12 +561,19 @@ function savedGraphsHost(
         (summary) => summary.id === id,
       );
       const name = entry?.name ?? "this graph";
-      const confirmed = Boolean(
-        (dialogWindow() as any).confirm?.(
-          `Delete the saved graph “${name}”? Open tabs keep their graph; only the saved copy is removed.`,
-        ),
+      const pressed = Services.prompt.confirmEx(
+        dialogWindow() as unknown as mozIDOMWindowProxy,
+        DIALOG_TITLE,
+        `Delete the saved graph “${name}”?
+Open tabs keep their graph; only the saved copy is removed.`,
+        DELETE_CANCEL_BUTTONS,
+        "Delete",
+        "",
+        "",
+        "",
+        { value: false },
       );
-      if (!confirmed) return false;
+      if (pressed !== 0) return false;
       await deleteSavedGraph(id);
       // Every view of that row, in any window, is scratch again. Each timer
       // is cleared through the window that set it.
