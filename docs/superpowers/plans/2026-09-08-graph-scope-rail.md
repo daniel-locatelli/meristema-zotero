@@ -3558,7 +3558,7 @@ and the flat per-graph rows become one submenu.
 - Produces: locale id `meristema-add-to-submenu`;
   `show-items-new-tab-command` deleted.
 
-- [ ] **Step 1: Replace `itemMenus`**
+- [x] **Step 1: Replace `itemMenus`**
 
 ```ts
 // The item context menu is deliberately flat: every Meristema action sits
@@ -3668,7 +3668,7 @@ Delete `openInNewMap`, `showInExistingView`, `injectViewItems` and the
 `"show-items-new-tab-command"` entry in `MENU_HINTS`. `Refresh` leaves the
 item menu; it is added to Tools in Task 12.
 
-- [ ] **Step 2: Locale**
+- [x] **Step 2: Locale**
 
 Delete `show-items-new-tab-command` from `addon/locale/en-US/mainWindow.ftl`
 and add:
@@ -3687,14 +3687,14 @@ add-to-empty-command =
 `typings/i10n.d.ts` as in Task 12: add `add-to-submenu` and
 `add-to-empty-command`, remove `show-items-new-tab-command`.
 
-- [ ] **Step 3: Run the gate and the suite**
+- [x] **Step 3: Run the gate and the suite**
 
 Run: `npm run check`
 Expected: PASS.
 Run: `npm test`
 Expected: only the three known failures.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/services/menuService.ts addon/locale/en-US/mainWindow.ftl \

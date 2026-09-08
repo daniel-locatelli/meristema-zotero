@@ -99,3 +99,9 @@ nothing about a finished task is kept anywhere else.
   `newGraph` stub the plan's file list did not mention; and Refresh is
   briefly in both Tools and the item menu until Task 13 removes the item-menu
   copy, as the plan says it will.
+- Task 13, 01c6ca1: the item menu is New Graph from N items plus an Add to
+  submenu; Show in New Graph, the flat Show in / Add as seed rows and the
+  item-menu Refresh are deleted. That is B4. `npm run check` green, 290 unit
+  tests. Then the protocol's first `npm test`: **28 passed, 6 failed**, four
+  of them new, which stops the run. See
+  `2026-09-08-stage-2-stopped-handoff.md`.
