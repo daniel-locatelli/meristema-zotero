@@ -15,6 +15,10 @@ import {
   type GraphViewSavedGraphsHost,
 } from "./graphViewService";
 import {
+  bindZoteroSelection,
+  type ZoteroSelectionBinding,
+} from "./zoteroSelectionSync";
+import {
   createSavedGraph,
   deleteSavedGraph,
   listSavedGraphs,
@@ -49,6 +53,11 @@ const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/graphWindow.xht
 const AUTOSAVE_DELAY_MS = 500;
 /** Writes in flight, so shutdown can wait for them before the database closes. */
 const savedGraphWrites = new Set<Promise<void>>();
+/** One selection binding per main window, alive while any graph is open in it. */
+const selectionBindingByWindow = new Map<
+  _ZoteroTypes.MainWindow,
+  ZoteroSelectionBinding
+>();
 interface GraphInstanceState {
   instanceID: string;
   title: string;
@@ -78,6 +87,11 @@ interface GraphInstanceState {
   savedGraphSerialized: string | null;
   /** The debounce handle of a pending autosave. */
   autosaveTimer: number | null;
+  /**
+   * The library selection that arrived while this tab was hidden, applied
+   * when the tab is switched to. Only the latest one is kept.
+   */
+  pendingLibrarySelection: number[] | null;
   detachedWindow: Window | null;
   detachedMount: HTMLElement | null;
   lastActivatedAt: number;
@@ -131,6 +145,7 @@ function createGraphInstance(
     savedGraphID: null,
     savedGraphSerialized: null,
     autosaveTimer: null,
+    pendingLibrarySelection: null,
     detachedWindow: null,
     detachedMount: null,
     lastActivatedAt: Date.now(),
@@ -629,6 +644,7 @@ function renderDetachedWindow(
         reportAsyncError("Meristema: paper selection failed", error),
       );
     },
+    onGraphSelection: (itemID) => reportGraphSelection(host, itemID),
     initialItemIDs: request.selectionItemIDs,
     initialItemMode: request.selectionMode,
     initialMapScopeItemIDs: instance.mapScopeItemIDs,
@@ -641,6 +657,10 @@ function renderDetachedWindow(
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
   });
+  instance.pendingLibrarySelection = null;
+  getGraphViewController(mount)?.applyLibrarySelection(
+    selectionBinding(host).current().itemIDs,
+  );
   installGraphLibraryFilter(
     popup.document,
     mount,
@@ -859,6 +879,66 @@ function activeOrRecentInstance(
   );
 }
 
+/** Whether the instance's view is on screen: a detached window, or the selected tab. */
+function instanceIsShowing(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): boolean {
+  if (instance.detachedWindow && !instance.detachedWindow.closed) return true;
+  return instance.tabID !== null && tabs(win).selectedID === instance.tabID;
+}
+
+function applyLibrarySelectionToInstance(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+  itemIDs: readonly number[],
+): void {
+  const mount = instanceMount(win, instance);
+  const controller = mount ? getGraphViewController(mount) : null;
+  if (!controller) return;
+  try {
+    controller.applyLibrarySelection(itemIDs);
+  } catch (error) {
+    Zotero.debug(
+      `Meristema: applying the library selection failed: ${String(error)}`,
+    );
+  }
+}
+
+/**
+ * The window's selection binding, created on first use. Detached windows and
+ * the selected tab follow the library live; a hidden tab keeps the latest
+ * selection and applies it when it is switched to.
+ */
+function selectionBinding(
+  win: _ZoteroTypes.MainWindow,
+): ZoteroSelectionBinding {
+  const existing = selectionBindingByWindow.get(win);
+  if (existing) return existing;
+  const binding = bindZoteroSelection(win as unknown as Window);
+  binding.subscribe(({ itemIDs }) => {
+    for (const instance of liveInstances(win)) {
+      if (instanceIsShowing(win, instance)) {
+        instance.pendingLibrarySelection = null;
+        applyLibrarySelectionToInstance(win, instance, itemIDs);
+      } else {
+        instance.pendingLibrarySelection = [...itemIDs];
+      }
+    }
+  });
+  selectionBindingByWindow.set(win, binding);
+  return binding;
+}
+
+/** A click in the graph selects the row in Zotero's list, if it is listed. */
+function reportGraphSelection(
+  win: _ZoteroTypes.MainWindow,
+  itemID: number | null,
+): void {
+  if (itemID === null) return;
+  selectionBinding(liveHostWindow(win)).selectListed([itemID]);
+}
+
 /**
  * Register custom-tab hooks as soon as the Zotero main window is available.
  * Zotero restores saved tabs during window startup, so delaying this until the
@@ -960,6 +1040,11 @@ function prepareContainer(
       if (selected) {
         instance.lastActivatedAt = Date.now();
         hideGlobalContextPane(win, container);
+        if (instance.pendingLibrarySelection) {
+          const pending = instance.pendingLibrarySelection;
+          instance.pendingLibrarySelection = null;
+          getGraphViewController(container)?.applyLibrarySelection(pending);
+        }
         if (instance.dirty) {
           instance.dirty = false;
           void refreshGraphInstance(win, instance).catch((error) =>
@@ -1006,6 +1091,7 @@ function renderTab(
           reportAsyncError("Meristema: paper selection failed", error),
         );
       },
+      onGraphSelection: (itemID) => reportGraphSelection(win, itemID),
       initialItemIDs: request.selectionItemIDs,
       initialItemMode: request.selectionMode,
       initialMapScopeItemIDs: instance.mapScopeItemIDs,
@@ -1019,6 +1105,13 @@ function renderTab(
       ...stateOptions,
       initialState: instance.viewState,
     });
+    const current = selectionBinding(win).current().itemIDs;
+    if (tabs(win).selectedID === instance.tabID) {
+      instance.pendingLibrarySelection = null;
+      getGraphViewController(container)?.applyLibrarySelection(current);
+    } else {
+      instance.pendingLibrarySelection = current;
+    }
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
     );
@@ -1176,6 +1269,7 @@ export async function openGraphWindow(
 ): Promise<void> {
   const win = hostWindow ?? defaultMainWindow();
   installGraphTabHooks(win);
+  selectionBinding(win);
   liveInstances(win);
   const targetLibraryID = requestedLibraryID(win, libraryID);
   const snapshot = await loadWholeLibrary(targetLibraryID);
@@ -1648,6 +1742,8 @@ export function closeGraphForWindow(
     instance.tabID = null;
   }
   state.instances.clear();
+  selectionBindingByWindow.get(win)?.dispose();
+  selectionBindingByWindow.delete(win);
   graphStateByWindow.delete(win);
 }
 
