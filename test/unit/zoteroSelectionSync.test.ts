@@ -198,6 +198,20 @@ describe("Zotero selection sync", function () {
     expect(seen).to.deep.equal([[8]]);
   });
 
+  it("starts from the list's live selection, without publishing it", function () {
+    const tree = new FakeTree();
+    tree.selected = [11, 4];
+    const binding = bindZoteroSelection(host, deps(tree));
+    const seen: number[][] = [];
+    binding.subscribe((s) => seen.push(s.itemIDs));
+    expect(binding.current().itemIDs).to.deep.equal([4, 11]);
+    expect(seen).to.deep.equal([]);
+    tree.fire([4, 11]);
+    expect(seen, "the same set is not an event").to.deep.equal([]);
+    tree.fire([5]);
+    expect(seen).to.deep.equal([[5]]);
+  });
+
   it("never throws out of the tree listener", function () {
     const tree = new FakeTree();
     const d = deps(tree);

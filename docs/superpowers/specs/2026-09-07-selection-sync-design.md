@@ -92,7 +92,10 @@ export interface LibrarySelection {
 }
 
 export interface ZoteroSelectionBinding {
-  /** The last published set; empty before the first event. Returns a copy. */
+  /**
+   * The list's selection when the binding attached, then the last published
+   * set. Returns a copy.
+   */
   current(): LibrarySelection;
   /** Tree-level select of listed rows only: no jump, no focus, no tab switch. */
   selectListed(itemIDs: readonly number[]): void;

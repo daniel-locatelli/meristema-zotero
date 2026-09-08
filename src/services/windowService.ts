@@ -658,7 +658,9 @@ function renderDetachedWindow(
     ...stateOptions,
   });
   instance.pendingLibrarySelection = null;
-  getGraphViewController(mount)?.applyLibrarySelection(
+  applyLibrarySelectionToInstance(
+    host,
+    instance,
     selectionBinding(host).current().itemIDs,
   );
   installGraphLibraryFilter(
@@ -1043,7 +1045,7 @@ function prepareContainer(
         if (instance.pendingLibrarySelection) {
           const pending = instance.pendingLibrarySelection;
           instance.pendingLibrarySelection = null;
-          getGraphViewController(container)?.applyLibrarySelection(pending);
+          applyLibrarySelectionToInstance(win, instance, pending);
         }
         if (instance.dirty) {
           instance.dirty = false;
@@ -1108,7 +1110,7 @@ function renderTab(
     const current = selectionBinding(win).current().itemIDs;
     if (tabs(win).selectedID === instance.tabID) {
       instance.pendingLibrarySelection = null;
-      getGraphViewController(container)?.applyLibrarySelection(current);
+      applyLibrarySelectionToInstance(win, instance, current);
     } else {
       instance.pendingLibrarySelection = current;
     }
@@ -1666,6 +1668,8 @@ export async function refreshOpenGraphViews(): Promise<void> {
   for (const [win] of [...graphStateByWindow.entries()]) {
     if (generation !== openViewRefreshGeneration) return;
     if ((win as any).closed) {
+      selectionBindingByWindow.get(win)?.dispose();
+      selectionBindingByWindow.delete(win);
       graphStateByWindow.delete(win);
       continue;
     }
@@ -1714,6 +1718,8 @@ export function closeGraphForWindow(
   win: _ZoteroTypes.MainWindow,
   closeTab = true,
 ): void {
+  selectionBindingByWindow.get(win)?.dispose();
+  selectionBindingByWindow.delete(win);
   const state = graphStateByWindow.get(win);
   if (!state) return;
   const manager = tabs(win);
@@ -1742,8 +1748,6 @@ export function closeGraphForWindow(
     instance.tabID = null;
   }
   state.instances.clear();
-  selectionBindingByWindow.get(win)?.dispose();
-  selectionBindingByWindow.delete(win);
   graphStateByWindow.delete(win);
 }
 

@@ -37,7 +37,10 @@ export interface ZoteroSelectionSyncDeps {
 }
 
 export interface ZoteroSelectionBinding {
-  /** The last published set; empty before the first event. Returns a copy. */
+  /**
+   * The list's selection when the binding attached, then the last published
+   * set. Returns a copy.
+   */
   current(): LibrarySelection;
   /** Tree-level select of listed rows only: no jump, no focus, no tab switch. */
   selectListed(itemIDs: readonly number[]): void;
@@ -134,6 +137,15 @@ export function bindZoteroSelection(
     try {
       found.onSelect.addListener(onSelect);
       tree = found;
+      // The list may already have a selection; a view rendered now should
+      // see it without waiting for the next click.
+      try {
+        current = normalizeItemIDs(found.getSelectedItems(true));
+      } catch (error) {
+        deps.debug(
+          `Meristema: reading the live item selection failed: ${String(error)}`,
+        );
+      }
     } catch (error) {
       deps.debug(`Meristema: items tree listener failed: ${String(error)}`);
       return null;
