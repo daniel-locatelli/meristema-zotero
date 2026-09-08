@@ -1039,3 +1039,135 @@
   font-size: 11px;
   line-height: 1.35;
 }
+/*
+ * The Scope section. It sits above the Key and, unlike the Key, it filters:
+ * every row here owns a checkbox that changes what the plot draws. The two
+ * are separated by the same hairline that separates Key sections, so the
+ * column still reads as one list.
+ */
+.cm-scope-section {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cm-border-soft);
+  margin-bottom: 12px;
+}
+.cm-scope-section[hidden] {
+  display: none;
+}
+.cm-scope-count {
+  margin: 1px 0 8px;
+  color: CanvasText;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.cm-scope-seeds-header {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.cm-scope-seeds-heading {
+  color: var(--cm-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.meristema-root .cm-scope-add-seed,
+.meristema-root .cm-scope-show-all {
+  appearance: none;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--cm-accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.meristema-root .cm-scope-add-seed:hover,
+.meristema-root .cm-scope-show-all:hover {
+  text-decoration: underline;
+}
+.cm-scope-seed {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.cm-scope-seed:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.cm-scope-seed-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meristema-root .cm-scope-seed-remove {
+  appearance: none;
+  flex: 0 0 auto;
+  min-width: 20px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--cm-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.meristema-root .cm-scope-seed-remove:hover {
+  background: color-mix(in srgb, CanvasText 12%, transparent);
+  color: CanvasText;
+}
+.cm-scope-rows {
+  display: grid;
+  gap: 1px;
+  max-height: 40vh;
+  margin-top: 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.cm-scope-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cm-scope-row:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.meristema-root .cm-scope-check {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.cm-scope-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The indent is leading spaces in the label, so it must survive. */
+  white-space: pre;
+}
+.cm-scope-row-count {
+  flex: 0 0 auto;
+  color: var(--cm-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.cm-scope-hidden {
+  margin: 8px 0 0;
+  color: var(--cm-muted);
+  font-size: 11px;
+}

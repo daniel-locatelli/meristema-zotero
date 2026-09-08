@@ -19,6 +19,22 @@
 import { element, text } from "./graphViewControls";
 import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
+import type {
+  ScopeRailModel,
+  ScopeRow,
+  ScopeSeedRow,
+} from "./graphScopeRailModel";
+
+/**
+ * One emphasis, whatever raised it. Scope adds a second source of hover to a
+ * rail that had only the Key's, and two sources writing the same plot state is
+ * how a highlight gets stranded when the pointer crosses quickly from a Seeds
+ * row to a Key entry. Raising one clears the last.
+ */
+export type RailEmphasis =
+  | { kind: "key"; entry: KeyEntry }
+  | { kind: "seed"; seedKey: string }
+  | { kind: "collection"; collectionID: number };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -118,13 +134,23 @@ function markElement(document: Document, mark: KeyMark): SVGElement {
 
 const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 
+export interface ScopeRailHandlers {
+  /** A folder, Unfiled or Not in Zotero was ticked or unticked. */
+  toggleRow(row: ScopeRow, ticked: boolean): void;
+  removeSeed(seedKey: string): void;
+  /** The reader asked for the seed search panel; the anchor is the link. */
+  addSeed(anchor: HTMLElement): void;
+  showAllHidden(): void;
+}
+
 export interface KeyRailOptions {
   document: Document;
   /**
    * Emphasise the papers an entry covers, or release with null. The rail never
    * decides what emphasis *means*; it only says which entry is being pointed at.
    */
-  onEmphasise: (entry: KeyEntry | null) => void;
+  onEmphasise: (emphasis: RailEmphasis | null) => void;
+  onScope: ScopeRailHandlers;
   /**
    * The rail's own toggle flipped it. Not called for `setCollapsed`, which is
    * how the view tells the rail about a change that came from elsewhere.
@@ -158,6 +184,10 @@ export interface KeyRail {
   setCollapsed(collapsed: boolean): void;
   isCollapsed(): boolean;
   render(model: KeyModel): void;
+  /** Draw the Scope section, or pass null to leave the column Key-only. */
+  renderScope(model: ScopeRailModel | null): void;
+  /** The "+ Add seed" link. The view anchors the seed search panel to it. */
+  addSeedAnchor(): HTMLElement;
   /** Drop any pinned emphasis — a background click, or Escape. */
   release(): void;
   destroy(): void;
@@ -181,6 +211,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   const toolbar = element(document, "div", "cm-rail-toolbar");
   toolbar.append(toggle);
   const body = element(document, "div", "cm-key-body");
+  const scopeHost = element(document, "section", "cm-scope-section");
+  scopeHost.setAttribute("aria-label", "Scope");
+  scopeHost.hidden = true;
+  const keyHost = element(document, "div", "cm-key-sections");
+  body.append(scopeHost, keyHost);
   const footer = element(document, "div", "cm-key-footer");
   const resizer = element(document, "div", "cm-rail-resizer");
   resizer.tabIndex = 0;
@@ -279,13 +314,13 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     button.type = "button";
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("pointerenter", () => {
-      if (!pinned) onEmphasise(entry);
+      if (!pinned) onEmphasise({ kind: "key", entry });
     });
     button.addEventListener("pointerleave", () => {
       if (!pinned) onEmphasise(null);
     });
     button.addEventListener("focus", () => {
-      if (!pinned) onEmphasise(entry);
+      if (!pinned) onEmphasise({ kind: "key", entry });
     });
     button.addEventListener("blur", () => {
       if (!pinned) onEmphasise(null);
@@ -299,9 +334,97 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       pinned = entry;
       pinnedButton = button;
       button.setAttribute("aria-pressed", "true");
-      onEmphasise(entry);
+      onEmphasise({ kind: "key", entry });
     });
     return button;
+  }
+
+  const addSeedLink = element(document, "button", "cm-scope-add-seed");
+  addSeedLink.type = "button";
+  addSeedLink.textContent = "+ Add seed";
+  addSeedLink.setAttribute("aria-haspopup", "dialog");
+  addSeedLink.setAttribute("aria-expanded", "false");
+  addSeedLink.addEventListener("click", () =>
+    options.onScope.addSeed(addSeedLink),
+  );
+
+  function seedRow(seed: ScopeSeedRow): HTMLElement {
+    const row = element(document, "div", "cm-scope-seed");
+    const swatch = svg(document, "svg");
+    swatch.setAttribute("viewBox", "0 0 20 20");
+    swatch.setAttribute("width", "20");
+    swatch.setAttribute("height", "20");
+    swatch.setAttribute("aria-hidden", "true");
+    swatch.setAttribute("focusable", "false");
+    // A bullseye: a filled centre inside a ring with a gap, so it reads as a
+    // different mark from the Key's plain swatch and from the in-library ring.
+    for (const [radius, fill] of [
+      [7, "none"],
+      [3, seed.color],
+    ] as const) {
+      const circle = svg(document, "circle");
+      circle.setAttribute("cx", "10");
+      circle.setAttribute("cy", "10");
+      circle.setAttribute("r", String(radius));
+      circle.setAttribute("fill", fill);
+      circle.setAttribute("stroke", seed.color);
+      circle.setAttribute("stroke-width", "2");
+      swatch.appendChild(circle);
+    }
+    const label = text(document, "span", seed.label, "cm-scope-seed-label");
+    label.title = seed.label;
+    const remove = element(document, "button", "cm-scope-seed-remove");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.title = `Remove ${seed.label} as a seed`;
+    remove.setAttribute("aria-label", remove.title);
+    remove.addEventListener("click", () =>
+      options.onScope.removeSeed(seed.key),
+    );
+    row.append(swatch, label, remove);
+    row.addEventListener("pointerenter", () => {
+      if (!pinned) options.onEmphasise({ kind: "seed", seedKey: seed.key });
+    });
+    row.addEventListener("pointerleave", () => {
+      if (!pinned) options.onEmphasise(null);
+    });
+    return row;
+  }
+
+  function scopeRowElement(row: ScopeRow): HTMLElement {
+    const label = element(document, "label", "cm-scope-row");
+    const box = element(
+      document,
+      "input",
+      "cm-scope-check",
+    ) as HTMLInputElement;
+    box.type = "checkbox";
+    box.checked = row.state !== "off";
+    // A parent whose descendants disagree draws mixed; clicking it commits to
+    // ticked, which is what writes the same tick to the whole subtree.
+    box.indeterminate = row.state === "mixed";
+    box.addEventListener("change", () =>
+      options.onScope.toggleRow(row, box.checked),
+    );
+    const name = text(document, "span", row.label, "cm-scope-row-label");
+    name.title = row.label;
+    const count = text(
+      document,
+      "span",
+      COUNT_FORMAT.format(row.count),
+      "cm-scope-row-count",
+    );
+    label.append(box, name, count);
+    if (row.kind === "collection") {
+      const collectionID = row.collectionID;
+      label.addEventListener("pointerenter", () => {
+        if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
+      });
+      label.addEventListener("pointerleave", () => {
+        if (!pinned) options.onEmphasise(null);
+      });
+    }
+    return label;
   }
 
   function sectionElement(section: KeySection): HTMLElement {
@@ -340,19 +463,56 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       // even when it describes the same thing — so the pin goes with it rather
       // than leaving the canvas emphasising something the rail cannot show.
       release();
-      body.replaceChildren();
+      keyHost.replaceChildren();
       for (const section of model.sections) {
-        body.appendChild(sectionElement(section));
+        keyHost.appendChild(sectionElement(section));
       }
       // The rail carries the view's controls in its footer now, so an empty
       // Key empties the body and leaves the column standing. Hiding the whole
       // rail would take the zoom and appearance buttons off screen with it.
-      body.hidden = model.sections.length === 0;
+      body.hidden = model.sections.length === 0 && scopeHost.hidden;
     },
+    renderScope(model: ScopeRailModel | null): void {
+      scopeHost.replaceChildren();
+      scopeHost.hidden = model === null;
+      if (!model) {
+        body.hidden = keyHost.children.length === 0;
+        return;
+      }
+      scopeHost.appendChild(text(document, "h2", "Scope", "cm-key-heading"));
+      scopeHost.appendChild(
+        text(document, "p", model.countLine, "cm-scope-count"),
+      );
+      const seedsHeader = element(document, "div", "cm-scope-seeds-header");
+      seedsHeader.append(
+        text(document, "span", model.seedsHeading, "cm-scope-seeds-heading"),
+        addSeedLink,
+      );
+      scopeHost.appendChild(seedsHeader);
+      for (const seed of model.seeds) scopeHost.appendChild(seedRow(seed));
+      const rows = element(document, "div", "cm-scope-rows");
+      for (const row of model.rows) rows.appendChild(scopeRowElement(row));
+      scopeHost.appendChild(rows);
+      if (model.hiddenLine) {
+        const hidden = element(document, "p", "cm-scope-hidden");
+        hidden.append(text(document, "span", model.hiddenLine));
+        const showAll = element(document, "button", "cm-scope-show-all");
+        showAll.type = "button";
+        showAll.textContent = "Show all";
+        showAll.addEventListener("click", () =>
+          options.onScope.showAllHidden(),
+        );
+        hidden.append(text(document, "span", " · "), showAll);
+        scopeHost.appendChild(hidden);
+      }
+      body.hidden = false;
+    },
+    addSeedAnchor: () => addSeedLink,
     release,
     destroy(): void {
       root.removeEventListener("keydown", onKeyDown);
-      body.replaceChildren();
+      scopeHost.replaceChildren();
+      keyHost.replaceChildren();
       root.remove();
     },
   };

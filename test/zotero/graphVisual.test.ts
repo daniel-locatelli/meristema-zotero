@@ -410,7 +410,8 @@ describe("Graph view, looked at", function () {
 
     const rail = createKeyRail({
       document: stage.window.document,
-      onEmphasise: (entry) => {
+      onEmphasise: (emphasis) => {
+        const entry = emphasis?.kind === "key" ? emphasis.entry : null;
         if (!entry?.matches) {
           instance.setEmphasis(null);
           return;
@@ -421,6 +422,12 @@ describe("Graph view, looked at", function () {
             model.nodes.filter((node) => matches(node)).map((node) => node.key),
           ),
         );
+      },
+      onScope: {
+        toggleRow: () => undefined,
+        removeSeed: () => undefined,
+        addSeed: () => undefined,
+        showAllHidden: () => undefined,
       },
     });
     stage.main.insertBefore(rail.root, stage.graphArea);

@@ -1074,7 +1074,8 @@ export function renderGraphView(
   applyDetailState(itemPane.read());
   const keyRail = createKeyRail({
     document,
-    onEmphasise: (entry) => {
+    onEmphasise: (emphasis) => {
+      const entry = emphasis?.kind === "key" ? emphasis.entry : null;
       if (!entry?.matches) {
         railEmphasisKeys = null;
       } else {
@@ -1084,6 +1085,12 @@ export function renderGraphView(
         );
       }
       applyEmphasis();
+    },
+    onScope: {
+      toggleRow: () => undefined,
+      removeSeed: () => undefined,
+      addSeed: () => undefined,
+      showAllHidden: () => undefined,
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
