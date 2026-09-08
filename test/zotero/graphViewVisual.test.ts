@@ -1143,8 +1143,8 @@ describe("Graph view, as the product builds it", function () {
     active.canvas.dispatchEvent(onNode);
     expect(menu.hidden, "a node opens it").to.equal(false);
     const shown = (): string[] =>
-      [...menu.querySelectorAll('[role="menuitem"]')]
-        .filter((item) => !(item as HTMLElement).hidden)
+      (Array.from(menu.querySelectorAll('[role="menuitem"]')) as HTMLElement[])
+        .filter((item) => !item.hidden)
         .map((item) => item.textContent ?? "");
     // The first paper has nothing to open, so the entry stays out of the menu
     // rather than sitting there dead.
