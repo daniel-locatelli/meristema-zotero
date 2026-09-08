@@ -2764,7 +2764,7 @@ edge of the plot, and its rows stop touching.
 - Consumes: `popoverShouldAnchorEnd` from `popoverPlacement.ts`, unchanged.
 - Produces: `openFocusSeedPopover(anchor: HTMLElement): void` inside the view.
 
-- [ ] **Step 1: Move the popover out of the toolbar**
+- [x] **Step 1: Move the popover out of the toolbar**
 
 Delete `focusSeedButton` and `focusSeedButtonLabel`, and every read of them
 (including in `updateFocusBar`, which sets the seed count on the button; the
@@ -2792,7 +2792,7 @@ focusSeedMenu.classList.add("cm-focus-seed-menu--rail");
 plotPane.appendChild(focusSeedMenu);
 ```
 
-- [ ] **Step 2: Open it from the rail's link**
+- [x] **Step 2: Open it from the rail's link**
 
 Replace the `focusSeedButton` click handler with:
 
@@ -2831,7 +2831,7 @@ closeFocusSeedPopover();
 
 Point Task 8's `addSeed` handler at `openFocusSeedPopover`.
 
-- [ ] **Step 3: Style the anchor and fix the rows**
+- [x] **Step 3: Style the anchor and fix the rows**
 
 In `addon/content/graph.css`, add the rail-anchored placement:
 
@@ -2907,14 +2907,14 @@ Delete the old `.cm-focus-seed-result-main`, `.cm-focus-seed-result-title`,
 `.cm-focus-seed-search`'s `padding-left: 30px !important` alone: that one
 fights the shared search-field rule, not the button rule, and is out of scope.
 
-- [ ] **Step 4: Run the gate and look at it**
+- [x] **Step 4: Run the gate and look at it**
 
 Run: `npm run check`
 Expected: PASS.
 Run: `npm test`
 Expected: only the three known failures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/graphViewService.ts addon/content/graph.css

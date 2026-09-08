@@ -64,3 +64,11 @@ nothing about a finished task is kept anywhere else.
   inlines the toolbar button's popover body until Task 9 replaces both with
   `openFocusSeedPopover` (the row's anchor is unused until then), and
   Scope draws through `refreshKeyRail`, so it needs a renderer.
+- Task 9, 8445812: the seed panel opens from the rail's + Add seed through one
+  `openFocusSeedPopover`; the toolbar's Seeds button and its swinging label
+  are deleted, and the popover's rows lose the `!important` chain for
+  `.meristema-root`-scoped rules. `npm run check` green, 291 unit tests.
+  Notes: Escape now returns focus to the rail's anchor; the two one-property
+  title/meta rules were kept, since the replacement block carries no
+  `font-weight`/`color`, and `.cm-focus-seed-menu .cm-toolbar-button` is
+  now dead CSS the plan did not list for deletion.
