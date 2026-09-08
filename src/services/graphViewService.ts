@@ -21,6 +21,7 @@ import {
   CitationGraphRenderer,
   type GraphViewTransform,
 } from "./citationGraphRenderer";
+import { resolveLibrarySelection } from "./librarySelection";
 import {
   hydrateExternalWorksMetadata,
   refreshExternalRelationships,
@@ -192,6 +193,11 @@ export interface GraphViewSavedGraphsHost {
 export interface GraphViewController {
   revealItem(itemID: number): GraphFocusResult;
   revealItems(itemIDs: readonly number[]): GraphFocusResult;
+  /**
+   * Mirror Zotero's item selection: select the one present node, emphasise
+   * several, clear on none. Never adds nodes, never reports back.
+   */
+  applyLibrarySelection(itemIDs: readonly number[]): void;
   replaceMapItems(itemIDs: readonly number[]): GraphFocusResult;
   addMapItems(itemIDs: readonly number[]): GraphFocusResult;
   openFocusItem(itemID: number): GraphFocusResult;
@@ -231,6 +237,12 @@ export function getGraphViewController(
 export interface GraphViewOptions {
   mode: "tab" | "window";
   onSelectPaper: (itemID: number) => void | Promise<void>;
+  /**
+   * The graph's own selection changed by the user's hand: the local node's
+   * item, or null on a deselect or an external node. Not fired for
+   * selections `applyLibrarySelection` makes.
+   */
+  onGraphSelection?: (itemID: number | null) => void;
   initialItemID?: number | null;
   initialItemIDs?: readonly number[] | null;
   initialItemMode?: "replace" | "add";
@@ -404,6 +416,16 @@ export function renderGraphView(
   };
   let cleaned = false;
   let viewActive = true;
+  /** True while a library selection is being applied, so it is not reported back. */
+  let syncingLibrarySelection = false;
+  /** The nodes a multi-item library selection emphasises, until the user moves on. */
+  let libraryEmphasisKeys: ReadonlySet<string> | null = null;
+  /** What the Key rail is emphasising (hover or pinned), or null. */
+  let railEmphasisKeys: ReadonlySet<string> | null = null;
+  /** The rail wins while it is emphasising; otherwise the library selection shows. */
+  const applyEmphasis = (): void => {
+    renderer?.setEmphasis(railEmphasisKeys ?? libraryEmphasisKeys);
+  };
   let inactiveRelationshipDirty = false;
   let applyFilters = (): void => undefined;
   /**
@@ -994,16 +1016,15 @@ export function renderGraphView(
   const keyRail = createKeyRail({
     document,
     onEmphasise: (entry) => {
-      if (!renderer || !entry?.matches) {
-        renderer?.setEmphasis(null);
-        return;
-      }
-      const matches = entry.matches;
-      renderer.setEmphasis(
-        new Set(
+      if (!entry?.matches) {
+        railEmphasisKeys = null;
+      } else {
+        const matches = entry.matches;
+        railEmphasisKeys = new Set(
           model.nodes.filter((node) => matches(node)).map((node) => node.key),
-        ),
-      );
+        );
+      }
+      applyEmphasis();
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -2996,6 +3017,14 @@ export function renderGraphView(
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
     closeNodeMenu();
     renderOverview(node);
+    if (syncingLibrarySelection) return;
+    if (libraryEmphasisKeys) {
+      libraryEmphasisKeys = null;
+      applyEmphasis();
+    }
+    options.onGraphSelection?.(
+      node && node.kind !== "external" ? node.itemID : null,
+    );
   };
 
   renderer = new CitationGraphRenderer({
@@ -3112,6 +3141,13 @@ export function renderGraphView(
     visibleKeys = new Set(scoped.filter(matchesSearch).map((node) => node.key));
     renderer?.setScopeKeys(scopeKeys);
     renderer?.setVisibleKeys(visibleKeys, false);
+    if (libraryEmphasisKeys) {
+      const kept = new Set(
+        [...libraryEmphasisKeys].filter((key) => visibleKeys.has(key)),
+      );
+      libraryEmphasisKeys = kept.size ? kept : null;
+      applyEmphasis();
+    }
     const matches = tokens.length ? new Set(visibleKeys) : null;
     searchMatchKeys = matches;
     renderer?.setSearchMatches(matches);
@@ -3811,6 +3847,42 @@ export function renderGraphView(
   const controller: GraphViewController = {
     revealItem,
     revealItems,
+    applyLibrarySelection(itemIDs) {
+      if (!renderer) return;
+      const active = renderer;
+      let resolution;
+      try {
+        resolution = resolveLibrarySelection(
+          itemIDs,
+          (itemID) => {
+            const libraryNode = libraryNodeForItem(itemID);
+            if (!libraryNode) return null;
+            return model.nodes.some((node) => node.key === libraryNode.key)
+              ? libraryNode.key
+              : null;
+          },
+          visibleKeys,
+        );
+      } catch (error) {
+        Zotero.debug(
+          `Meristema: resolving the library selection failed: ${String(error)}`,
+        );
+        return;
+      }
+      syncingLibrarySelection = true;
+      try {
+        if (resolution.select) {
+          active.selectNode(resolution.select, false);
+          active.panToNodeIfOffscreen(resolution.select);
+        } else {
+          active.clearSelection();
+        }
+        libraryEmphasisKeys = resolution.emphasise;
+        applyEmphasis();
+      } finally {
+        syncingLibrarySelection = false;
+      }
+    },
     replaceMapItems,
     addMapItems,
     openFocusItem(itemID) {

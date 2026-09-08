@@ -1304,4 +1304,57 @@ describe("Graph view, as the product builds it", function () {
     expect(menu.querySelectorAll(".cm-graph-menu-row").length).to.equal(1);
     expect(view.errors, "nothing threw in the background").to.deep.equal([]);
   });
+
+  it("view 15 — a library selection lands on present nodes and never echoes", async function () {
+    this.timeout(60_000);
+    const reported: (number | null)[] = [];
+    const first = await open(30);
+    stage = await openViewStage(first.model, {
+      onGraphSelection: (itemID) => reported.push(itemID),
+    });
+    first.close();
+    const view = stage;
+    await settle(view.window, 6);
+    (
+      view.root.querySelector(
+        '.cm-zoom-controls button[data-action="fit"]',
+      ) as HTMLButtonElement
+    ).click();
+    await settle(view.window, 6);
+
+    const controller = getGraphViewController(view.mount)!;
+    const local = view.model.nodes.filter((node) => node.kind !== "external");
+    expect(local.length).to.be.greaterThan(2);
+    const [a, b, c] = local.map((node) => node.itemID);
+    const placeholder = (): Element | null =>
+      view.root.querySelector(".cm-detail-body .cm-placeholder");
+
+    controller.applyLibrarySelection([a]);
+    await settle(view.window, 4);
+    expect(placeholder(), "one item: its node is selected").to.equal(null);
+    expect(reported, "sync never reports back").to.deep.equal([]);
+    expect(view.selected, "and never selects a paper").to.deep.equal([]);
+    await shot("view-15-single");
+
+    controller.applyLibrarySelection([a, b, c]);
+    await settle(view.window, 4);
+    expect(placeholder(), "many: the selection is cleared").to.not.equal(null);
+    expect(reported).to.deep.equal([]);
+    await shot("view-15-many");
+
+    controller.applyLibrarySelection([]);
+    await settle(view.window, 4);
+    expect(placeholder(), "none: still cleared").to.not.equal(null);
+    await shot("view-15-cleared");
+
+    controller.applyLibrarySelection([-1]);
+    await settle(view.window, 2);
+    expect(reported).to.deep.equal([]);
+
+    // A selection the view makes on its own behalf is reported exactly once.
+    controller.revealItem(b);
+    await settle(view.window, 4);
+    expect(reported).to.deep.equal([b]);
+    expect(placeholder()).to.equal(null);
+  });
 });
