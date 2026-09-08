@@ -18,3 +18,9 @@ nothing about a finished task is kept anywhere else.
   approved spec settles it — rule 2 admits **library** papers only, and Not
   in Zotero is rule 3, a removal — so the implementation stands verbatim and
   the test literal was corrected to 3 with a comment saying why.
+- Task 3, 462e1bc: `graphScopeRailModel.ts` — the Scope section's rows as data
+  (count line, Seeds heading, indented folder tree with counts, cascade ids
+  and tri-state, Unfiled, Not in Zotero, hidden line). `npm run check`
+  green, 283 unit tests. Surprise: the same four-paper fixture as Task 2, so
+  the plan's "4 of 4 papers" expectation was corrected to "3 of 4 papers" for
+  the same reason, with a comment pointing at Task 2's case.

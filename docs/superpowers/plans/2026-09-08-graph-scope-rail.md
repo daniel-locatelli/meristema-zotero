@@ -893,7 +893,7 @@ control.
   `buildScopeRailModel(input: ScopeRailInput): ScopeRailModel`;
   `seedRowLabel(paper: { authors: readonly string[]; year: number | null; title: string }): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `test/unit/graphScopeRailModel.test.ts`:
 
@@ -1099,12 +1099,12 @@ describe("buildScopeRailModel", function () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `Cannot find module '../../src/services/graphScopeRailModel'`.
 
-- [ ] **Step 3: Write the rail model**
+- [x] **Step 3: Write the rail model**
 
 Create `src/services/graphScopeRailModel.ts`:
 
@@ -1241,12 +1241,12 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npm run test:unit`
 Expected: PASS.
 
-- [ ] **Step 5: Run the gate and commit**
+- [x] **Step 5: Run the gate and commit**
 
 Run: `npm run check`
 Expected: PASS.
