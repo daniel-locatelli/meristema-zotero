@@ -21,7 +21,10 @@ import {
   CitationGraphRenderer,
   type GraphViewTransform,
 } from "./citationGraphRenderer";
-import { resolveLibrarySelection } from "./librarySelection";
+import {
+  resolveLibrarySelection,
+  type LibrarySelectionResolution,
+} from "./librarySelection";
 import {
   hydrateExternalWorksMetadata,
   refreshExternalRelationships,
@@ -195,9 +198,15 @@ export interface GraphViewController {
   revealItems(itemIDs: readonly number[]): GraphFocusResult;
   /**
    * Mirror Zotero's item selection: select the one present node, emphasise
-   * several, clear on none. Never adds nodes, never reports back.
+   * several, clear on none. Never adds nodes, never reports back. With
+   * `adopt`, a selection that matches nothing in this graph leaves the view's
+   * own selection alone instead of clearing it — what a freshly rendered view
+   * wants when it takes on the list's current selection.
    */
-  applyLibrarySelection(itemIDs: readonly number[]): void;
+  applyLibrarySelection(
+    itemIDs: readonly number[],
+    options?: { adopt?: boolean },
+  ): void;
   replaceMapItems(itemIDs: readonly number[]): GraphFocusResult;
   addMapItems(itemIDs: readonly number[]): GraphFocusResult;
   openFocusItem(itemID: number): GraphFocusResult;
@@ -416,8 +425,22 @@ export function renderGraphView(
   };
   let cleaned = false;
   let viewActive = true;
-  /** True while a library selection is being applied, so it is not reported back. */
-  let syncingLibrarySelection = false;
+  /**
+   * True while the view is selecting a node itself — a synced library
+   * selection, a restore, an opened state — so the selection is not reported
+   * back to Zotero as if the user had clicked it.
+   */
+  let suppressSelectionReport = false;
+  /** Runs `run` with selection reporting off, restoring the previous state. */
+  const withoutSelectionReport = <T>(run: () => T): T => {
+    const previous = suppressSelectionReport;
+    suppressSelectionReport = true;
+    try {
+      return run();
+    } finally {
+      suppressSelectionReport = previous;
+    }
+  };
   /** The nodes a multi-item library selection emphasises, until the user moves on. */
   let libraryEmphasisKeys: ReadonlySet<string> | null = null;
   /** What the Key rail is emphasising (hover or pinned), or null. */
@@ -1731,7 +1754,9 @@ export function renderGraphView(
     applyFocusProjection(projection, { fit: options.fit });
     const selectedKey = options.selectKey ?? projection.seeds[0].key;
     if (visibleKeys.has(selectedKey)) {
-      renderer?.selectNode(selectedKey, false);
+      // The seed the projection lands on is the view's own choice, not a
+      // click: Zotero's list must not follow it.
+      withoutSelectionReport(() => renderer?.selectNode(selectedKey, false));
     }
     return true;
   };
@@ -2150,13 +2175,17 @@ export function renderGraphView(
     }
     updateFocusBar();
     applyFilters();
-    const restoreSelection = (): void => {
-      const node = restoreSelectedKey
-        ? model.nodes.find((candidate) => candidate.key === restoreSelectedKey)
-        : null;
-      if (node) renderer?.selectNode(node.key, false);
-      else renderer?.clearSelection();
-    };
+    // Putting back the selection Explore stashed is not a user gesture.
+    const restoreSelection = (): void =>
+      withoutSelectionReport(() => {
+        const node = restoreSelectedKey
+          ? model.nodes.find(
+              (candidate) => candidate.key === restoreSelectedKey,
+            )
+          : null;
+        if (node) renderer?.selectNode(node.key, false);
+        else renderer?.clearSelection();
+      });
     if (restoreView) {
       scheduleCameraAction(() => {
         if (!focusProjection) {
@@ -3017,7 +3046,7 @@ export function renderGraphView(
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
     closeNodeMenu();
     renderOverview(node);
-    if (syncingLibrarySelection) return;
+    if (suppressSelectionReport) return;
     if (libraryEmphasisKeys) {
       libraryEmphasisKeys = null;
       applyEmphasis();
@@ -3804,42 +3833,45 @@ export function renderGraphView(
       : (setTimeout(run, 0) as unknown as number);
   };
 
-  const applyState = (state: GraphViewState): GraphFocusResult => {
-    focusDirection.value = state.explore.direction;
-    focusLocality.value = state.explore.locality;
-    // Filters first, collections included: entering Explore below stashes
-    // the collection scope, so it comes back when the last seed goes.
-    if (focusProjection) exitFocus();
-    graphFilter.setState(state.filters);
-    const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
-      const paper = paperByKey.get(itemKey);
-      return paper ? libraryNodeForItem(paper.itemID) : null;
-    };
-    const { nodes } = resolveGraphViewSeeds(state.seeds, {
-      nodeForItemKey,
-      nodeForDOI: (doi) =>
-        libraryModel.nodes.find((node) => normalizeDOI(node.doi) === doi) ??
-        null,
-    });
-    if (nodes.length) {
-      restoredCamera = state.camera;
-      if (!addFocusSeeds(nodes)) {
-        restoredCamera = null;
+  const applyState = (state: GraphViewState): GraphFocusResult =>
+    // Opening a saved graph, or restoring a tab, selects a seed of its own
+    // accord; Zotero's list must not follow that.
+    withoutSelectionReport(() => {
+      focusDirection.value = state.explore.direction;
+      focusLocality.value = state.explore.locality;
+      // Filters first, collections included: entering Explore below stashes
+      // the collection scope, so it comes back when the last seed goes.
+      if (focusProjection) exitFocus();
+      graphFilter.setState(state.filters);
+      const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
+        const paper = paperByKey.get(itemKey);
+        return paper ? libraryNodeForItem(paper.itemID) : null;
+      };
+      const { nodes } = resolveGraphViewSeeds(state.seeds, {
+        nodeForItemKey,
+        nodeForDOI: (doi) =>
+          libraryModel.nodes.find((node) => normalizeDOI(node.doi) === doi) ??
+          null,
+      });
+      if (nodes.length) {
+        restoredCamera = state.camera;
+        if (!addFocusSeeds(nodes)) {
+          restoredCamera = null;
+          return "not-found";
+        }
+        return "selected";
+      }
+      if (state.seeds.length) {
+        // That camera framed a projection that no longer resolves; pointing the
+        // library graph at it would land on nothing.
         return "not-found";
       }
+      if (state.camera) {
+        const camera = state.camera;
+        scheduleCameraAction(() => renderer?.setViewTransform(camera));
+      }
       return "selected";
-    }
-    if (state.seeds.length) {
-      // That camera framed a projection that no longer resolves; pointing the
-      // library graph at it would land on nothing.
-      return "not-found";
-    }
-    if (state.camera) {
-      const camera = state.camera;
-      scheduleCameraAction(() => renderer?.setViewTransform(camera));
-    }
-    return "selected";
-  };
+    });
 
   syncMapPinnedKeys(false);
   applyFilters();
@@ -3847,20 +3879,25 @@ export function renderGraphView(
   const controller: GraphViewController = {
     revealItem,
     revealItems,
-    applyLibrarySelection(itemIDs) {
+    applyLibrarySelection(itemIDs, options) {
       if (!renderer) return;
       const active = renderer;
-      let resolution;
+      let resolution: LibrarySelectionResolution | undefined;
       try {
+        // Only what the graph already renders: `libraryNodeForItem` would
+        // create nodes and invalidate the shared snapshot, and this runs on
+        // every list selection.
+        const keyByItemID = new Map<number, string>();
+        for (const node of model.nodes) {
+          if (node.kind === "external") continue;
+          if (!Number.isInteger(node.itemID) || node.itemID <= 0) continue;
+          if (!keyByItemID.has(node.itemID)) {
+            keyByItemID.set(node.itemID, node.key);
+          }
+        }
         resolution = resolveLibrarySelection(
           itemIDs,
-          (itemID) => {
-            const libraryNode = libraryNodeForItem(itemID);
-            if (!libraryNode) return null;
-            return model.nodes.some((node) => node.key === libraryNode.key)
-              ? libraryNode.key
-              : null;
-          },
+          (itemID) => keyByItemID.get(itemID) ?? null,
           visibleKeys,
         );
       } catch (error) {
@@ -3869,19 +3906,28 @@ export function renderGraphView(
         );
         return;
       }
-      syncingLibrarySelection = true;
-      try {
-        if (resolution.select) {
-          active.selectNode(resolution.select, false);
-          active.panToNodeIfOffscreen(resolution.select);
+      // A fresh view adopts the list's selection; it must not undo the
+      // selection the render itself just restored when nothing matches.
+      if (options?.adopt && !resolution.select && !resolution.emphasise) return;
+      // Nothing to do: the same node is selected and no emphasis moves.
+      if (
+        resolution.select === (selectedNode?.key ?? null) &&
+        !resolution.emphasise &&
+        !libraryEmphasisKeys
+      ) {
+        return;
+      }
+      const applied = resolution;
+      withoutSelectionReport(() => {
+        if (applied.select) {
+          active.selectNode(applied.select, false);
+          active.panToNodeIfOffscreen(applied.select);
         } else {
           active.clearSelection();
         }
-        libraryEmphasisKeys = resolution.emphasise;
+        libraryEmphasisKeys = applied.emphasise;
         applyEmphasis();
-      } finally {
-        syncingLibrarySelection = false;
-      }
+      });
     },
     replaceMapItems,
     addMapItems,
@@ -3925,53 +3971,57 @@ export function renderGraphView(
   };
   controllerByMount.set(mount, controller);
 
-  if (options.initialFocusItemIDs?.length) {
-    controller.openFocusItems(options.initialFocusItemIDs);
-  } else if (options.initialFocusItemID) {
-    controller.openFocusItem(options.initialFocusItemID);
-  } else if (options.initialCollectionIDs?.length) {
-    controller.openCollections(options.initialCollectionIDs);
-  } else if (options.initialItemIDs?.length) {
-    if (options.initialItemMode === "add") {
-      controller.addMapItems(options.initialItemIDs);
-    } else {
-      controller.replaceMapItems(options.initialItemIDs);
-    }
-  } else if (options.initialItemID) {
-    controller.replaceMapItems([options.initialItemID]);
-  }
-  if (options.initialState) {
-    const request = Boolean(
-      options.initialFocusItemIDs?.length ||
-      options.initialFocusItemID ||
-      options.initialCollectionIDs?.length ||
-      options.initialItemIDs?.length ||
-      options.initialItemID,
-    );
-    if (request) {
-      // The request already shaped the graph; the state fills in what the
-      // request does not name, and a request never names filters.
-      focusDirection.value = options.initialState.explore.direction;
-      focusLocality.value = options.initialState.explore.locality;
-      // Entering Explore stashes and clears the collection scope, but that
-      // happened before this state arrived. Route the collections into the
-      // stash instead, or they would hide every neighbour outside them.
-      if (focusProjection) {
-        libraryCollectionFilterBeforeFocus = [
-          ...options.initialState.filters.collectionIDs,
-        ];
-        graphFilter.setState({
-          ...options.initialState.filters,
-          collectionIDs: [],
-        });
+  // Everything the host asked this view to open selects nodes of its own
+  // accord: none of it is a click, so Zotero's list must not follow it.
+  withoutSelectionReport(() => {
+    if (options.initialFocusItemIDs?.length) {
+      controller.openFocusItems(options.initialFocusItemIDs);
+    } else if (options.initialFocusItemID) {
+      controller.openFocusItem(options.initialFocusItemID);
+    } else if (options.initialCollectionIDs?.length) {
+      controller.openCollections(options.initialCollectionIDs);
+    } else if (options.initialItemIDs?.length) {
+      if (options.initialItemMode === "add") {
+        controller.addMapItems(options.initialItemIDs);
       } else {
-        graphFilter.setState(options.initialState.filters);
+        controller.replaceMapItems(options.initialItemIDs);
       }
-      if (focusProjection) scheduleFocusRebuild();
-    } else {
-      applyState(options.initialState);
+    } else if (options.initialItemID) {
+      controller.replaceMapItems([options.initialItemID]);
     }
-  }
+    if (options.initialState) {
+      const request = Boolean(
+        options.initialFocusItemIDs?.length ||
+        options.initialFocusItemID ||
+        options.initialCollectionIDs?.length ||
+        options.initialItemIDs?.length ||
+        options.initialItemID,
+      );
+      if (request) {
+        // The request already shaped the graph; the state fills in what the
+        // request does not name, and a request never names filters.
+        focusDirection.value = options.initialState.explore.direction;
+        focusLocality.value = options.initialState.explore.locality;
+        // Entering Explore stashes and clears the collection scope, but that
+        // happened before this state arrived. Route the collections into the
+        // stash instead, or they would hide every neighbour outside them.
+        if (focusProjection) {
+          libraryCollectionFilterBeforeFocus = [
+            ...options.initialState.filters.collectionIDs,
+          ];
+          graphFilter.setState({
+            ...options.initialState.filters,
+            collectionIDs: [],
+          });
+        } else {
+          graphFilter.setState(options.initialState.filters);
+        }
+        if (focusProjection) scheduleFocusRebuild();
+      } else {
+        applyState(options.initialState);
+      }
+    }
+  });
   updateSummary();
   const localCitationWarmupItemIDs = [
     ...(options.initialItemIDs ?? []),

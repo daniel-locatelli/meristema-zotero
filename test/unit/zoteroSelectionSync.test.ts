@@ -87,7 +87,7 @@ describe("Zotero selection sync", function () {
     expect(seen.map((s) => s.itemIDs)).to.deep.equal([[3, 7], []]);
   });
 
-  it("does not publish the echo of its own selectListed", async function () {
+  it("publishes the echo of its own selectListed, so sibling graphs follow", async function () {
     const tree = new FakeTree();
     const binding = bindZoteroSelection(host, deps(tree));
     const seen: number[][] = [];
@@ -97,11 +97,15 @@ describe("Zotero selection sync", function () {
     expect(tree.selectCalls).to.deep.equal([{ ids: [42], noRecurse: true }]);
     await flush();
     tree.fire([42]);
-    expect(seen, "the echo is swallowed").to.deep.equal([]);
+    expect(seen, "the echo is published once").to.deep.equal([[42]]);
     expect(binding.current().itemIDs).to.deep.equal([42]);
+
+    tree.fire([42]);
+    expect(seen.length, "an equal follow-up is not republished").to.equal(1);
 
     tree.fire([42, 43]);
     expect(seen, "a different set after it is published").to.deep.equal([
+      [42],
       [42, 43],
     ]);
   });
@@ -114,26 +118,35 @@ describe("Zotero selection sync", function () {
     expect(tree.selectCalls).to.deep.equal([]);
   });
 
-  it("forgets its own selection when no row was listed, so the user's later click is published", async function () {
+  it("changes nothing when no row was listed, and publishes only what the tree fires", async function () {
     const tree = new FakeTree();
-    const binding = bindZoteroSelection(host, deps(tree));
+    const d = deps(tree);
+    const binding = bindZoteroSelection(host, d);
     const seen: number[][] = [];
     binding.subscribe((selection) => seen.push(selection.itemIDs));
 
     tree.nextSelectResult = 0;
     binding.selectListed([5]);
     await flush();
-    tree.fire([5]);
-    expect(seen).to.deep.equal([[5]]);
+    expect(
+      binding.current().itemIDs,
+      "a zero-row select moves nothing",
+    ).to.deep.equal([]);
+    expect(seen, "and publishes nothing on its own").to.deep.equal([]);
 
     tree.nextSelectResult = null;
     binding.selectListed([6]);
     await flush();
+    expect(
+      binding.current().itemIDs,
+      "a rejected select moves nothing",
+    ).to.deep.equal([]);
+    expect(seen).to.deep.equal([]);
+    expect(d.messages.some((m) => m.includes("tree gone"))).to.equal(true);
+
+    // Only the tree's own event moves the binding.
     tree.fire([6]);
-    expect(seen, "a rejected select is forgotten too").to.deep.equal([
-      [5],
-      [6],
-    ]);
+    expect(seen).to.deep.equal([[6]]);
   });
 
   it("keeps publishing past a subscriber that throws", function () {

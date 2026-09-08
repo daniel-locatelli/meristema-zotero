@@ -1349,9 +1349,12 @@ describe("Graph view, as the product builds it", function () {
 
     controller.applyLibrarySelection([-1]);
     await settle(view.window, 2);
+    expect(placeholder(), "an absent item clears, with no adopt").to.not.equal(
+      null,
+    );
     expect(reported).to.deep.equal([]);
 
-    // A selection the view makes on its own behalf is reported exactly once.
+    // A user command that selects a node is reported exactly once.
     controller.revealItem(b);
     await settle(view.window, 4);
     expect(reported).to.deep.equal([b]);

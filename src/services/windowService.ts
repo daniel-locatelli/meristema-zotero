@@ -58,6 +58,11 @@ const selectionBindingByWindow = new Map<
   _ZoteroTypes.MainWindow,
   ZoteroSelectionBinding
 >();
+/** The one-turn fan-out timer per window, so bursts collapse into one apply. */
+const pendingSelectionFlushByWindow = new Map<
+  _ZoteroTypes.MainWindow,
+  number
+>();
 interface GraphInstanceState {
   instanceID: string;
   title: string;
@@ -658,10 +663,13 @@ function renderDetachedWindow(
     ...stateOptions,
   });
   instance.pendingLibrarySelection = null;
+  // Adopt only: a list selection this graph cannot show must not undo the
+  // selection the render just restored.
   applyLibrarySelectionToInstance(
     host,
     instance,
     selectionBinding(host).current().itemIDs,
+    { adopt: true },
   );
   installGraphLibraryFilter(
     popup.document,
@@ -894,12 +902,13 @@ function applyLibrarySelectionToInstance(
   win: _ZoteroTypes.MainWindow,
   instance: GraphInstanceState,
   itemIDs: readonly number[],
+  options?: { adopt?: boolean },
 ): void {
   const mount = instanceMount(win, instance);
   const controller = mount ? getGraphViewController(mount) : null;
   if (!controller) return;
   try {
-    controller.applyLibrarySelection(itemIDs);
+    controller.applyLibrarySelection(itemIDs, options);
   } catch (error) {
     Zotero.debug(
       `Meristema: applying the library selection failed: ${String(error)}`,
@@ -918,8 +927,21 @@ function selectionBinding(
   const existing = selectionBindingByWindow.get(win);
   if (existing) return existing;
   const binding = bindZoteroSelection(win as unknown as Window);
-  binding.subscribe(({ itemIDs }) => {
-    for (const instance of liveInstances(win)) {
+  // Zotero awaits its `onSelect` listeners one after another, so the fan-out
+  // waits a turn: only the latest set is ever applied, and the item list never
+  // waits on a graph.
+  let latest: number[] | null = null;
+  const flush = (): void => {
+    pendingSelectionFlushByWindow.delete(win);
+    const itemIDs = latest ?? [];
+    latest = null;
+    const instances = liveInstances(win);
+    if (!instances.length) {
+      // The last graph in this window is gone; the listener goes with it.
+      disposeSelectionBinding(win);
+      return;
+    }
+    for (const instance of instances) {
       if (instanceIsShowing(win, instance)) {
         instance.pendingLibrarySelection = null;
         applyLibrarySelectionToInstance(win, instance, itemIDs);
@@ -927,18 +949,42 @@ function selectionBinding(
         instance.pendingLibrarySelection = [...itemIDs];
       }
     }
+  };
+  binding.subscribe(({ itemIDs }) => {
+    latest = itemIDs;
+    if (pendingSelectionFlushByWindow.has(win)) return;
+    pendingSelectionFlushByWindow.set(win, win.setTimeout(flush, 0));
   });
   selectionBindingByWindow.set(win, binding);
   return binding;
 }
 
-/** A click in the graph selects the row in Zotero's list, if it is listed. */
+/** Drops the window's binding and any fan-out it still had queued. */
+function disposeSelectionBinding(win: _ZoteroTypes.MainWindow): void {
+  const timer = pendingSelectionFlushByWindow.get(win);
+  if (timer !== undefined) {
+    pendingSelectionFlushByWindow.delete(win);
+    try {
+      win.clearTimeout(timer);
+    } catch {
+      // The window may already be gone.
+    }
+  }
+  selectionBindingByWindow.get(win)?.dispose();
+  selectionBindingByWindow.delete(win);
+}
+
+/**
+ * A click in the graph selects the row in Zotero's list, if it is listed.
+ * It never creates a binding: with no graph open in the window there is
+ * nothing to click.
+ */
 function reportGraphSelection(
   win: _ZoteroTypes.MainWindow,
   itemID: number | null,
 ): void {
   if (itemID === null) return;
-  selectionBinding(liveHostWindow(win)).selectListed([itemID]);
+  selectionBindingByWindow.get(win)?.selectListed([itemID]);
 }
 
 /**
@@ -1110,7 +1156,9 @@ function renderTab(
     const current = selectionBinding(win).current().itemIDs;
     if (tabs(win).selectedID === instance.tabID) {
       instance.pendingLibrarySelection = null;
-      applyLibrarySelectionToInstance(win, instance, current);
+      // Adopt only: a list selection this graph cannot show must not undo the
+      // selection the render just restored.
+      applyLibrarySelectionToInstance(win, instance, current, { adopt: true });
     } else {
       instance.pendingLibrarySelection = current;
     }
@@ -1668,8 +1716,7 @@ export async function refreshOpenGraphViews(): Promise<void> {
   for (const [win] of [...graphStateByWindow.entries()]) {
     if (generation !== openViewRefreshGeneration) return;
     if ((win as any).closed) {
-      selectionBindingByWindow.get(win)?.dispose();
-      selectionBindingByWindow.delete(win);
+      disposeSelectionBinding(win);
       graphStateByWindow.delete(win);
       continue;
     }
@@ -1718,8 +1765,7 @@ export function closeGraphForWindow(
   win: _ZoteroTypes.MainWindow,
   closeTab = true,
 ): void {
-  selectionBindingByWindow.get(win)?.dispose();
-  selectionBindingByWindow.delete(win);
+  disposeSelectionBinding(win);
   const state = graphStateByWindow.get(win);
   if (!state) return;
   const manager = tabs(win);
@@ -1754,6 +1800,11 @@ export function closeGraphForWindow(
 export function closeGraphWindow(closeTab = true): void {
   for (const win of [...graphStateByWindow.keys()]) {
     closeGraphForWindow(win, closeTab);
+  }
+  // A window whose graphs all closed keeps no graph state but may still hold
+  // a binding; shutdown leaves no listener on any item tree.
+  for (const win of [...selectionBindingByWindow.keys()]) {
+    disposeSelectionBinding(win);
   }
 }
 

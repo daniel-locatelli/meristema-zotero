@@ -1557,8 +1557,8 @@ export class CitationGraphRenderer {
 
   /**
    * Bring a node into view without changing the zoom. Returns true when the
-   * view moved. A node already inside the canvas, with one node radius to
-   * spare, leaves the camera where the user put it.
+   * view moved. A node already inside the canvas, with two node radii in
+   * device pixels to spare, leaves the camera where the user put it.
    */
   public panToNodeIfOffscreen(key: string): boolean {
     const node = this.model.nodes.find((candidate) => candidate.key === key);

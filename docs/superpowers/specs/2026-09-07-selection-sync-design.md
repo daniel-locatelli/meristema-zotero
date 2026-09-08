@@ -36,7 +36,8 @@ These were settled in the brainstorm and are not open:
    library selection clears both.
 5. **All live graphs follow.** Every detached window in a Zotero window
    follows live and every graph tab catches up. A graph click reaches Zotero
-   from whichever graph was clicked.
+   from whichever graph was clicked, and Zotero's echo of that click reaches
+   every other live graph in the window, so the siblings follow it too.
 6. **Camera pans only when the node is off-screen.** A single-node selection
    pans by the minimum to bring the node into view, without changing zoom.
    Multi-select and a visible node move nothing.
@@ -132,14 +133,17 @@ Behaviour:
 
 - **Listener.** Synchronous, wrapped in try/catch. Reads the selected IDs,
   sorts and deduplicates them. If the set equals `current()`, it returns.
-  If the set equals `mine` (see below), it becomes `current()`, `mine` is
-  cleared, and nothing is published: that is the echo of a graph click.
-  Otherwise it becomes `current()` and is published.
+  Otherwise it becomes `current()` and is published. There is no echo
+  suppression: the selection the binding itself asked for is published like
+  any other, which is how a click in one graph reaches the sibling graphs of
+  the same window. Nothing loops, because the view that made the click
+  re-applies that same single selection with reporting suppressed and hits
+  its own early return.
 - **`selectListed`.** A no-op when the IDs already equal `current()`.
-  Otherwise it stores the sorted IDs as `mine`, calls
-  `selectItems(ids, true)` and does not await it. When the promise resolves
-  with 0 (no row listed) or rejects, `mine` is cleared so a later user
-  selection of those rows is not swallowed.
+  Otherwise it calls `selectItems(ids, true)` and does not await it; a
+  rejection is debug-logged. Nothing moves in the binding until the tree
+  fires `onSelect`, so a select that lists no row (a count of 0) leaves
+  `current()` where it was and publishes nothing.
 - **Publishing.** Each subscriber is called in its own try/catch with a copy
   of the array; a throwing subscriber is logged and the rest still run.
 - **Late tree.** If `itemsView()` is null when bound, the binder logs once
@@ -153,8 +157,11 @@ Behaviour:
 - `selectionBindingByWindow: Map<MainWindow, ZoteroSelectionBinding>`. The
   binding is created in `openGraphWindow` after `installGraphTabHooks`, when
   the window has no binding yet, and disposed in `closeGraphForWindow`.
-- One subscriber per window fans a published selection out over the
-  window's live instances:
+- One subscriber per window keeps only the latest published set and
+  schedules a single `win.setTimeout(flush, 0)`. Zotero awaits its `onSelect`
+  listeners one after another, so the fan-out never runs inside that chain,
+  and a burst of selections collapses into one apply. `flush` fans the latest
+  set out over the window's live instances:
   - detached window: `controller.applyLibrarySelection(itemIDs)` now;
   - the selected tab: the same, now;
   - a hidden tab: `instance.pendingLibrarySelection = itemIDs`, replacing
@@ -162,23 +169,45 @@ Behaviour:
 - `GraphInstanceState.pendingLibrarySelection: number[] | null`. The
   existing `tab-selection-change` handler in `prepareContainer` applies and
   clears it when the tab becomes selected.
+- If `flush` finds no live instance left in the window, the last graph there
+  has closed: the binding is disposed and dropped from the map, along with
+  any pending flush timer. `closeGraphForWindow` and `closeGraphWindow` do
+  the same, so shutdown leaves no listener on any item tree.
 - Both render paths (`renderTab`, `renderDetachedWindow`) pass a new view
   option `onGraphSelection` and, once the view has mounted, apply
-  `binding.current()` so a fresh graph reflects the list at once.
-- `onGraphSelection(itemID)` calls `binding.selectListed([itemID])`. A null
-  (graph deselected, or an external node) calls nothing: deselecting in the
-  graph does not clear Zotero's list.
+  `binding.current()` with `{ adopt: true }`, so a fresh graph takes on the
+  list's selection without undoing the one the render just restored.
+  `applyLibrarySelectionToInstance` carries that option through; nothing else
+  passes it, so the live fan-out and the pending-selection apply on tab
+  switch keep the syncing semantics, where an empty set clears.
+- `onGraphSelection(itemID)` calls `selectListed([itemID])` on the window's
+  existing binding, looked up in the map. It never creates one: with no graph
+  open in the window there is nothing to have clicked. A null (graph
+  deselected, or an external node) calls nothing: deselecting in the graph
+  does not clear Zotero's list.
 - `selectPaper` (double-click, Show in Zotero) is unchanged.
 
 ### View: `src/services/graphViewService.ts`
 
 - New option `onGraphSelection?: (itemID: number | null) => void`.
-- New controller method `applyLibrarySelection(itemIDs: readonly number[]): void`.
+- New controller method
+  `applyLibrarySelection(itemIDs: readonly number[], options?: { adopt?: boolean }): void`.
   It never throws; with no renderer it is a no-op.
-- A private `syncing` flag. `handleGraphSelection` always updates the
-  overview; when `syncing` is false it also clears `libraryEmphasisKeys`,
-  applies emphasis, and calls `onGraphSelection` with the node's item ID for
-  a local node and null otherwise.
+- A private `suppressSelectionReport` flag and a `withoutSelectionReport(run)`
+  helper that sets it, runs, and restores what it was.
+  `handleGraphSelection` always updates the overview; when the flag is false
+  it also clears `libraryEmphasisKeys`, applies emphasis, and calls
+  `onGraphSelection` with the node's item ID for a local node and null
+  otherwise. Only a user gesture may reach Zotero, so every path that selects
+  a node on the view's own behalf runs inside the helper: applying a library
+  selection, `applyState` (opening a saved graph, restoring a tab, a
+  background refresh), `activateFocusState`'s seed selection,
+  `restoreSelection` when Explore is left, and the whole initial
+  request/state block at the end of `renderGraphView`. Controller commands
+  the user invokes from Zotero's menus (`revealItem`, `revealItems`,
+  `replaceMapItems`, `addMapItems`, `openFocusItem`, `openFocusItems`,
+  `addFocusItems`, `openCollections`) keep reporting: the item they select is
+  already the list's selection, so `selectListed` is a no-op there.
 - Resolution, factored into a pure helper so it is unit tested:
 
   ```ts
@@ -189,13 +218,22 @@ Behaviour:
   ): { select: string | null; emphasise: ReadonlySet<string> | null };
   ```
 
-  Present means: `nodeKeyForItem` returns a key (the view passes
-  `libraryNodeForItem`, which also looks up items not yet in the model) and
-  the key is in `visibleKeys`. Items from another library resolve to null.
+  Present means: `nodeKeyForItem` returns a key and the key is in
+  `visibleKeys`. The view builds a `Map<number, string>` over `model.nodes`
+  (a positive integer `itemID`, `kind` other than `"external"`) and passes a
+  lookup into it: sync only ever highlights what the graph already renders,
+  and it must not create nodes or invalidate the shared snapshot on every
+  change in the list. An item with no rendered node resolves to null.
   One present key: `{ select: key, emphasise: null }`. Two or more:
   `{ select: null, emphasise: keys }`. None: `{ select: null, emphasise: null }`.
 
-- Applying, all under `syncing = true`: `select` set means
+- Two early returns come before anything is applied. With `adopt`, a
+  resolution with neither `select` nor `emphasise` returns untouched: a fresh
+  view adopts what it can show and otherwise keeps its own selection. And a
+  resolution whose `select` already equals the selected node's key, with both
+  `emphasise` and `libraryEmphasisKeys` null, changes nothing — which is also
+  what makes the echo of a graph click free in the graph that made it.
+- Applying, all inside `withoutSelectionReport`: `select` set means
   `renderer.selectNode(key, false)` then `renderer.panToNodeIfOffscreen(key)`;
   otherwise `renderer.clearSelection()`. `libraryEmphasisKeys` becomes
   `emphasise` and emphasis is applied.
@@ -212,7 +250,7 @@ Behaviour:
 
 One new method, `panToNodeIfOffscreen(key: string): void`. It projects the
 node's position with `projectToScreen`, tests it against the canvas size
-with a margin of one node radius, and if outside shifts `transform.x` and
+with a margin of two node radii in device pixels, and if outside shifts `transform.x` and
 `transform.y` by the minimum needed to bring it inside, then draws. The
 scale is untouched. The arithmetic lives in a pure function
 (`offscreenPanDelta(point, radius, width, height)`) so it is unit tested.
@@ -222,18 +260,23 @@ scale is untouched. The arithmetic lives in a pure function
 Zotero to graph:
 
 1. The user selects rows. Zotero runs its own handler, then the binder's
-   listener, which dedupes and echo-checks as above and publishes.
-2. The window service applies to every detached window and the selected
-   tab, and stores the set on each hidden tab.
+   listener, which dedupes as above and publishes.
+2. The window service keeps the latest set and, a turn later, applies it to
+   every detached window and the selected tab, and stores it on each hidden
+   tab.
 3. When a hidden tab is switched to, its stored set is applied and cleared.
 
 Graph to Zotero:
 
-1. A click selects a node. `handleGraphSelection` runs with `syncing`
-   false, clears the library emphasis and calls `onGraphSelection`.
-2. The window service calls `selectListed`. The binder marks the ID as
-   `mine` and selects the row if listed. Zotero fires `onSelect`; the
-   binder recognises `mine` and does not publish.
+1. A click selects a node. `handleGraphSelection` runs with
+   `suppressSelectionReport` false, clears the library emphasis and calls
+   `onGraphSelection`.
+2. The window service calls `selectListed` on the window's binding, which
+   selects the row if it is listed.
+3. Zotero fires `onSelect` and the binder publishes the new set like any
+   other. Every live graph in the window applies it, the origin included:
+   there it is the node already selected, so the early return makes it a
+   no-op, while the sibling graphs move to the clicked item.
 
 The user's own interactions always win: a click in the graph replaces a
 library emphasis with the graph's single selection; a click in the list
@@ -249,21 +292,25 @@ does not stop the others.
 ## Testing
 
 - `test/unit/zoteroSelectionSync.test.ts` over a fake `ItemsTreeLike`:
-  equal sets are not republished; an own `selectListed` echo is not
-  published; a different set arriving after `selectListed` is published;
-  a zero-row select clears `mine`; `dispose` removes the listener;
+  ids are normalised; equal sets are not republished; the echo of an own
+  `selectListed` is published once and an equal follow-up is not;
+  `selectListed` is a no-op when the ids are already current; a zero-row or
+  rejected select moves nothing and publishes nothing until the tree fires;
   a throwing subscriber does not stop the next; `current()` returns copies;
-  a null tree at bind time is retried later.
-- `test/unit/graphViewService.test.ts` (or the file that holds the view's
-  pure helpers): `resolveLibrarySelection` for one, many, none, an item
-  whose node is filtered out, and an unknown item.
+  unsubscribe and `dispose` both take effect; the live selection is read at
+  bind time without publishing; a null tree at bind time is retried later;
+  the listener never throws.
+- `test/unit/librarySelection.test.ts`: `resolveLibrarySelection` for one,
+  many, none, an item whose node is filtered out, an unknown item, and
+  duplicates collapsing to one present node.
 - Renderer: `offscreenPanDelta` for a point inside, past each edge, and
   past a corner.
 - Visual harness view 15 (`test/zotero`): render a view, call
-  `applyLibrarySelection` with one, several and no IDs; assert the selected
-  node, the emphasis, that the harness's `selected` log stays empty (no
-  `onSelectPaper` from sync), and that a synthetic node click reports
-  through `onGraphSelection` exactly once.
+  `applyLibrarySelection` with one, several, no and an unknown ID; assert
+  the selected node, the emphasis, that nothing is reported through
+  `onGraphSelection`, that the harness's `selected` log stays empty (no
+  `onSelectPaper` from sync), and that a user command (`revealItem`) does
+  report exactly once.
 - `npm run check` is the gate.
 
 ## Manual walk-through in Zotero

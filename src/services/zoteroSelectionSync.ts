@@ -8,10 +8,12 @@
  * way to select a listed row without the jump `ZoteroPane.selectItems` makes
  * (collection switch, quick-search reset, focus to the list).
  *
- * The loop guard is symmetric. A set the binding itself selected comes back
- * once as Zotero's echo and is swallowed; a set equal to the current one is
- * never republished. Everything Zotero is asked for happens inside a try, so
- * a failure here is a debug line and no sync, never a broken item list.
+ * The binding publishes every change it sees, its own `selectListed` echo
+ * included: that echo is how a click in one graph reaches the sibling graphs
+ * of the same window. A set equal to the current one is never republished, and
+ * a view applying a synced selection does not report it back, so nothing
+ * loops. Everything Zotero is asked for happens inside a try, so a failure
+ * here is a debug line and no sync, never a broken item list.
  */
 
 export interface LibrarySelection {
@@ -81,8 +83,6 @@ export function bindZoteroSelection(
 ): ZoteroSelectionBinding {
   const listeners = new Set<(selection: LibrarySelection) => void>();
   let current: number[] = [];
-  /** The set this binding asked Zotero for, whose echo is still to come. */
-  let mine: number[] | null = null;
   let tree: ItemsTreeLike | null = null;
   let loggedMissing = false;
   let disposed = false;
@@ -105,11 +105,6 @@ export function bindZoteroSelection(
       const next = normalizeItemIDs(tree.getSelectedItems(true));
       if (sameItemIDs(next, current)) return;
       current = next;
-      if (mine && sameItemIDs(next, mine)) {
-        mine = null;
-        return;
-      }
-      mine = null;
       publish();
     } catch (error) {
       deps.debug(
@@ -165,26 +160,18 @@ export function bindZoteroSelection(
       if (!target) return;
       const ids = normalizeItemIDs(itemIDs);
       if (!ids.length || sameItemIDs(ids, current)) return;
-      mine = ids;
       let selecting: Promise<number>;
       try {
         selecting = target.selectItems([...ids], true);
       } catch (error) {
-        mine = null;
         deps.debug(`Meristema: selecting listed rows failed: ${String(error)}`);
         return;
       }
-      selecting.then(
-        (count) => {
-          if (count === 0 && mine && sameItemIDs(mine, ids)) mine = null;
-        },
-        (error) => {
-          if (mine && sameItemIDs(mine, ids)) mine = null;
-          deps.debug(
-            `Meristema: selecting listed rows failed: ${String(error)}`,
-          );
-        },
-      );
+      // Not awaited: the tree fires `onSelect` when it has selected, and that
+      // is what moves `current` and reaches the graphs.
+      selecting.catch((error: unknown) => {
+        deps.debug(`Meristema: selecting listed rows failed: ${String(error)}`);
+      });
     },
     subscribe(listener) {
       listeners.add(listener);
