@@ -1538,7 +1538,27 @@ export function renameGraphView(
     );
     // The row's state carries the title too.
     scheduleAutosave(win, instance);
+    return;
   }
+  // Naming a scratch view is how it gets kept: the name becomes a saved
+  // graph, as if Save as… had been given it. A tab is not restored across a
+  // restart, so a name without a row would be lost with the tab.
+  captureViewState(instance, instanceMount(win, instance));
+  const state: GraphViewState = {
+    ...(instance.viewState ?? emptyGraphViewState()),
+    title: normalized,
+  };
+  const libraryID = instance.libraryID ?? selectedLibraryID(win);
+  void createSavedGraph(libraryID, normalized, state).then(
+    (summary) => {
+      // A Save as… or a later rename may have bound the instance meanwhile;
+      // that row wins and this one is left as it was written.
+      if (instance.savedGraphID !== null) return;
+      adoptSavedGraph(win, instance, summary.id, normalized, state);
+    },
+    (error: unknown) =>
+      reportAsyncError("Meristema: saving the renamed view failed", error),
+  );
 }
 
 interface OpenItemViewOptions {

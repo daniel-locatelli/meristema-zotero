@@ -260,7 +260,10 @@ status shows "Autosave failed"; the graph stays open and the next change
 retries.
 
 Renaming the tab, through the existing tab context menu, renames the saved
-graph as well. Closing a tab does nothing to its saved graph. Opening the
+graph as well. Renaming a tab whose graph is not saved saves it under that
+name, as Save as… would (decided 2026-09-08, backlog B3: naming a view is
+how it is kept, and a tab is not restored across a restart). Closing a tab
+does nothing to its saved graph. Opening the
 same saved graph in two windows is allowed; last write wins.
 
 The Tools › Meristema menu gains **Open Saved Graph…** with the same

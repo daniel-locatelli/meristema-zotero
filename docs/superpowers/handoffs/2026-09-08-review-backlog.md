@@ -82,6 +82,11 @@ write. Add a debug line in `renameGraphView` and check which.
 Test: unit test in `test/unit/savedGraphService.test.ts` already covers
 `renameSavedGraph`; the gap is the wiring, verify in Zotero.
 
+Outcome (2026-09-08): the wiring was sound; `test/zotero/savedGraphRename.test.ts`
+drives the real Tools row and tab context menu and the row is renamed. The
+user's case was a view that had never been saved: renaming it did nothing to
+the list. Decision (user): renaming a scratch view saves it under that name.
+
 ## B4. Item context menu reads oddly: "New Graph from 3 items", "Show in new Graph", "Refresh"
 
 Symptom: three entries that overlap in meaning sit next to each other.
