@@ -57,3 +57,10 @@ nothing about a finished task is kept anywhere else.
   expects), though `applyFilters` no longer consults them, so "Show in graph
   (replace)" stops narrowing the graph; and `lastScope` carries an eslint
   disable comment until Task 8 reads it — Task 8 must remove it.
+- Task 8, f89c1ae: the Scope rail is live — `refreshScopeRail` draws from
+  `lastScope`, the checkboxes cascade through `setCollectionTicks`, seed
+  rows remove and hover, and one emphasis channel serves key, seed and
+  collection rows. `npm run check` green, 291 unit tests. Notes: `addSeed`
+  inlines the toolbar button's popover body until Task 9 replaces both with
+  `openFocusSeedPopover` (the row's anchor is unused until then), and
+  Scope draws through `refreshKeyRail`, so it needs a renderer.

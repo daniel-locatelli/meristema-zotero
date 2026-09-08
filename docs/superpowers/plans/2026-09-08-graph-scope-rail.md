@@ -2596,7 +2596,7 @@ what is on screen.
   `RailEmphasis` from `graphKeyRail.ts`; `seedColorAt` from `graphTheme.ts`.
 - Produces: `refreshScopeRail(): void`, called from `refreshKeyRail`.
 
-- [ ] **Step 1: Build the rail model beside the Key model**
+- [x] **Step 1: Build the rail model beside the Key model**
 
 Add, next to `refreshKeyRail`:
 
@@ -2644,7 +2644,7 @@ column:
 refreshScopeRail();
 ```
 
-- [ ] **Step 2: Wire the handlers**
+- [x] **Step 2: Wire the handlers**
 
 Replace the placeholder `onScope` from Task 6 with:
 
@@ -2681,7 +2681,7 @@ Replace the placeholder `onScope` from Task 6 with:
 `openFocusSeedPopover` arrives in Task 9; until then, point `addSeed` at the
 existing toolbar-button handler's body.
 
-- [ ] **Step 3: Resolve the two new emphasis cases**
+- [x] **Step 3: Resolve the two new emphasis cases**
 
 Replace the `onEmphasise` callback:
 
@@ -2725,14 +2725,14 @@ const emphasisKeys = (
 };
 ```
 
-- [ ] **Step 4: Run the gate and the suite**
+- [x] **Step 4: Run the gate and the suite**
 
 Run: `npm run check`
 Expected: PASS.
 Run: `npm test`
 Expected: only the three known failures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/graphViewService.ts
