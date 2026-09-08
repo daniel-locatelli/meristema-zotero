@@ -69,10 +69,16 @@ import {
   computeGraphScope,
   expandTicksThroughDescendants,
   onlyCollectionsTicked,
+  setCollectionTicks,
   type GraphScopeResult,
   type GraphViewCollectionTicks,
   type ScopePaper,
 } from "./graphScopeModel";
+import {
+  buildScopeRailModel,
+  seedRowLabel,
+  type ScopeSeedRow,
+} from "./graphScopeRailModel";
 import {
   exportGraphCSV,
   exportGraphJSON,
@@ -96,7 +102,7 @@ import {
   graphLayoutUsesSourceMetrics,
 } from "./sourceMetricsService";
 import { buildKeyModel } from "./graphKeyModel";
-import { createKeyRail } from "./graphKeyRail";
+import { createKeyRail, type RailEmphasis } from "./graphKeyRail";
 import {
   attachPaneResizer,
   collectionLabelsByID,
@@ -379,8 +385,6 @@ export function renderGraphView(
   /** Papers the reader removed one by one, by node key. */
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
-  // The Scope rail reads it once its handlers are wired.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let lastScope: GraphScopeResult | null = null;
   let mapScopeItemIDs = options.initialMapScopeItemIDs
     ? replaceItemScope(options.initialMapScopeItemIDs)
@@ -1109,25 +1113,77 @@ export function renderGraphView(
     resizer.hidden = state.collapsed;
   };
   applyDetailState(itemPane.read());
+  /**
+   * One emphasis, whatever raised it. A Seeds row lights that seed and the
+   * papers it reached — which is the seed's edges, since every edge a seed
+   * has runs to one of them.
+   */
+  const emphasisKeys = (
+    emphasis: RailEmphasis | null,
+  ): ReadonlySet<string> | null => {
+    if (!emphasis) return null;
+    if (emphasis.kind === "key") {
+      const matches = emphasis.entry.matches;
+      if (!matches) return null;
+      return new Set(
+        model.nodes.filter((node) => matches(node)).map((node) => node.key),
+      );
+    }
+    if (emphasis.kind === "seed") {
+      const reached =
+        focusProjection?.reachedBySeed.get(emphasis.seedKey) ??
+        new Set<string>();
+      return new Set([emphasis.seedKey, ...reached]);
+    }
+    const collectionID = emphasis.collectionID;
+    return new Set(
+      model.nodes
+        .filter((node) => node.collectionIDs.includes(collectionID))
+        .map((node) => node.key),
+    );
+  };
   const keyRail = createKeyRail({
     document,
-    onEmphasise: (emphasis) => {
-      const entry = emphasis?.kind === "key" ? emphasis.entry : null;
-      if (!entry?.matches) {
-        railEmphasisKeys = null;
-      } else {
-        const matches = entry.matches;
-        railEmphasisKeys = new Set(
-          model.nodes.filter((node) => matches(node)).map((node) => node.key),
-        );
-      }
+    onEmphasise: (emphasis: RailEmphasis | null) => {
+      railEmphasisKeys = emphasisKeys(emphasis);
       applyEmphasis();
     },
     onScope: {
-      toggleRow: () => undefined,
-      removeSeed: () => undefined,
-      addSeed: () => undefined,
-      showAllHidden: () => undefined,
+      toggleRow: (row, ticked) => {
+        if (row.kind === "collection") {
+          // The cascade: toggling a parent writes the same tick to its whole
+          // subtree, because a graph scoped to a parent already drew it.
+          collectionTicks = setCollectionTicks(
+            collectionTicks,
+            row.cascadeIDs,
+            ticked,
+          );
+        } else if (row.kind === "unfiled") {
+          includeUnfiled = ticked;
+        } else {
+          includeExternal = ticked;
+        }
+        applyFilters();
+        notifyStateChange();
+      },
+      removeSeed: (seedKey) => removeFocusSeed(seedKey),
+      // Task 9 replaces this with `openFocusSeedPopover`; until then the link
+      // does exactly what the toolbar's seed button does.
+      addSeed: () => {
+        const opening = focusSeedPopover.hidden;
+        focusSeedPopover.hidden = !opening;
+        focusSeedButton.setAttribute("aria-expanded", String(opening));
+        if (!opening) return;
+        renderFocusSeedResults();
+        alignPopover(focusSeedMenu, focusSeedPopover);
+        document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
+      },
+      showAllHidden: () => {
+        if (!hiddenKeys.size) return;
+        hiddenKeys.clear();
+        applyFilters();
+        notifyStateChange();
+      },
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -3185,6 +3241,41 @@ export function renderGraphView(
     onBackgroundInteraction: appearance.close,
     onNodeContextMenu: openNodeMenu,
   });
+  const scopeSeedRows = (): ScopeSeedRow[] => {
+    const theme = renderer?.getTheme() ?? graphThemeFor("light");
+    return (focusProjection?.state.seedKeys ?? []).map((key, index) => {
+      const node =
+        focusSeedRegistry.get(key) ??
+        model.nodes.find((candidate) => candidate.key === key) ??
+        null;
+      return {
+        key,
+        label: node
+          ? seedRowLabel({
+              authors: node.authors,
+              year: node.year,
+              title: node.title,
+            })
+          : "Unknown paper",
+        color: seedColorAt(index, theme),
+      };
+    });
+  };
+
+  const refreshScopeRail = (): void => {
+    if (!lastScope) return;
+    keyRail.renderScope(
+      buildScopeRailModel({
+        collections: snapshot.collections,
+        ticks: collectionTicks,
+        includeUnfiled,
+        includeExternal,
+        seeds: scopeSeedRows(),
+        scope: lastScope,
+      }),
+    );
+  };
+
   refreshKeyRail = (): void => {
     const active = renderer;
     if (!active) return;
@@ -3213,6 +3304,7 @@ export function renderGraphView(
         },
       }),
     );
+    refreshScopeRail();
   };
   renderOverview(null);
   refreshSourceMetricsForLayout(currentLayout);
