@@ -755,6 +755,21 @@
 .cm-focus-seed-popover[hidden] {
   display: none;
 }
+/*
+ * Anchored to the rail's "+ Add seed" link rather than a toolbar button, and
+ * floating over the plot's left edge so it keeps its width. The plot pane is
+ * `overflow: hidden`, so it is what clips and what the flip is measured
+ * against; the view sets `top` from the link's position.
+ */
+.cm-focus-seed-menu--rail {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  left: 0;
+}
+.cm-focus-seed-menu--rail .cm-focus-seed-popover {
+  top: 0;
+}
 .cm-focus-seed-search-wrap {
   position: relative;
   display: block;
@@ -788,22 +803,26 @@
 .cm-focus-seed-result:hover {
   background: color-mix(in srgb, var(--cm-accent) 8%, Canvas);
 }
-.cm-focus-seed-result-main {
-  display: grid !important;
+.meristema-root .cm-focus-seed-result-main {
+  display: grid;
   flex: 1 1 auto;
-  gap: 2px !important;
+  /* 4px, not 2px: the title and the metadata line were touching. */
+  gap: 4px;
   min-width: 0;
-  padding: 7px 8px !important;
-  border-color: transparent !important;
-  background: transparent !important;
+  padding: 7px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
   text-align: left;
   justify-items: start;
 }
-.cm-focus-seed-result-title,
-.cm-focus-seed-result-meta {
+.meristema-root .cm-focus-seed-result-title,
+.meristema-root .cm-focus-seed-result-meta {
   display: block;
   max-width: 100%;
   overflow: hidden;
+  /* The spans had no line-height of their own and inherited the button's. */
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -814,19 +833,20 @@
   color: color-mix(in srgb, CanvasText 68%, transparent);
   font-size: 11px;
 }
-.cm-focus-seed-result-remove,
-.cm-focus-seed-result-add {
+.meristema-root .cm-focus-seed-result-remove,
+.meristema-root .cm-focus-seed-result-add {
   align-self: center;
   flex: 0 0 auto;
-  min-width: 28px !important;
+  min-width: 28px;
   width: 28px;
   height: 28px;
   margin-right: 4px;
-  padding: 0 !important;
+  padding: 0;
   justify-content: center;
-  border-color: transparent !important;
-  border-radius: 50% !important;
-  background: transparent !important;
+  border-color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
   font-size: 16px;
 }
 

@@ -729,18 +729,6 @@ export function renderGraphView(
     "div",
     "cm-focus-seed-menu cm-menu-wrapper",
   );
-  const focusSeedButton = element(document, "button", "cm-toolbar-button");
-  focusSeedButton.type = "button";
-  focusSeedButton.setAttribute("aria-haspopup", "dialog");
-  focusSeedButton.setAttribute("aria-expanded", "false");
-  focusSeedButton.setAttribute("aria-controls", "meristema-focus-seed-popover");
-  focusSeedButton.append(iconButtonContent(document, "document", "0 seeds"));
-  // A tooltip before any projection exists; updateFocusBar replaces it with
-  // the seed count once there is one.
-  focusSeedButton.title = "Add seeds from the library.";
-  const focusSeedButtonLabel = focusSeedButton.querySelector(
-    "span",
-  ) as HTMLSpanElement;
   const focusSeedPopover = element(document, "div", "cm-focus-seed-popover");
   focusSeedPopover.id = "meristema-focus-seed-popover";
   focusSeedPopover.hidden = true;
@@ -763,7 +751,7 @@ export function renderGraphView(
   const focusSeedResults = element(document, "div", "cm-focus-seed-results");
   focusSeedResults.setAttribute("role", "list");
   focusSeedPopover.append(focusSeedSearchWrap, focusSeedResults);
-  focusSeedMenu.append(focusSeedButton, focusSeedPopover);
+  focusSeedMenu.appendChild(focusSeedPopover);
 
   const focusDirection = element(document, "select", "cm-select");
   for (const [value, label] of [
@@ -810,7 +798,6 @@ export function renderGraphView(
 
   toolbar.append(
     graphFilter.root,
-    focusSeedMenu,
     similarButton,
     exportWrap,
     graphWrap,
@@ -818,7 +805,7 @@ export function renderGraphView(
   );
   plotToolbar.append(toolbar, toolbarStatus, searchWrap);
 
-  // The Seeds button stays in the toolbar on every path so the view keeps one
+  // The rail's "+ Add seed" link stays on every path so the view keeps one
   // shape: it is how the first seed is added, so it is always live. The
   // Explore section behind the gear has nothing to set until there is a seed,
   // so it is hidden rather than disabled.
@@ -1167,17 +1154,7 @@ export function renderGraphView(
         notifyStateChange();
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
-      // Task 9 replaces this with `openFocusSeedPopover`; until then the link
-      // does exactly what the toolbar's seed button does.
-      addSeed: () => {
-        const opening = focusSeedPopover.hidden;
-        focusSeedPopover.hidden = !opening;
-        focusSeedButton.setAttribute("aria-expanded", String(opening));
-        if (!opening) return;
-        renderFocusSeedResults();
-        alignPopover(focusSeedMenu, focusSeedPopover);
-        document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
-      },
+      addSeed: (anchor) => openFocusSeedPopover(anchor),
       showAllHidden: () => {
         if (!hiddenKeys.size) return;
         hiddenKeys.clear();
@@ -1208,6 +1185,11 @@ export function renderGraphView(
   // rail's own toolbar rather than in a band across the window.
   keyRail.toolbar.prepend(identity);
   plotPane.append(plotToolbar, graphArea);
+  // The seed panel is anchored to the rail's "+ Add seed" link but floats over
+  // the plot's left edge, so it hangs off the plot pane and keeps its 430px
+  // width rather than being squeezed into the rail.
+  focusSeedMenu.classList.add("cm-focus-seed-menu--rail");
+  plotPane.appendChild(focusSeedMenu);
   main.append(keyRail.root, plotPane, detailShell);
   root.appendChild(main);
   mount.appendChild(root);
@@ -1523,13 +1505,13 @@ export function renderGraphView(
 
   const closeFocusSeedPopover = (restoreFocus = false): void => {
     focusSeedPopover.hidden = true;
-    focusSeedButton.setAttribute("aria-expanded", "false");
+    keyRail.addSeedAnchor().setAttribute("aria-expanded", "false");
     focusSeedSearch.value = "";
     librarySearchGeneration += 1;
     libraryState = { status: "idle" };
     libraryPaperBySeedRowID.clear();
     clear(focusSeedResults);
-    if (restoreFocus) focusSeedButton.focus();
+    if (restoreFocus) keyRail.addSeedAnchor().focus();
   };
 
   const seedPopoverPaperForNode = (
@@ -1644,18 +1626,11 @@ export function renderGraphView(
   };
 
   const updateFocusBar = (): void => {
+    // The Seeds heading in the rail carries the count now.
     if (!focusProjection) {
-      focusSeedButtonLabel.textContent = "0 seeds";
-      focusSeedButton.title = "Add seeds from the library.";
       if (!focusSeedPopover.hidden) renderFocusSeedResults();
       return;
     }
-    focusSeedButtonLabel.textContent = `${focusProjection.seeds.length} seed${
-      focusProjection.seeds.length === 1 ? "" : "s"
-    }`;
-    focusSeedButton.title = `Show ${focusProjection.seeds.length} seed${
-      focusProjection.seeds.length === 1 ? "" : "s"
-    }`;
     if (!focusSeedPopover.hidden) renderFocusSeedResults();
     focusDirection.value = focusProjection.state.direction;
     focusLocality.value = focusProjection.state.locality;
@@ -1689,15 +1664,21 @@ export function renderGraphView(
     if (anchorEnd) popover.classList.add("cm-popover-end");
   };
 
-  focusSeedButton.addEventListener("click", () => {
+  const openFocusSeedPopover = (anchor: HTMLElement): void => {
     const opening = focusSeedPopover.hidden;
     focusSeedPopover.hidden = !opening;
-    focusSeedButton.setAttribute("aria-expanded", String(opening));
+    anchor.setAttribute("aria-expanded", String(opening));
     if (!opening) return;
+    // Anchored to the rail's link, positioned over the plot: the pane is what
+    // clips, so it is what the flip and the width bound are measured against,
+    // exactly as when the anchor was a toolbar button.
+    const pane = plotPane.getBoundingClientRect();
+    const link = anchor.getBoundingClientRect();
+    focusSeedMenu.style.top = `${Math.max(0, link.top - pane.top)}px`;
     renderFocusSeedResults();
     alignPopover(focusSeedMenu, focusSeedPopover);
     document.defaultView?.setTimeout(() => focusSeedSearch.focus(), 0);
-  });
+  };
   const runLibrarySearch = (): void => {
     const query = focusSeedSearch.value.trim();
     librarySearchGeneration += 1;
@@ -1768,6 +1749,7 @@ export function renderGraphView(
     if (focusSeedPopover.hidden) return;
     const target = event.target as Node | null;
     if (target && focusSeedMenu.contains(target)) return;
+    if (target && keyRail.addSeedAnchor().contains(target)) return;
     closeFocusSeedPopover();
   };
   const closeFocusSeedPopoverOnEscape = (event: KeyboardEvent): void => {
