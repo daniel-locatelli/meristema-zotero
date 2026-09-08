@@ -3328,7 +3328,7 @@ under the same names.
 - Produces: locale ids `meristema-save-command`, `meristema-save-as-command`;
   `open-saved-graph-submenu` re-labelled "Open".
 
-- [ ] **Step 1: Rename the toolbar's menu**
+- [x] **Step 1: Rename the toolbar's menu**
 
 In `graphViewService.ts`, the Graph menu becomes File and keeps its place
 before Refresh — it already does. Change the button:
@@ -3378,7 +3378,7 @@ it in `savedGraphsHost` in `windowService.ts`, alongside `save` and `saveAs`
     newGraph: () => openNewGraphWindow(win, libraryID()),
 ```
 
-- [ ] **Step 2: Mirror the four commands in Tools**
+- [x] **Step 2: Mirror the four commands in Tools**
 
 In `menuService.ts`, rewrite `toolsSubmenu` so the first four entries match
 the File menu's order and names, with the library commands and Settings below
@@ -3490,7 +3490,7 @@ export async function saveGraphViewAs(
 
 Add both to `menuService.ts`'s import from `./windowService`.
 
-- [ ] **Step 3: Locale**
+- [x] **Step 3: Locale**
 
 In `addon/locale/en-US/mainWindow.ftl`, re-label the submenu and add the two
 commands:
@@ -3513,7 +3513,7 @@ Run: `npm run build` (the scaffold writes `typings/i10n.d.ts`), or add
 hand if the build is too slow to run here. The file is generated; do not hand-
 edit anything else in it.
 
-- [ ] **Step 4: Run the gate and the suite**
+- [x] **Step 4: Run the gate and the suite**
 
 Run: `npm run check`
 Expected: PASS.
@@ -3522,7 +3522,7 @@ Expected: only the three known failures. `savedGraphMenu.test.ts` reads the
 Tools submenu by l10n id; the Open submenu keeps its id, so it should still
 pass — if it does not, the id changed and that is a mistake to undo.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/graphViewService.ts src/services/windowService.ts \

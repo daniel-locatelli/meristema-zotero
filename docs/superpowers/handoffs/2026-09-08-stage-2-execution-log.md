@@ -91,3 +91,11 @@ nothing about a finished task is kept anywhere else.
   otherwise retires. Worth a look in the walk-through, and it may change the
   known "view 10" failure, which was about that overview offering two
   actions.
+- Task 12, f444175: the toolbar's Graph menu is File, gains New Graph, and Tools
+  mirrors it (New Graph, Open, Save, Save as…, separator, the library
+  commands, Settings), with Save and Save as… disabled when no graph tab is
+  active. `npm run check` green, 290 unit tests. Notes: the new ids landed
+  in `typings/i10n.d.ts`; `test/zotero/graphViewVisual.test.ts` needed a
+  `newGraph` stub the plan's file list did not mention; and Refresh is
+  briefly in both Tools and the item menu until Task 13 removes the item-menu
+  copy, as the plan says it will.
