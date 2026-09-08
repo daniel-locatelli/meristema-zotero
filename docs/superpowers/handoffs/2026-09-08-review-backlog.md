@@ -1,5 +1,7 @@
 # Handoff: manual review backlog, one entry per session
 
+> Sequencing lives in `2026-09-08-roadmap.md` next to this file. Start there; it says which entry is next and ticks progress.
+
 Date: 2026-09-08. Branch `main` at `204bdf1`, pushed, tree clean.
 XPI `.scaffold/build/meristema.xpi` built from `204bdf1`.
 
