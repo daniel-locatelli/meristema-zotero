@@ -1286,7 +1286,7 @@ nodes to merge into the model.
   `reachedKeysOf(projection: GraphFocusProjection): Set<string>`;
   `additiveGraphModel(base: { nodes: readonly CitationGraphNode[]; edges: readonly CitationGraphEdge[] }, projection: GraphFocusProjection | null): { nodes: CitationGraphNode[]; edges: CitationGraphEdge[] }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `test/unit/graphFocusService.test.ts`:
 
@@ -1432,13 +1432,13 @@ describe("seed reach", function () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 Run: `npm run test:unit`
 Expected: FAIL — `reachedKeysOf is not a function`, and the projection literal
 does not typecheck because `reachedBySeed` is not on `GraphFocusProjection`.
 
-- [ ] **Step 3: Record the reach while the projection is built**
+- [x] **Step 3: Record the reach while the projection is built**
 
 In `src/services/graphFocusService.ts`, add the field to the interface:
 
@@ -1488,7 +1488,7 @@ and return it:
     hidden: {
 ```
 
-- [ ] **Step 4: Add the two helpers**
+- [x] **Step 4: Add the two helpers**
 
 At the end of `src/services/graphFocusService.ts`:
 
@@ -1533,7 +1533,7 @@ export function additiveGraphModel(
 }
 ```
 
-- [ ] **Step 5: Run the tests and the gate**
+- [x] **Step 5: Run the tests and the gate**
 
 Run: `npm run test:unit`
 Expected: PASS.
@@ -1542,7 +1542,7 @@ Expected: PASS. `tsc` will flag any other construction of a
 `GraphFocusProjection` literal; `graphViewService.ts` builds none directly, so
 there should be none.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/services/graphFocusService.ts test/unit/graphFocusService.test.ts

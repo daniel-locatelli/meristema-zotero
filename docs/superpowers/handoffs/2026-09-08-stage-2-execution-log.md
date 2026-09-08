@@ -24,3 +24,11 @@ nothing about a finished task is kept anywhere else.
   green, 283 unit tests. Surprise: the same four-paper fixture as Task 2, so
   the plan's "4 of 4 papers" expectation was corrected to "3 of 4 papers" for
   the same reason, with a comment pointing at Task 2's case.
+- Task 4, 0ec0115: the projection carries `reachedBySeed`, plus pure
+  `reachedKeysOf` and `additiveGraphModel`. `npm run check` green, 287
+  unit tests. Two surprises: `focusGraphCacheService.cloneProjection` builds
+  a projection literal the plan did not expect, so it deep-clones the new map
+  too; and base edges are keyed `a>b` while projection edges are
+  `a>b:focus`, so the merge's dedupe by `edge.key` cannot collapse a
+  citation that both sides carry. Worth a look in the manual walk-through
+  (doubled edge between two library papers a seed also reached).
