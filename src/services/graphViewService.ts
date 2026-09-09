@@ -4016,8 +4016,25 @@ export function renderGraphView(
         return;
       }
       // A fresh view adopts the list's selection; it must not undo the
-      // selection the render itself just restored when nothing matches.
-      if (options?.adopt && !resolution.select && !resolution.emphasise) return;
+      // selection the render itself just restored. Under the additive model
+      // the graph holds the whole library, so "nothing matches" is no longer
+      // the test for that: a list row the reader never chose resolves to a
+      // node that is genuinely on the plot, and adopting it would throw away
+      // the seed a saved graph just opened on. The view's own selection wins;
+      // an emphasis from the list still applies, since it is not a selection.
+      const keepsOwnSelection =
+        Boolean(options?.adopt) && active.getSelectedKey() !== null;
+      if (
+        options?.adopt &&
+        !keepsOwnSelection &&
+        !resolution.select &&
+        !resolution.emphasise
+      ) {
+        return;
+      }
+      if (keepsOwnSelection && !resolution.emphasise && !libraryEmphasisKeys) {
+        return;
+      }
       // Nothing to do: the same node is selected and no emphasis moves.
       if (
         resolution.select === active.getSelectedKey() &&
@@ -4028,7 +4045,9 @@ export function renderGraphView(
       }
       const applied = resolution;
       withoutSelectionReport(() => {
-        if (applied.select) {
+        if (keepsOwnSelection) {
+          // Its selection stands; only the emphasis below moves.
+        } else if (applied.select) {
           active.selectNode(applied.select, false);
           active.panToNodeIfOffscreen(applied.select);
         } else {
