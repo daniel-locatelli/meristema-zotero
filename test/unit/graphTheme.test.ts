@@ -8,13 +8,25 @@ import {
 } from "../../src/services/graphTheme";
 
 describe("seed colours", function () {
-  it("gives each seed the next swatch and wraps round", function () {
+  it("gives each palette index its own seed colour and wraps round", function () {
     const theme = graphThemeFor("light");
-    const swatches = theme.categorical.swatches;
-    expect(seedColorAt(0, theme)).to.equal(swatches[0]);
-    expect(seedColorAt(1, theme)).to.equal(swatches[1]);
-    expect(seedColorAt(swatches.length, theme)).to.equal(swatches[0]);
-    expect(seedColorAt(-1, theme)).to.equal(swatches[0]);
+    const seeds = theme.seeds;
+    expect(seedColorAt(0, theme)).to.equal(seeds[0]);
+    expect(seedColorAt(1, theme)).to.equal(seeds[1]);
+    expect(seedColorAt(seeds.length, theme)).to.equal(seeds[0]);
+    expect(seedColorAt(-1, theme)).to.equal(seeds[0]);
+  });
+
+  it("draws seeds from a palette of their own, never the categorical one", function () {
+    for (const scheme of ["light", "dark"] as const) {
+      const theme = graphThemeFor(scheme);
+      for (const seed of theme.seeds) {
+        expect(theme.categorical.swatches, `${scheme} ${seed}`).to.not.include(
+          seed,
+        );
+        expect(theme.ramp, `${scheme} ${seed}`).to.not.include(seed);
+      }
+    }
   });
 });
 
@@ -42,5 +54,12 @@ describe("the in-library ring", function () {
     expect(properties.map(([name]) => name)).to.include(
       "--cm-state-in-library-ring",
     );
+  });
+
+  it("falls back to a neutral, never to a ramp stop", function () {
+    for (const scheme of ["light", "dark"] as const) {
+      const theme = graphThemeFor(scheme);
+      expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
+    }
   });
 });

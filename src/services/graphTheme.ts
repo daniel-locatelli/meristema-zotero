@@ -47,9 +47,13 @@ export interface GraphStateTokens {
   retracted: string;
   /**
    * The in-library ring's colour when a node's fill cannot be brightened —
-   * a ramp stop given as `rgba(...)`, or a missing fill.
+   * a ramp stop given as `rgba(...)`, or a missing fill. Neutral on purpose:
+   * it used to be `#4f9a5e`, which *is* ramp stop three, so a ring on an
+   * unparseable fill read as a metric value.
    */
   inLibraryRing: string;
+  /** Every non-seed node when no colour metric is chosen. */
+  uniformFill: string;
 }
 
 export interface GraphCategoricalTokens {
@@ -71,6 +75,12 @@ export interface GraphTheme {
   /** Five stops, monotone in lightness, low value first. */
   ramp: readonly string[];
   categorical: GraphCategoricalTokens;
+  /**
+   * Six hues for seeds, from the half of the wheel the ramp cannot reach, so a
+   * seed can never be mistaken for a metric value. Validated in
+   * `test/unit/graphPalette.test.ts` against the ramp and against each other.
+   */
+  seeds: readonly string[];
   edges: GraphEdgeTokens;
   states: GraphStateTokens;
 }
@@ -111,6 +121,7 @@ const LIGHT_THEME: GraphTheme = {
     other: "#7e8a84",
     noValue: "#9aa5a0",
   },
+  seeds: ["#d0104c", "#d55f00", "#7a1fd6", "#08258a", "#b0006e", "#b083ff"],
   edges: {
     base: "rgba(99, 102, 93, .32)",
     outgoing: "#0066af",
@@ -122,7 +133,8 @@ const LIGHT_THEME: GraphTheme = {
     seed: "#63665d",
     searchMatch: "#0f110d",
     retracted: "#a33a3a",
-    inLibraryRing: "#4f9a5e",
+    inLibraryRing: "#6f736a",
+    uniformFill: "#8d928a",
   },
 };
 
@@ -154,6 +166,7 @@ const DARK_THEME: GraphTheme = {
     other: "#7e8a84",
     noValue: "#9aa5a0",
   },
+  seeds: ["#f2447c", "#f07a1a", "#7c72f5", "#285098", "#e089c2", "#abb4fe"],
   edges: {
     base: "rgba(154, 156, 147, .28)",
     outgoing: "#006bb8",
@@ -165,7 +178,8 @@ const DARK_THEME: GraphTheme = {
     seed: "#9a9c93",
     searchMatch: "#ffffff",
     retracted: "#d98b8b",
-    inLibraryRing: "#96bf54",
+    inLibraryRing: "#a8ada2",
+    uniformFill: "#787d75",
   },
 };
 
@@ -199,12 +213,16 @@ export function graphThemeCustomProperties(
     ["--cm-state-in-library-ring", theme.states.inLibraryRing],
     ["--cm-state-search-match", theme.states.searchMatch],
     ["--cm-state-retracted", theme.states.retracted],
+    ["--cm-state-uniform-fill", theme.states.uniformFill],
   ];
   theme.ramp.forEach((stop, index) => {
     properties.push([`--cm-ramp-${index}`, stop]);
   });
   theme.categorical.swatches.forEach((swatch, index) => {
     properties.push([`--cm-category-${index}`, swatch]);
+  });
+  theme.seeds.forEach((seed, index) => {
+    properties.push([`--cm-seed-${index}`, seed]);
   });
   return properties;
 }
@@ -274,14 +292,16 @@ export function observeGraphScheme(
 }
 
 /**
- * Seeds are told apart by colour, and the rail's bullseye has to name the same
- * paper the plot's does. The categorical swatches are already validated for
- * separation, so seeds draw from them in order and wrap round.
+ * A seed's colour by **palette index**, not by its position among the seeds.
+ * The index is allocated once by `graphSwatchLedger` and held for as long as
+ * the seed lives, so removing one seed never repaints the others — which is
+ * what indexing by position did.
  */
-export function seedColorAt(index: number, theme: GraphTheme): string {
-  const swatches = theme.categorical.swatches;
-  const position = Number.isInteger(index) && index > 0 ? index : 0;
-  return swatches[position % swatches.length];
+export function seedColorAt(paletteIndex: number, theme: GraphTheme): string {
+  const seeds = theme.seeds;
+  const position =
+    Number.isInteger(paletteIndex) && paletteIndex > 0 ? paletteIndex : 0;
+  return seeds[position % seeds.length];
 }
 
 function hexChannel(value: string, start: number): number | null {
