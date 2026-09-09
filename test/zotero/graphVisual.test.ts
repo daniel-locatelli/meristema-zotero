@@ -425,6 +425,7 @@ describe("Graph view, looked at", function () {
       },
       onScope: {
         toggleRow: () => undefined,
+        selectRow: () => undefined,
         removeSeed: () => undefined,
         addSeed: () => undefined,
         showAllHidden: () => undefined,

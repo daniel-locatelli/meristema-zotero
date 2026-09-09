@@ -289,7 +289,7 @@ export const BASE_LAYOUT: GraphLayoutOptions = {
   yMetric: "citations",
   yScale: "log",
   nodeSizeMetric: "citations",
-  nodeColorMetric: "collection",
+  nodeColorMetric: "uniform",
   nodeLabelMode: "author-year",
 };
 

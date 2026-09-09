@@ -36,10 +36,17 @@ import {
 } from "../domain/workIdentity";
 import {
   emptyGraphViewState,
+  MAX_GRAPH_REGIONS,
   resolveGraphViewSeeds,
   seedFromNode,
   type GraphViewState,
 } from "./graphViewState";
+import {
+  allocateSwatches,
+  emptySwatchLedger,
+  swatchIndexFor,
+  type SwatchLedgerState,
+} from "./graphSwatchLedger";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
 import { mergeRelatedWorkLists } from "./relationshipStoreService";
 import { externalWorkURL } from "./providerPresentation";
@@ -77,6 +84,7 @@ import {
 } from "./graphScopeModel";
 import {
   buildScopeRailModel,
+  nextRegionSelection,
   seedRowLabel,
   type ScopeSeedRow,
 } from "./graphScopeRailModel";
@@ -364,6 +372,17 @@ export function renderGraphView(
     : allCollectionsTicked();
   let includeUnfiled = true;
   let includeExternal = true;
+  /**
+   * The folders drawn as regions on the plot. A folder graph opens showing
+   * its own folder, capped the same way any later selection is.
+   */
+  let regions: number[] = options.initialCollectionIDs?.length
+    ? [...options.initialCollectionIDs].slice(0, MAX_GRAPH_REGIONS)
+    : [];
+  /** Which swatch each region's folder holds. Never dealt by rank; see B12. */
+  let swatches: SwatchLedgerState = emptySwatchLedger();
+  /** Which seed-palette index each seed key holds. */
+  let seedSwatches: SwatchLedgerState = emptySwatchLedger();
   /** Papers the reader removed one by one, by node key. */
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
@@ -490,6 +509,18 @@ export function renderGraphView(
   ): void => undefined;
   /** Rebuild the Key from the graph as it now stands. Assigned once the rail exists. */
   let refreshKeyRail = (): void => undefined;
+  /** Rebuild the Scope rows and hand the renderer their regions. Assigned once the rail exists. */
+  let refreshScopeRail: () => void = () => undefined;
+  /**
+   * The regions the renderer should draw, coloured from the swatch ledger.
+   * Assigned once the plot model exists; `toggleRow`/`selectRow` close over
+   * it long before that.
+   */
+  let regionsForRenderer: () => Array<{
+    collectionID: number;
+    color: string;
+    nodeKeys: ReadonlySet<string>;
+  }> = () => [];
   /** What the search is currently matching, so the Key can name that mark. */
   let searchMatchKeys: Set<string> | null = null;
   const initialLayout = getGraphAppearance();
@@ -1112,6 +1143,12 @@ export function renderGraphView(
             row.cascadeIDs,
             ticked,
           );
+          // Unticking a selected folder clears its region, the mirror of
+          // selecting an unticked one ticking it: a region with nothing
+          // inside says nothing.
+          if (!ticked) {
+            regions = regions.filter((id) => id !== row.collectionID);
+          }
         } else if (row.kind === "unfiled") {
           includeUnfiled = ticked;
         } else {
@@ -1119,6 +1156,22 @@ export function renderGraphView(
         }
         applyFilters();
         notifyStateChange();
+      },
+      selectRow(row, selected) {
+        if (row.kind !== "collection") return;
+        // Selecting an unticked folder ticks it first: an out-of-scope
+        // folder has no papers on the plot, so its region would be empty.
+        if (selected && row.state === "off") {
+          this.toggleRow(row, true);
+        }
+        regions = nextRegionSelection(
+          regions,
+          row.collectionID,
+          MAX_GRAPH_REGIONS,
+        );
+        notifyStateChange();
+        renderer?.setRegions(regionsForRenderer());
+        refreshScopeRail();
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
       addSeed: (anchor) => openFocusSeedPopover(anchor),
@@ -1730,16 +1783,21 @@ export function renderGraphView(
   );
   document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
 
-  /** Seeds take the categorical swatches in the order they were added. */
+  /** Seeds hold a palette index for as long as they live, not a position. */
   const seedColorsFor = (
     projection: GraphFocusProjection,
-  ): Map<string, string> =>
-    new Map(
-      projection.state.seedKeys.map((key, index) => [
+  ): Map<string, string> => {
+    const theme = renderer?.getTheme() ?? graphThemeFor("light");
+    const keys = projection.state.seedKeys;
+    const ledger = allocateSwatches(seedSwatches, keys, theme.seeds.length);
+    seedSwatches = ledger;
+    return new Map(
+      keys.map((key) => [
         key,
-        seedColorAt(index, renderer?.getTheme() ?? graphThemeFor("light")),
+        seedColorAt(swatchIndexFor(ledger, key) ?? 0, theme),
       ]),
     );
+  };
 
   /** Reached papers the library already holds; they wear the thin ring. */
   const inLibraryReachedKeys = (
@@ -3192,8 +3250,10 @@ export function renderGraphView(
     onNodeContextMenu: openNodeMenu,
   });
   const scopeSeedRows = (): ScopeSeedRow[] => {
-    const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    return (focusProjection?.state.seedKeys ?? []).map((key, index) => {
+    const colors = focusProjection
+      ? seedColorsFor(focusProjection)
+      : new Map<string, string>();
+    return (focusProjection?.state.seedKeys ?? []).map((key) => {
       const node =
         focusSeedRegistry.get(key) ??
         model.nodes.find((candidate) => candidate.key === key) ??
@@ -3207,13 +3267,53 @@ export function renderGraphView(
               title: node.title,
             })
           : "Unknown paper",
-        color: seedColorAt(index, theme),
+        color:
+          colors.get(key) ??
+          seedColorAt(0, renderer?.getTheme() ?? graphThemeFor("light")),
       };
     });
   };
 
-  const refreshScopeRail = (): void => {
+  /**
+   * The regions handed to the renderer: each region's folder colour, from
+   * the swatch ledger, and its papers currently on the plot. Colour follows
+   * the folder's key through the ledger, so ticking or unticking one folder
+   * can never repaint another's swatch (backlog B12).
+   */
+  regionsForRenderer = (): Array<{
+    collectionID: number;
+    color: string;
+    nodeKeys: ReadonlySet<string>;
+  }> => {
+    const theme = renderer?.getTheme() ?? graphThemeFor("light");
+    const ledger = allocateSwatches(
+      swatches,
+      regions.map((id) => String(id)),
+      theme.categorical.swatches.length,
+    );
+    swatches = ledger;
+    return regions.map((collectionID) => ({
+      collectionID,
+      color:
+        theme.categorical.swatches[
+          swatchIndexFor(ledger, String(collectionID)) ?? 0
+        ],
+      nodeKeys: new Set(
+        model.nodes
+          .filter(
+            (node) =>
+              visibleKeys.has(node.key) &&
+              node.collectionIDs.includes(collectionID),
+          )
+          .map((node) => node.key),
+      ),
+    }));
+  };
+
+  refreshScopeRail = (): void => {
     if (!lastScope) return;
+    const drawnRegions = regionsForRenderer();
+    renderer?.setRegions(drawnRegions);
     keyRail.renderScope(
       buildScopeRailModel({
         collections: snapshot.collections,
@@ -3222,6 +3322,10 @@ export function renderGraphView(
         includeExternal,
         seeds: scopeSeedRows(),
         scope: lastScope,
+        regions,
+        regionColors: new Map(
+          drawnRegions.map((region) => [region.collectionID, region.color]),
+        ),
       }),
     );
   };
@@ -3895,6 +3999,9 @@ export function renderGraphView(
       includeUnfiled,
       includeExternal,
       hiddenKeys: [...hiddenKeys],
+      regions: [...regions],
+      swatches,
+      seedSwatches,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
     };
@@ -3940,6 +4047,9 @@ export function renderGraphView(
       includeExternal = state.includeExternal;
       hiddenKeys.clear();
       for (const key of state.hiddenKeys) hiddenKeys.add(key);
+      regions = [...state.regions];
+      swatches = state.swatches;
+      seedSwatches = state.seedSwatches;
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
         const paper = paperByKey.get(itemKey);
