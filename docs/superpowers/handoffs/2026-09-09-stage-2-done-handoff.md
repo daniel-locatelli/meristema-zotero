@@ -5,8 +5,9 @@ first; this file only says what the closing session did. It replaces
 `2026-09-09-stage-2-debugging-handoff.md`, whose "next thing to work" is now
 finished.
 
-`main` is at `532ec85`, fast-forwarded from `graph-scope-rail` and pushed
-(both branches). `npm run check` is green. `npm test` is **37 passed, 1
+`main` carries the branch, fast-forwarded and pushed, and
+`graph-scope-rail` points at the same commit. `532ec85` is the last commit
+that changes code; everything after it is this handoff. `npm run check` is green. `npm test` is **37 passed, 1
 failed**; the one is "view 15", which fails on `main` too and is now backlog
 **B11**. `.scaffold/build/meristema.xpi` is the production build of that
 commit — **rebuild it if you run `npm test` again**, because the test run
