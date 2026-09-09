@@ -380,6 +380,250 @@ Pointers: `applyLibrarySelection` in `src/services/graphViewService.ts`,
 
 ---
 
+## B12. Folder colours are dealt by rank, so ticking a folder repaints the others
+
+Found in the 2026-09-09 walk-through of Stage 2, check 3. Tick PhD and it is
+magenta; tick DOKwood as well and DOKwood takes magenta while PhD becomes
+purple. Colour is the reader's handle on a folder, and it moves under them.
+
+The cause is in `graphCategoryAssignment.ts`: the categories are ranked
+"largest first, ties by label" and then `theme.categorical.swatches[index]` is
+handed out by that rank. The sort was written so the order never depends on
+input order, which it does not — but it does depend on the counts, and every
+tick changes the counts.
+
+The fix is to make a folder's swatch a function of the folder, not of its
+rank: hash the collection key into the palette, or hold a per-view assignment
+that only grows. Whatever is chosen has to survive a reopen, so it belongs in
+the saved state or in something derivable from the collection ID alone. The
+rank still decides which categories are named in the Key and which collapse
+into "Other"; only the colour stops following it.
+
+Pointers: `src/services/graphCategoryAssignment.ts` (the `ranked` sort and
+`entries`), `test/unit/graphCategoryAssignment.test.ts`, the Key's colour
+section in `src/services/graphKeyModel.ts`.
+
+---
+
+## B13. "+ Add seed" is too dark to read on the dark theme
+
+Found in the walk-through, check 5. The link is blue on a dark ground and the
+contrast is too low to pick out. It is the only way to add the first seed, so
+it has to read at a glance in both themes.
+
+Pointers: `.cm-scope-add-seed` in `addon/content/graph.css`, the theme's ink
+tokens in `src/services/graphTheme.ts`.
+
+---
+
+## B14. The seed row's × grows an off-centre ellipse on hover
+
+Found in the walk-through, extra note. Hovering the remove control on a Seeds
+row paints a shape behind the × that is neither centred on it nor round. The
+user's call: style the × itself rather than putting a shape behind it.
+
+Pointers: `.cm-scope-seed-remove` in `addon/content/graph.css`, built in
+`src/services/graphKeyRail.ts`.
+
+---
+
+## B15. Adding a seed from the search panel takes two clicks
+
+Found in the walk-through, check 5. A row in the seed search panel has to be
+clicked and then its "+" pressed. The panel was opened from "+ Add seed", so
+the reader has already said what they want: clicking the row should add the
+seed. Check what the row's other affordances are before removing the "+" —
+the panel is also how a paper is previewed.
+
+Pointers: the seed popover rows in `src/services/graphViewService.ts`
+(`focusSeedResults`, `seedPopoverPaperForNode`).
+
+---
+
+## B16. The Open list centres the graph names
+
+Found in the walk-through, check 6. Rows under File › Open and Tools ›
+Meristema › Open are centred while every other menu entry is left-aligned.
+
+Pointers: the graph menu list in `src/services/graphViewService.ts`, its CSS
+in `addon/content/graph.css`.
+
+---
+
+## B17. Tools › Meristema repeats the Meristema icon on every row
+
+Found in the walk-through, check 6. Open, Save and Save as… each carry the
+plugin icon inside a submenu that is already labelled Meristema and already
+carries it. Drop the icon from the rows inside the submenu; the submenu itself
+keeps it.
+
+Pointers: `ICON` and the `item.setAttribute("image", ICON)` calls in
+`src/services/menuService.ts`.
+
+---
+
+## B18. The view fits after it renders, so the graph jumps
+
+Found in the walk-through, extra note. Opening a graph draws it, and then "fit
+to view" moves everything. The fit should happen before the first frame the
+reader sees.
+
+`scheduleFocusFit` waits for the viewport and the node count to hold still for
+a few frames before it fits, which is why it lands late. Consider fitting
+invisibly — render the first frame already framed — rather than shortening the
+settle, which is what makes the fit correct.
+
+Pointers: `scheduleFocusFit` and `applySeedProjection` in
+`src/services/graphViewService.ts`.
+
+---
+
+## B19. A folder's context menu reads "New PhD Graph"
+
+Found in the walk-through, extra note. Right-clicking a folder offers
+"New { $graph }" for one folder. The user wants "Create a new graph".
+
+Note the label was built this way so a folder already named like a graph does
+not read "New PhD Graph Graph"; a flat label solves that too.
+
+Pointers: `collection-new-graph-command` in
+`addon/locale/en-US/mainWindow.ftl`.
+
+---
+
+## B20. New Graph from a detached window gives no feedback
+
+Found in the walk-through, check 6. Low priority, and the user said so. With
+the graph in its own window, New Graph opens a tab in the main Zotero window,
+which may be behind everything: nothing appears to happen.
+
+Either bring the main window forward, or open the new graph as another
+detached window when the command came from one.
+
+Pointers: `openNewGraphWindow` in `src/services/windowService.ts`.
+
+---
+
+## F5. The node's context menu should offer what the detail pane offers
+
+Found in the walk-through, extra note. Right-clicking a node offers the open
+entry, the seed toggle and Remove from graph. The detail pane offers Add to
+Zotero, Open DOI, Similar, the seed toggle and Update connections. The user
+wants the same set in both places.
+
+Decide as part of it whether every pane action makes sense at a right-click,
+and keep the menu short enough to stay a menu.
+
+For the record, because the user asked: **Refresh** in the toolbar re-fetches
+references and citing papers for _every seed_ when the graph is seeded, and
+metadata plus citation counts for _every visible paper_ when it is not.
+**Update connections** in the pane does the same fetch, both directions, for
+_the one paper the pane is showing_. Same operation, different scope; the
+labels should probably say so.
+
+Pointers: `openNodeMenu` in `src/services/graphViewService.ts` for the menu,
+the overview actions in the same file and in `src/services/itemPaneService.ts`.
+
+---
+
+## F6. Seed a paper that is not in Zotero into a new graph
+
+Found in the walk-through, check 9. A saved graph whose only seed is an
+external paper reopens correctly, so the state supports it; what is missing is
+a way in. Today an external paper can only become a seed from inside a graph
+that already exists.
+
+Pointers: the seed search panel's external results in
+`src/services/graphViewService.ts`, `openNewGraphWindow` in
+`src/services/windowService.ts`.
+
+---
+
+## F7. A new graph should tick what it was made from
+
+Found in the walk-through, extra note. New Graph ticks every folder. Made from
+a folder it already ticks only that folder and its subtree
+(`onlyCollectionsTicked`), which is right; made from a paper it still ticks
+everything, and the user wants only the folders that hold that paper. A plain
+New Graph with no origin is the case to decide: everything, or nothing.
+
+Pointers: the `collectionTicks` initialiser in
+`src/services/graphViewService.ts`, `initialCollectionIDs` and
+`initialFocusItemIDs` in `src/services/windowService.ts`.
+
+---
+
+## D3. The colour system has four palettes that collide
+
+Found in the walk-through, check 3 and an extra note; the largest finding of
+the batch, and the reason B12 should not be fixed alone.
+
+Four things colour the plot and they are not designed against each other:
+
+- **Folder categories** take `theme.categorical.swatches` by rank (B12).
+- **Seeds** take the _same_ swatch list by seed index (`seedColorAt`).
+- **A numeric colour metric** takes `theme.ramp`, teal to yellow.
+- **The in-library ring** is a fixed `#4f9a5e`, which _is_ ramp stop three.
+
+So with four seeds and a citations colour metric, the user had a green seed
+(`#039f6c`, swatch three) against a green-to-yellow ramp, with green rings on
+the papers reaching it. Three different meanings, one colour.
+
+Two questions to settle, not one:
+
+1. **What does a seed node's centre mean?** Today it is the node's own fill —
+   its folder — so a paper in several folders is drawn in slices, up to
+   `MAX_SLICES_PER_NODE`. The user does not think the centre should be the
+   folder at all. Decide what a seed's mark says: which seed it is, or where
+   it lives.
+2. **How do the palettes stay apart?** Options: reserve a slice of the
+   swatches for seeds and never give it to folders; derive the ring from the
+   node's own colour rather than a constant; suppress folder colour entirely
+   while a numeric colour metric is on, which is arguably already true of the
+   Key.
+
+This is a brainstorm, then a spec. It touches `graphTheme.ts`,
+`graphCategoryAssignment.ts`, `graphKeyModel.ts` and the renderer's seed and
+ring drawing.
+
+---
+
+## D4. Graph templates: presets a beginner can start from
+
+The user's own framing, from the walk-through: "There are multiple ways to
+visualize the same graph. I like the flexibility, but it may be hard for users
+that are just getting started." A template is a named bundle of view settings
+— axes, scales, node size, node colour, labels, filters — with an icon that
+says what it is for, swapped in one click.
+
+Open questions for the brainstorm: which templates ("Impact over time", "What
+cites what", "Reading map"…); where they live (the rail's Scope presets line
+already exists and may be the place, or the gear panel, or the toolbar);
+whether a template is a starting point or a mode the view stays in; whether a
+reader can save their own; and how a template interacts with the state a saved
+graph carries.
+
+Note the rail already has a presets line from the Stage 2 spec — read that
+first so templates do not become a second, competing control.
+
+---
+
+## D5. One logo, on both themes, that says meristem
+
+The user's note from the walk-through. There are two marks today: the blue
+`favicon.png` the add-ons manager shows, and the white
+`content/icons/network.svg` used across the UI and the tab. The white one does
+not work on the light theme, which was already known.
+
+Wanted: one mark, legible on both themes, that carries the meristem idea — the
+growing tip, the thing that keeps branching — rather than a generic network
+glyph. Brainstorm the idea before drawing anything.
+
+Pointers: `addon/content/icons/`, `ICON` in `src/services/menuService.ts`,
+`addon/content/tabIcon.css`, the manifest's icon entries.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
