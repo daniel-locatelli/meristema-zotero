@@ -78,7 +78,9 @@ export interface GraphTheme {
   /**
    * Six hues for seeds, from the half of the wheel the ramp cannot reach, so a
    * seed can never be mistaken for a metric value. Validated in
-   * `test/unit/graphPalette.test.ts` against the ramp and against each other.
+   * `test/unit/graphPalette.test.ts` against the ramp, against the
+   * categorical swatches — a seed disc and a category disc can sit side by
+   * side on the same plot — and against each other.
    */
   seeds: readonly string[];
   edges: GraphEdgeTokens;
@@ -121,7 +123,7 @@ const LIGHT_THEME: GraphTheme = {
     other: "#7e8a84",
     noValue: "#9aa5a0",
   },
-  seeds: ["#d0104c", "#d55f00", "#7a1fd6", "#08258a", "#b0006e", "#b083ff"],
+  seeds: ["#f20032", "#f2a87d", "#7a1fd6", "#08258a", "#b0006e", "#c7b2e4"],
   edges: {
     base: "rgba(99, 102, 93, .32)",
     outgoing: "#0066af",
@@ -166,7 +168,7 @@ const DARK_THEME: GraphTheme = {
     other: "#7e8a84",
     noValue: "#9aa5a0",
   },
-  seeds: ["#f2447c", "#f07a1a", "#7c72f5", "#285098", "#e089c2", "#abb4fe"],
+  seeds: ["#ff0c9e", "#ffb582", "#8d23ee", "#442b87", "#e089c2", "#abb4fe"],
   edges: {
     base: "rgba(154, 156, 147, .28)",
     outgoing: "#006bb8",

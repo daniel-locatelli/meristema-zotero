@@ -195,4 +195,28 @@ describe("the seed palette", function () {
       }
     }
   });
+
+  it("never lands near a categorical swatch, in any vision model", function () {
+    // Four categorical colourings (publication type, provider, open access,
+    // retraction) still paint small solid discs from these swatches, right
+    // beside small solid seed discs — so a seed must clear the same
+    // separation floors against the categorical palette as it does against
+    // the ramp, or a reader cannot tell a seed from a category at a glance.
+    for (const theme of themes()) {
+      for (const seed of theme.seeds) {
+        for (const swatch of theme.categorical.swatches) {
+          expect(
+            deltaE(labOf(seed), labOf(swatch)),
+            `${theme.scheme} ${seed} vs categorical ${swatch}`,
+          ).to.be.at.least(SEPARATION_FLOOR);
+          for (const kind of Object.keys(CVD_MATRICES)) {
+            expect(
+              deltaE(labUnder(seed, kind), labUnder(swatch, kind)),
+              `${theme.scheme} ${seed} vs categorical ${swatch} under ${kind}`,
+            ).to.be.at.least(CVD_SEPARATION_FLOOR);
+          }
+        }
+      }
+    }
+  });
 });
