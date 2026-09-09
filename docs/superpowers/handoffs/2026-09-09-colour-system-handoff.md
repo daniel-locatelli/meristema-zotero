@@ -14,6 +14,24 @@ the plan. The only commits are documentation.
 - Commits: `4ba8c8b` spec, `bb67388` review gaps, `ad90f91` the correction,
   `e271680` the plan.
 
+## How to start
+
+The user's instruction for the next session, in their words: execute the plan
+**subagent-driven**. So:
+
+1. Read `docs/superpowers/handoffs/2026-09-08-roadmap.md`, then this file.
+   You do not need to read the spec end to end before starting — the plan's
+   task briefs carry what each task needs — but read the spec's **Design**
+   section once, because the plan assumes it.
+2. `git switch -c graph-colour-system` from `main` at `9386ac6`.
+3. Invoke `superpowers:subagent-driven-development` on
+   `docs/superpowers/plans/2026-09-09-graph-colour-system.md`. Ten tasks, in
+   order. The ledger at `.superpowers/sdd/progress.md` has no entry for this
+   plan yet; every task is outstanding.
+
+Do not re-brainstorm and do not rewrite the spec. It was written, reviewed by
+the user, corrected once, and approved.
+
 ## What was decided, and what the user chose
 
 The user chose D3 over Stage 3, then made four calls in the brainstorm. They
