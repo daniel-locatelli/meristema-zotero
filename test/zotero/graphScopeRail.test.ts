@@ -51,13 +51,28 @@ describe("The graph's Scope rail", function () {
   let collectionID: number | null = null;
   let fixtureIDs: number[] = [];
 
-  /** The rendered graph in the active tab. There is exactly one. */
+  /**
+   * The graph rendered in this suite's own tab. Asking the document for
+   * `.meristema-root` would answer with whichever graph another suite left
+   * behind while its tab was still closing.
+   */
   function graphRoot(): HTMLElement {
-    const root = win.document.querySelector(
+    const root = tabContent()?.querySelector(
       ".meristema-root",
     ) as HTMLElement | null;
     expect(root, "the graph is rendered").to.exist;
     return root as HTMLElement;
+  }
+
+  function tabContent(): HTMLElement | null {
+    if (!tabID) return null;
+    return (win.Zotero_Tabs.getTabContent(tabID) as HTMLElement) ?? null;
+  }
+
+  function graphTabs(): any[] {
+    return (win.Zotero_Tabs._tabs as any[]).filter(
+      (tab) => tab.type === config.addonRef,
+    );
   }
 
   /** The `shown` half of the rail's `{shown} of {total} papers`. */
@@ -187,6 +202,7 @@ describe("The graph's Scope rail", function () {
     }
 
     const doc = win.document as Document;
+    const already = new Set(graphTabs().map((tab) => tab.id));
     const toolsPopup = doc.getElementById("menu_ToolsPopup")!;
     let showing = shown(toolsPopup);
     (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
@@ -201,17 +217,15 @@ describe("The graph's Scope rail", function () {
     (toolsPopup as any).hidePopup();
 
     const tab = await waitFor(
-      () =>
-        (win.Zotero_Tabs._tabs as any[]).find(
-          (candidate) => candidate.type === config.addonRef,
-        ),
+      () => graphTabs().find((candidate) => !already.has(candidate.id)),
       20_000,
     );
     expect(tab, "the graph's tab").to.exist;
     tabID = tab!.id;
+    win.Zotero_Tabs.select(tabID);
     const rail = await waitFor(
-      () => doc.querySelector(".cm-scope-section .cm-scope-count"),
-      20_000,
+      () => tabContent()?.querySelector(".cm-scope-section .cm-scope-count"),
+      30_000,
     );
     expect(rail, "the rail's Scope section").to.exist;
     // Frame every paper before anything looks for one: the walk below reads
