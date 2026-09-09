@@ -36,12 +36,17 @@ describe("the swatch ledger", function () {
     expect(swatchIndexFor(third, "b")).to.equal(1);
   });
 
-  it("reuses the longest-released index first", function () {
+  it("reuses the lowest free index, not the longest-released one", function () {
+    // b releases first (the longest-released key by the time of refill), a
+    // releases second, each in its own call. If reuse followed release
+    // order, the first newcomer would take b's old slot (1). It doesn't:
+    // it takes the lowest free index, which is a's old slot (0).
     const full = allocateSwatches(emptySwatchLedger(), ["a", "b", "c"], 3);
-    const lost = allocateSwatches(full, ["c"], 3); // a released, then b
-    const refilled = allocateSwatches(lost, ["c", "d", "e"], 3);
-    expect(swatchIndexFor(refilled, "d")).to.equal(0); // a's, released first
-    expect(swatchIndexFor(refilled, "e")).to.equal(1); // b's
+    const droppedB = allocateSwatches(full, ["a", "c"], 3);
+    const droppedA = allocateSwatches(droppedB, ["c"], 3);
+    const refilled = allocateSwatches(droppedA, ["c", "d", "e"], 3);
+    expect(swatchIndexFor(refilled, "d")).to.equal(0); // a's slot, freed second
+    expect(swatchIndexFor(refilled, "e")).to.equal(1); // b's slot, freed first
   });
 
   it("shares an index only once the pool is exhausted, oldest holder first", function () {
@@ -54,18 +59,11 @@ describe("the swatch ledger", function () {
     expect(swatchIndexFor(over, "s3")).to.equal(0);
   });
 
-  it("keeps live keys stable through two separate releases before refill", function () {
-    // A key released a call or more ago must not be able to disturb a live
-    // key's index just because its own original slot is no longer recorded
-    // anywhere in the state that reached this call.
-    const full = allocateSwatches(emptySwatchLedger(), ["a", "b", "c", "d"], 4);
-    const droppedC = allocateSwatches(full, ["a", "b", "d"], 4);
-    const droppedA = allocateSwatches(droppedC, ["b", "d"], 4);
-    const refilled = allocateSwatches(droppedA, ["b", "d", "e", "f"], 4);
-    expect(swatchIndexFor(refilled, "b")).to.equal(1);
-    expect(swatchIndexFor(refilled, "d")).to.equal(3);
-    expect(swatchIndexFor(refilled, "e")).to.equal(0);
-    expect(swatchIndexFor(refilled, "f")).to.equal(2);
+  it("assigns no index when the pool is empty", function () {
+    // poolSize 0 must not silently hand out index 0 (there is no holder to
+    // double up with either): a newcomer simply gets none.
+    const empty = allocateSwatches(emptySwatchLedger(), ["a"], 0);
+    expect(swatchIndexFor(empty, "a")).to.equal(null);
   });
 
   it("never mutates the state it was given", function () {

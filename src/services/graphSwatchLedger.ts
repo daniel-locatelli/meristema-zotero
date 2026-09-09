@@ -16,12 +16,22 @@
  */
 
 export interface SwatchLedgerState {
-  /** Key to palette index, for every key currently holding one. */
+  /**
+   * Key to palette index, for every key currently holding one. If `poolSize`
+   * shrinks between calls, a live key already holding an index outside
+   * `[0, poolSize)` is carried forward unchanged rather than reassigned;
+   * validating pool bounds is the caller's job.
+   */
   assigned: Record<string, number>;
   /**
-   * Keys whose index has been freed, longest-released first. Only the order
-   * matters; the keys are kept so the reuse order is inspectable in a saved
-   * state rather than being a number nobody can explain.
+   * Keys that have given up an index, oldest release first. This is a
+   * record of departure order, not a reuse queue: reuse always takes the
+   * lowest free index, not the longest-released one. A departed key's
+   * index cannot be carried forward here — the moment a key leaves
+   * `assigned` its index is gone from this state, so there is nowhere in
+   * this two-field shape to remember it — and no caller needs the
+   * distinction, since the lowest-free-index rule is fully deterministic on
+   * its own.
    */
   releasedOrder: string[];
 }
@@ -40,8 +50,10 @@ export function swatchIndexFor(
 
 /**
  * The ledger after `keys` are the only live keys. Keys that are present keep
- * their index; keys that have gone release theirs; keys that are new take the
- * longest-released free index, or the lowest never-used one.
+ * their index; keys that have gone release theirs; keys that are new take
+ * the lowest free index in `[0, poolSize)`, or, once the pool is exhausted
+ * (including a `poolSize` of zero, where no index ever exists), double up
+ * with the oldest live holder rather than repaint anyone.
  */
 export function allocateSwatches(
   state: SwatchLedgerState,
@@ -58,16 +70,10 @@ export function allocateSwatches(
     else if (!releasedOrder.includes(key)) releasedOrder.push(key);
   }
 
-  const freed: number[] = [];
-  for (const key of releasedOrder) {
-    const index = state.assigned[key];
-    if (typeof index === "number") freed.push(index);
-  }
-
   const taken = new Set(Object.values(assigned));
-  const never: number[] = [];
+  const free: number[] = [];
   for (let index = 0; index < poolSize; index += 1) {
-    if (!taken.has(index) && !freed.includes(index)) never.push(index);
+    if (!taken.has(index)) free.push(index);
   }
 
   // Sorting the newcomers keeps the result independent of the order the caller
@@ -76,17 +82,19 @@ export function allocateSwatches(
   let sharedAt = 0;
 
   for (const key of newcomers) {
-    const reused = never.length ? never.shift() : freed.shift();
+    const reused = free.shift();
     if (typeof reused === "number") {
       assigned[key] = reused;
       continue;
     }
-    // The pool is exhausted: double up with the oldest live holder rather than
-    // repaint anyone. The rail's hover tells the two apart.
+    // The pool is exhausted, or poolSize is zero so no index ever existed:
+    // double up with the oldest live holder rather than repaint anyone. If
+    // nobody holds any index either, this newcomer stays unassigned.
     const holders = Object.entries(assigned)
       .sort((left, right) => left[1] - right[1])
       .map(([, index]) => index);
-    assigned[key] = holders[sharedAt % holders.length] ?? 0;
+    if (holders.length === 0) continue;
+    assigned[key] = holders[sharedAt % holders.length];
     sharedAt += 1;
   }
 
