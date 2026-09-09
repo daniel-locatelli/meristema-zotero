@@ -690,35 +690,59 @@ describe("Graph view, as the product builds it", function () {
     expect(exportMenu.hidden, "and closes the same way").to.equal(true);
   });
 
-  it("view 7 — the Key names the folders in scope and no others", async function () {
+  it("view 7 — folder identity moved from the Key to the rail's Scope section", async function () {
     this.timeout(60_000);
     const active = await open(220);
     const controller = getGraphViewController(active.mount)!;
 
-    // Every folder in the corpus, because nothing is filtered yet.
-    const wide = railEntries(active.root);
+    // The comment this case used to carry described a real bug: a library-wide
+    // model filtered to one folder left the Key naming folders that had
+    // nothing left on screen. That bug cannot recur, because folder membership
+    // left the node's fill for a shaded region (Task 8/9) and the Key's Color
+    // section now describes whichever colour metric is in force — "uniform" by
+    // default, one swatch for every non-seed paper. There is no folder to name,
+    // scoped or not, so this checks that instead.
+    const colorSubheading = (): string | null =>
+      (
+        Array.from(
+          active.root.querySelectorAll(".cm-key-section"),
+        ) as HTMLElement[]
+      )
+        .find(
+          (section) =>
+            section.querySelector(".cm-key-heading")?.textContent === "Color",
+        )
+        ?.querySelector(".cm-key-subheading")?.textContent ?? null;
     const named = (entries: string[], label: string): boolean =>
       entries.some((entry) => entry.startsWith(label));
+
     expect(
-      named(wide, "Auxin transport"),
-      "the whole library names it",
-    ).to.equal(true);
-    expect(named(wide, "Flowering"), "and names the rest too").to.equal(true);
+      colorSubheading(),
+      "the whole library colours uniformly, by default",
+    ).to.equal("Uniform");
+    const wide = railEntries(active.root);
+    for (const folder of ["Auxin transport", "Flowering"]) {
+      expect(
+        named(wide, folder),
+        `the Key describes colour, not folders, so it never names ${folder}`,
+      ).to.equal(false);
+    }
     await shot("view-07-key-whole-library");
 
-    // The context menu's "graph this folder" arrives here. It is a filter over
-    // a library-wide model, which is exactly why the Key used to go on naming
-    // folders that were no longer on screen.
+    // The context menu's "graph this folder" arrives here. It ticks one
+    // collection and leaves the rest off; on the model the Key reads, that
+    // changes which papers are on screen, not how any of them are coloured.
     expect(controller.openCollections([3])).to.equal("selected");
     await settle(active.window, 10);
 
-    const scoped = railEntries(active.root);
-    notes.push(`view 7 rail in scope: ${scoped.join(" | ")}`);
     expect(
-      named(scoped, "Auxin transport"),
-      "the folder the graph was opened on is still named",
-    ).to.equal(true);
-    for (const absent of [
+      colorSubheading(),
+      "scoping the graph gives the Color section nothing new to say",
+    ).to.equal("Uniform");
+    const scoped = railEntries(active.root);
+    notes.push(`view 7 Key entries once scoped: ${scoped.join(" | ")}`);
+    for (const folder of [
+      "Auxin transport",
       "Meristem structure",
       "Phyllotaxis",
       "Stem cells",
@@ -727,11 +751,78 @@ describe("Graph view, as the product builds it", function () {
       "Methods",
     ]) {
       expect(
-        named(scoped, absent),
-        `${absent} has no papers on screen, so the Key must not name it`,
+        named(scoped, folder),
+        `${folder} is not in the Key, scoped or not — it is not where folder identity is read`,
       ).to.equal(false);
     }
     await shot("view-07-key-one-folder");
+
+    // Folder identity is the rail's Scope section's job now. Its rows list
+    // every folder in the corpus, the way Zotero's own collections pane lists
+    // every folder rather than only the ones with something to show, but each
+    // row's own count and tick state are honest about what that folder
+    // actually contributes: this corpus files every paper in exactly one
+    // folder and leaves nothing unfiled or outside Zotero, so the scoped
+    // folder's count is exactly what the plot is showing.
+    const rowLabel = (id: number): string =>
+      (
+        active.root.querySelector(
+          `[data-collection-id="${id}"] .cm-scope-row-label`,
+        ) as HTMLElement
+      ).textContent!.trim();
+    const rowChecked = (id: number): boolean =>
+      (
+        active.root
+          .querySelector(`[data-collection-id="${id}"]`)!
+          .closest(".cm-scope-row")!
+          .querySelector(".cm-scope-check") as HTMLInputElement
+      ).checked;
+    const rowCount = (id: number): string =>
+      (
+        active.root.querySelector(
+          `[data-collection-id="${id}"] .cm-scope-row-count`,
+        ) as HTMLElement
+      ).textContent!.trim();
+
+    expect(rowLabel(3), "the Scope section names the scoped folder").to.equal(
+      "Auxin transport",
+    );
+    expect(rowChecked(3), "and its row is ticked").to.equal(true);
+    expect(
+      rowChecked(6),
+      "a folder the scope excludes is named too, but left unticked",
+    ).to.equal(false);
+
+    const countLine =
+      active.root.querySelector(".cm-scope-count")?.textContent ?? "";
+    notes.push(`view 7 scope count line: ${countLine}`);
+    expect(
+      countLine.startsWith(`${rowCount(3)} of`),
+      "the ticked folder's own count is what the plot is showing",
+    ).to.equal(true);
+    await shot("view-07-scope-names-the-folder");
+
+    // Selecting a folder's row draws it as a region on the plot. Walking that
+    // in full — two folders, unticking, the region clearing — is
+    // `graphFolderRegions.test.ts`'s job; here it is enough to know the row
+    // the Key can no longer speak for is the one the reader can still point
+    // at.
+    (
+      active.root.querySelector('[data-collection-id="3"]') as HTMLButtonElement
+    ).click();
+    await settle(active.window, 8);
+    // A click rebuilds the Scope section from scratch (`renderScope` replaces
+    // its children), so the row from before the click is a detached node that
+    // will never carry the selected class — the row has to be re-queried
+    // after settling, not held onto across the click.
+    expect(
+      active.root
+        .querySelector('[data-collection-id="3"]')
+        ?.closest(".cm-scope-row")
+        ?.classList.contains("cm-scope-row-selected"),
+      "clicking the scoped folder's row draws it as a region",
+    ).to.equal(true);
+    await shot("view-07-scope-region");
   });
 
   it("view 8 — the rail is Zotero's own left pane", async function () {
