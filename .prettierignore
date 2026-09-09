@@ -14,3 +14,4 @@ FILE_MANIFEST.sha256
 /prefs.js
 .superpowers/
 docs/design_handoff_citation_chain_depth/
+.claude/
