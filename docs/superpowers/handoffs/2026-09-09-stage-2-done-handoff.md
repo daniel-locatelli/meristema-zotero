@@ -20,7 +20,7 @@ appended to the roadmap's batch.
 
 **The imported seed stayed external in the recipe.** Root cause, found with a
 ring-buffer probe on the Zotero global rather than `Zotero.logError` (which
-this test asserts is empty): the refreshed view *did* resolve the imported
+this test asserts is empty): the refreshed view _did_ resolve the imported
 item and re-seed on it, but `notifyStateChange` coalesced on
 `requestAnimationFrame`, and Gecko runs no frame callback while the window is
 not painting. The probe showed the frame scheduled and still pending 1.5 s
@@ -66,8 +66,8 @@ reporting style issues in that copy's docs.
 
 ## The judgement call from the previous session, unchanged
 
-The adopt guard now asks *did the render restore a selection* rather than *can
-the graph show the row* (`4fb15de`). The user agreed with it on 2026-09-09.
+The adopt guard now asks _did the render restore a selection_ rather than _can
+the graph show the row_ (`4fb15de`). The user agreed with it on 2026-09-09.
 
 ## Loose ends, none of them Stage 2's contract
 
