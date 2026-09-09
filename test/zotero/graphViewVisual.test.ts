@@ -263,14 +263,27 @@ describe("Graph view, as the product builds it", function () {
       ).to.equal(null);
     }
 
-    // A seedless graph has no seeds to show, but the Seeds button is how the
-    // first one is added, so it stays live. Direction and scope wait behind
-    // the gear, and only appear once there is a seed to explore from.
-    const seeds = active.root.querySelector(
-      'button[aria-controls="meristema-focus-seed-popover"]',
+    // Seeds left the toolbar for the rail. A seedless graph still has to be
+    // able to take its first seed, so the rail's "+ Add seed" stays live;
+    // this bar carries nothing about seeds at all. Direction and scope wait
+    // behind the gear, and only appear once there is a seed to explore from.
+    expect(
+      active.root.querySelector(
+        'button[aria-controls="meristema-focus-seed-popover"]',
+      ),
+      "the toolbar has no Seeds button",
+    ).to.equal(null);
+    expect(
+      bar.querySelector(".cm-scope-add-seed"),
+      "and Add seed is not in the bar",
+    ).to.equal(null);
+    const addSeed = active.root.querySelector(
+      ".cm-scope-add-seed",
     ) as HTMLButtonElement;
-    expect(seeds, "there is a Seeds button").to.not.equal(null);
-    expect(seeds.disabled, "and it is enabled while seedless").to.equal(false);
+    expect(addSeed, "the rail has + Add seed").to.not.equal(null);
+    expect(addSeed.disabled, "and it is enabled while seedless").to.equal(
+      false,
+    );
     expect(
       active.root.querySelector(
         'button[aria-controls="meristema-focus-settings-popover"]',
@@ -987,9 +1000,12 @@ describe("Graph view, as the product builds it", function () {
     ).to.not.equal(null);
 
     /*
-     * One action, and one only. "Show in Zotero" repeated the double-click on
+     * Two actions, and no more. "Show in Zotero" repeated the double-click on
      * the circle, "Open DOI" repeated the identifier in the header, "Open in"
-     * swapped the whole view, and "Refresh" repeated the toolbar's.
+     * swapped the whole view, and "Refresh" repeated the toolbar's. The seed
+     * toggle is the one that earns its place: seeding is what a paper in the
+     * graph is for, and the paper this pane shows was seeded to select it, so
+     * the toggle reads "Remove seed".
      */
     const actionBar = active.root.querySelector(
       ".cm-detail-body .cm-detail-actions",
@@ -998,8 +1014,9 @@ describe("Graph view, as the product builds it", function () {
       [...actionBar.querySelectorAll("button")] as HTMLButtonElement[]
     ).map((button) => (button.textContent ?? "").trim());
     notes.push(`view 10 actions: ${actions.join(" | ") || "none"}`);
-    expect(actions, "the overview offers one action").to.deep.equal([
+    expect(actions, "the overview offers two actions").to.deep.equal([
       "Find similar papers",
+      "Remove seed",
     ]);
 
     // And the DOI is in the header, as the link it always was.
@@ -1146,9 +1163,13 @@ describe("Graph view, as the product builds it", function () {
       (Array.from(menu.querySelectorAll('[role="menuitem"]')) as HTMLElement[])
         .filter((item) => !item.hidden)
         .map((item) => item.textContent ?? "");
-    // The first paper has nothing to open, so the entry stays out of the menu
-    // rather than sitting there dead.
-    expect(shown()).to.deep.equal(["Add as seed", "Remove from graph"]);
+    // The node the menu opened on is a seed, so the toggle removes it and
+    // Remove from graph stays out: no rule can hide a seed. The first paper
+    // has nothing to open, so that entry stays out of the menu too, rather
+    // than sitting there dead. A non-seed node's menu — Add as seed and
+    // Remove from graph — is walked in `graphScopeRail.test.ts`, on a graph
+    // whose nodes are real Zotero items.
+    expect(shown()).to.deep.equal(["Remove seed"]);
     const escape = new view.KeyboardEvent("keydown", {
       bubbles: true,
       key: "Escape",
@@ -1167,11 +1188,7 @@ describe("Graph view, as the product builds it", function () {
       }),
     );
     expect(menu.hidden, "the second node opens it").to.equal(false);
-    expect(shown()).to.deep.equal([
-      "Open online",
-      "Add as seed",
-      "Remove from graph",
-    ]);
+    expect(shown()).to.deep.equal(["Open online", "Remove seed"]);
     expect(
       view.document.activeElement?.textContent,
       "focus starts on the open entry",
@@ -1185,8 +1202,8 @@ describe("Graph view, as the product builds it", function () {
     );
     expect(
       view.document.activeElement?.textContent,
-      "the arrows wrap around all three",
-    ).to.equal("Remove from graph");
+      "the arrows wrap around both",
+    ).to.equal("Remove seed");
     menu.dispatchEvent(escape);
   });
 
@@ -1231,10 +1248,14 @@ describe("Graph view, as the product builds it", function () {
     expect(restored.seeds).to.deep.equal(state.seeds);
     expect(restored.explore).to.deep.equal(state.explore);
     expect(restored.filters.excludeRetracted).to.equal(true);
-    const seedsButton = second.root.querySelector(
-      'button[aria-controls="meristema-focus-seed-popover"]',
-    ) as HTMLButtonElement;
-    expect(seedsButton.textContent?.trim()).to.equal("2 seeds");
+    expect(
+      second.root.querySelector(".cm-scope-seeds-heading")?.textContent?.trim(),
+      "the rail counts both seeds",
+    ).to.equal("Seeds · 2");
+    expect(
+      second.root.querySelectorAll(".cm-scope-seed").length,
+      "one row each",
+    ).to.equal(2);
     const filterButton = second.root.querySelector(
       '.cm-plot-toolbar button[aria-label^="Filter papers"]',
     ) as HTMLButtonElement;
@@ -1254,10 +1275,12 @@ describe("Graph view, as the product builds it", function () {
     const rerendered = getGraphViewController(second.mount)!;
     expect(rerendered.getState().seeds).to.deep.equal(state.seeds);
     // `stage.root` still points at the torn-down root, so ask the mount.
-    const rerenderedSeedsButton = second.mount.querySelector(
-      'button[aria-controls="meristema-focus-seed-popover"]',
-    ) as HTMLButtonElement;
-    expect(rerenderedSeedsButton.textContent?.trim()).to.equal("2 seeds");
+    expect(
+      second.mount
+        .querySelector(".cm-scope-seeds-heading")
+        ?.textContent?.trim(),
+      "the rebuilt rail counts them too",
+    ).to.equal("Seeds · 2");
     expect(second.errors, "nothing threw on re-render").to.deep.equal([]);
   });
 
