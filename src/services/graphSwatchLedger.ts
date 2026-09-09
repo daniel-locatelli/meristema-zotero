@@ -53,7 +53,7 @@ export function swatchIndexFor(
  * their index; keys that have gone release theirs; keys that are new take
  * the lowest free index in `[0, poolSize)`, or, once the pool is exhausted
  * (including a `poolSize` of zero, where no index ever exists), double up
- * with the oldest live holder rather than repaint anyone.
+ * with the lowest-indexed live holder rather than repaint anyone.
  */
 export function allocateSwatches(
   state: SwatchLedgerState,
@@ -88,8 +88,10 @@ export function allocateSwatches(
       continue;
     }
     // The pool is exhausted, or poolSize is zero so no index ever existed:
-    // double up with the oldest live holder rather than repaint anyone. If
-    // nobody holds any index either, this newcomer stays unassigned.
+    // double up with a live holder rather than repaint anyone. The holder is
+    // the lowest-indexed one, not the oldest: this state records which index a
+    // key holds and not when it took it, so arrival order is not recoverable
+    // here. If nobody holds any index either, this newcomer stays unassigned.
     const holders = Object.entries(assigned)
       .sort((left, right) => left[1] - right[1])
       .map(([, index]) => index);
