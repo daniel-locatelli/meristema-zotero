@@ -1145,9 +1145,15 @@ export function renderGraphView(
           );
           // Unticking a selected folder clears its region, the mirror of
           // selecting an unticked one ticking it: a region with nothing
-          // inside says nothing.
+          // inside says nothing. The tick above was written for the whole
+          // cascade (the clicked folder and every descendant), so a
+          // descendant that held its own region independently goes out of
+          // scope too — filter against the whole cascade, not just the
+          // clicked row's own ID, or that descendant's now-empty region
+          // would linger in `regions` and occupy one of the four slots.
           if (!ticked) {
-            regions = regions.filter((id) => id !== row.collectionID);
+            const droppedIDs = new Set(row.cascadeIDs);
+            regions = regions.filter((id) => !droppedIDs.has(id));
           }
         } else if (row.kind === "unfiled") {
           includeUnfiled = ticked;
@@ -1170,7 +1176,9 @@ export function renderGraphView(
           MAX_GRAPH_REGIONS,
         );
         notifyStateChange();
-        renderer?.setRegions(regionsForRenderer());
+        // refreshScopeRail() below already calls regionsForRenderer() and
+        // hands the result to renderer.setRegions — a direct call here
+        // would just repeat that work with the same answer.
         refreshScopeRail();
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
@@ -1783,7 +1791,17 @@ export function renderGraphView(
   );
   document.addEventListener("keydown", closeFocusSeedPopoverOnEscape, true);
 
-  /** Seeds hold a palette index for as long as they live, not a position. */
+  /**
+   * Seeds hold a palette index for as long as they live, not a position.
+   *
+   * Allocates as a side effect: any seed key not already in `seedSwatches`
+   * claims a free index here, and that claim is written back to the outer
+   * `seedSwatches` ledger before this returns. That is only safe on a path
+   * that reaches `notifyStateChange()` in the same tick — otherwise a
+   * colour gets allocated (and taken out of the pool) but never persisted,
+   * so a caller that only wants to read the current colours — a tooltip,
+   * an export preview, a diagnostic render — must not call this.
+   */
   const seedColorsFor = (
     projection: GraphFocusProjection,
   ): Map<string, string> => {
@@ -3279,6 +3297,14 @@ export function renderGraphView(
    * the swatch ledger, and its papers currently on the plot. Colour follows
    * the folder's key through the ledger, so ticking or unticking one folder
    * can never repaint another's swatch (backlog B12).
+   *
+   * Allocates as a side effect: a region ID not already in `swatches` claims
+   * a free index here, and that claim is written back to the outer
+   * `swatches` ledger before this returns. That is only safe on a path that
+   * reaches `notifyStateChange()` in the same tick — otherwise a colour gets
+   * allocated (and taken out of the pool) but never persisted, so a
+   * read-only caller — a tooltip, an export preview, a diagnostic render —
+   * must not use this.
    */
   regionsForRenderer = (): Array<{
     collectionID: number;
