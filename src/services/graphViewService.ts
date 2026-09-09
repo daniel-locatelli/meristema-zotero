@@ -3900,16 +3900,24 @@ export function renderGraphView(
     };
   };
 
-  let stateChangeFrame = 0;
+  let stateChangeTimer = 0;
+  /**
+   * The host hears about a state change once per turn, not once per edit.
+   * The coalescing is a timer and not an animation frame on purpose: a
+   * recipe is not a paint, and Gecko runs no frame callback while the
+   * window is occluded. On a frame the state a restore or an import settles
+   * on could sit unreported for as long as nothing repainted, and the saved
+   * graph would keep the state before it.
+   */
   notifyStateChange = (): void => {
-    if (!options.onStateChange || stateChangeFrame || cleaned) return;
+    if (!options.onStateChange || stateChangeTimer || cleaned) return;
     const view = document.defaultView;
     const run = (): void => {
-      stateChangeFrame = 0;
+      stateChangeTimer = 0;
       if (!cleaned) options.onStateChange?.(getState());
     };
-    stateChangeFrame = view
-      ? view.requestAnimationFrame(run)
+    stateChangeTimer = view
+      ? view.setTimeout(run, 0)
       : (setTimeout(run, 0) as unknown as number);
   };
 
@@ -4172,11 +4180,11 @@ export function renderGraphView(
       statusTimer = 0;
     }
     graphMenuListGeneration += 1;
-    if (stateChangeFrame) {
+    if (stateChangeTimer) {
       const view = document.defaultView;
-      if (view) view.cancelAnimationFrame(stateChangeFrame);
-      else clearTimeout(stateChangeFrame);
-      stateChangeFrame = 0;
+      if (view) view.clearTimeout(stateChangeTimer);
+      else clearTimeout(stateChangeTimer);
+      stateChangeTimer = 0;
     }
     disposeThemeObserver();
     activeRelationshipList?.destroy();
