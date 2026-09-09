@@ -147,7 +147,7 @@ const MAX_CANVAS_PIXELS = 16_777_216;
 
 function isMetricID(value: GraphNodeColorMetric): value is MetricID {
   return ![
-    "collection",
+    "uniform",
     "publication-type",
     "provider",
     "open-access",

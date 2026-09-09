@@ -30,7 +30,6 @@ import type { GraphTheme } from "./graphTheme";
  * what a colouring is called.
  */
 export const CATEGORICAL_COLOR_LABELS: Record<string, string> = {
-  collection: "Collection",
   "publication-type": "Publication type",
   provider: "Provider",
   "open-access": "Open Access",
@@ -152,9 +151,35 @@ function extentDetail(
 }
 
 function colorSection(input: KeyModelInput): KeySection {
-  const { assignment, nodes, theme, layout } = input;
+  const { assignment, nodes, theme, layout, states } = input;
   const metric = layout.nodeColorMetric;
   const heading = "Color";
+
+  // Uniform is not a metric at all — there is no value to rank or group, so
+  // neither the ramp nor the categorical swatch list applies. One entry
+  // stands for every non-seed node, painted the one neutral tone the canvas
+  // uses for them.
+  if (metric === "uniform") {
+    const seedKeys = states.seedKeys;
+    const covered = nodes.filter((node) => !seedKeys.has(node.key));
+    return {
+      kind: "color",
+      heading,
+      subheading: "Uniform",
+      entries: [
+        {
+          id: "uniform",
+          label: "Paper",
+          count: covered.length,
+          detail: null,
+          mark: { kind: "swatch", colors: [theme.states.uniformFill] },
+          matches: (node) => !seedKeys.has(node.key),
+        },
+      ],
+      note: null,
+    };
+  }
+
   const subheading = metricLabel(metric);
 
   if (!isCategoricalColorMetric(metric)) {

@@ -212,6 +212,39 @@ describe("Graph key model", () => {
     );
   });
 
+  it("describes uniform colour as one swatch, not a ramp or a category list", () => {
+    // "uniform" is the default colour metric, so this has to build without
+    // throwing on essentially every graph the suite opens. It is also not a
+    // metric at all — there is no value to rank or group — so neither the
+    // ramp path nor the categorical swatch-list path applies.
+    const nodes = [node(1, { key: "seed" }), node(2), node(3)];
+    const colour = section(
+      build(
+        nodes,
+        { nodeColorMetric: "uniform" },
+        {
+          seedKeys: new Set(["seed"]),
+        },
+      ),
+      "color",
+    )!;
+    expect(colour.subheading).to.equal("Uniform");
+    expect(colour.entries).to.have.lengthOf(1);
+    const entry = colour.entries[0]!;
+    expect(entry.mark.kind).to.equal("swatch");
+    expect(entry.mark.colors).to.deep.equal([theme.states.uniformFill]);
+    // The seed is a distinct state elsewhere in the Key; the uniform entry
+    // stands only for the non-seed papers it actually paints.
+    expect(entry.count).to.equal(2);
+    expect(entry.matches).to.be.a("function");
+    expect(
+      nodes.filter((candidate) => entry.matches!(candidate)),
+    ).to.have.lengthOf(2);
+    expect(
+      nodes.filter((candidate) => entry.matches!(candidate)).map((n) => n.key),
+    ).to.deep.equal(["k2", "k3"]);
+  });
+
   it("describes size only when a metric drives it", () => {
     const nodes = [
       node(1, { citationCount: 2 }),
