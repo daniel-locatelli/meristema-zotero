@@ -3937,7 +3937,7 @@ Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
   `docs/superpowers/specs/2026-09-08-graph-scope-rail-design.md`,
   `.superpowers/sdd/progress.md`
 
-- [ ] **Step 1: Describe seeds as additive in the README**
+- [x] **Step 1: Describe seeds as additive in the README**
 
 Replace the Explore bullet:
 
@@ -3958,12 +3958,12 @@ and replace "Save a graph from the toolbar's Graph menu" with "Save a graph
 from the toolbar's File menu", and "reopens from the Graph menu" with
 "reopens from the File menu".
 
-- [ ] **Step 2: Mark the spec implemented**
+- [x] **Step 2: Mark the spec implemented**
 
 Change the spec's status line to
 `**Status:** Approved 2026-09-08, implemented 2026-09-08`.
 
-- [ ] **Step 3: Tick the roadmap and append the manual checks**
+- [x] **Step 3: Tick the roadmap and append the manual checks**
 
 In `docs/superpowers/handoffs/2026-09-08-roadmap.md`, tick Stage 2's plan and
 implementation boxes (leave "manual walk-through by the user" unticked), and
@@ -3995,7 +3995,7 @@ append to the Manual verification section:
 That last one is the migration, and it is the check that matters most: it is
 the one that would lose the user's saved work.
 
-- [ ] **Step 4: Add the log line**
+- [x] **Step 4: Add the log line**
 
 Append to the roadmap's Log:
 
@@ -4009,12 +4009,12 @@ Append to the roadmap's Log:
   a migration. Resolves D1 and D2, decides B4.
 ```
 
-- [ ] **Step 5: Record the plan in the ledger**
+- [x] **Step 5: Record the plan in the ledger**
 
 Append a line to `.superpowers/sdd/progress.md` in whatever shape that file
 already uses, naming this plan and the branch.
 
-- [ ] **Step 6: Run the gate and commit**
+- [x] **Step 6: Run the gate and commit**
 
 Run: `npm run check`
 Expected: PASS (prettier checks the markdown too).

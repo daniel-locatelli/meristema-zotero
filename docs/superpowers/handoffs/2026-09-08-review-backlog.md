@@ -358,6 +358,28 @@ Pointers: `src/providers/http.ts` (`RETRY_DELAYS_MS`, `parseRetryAfter`,
 
 ---
 
+## B11. A one-row library selection does not open that paper's detail pane
+
+The last red case in `npm test`, and the oldest: `graphViewVisual.test.ts`
+"view 15" has failed on `main` since before B2, and Stage 2 changed nothing
+about it. Selecting exactly one row in Zotero's list is meant to select that
+paper's node, so the detail pane leaves its placeholder behind and shows the
+paper; the placeholder is still there afterwards, which is what the case
+catches as `expected HTMLParagraphElement{} to equal null`.
+
+The rest of the case passes, so the selection does arrive and the graph does
+act on it: what is unclear is whether a one-row selection is meant to select
+or only to emphasise now, and the answer decides whether the defect is in the
+pane or in the case. `2026-09-07-selection-sync-design.md` is the authority,
+and Stage 2's adopt rule — a fresh view keeps a selection it restored, and a
+list row only emphasises — is the thing to read it against.
+
+Pointers: `applyLibrarySelection` in `src/services/graphViewService.ts`,
+`applyLibrarySelectionToInstance` in `src/services/windowService.ts`,
+`test/zotero/graphViewVisual.test.ts` "view 15".
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant

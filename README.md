@@ -44,7 +44,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   ![graph](docs/assets/FreeGraph.png)
 
 - **Explore outward from one or more papers**
-  Add "seed" papers to a graph and it shows their references, citing papers, or both. Add a seed from the Seeds button, from a paper's detail pane, or by right-clicking its node; include papers outside Zotero, and choose the direction and scope behind the gear. Remove the last seed and the graph returns to your library.
+  Add "seed" papers to a graph and it shows their references, citing papers, or both — alongside everything the graph was already drawing, not instead of it. Add a seed from the rail's Scope section, from a paper's detail pane, or by right-clicking its node; include papers outside Zotero, and choose the direction and scope behind the gear. Untick every folder and the seeds and their neighbours are all that is left; tick them back and the rest returns.
   ![Explore](docs/assets/FocusView.png)
 
 - **Inspect citation data inside Zotero**
@@ -58,7 +58,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   Explore external references, citing works, and similar papers alongside your Zotero items. Preview their metadata, open the DOI, mark incorrect matches, or add the paper directly to Zotero.
 
 - **Work with multiple independent views**
-  Open several Graph tabs at once. Rename views and use `Show in ›`, `New Graph from item` or `Add as seed to ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera, and survives a refresh. Save a graph from the toolbar's Graph menu to come back to it later; a saved graph autosaves and reopens from the Graph menu or from Tools › Meristema › Open Saved Graph. Selection follows you both ways: selecting items in Zotero's list selects or emphasises their nodes in every open graph, and clicking a node selects that row in Zotero without leaving the graph.
+  Open several Graph tabs at once. Rename views and use `New Graph from item` or `Add to ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera, and survives a refresh. Save a graph from the toolbar's File menu to come back to it later; a saved graph autosaves and reopens from the File menu or from Tools › Meristema › Open Saved Graph. Selection follows you both ways: selecting items in Zotero's list selects or emphasises their nodes in every open graph, and clicking a node selects that row in Zotero without leaving the graph.
 
 - **Control providers and updates**
   Choose which scholarly-data providers to use, which Zotero libraries shouldupdate automatically, and when cached data become stale. Refresh data manually when needed; long updates show progress and can be cancelled.
