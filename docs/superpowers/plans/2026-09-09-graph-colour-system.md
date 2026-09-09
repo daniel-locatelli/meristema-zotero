@@ -18,7 +18,7 @@
 - **Pure modules are DOM-free.** `graphFolderRegion.ts` and `graphSwatchLedger.ts` import nothing from the DOM or from Zotero, take plain data and return plain data, exactly as `graphScopeModel.ts` and `graphVisibility.ts` do.
 - **The unfilled outline is reserved for Stage 4** (citation floor). Nothing in this plan may draw an unfilled node outline as a new meaning.
 - **`npm run check` must pass at the end of every task** — it runs `prettier --check`, `eslint`, `tsc --noEmit` for both the source and the test project, and the unit suite.
-- **One commit per task**, message in the repo's style: a short imperative subject, then prose explaining *why*, wrapped at 76 columns. End every commit message with:
+- **One commit per task**, message in the repo's style: a short imperative subject, then prose explaining _why_, wrapped at 76 columns. End every commit message with:
   ```
   Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
   Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa
@@ -31,31 +31,31 @@
 
 **Created**
 
-| File | Responsibility |
-| --- | --- |
-| `src/services/graphSwatchLedger.ts` | Pure allocation of palette indices to keys: lowest free index, held while the key lives, longest-released reused when the pool is exhausted. Serves categories, folder regions and seeds. |
-| `src/services/graphFolderRegion.ts` | Pure marching squares: node positions in data space → closed contours in data space. No canvas, no DOM. |
-| `test/unit/graphSwatchLedger.test.ts` | Allocation, stability, release and reuse order. |
-| `test/unit/graphFolderRegion.test.ts` | Contour shape, islands, holes, saddles, zoom invariance, edge tapering. |
-| `test/unit/graphPalette.test.ts` | The palette validator: lightness band, chroma floor, separation under normal vision and simulated CVD, ramp monotonicity. |
-| `test/zotero/graphFolderRegions.test.ts` | The Zotero-side walk: select two folders, assert two regions; the version 2 → 3 migration. |
+| File                                     | Responsibility                                                                                                                                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/graphSwatchLedger.ts`      | Pure allocation of palette indices to keys: lowest free index, held while the key lives, longest-released reused when the pool is exhausted. Serves categories, folder regions and seeds. |
+| `src/services/graphFolderRegion.ts`      | Pure marching squares: node positions in data space → closed contours in data space. No canvas, no DOM.                                                                                   |
+| `test/unit/graphSwatchLedger.test.ts`    | Allocation, stability, release and reuse order.                                                                                                                                           |
+| `test/unit/graphFolderRegion.test.ts`    | Contour shape, islands, holes, saddles, zoom invariance, edge tapering.                                                                                                                   |
+| `test/unit/graphPalette.test.ts`         | The palette validator: lightness band, chroma floor, separation under normal vision and simulated CVD, ramp monotonicity.                                                                 |
+| `test/zotero/graphFolderRegions.test.ts` | The Zotero-side walk: select two folders, assert two regions; the version 2 → 3 migration.                                                                                                |
 
 **Modified**
 
-| File | Change |
-| --- | --- |
-| `src/services/graphTheme.ts` | New `seeds` palette, `states.uniformFill`, neutral `states.inLibraryRing`; `seedColorAt` takes a palette index, not a seed position. |
-| `src/services/graphCategoryAssignment.ts` | Colour comes from the ledger, not from rank; `"collection"` case removed; slices removed; `colorsFor` → `colorFor` returning one colour. |
-| `src/services/graphViewState.ts` | Version 3: `regions`, `swatchAssignments`, `seedColorIndex`; version 2 migration. |
-| `src/services/citationPreferences.ts` | `nodeColorMetric` default `"uniform"`; a stored `"collection"` coerced on read. |
-| `src/services/graphViewControls.ts` | `"Collection"` leaves the colour dropdown; `"Uniform"` joins it. |
-| `src/domain/graphTypes.ts` | `GraphNodeColorMetric` loses `"collection"`, gains `"uniform"`. |
-| `src/services/citationGraphRenderer.ts` | Draws regions; seed fill overrides the metric; single-colour fills; uniform fill. |
-| `src/services/graphKeyRail.ts` | The scope row splits into checkbox and selectable body; selected styling; region legend. |
-| `src/services/graphScopeRailModel.ts` | Rows carry `selected` and the folder's colour. |
-| `src/services/graphViewService.ts` | Wires selection to state and renderer; a new folder graph selects its folder. |
-| `content/graph.css` | Selected row, grown checkbox. |
-| `docs/superpowers/handoffs/2026-09-08-roadmap.md` | Tick D3 and B12; append the manual checks; log line. |
+| File                                              | Change                                                                                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/graphTheme.ts`                      | New `seeds` palette, `states.uniformFill`, neutral `states.inLibraryRing`; `seedColorAt` takes a palette index, not a seed position.     |
+| `src/services/graphCategoryAssignment.ts`         | Colour comes from the ledger, not from rank; `"collection"` case removed; slices removed; `colorsFor` → `colorFor` returning one colour. |
+| `src/services/graphViewState.ts`                  | Version 3: `regions`, `swatchAssignments`, `seedColorIndex`; version 2 migration.                                                        |
+| `src/services/citationPreferences.ts`             | `nodeColorMetric` default `"uniform"`; a stored `"collection"` coerced on read.                                                          |
+| `src/services/graphViewControls.ts`               | `"Collection"` leaves the colour dropdown; `"Uniform"` joins it.                                                                         |
+| `src/domain/graphTypes.ts`                        | `GraphNodeColorMetric` loses `"collection"`, gains `"uniform"`.                                                                          |
+| `src/services/citationGraphRenderer.ts`           | Draws regions; seed fill overrides the metric; single-colour fills; uniform fill.                                                        |
+| `src/services/graphKeyRail.ts`                    | The scope row splits into checkbox and selectable body; selected styling; region legend.                                                 |
+| `src/services/graphScopeRailModel.ts`             | Rows carry `selected` and the folder's colour.                                                                                           |
+| `src/services/graphViewService.ts`                | Wires selection to state and renderer; a new folder graph selects its folder.                                                            |
+| `content/graph.css`                               | Selected row, grown checkbox.                                                                                                            |
+| `docs/superpowers/handoffs/2026-09-08-roadmap.md` | Tick D3 and B12; append the manual checks; log line.                                                                                     |
 
 ---
 
@@ -64,11 +64,13 @@
 The seed palette is new, two theme tokens are wrong, and nothing in the repo enforces the validation `graphTheme.ts` claims. Build the validator first so the seed hexes are chosen against it rather than by eye.
 
 **Files:**
+
 - Modify: `src/services/graphTheme.ts`
 - Create: `test/unit/graphPalette.test.ts`
 - Modify: `test/unit/graphTheme.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `theme.seeds: readonly string[]` (six per theme); `theme.states.uniformFill: string`; `seedColorAt(paletteIndex: number, theme: GraphTheme): string` — **note the changed meaning of the argument**: it is an index into `theme.seeds`, allocated by the ledger in Task 2, not a seed's position in a list.
 
@@ -104,11 +106,7 @@ function toLab([r, g, b]: RGB): Lab {
 
 /** CIE76 ΔE. Coarser than ΔE2000 but monotone enough for a floor. */
 function deltaE(left: Lab, right: Lab): number {
-  return Math.hypot(
-    left[0] - right[0],
-    left[1] - right[1],
-    left[2] - right[2],
-  );
+  return Math.hypot(left[0] - right[0], left[1] - right[1], left[2] - right[2]);
 }
 
 function chroma(lab: Lab): number {
@@ -152,7 +150,10 @@ function labUnder(hex: string, kind: string): Lab {
 }
 
 /** The smallest ΔE between any two members, under one vision model. */
-function minimumSeparation(colors: readonly string[], kind: string | null): number {
+function minimumSeparation(
+  colors: readonly string[],
+  kind: string | null,
+): number {
   let smallest = Number.POSITIVE_INFINITY;
   for (let i = 0; i < colors.length; i += 1) {
     for (let j = i + 1; j < colors.length; j += 1) {
@@ -199,9 +200,10 @@ describe("the categorical swatches", function () {
   it("stays separable in normal vision and under each dichromacy", function () {
     for (const theme of themes()) {
       const swatches = theme.categorical.swatches;
-      expect(minimumSeparation(swatches, null), `${theme.scheme} normal`).to.be.at.least(
-        SEPARATION_FLOOR,
-      );
+      expect(
+        minimumSeparation(swatches, null),
+        `${theme.scheme} normal`,
+      ).to.be.at.least(SEPARATION_FLOOR);
       for (const kind of Object.keys(CVD_MATRICES)) {
         expect(
           minimumSeparation(swatches, kind),
@@ -232,9 +234,10 @@ describe("the seed palette", function () {
 
   it("keeps its seeds apart, in normal vision and under each dichromacy", function () {
     for (const theme of themes()) {
-      expect(minimumSeparation(theme.seeds, null), `${theme.scheme} normal`).to.be.at.least(
-        SEPARATION_FLOOR,
-      );
+      expect(
+        minimumSeparation(theme.seeds, null),
+        `${theme.scheme} normal`,
+      ).to.be.at.least(SEPARATION_FLOOR);
       for (const kind of Object.keys(CVD_MATRICES)) {
         expect(
           minimumSeparation(theme.seeds, kind),
@@ -282,9 +285,18 @@ describe("reporting", function () {
   it("prints the measured minima", function () {
     for (const theme of themes()) {
       const swatches = theme.categorical.swatches;
-      console.log(theme.scheme, "swatch normal", minimumSeparation(swatches, null).toFixed(1));
+      console.log(
+        theme.scheme,
+        "swatch normal",
+        minimumSeparation(swatches, null).toFixed(1),
+      );
       for (const kind of Object.keys(CVD_MATRICES)) {
-        console.log(theme.scheme, "swatch", kind, minimumSeparation(swatches, kind).toFixed(1));
+        console.log(
+          theme.scheme,
+          "swatch",
+          kind,
+          minimumSeparation(swatches, kind).toFixed(1),
+        );
       }
       console.log(
         theme.scheme,
@@ -380,9 +392,9 @@ In `graphThemeCustomProperties`, add to the property list:
 and after the swatch loop:
 
 ```ts
-  theme.seeds.forEach((seed, index) => {
-    properties.push([`--cm-seed-${index}`, seed]);
-  });
+theme.seeds.forEach((seed, index) => {
+  properties.push([`--cm-seed-${index}`, seed]);
+});
 ```
 
 Replace `seedColorAt` — its argument changes meaning, so change the doc comment with it:
@@ -421,7 +433,9 @@ describe("seed colours", function () {
     for (const scheme of ["light", "dark"] as const) {
       const theme = graphThemeFor(scheme);
       for (const seed of theme.seeds) {
-        expect(theme.categorical.swatches, `${scheme} ${seed}`).to.not.include(seed);
+        expect(theme.categorical.swatches, `${scheme} ${seed}`).to.not.include(
+          seed,
+        );
         expect(theme.ramp, `${scheme} ${seed}`).to.not.include(seed);
       }
     }
@@ -432,12 +446,12 @@ describe("seed colours", function () {
 And add to the ring describe block:
 
 ```ts
-  it("falls back to a neutral, never to a ramp stop", function () {
-    for (const scheme of ["light", "dark"] as const) {
-      const theme = graphThemeFor(scheme);
-      expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
-    }
-  });
+it("falls back to a neutral, never to a ramp stop", function () {
+  for (const scheme of ["light", "dark"] as const) {
+    const theme = graphThemeFor(scheme);
+    expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
+  }
+});
 ```
 
 - [ ] **Step 8: Run the palette tests and adjust the seed hexes until they pass**
@@ -465,18 +479,32 @@ Subject: `Give seeds a palette of their own, and prove the palettes apart`.
 Colour stops being dealt by rank. One pure module serves every palette user.
 
 **Files:**
+
 - Create: `src/services/graphSwatchLedger.ts`
 - Create: `test/unit/graphSwatchLedger.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
+
   ```ts
-  export interface SwatchLedgerState { assigned: Record<string, number>; releasedOrder: string[] }
-  export function emptySwatchLedger(): SwatchLedgerState
-  export function allocateSwatches(state: SwatchLedgerState, keys: readonly string[], poolSize: number): SwatchLedgerState
-  export function swatchIndexFor(state: SwatchLedgerState, key: string): number | null
+  export interface SwatchLedgerState {
+    assigned: Record<string, number>;
+    releasedOrder: string[];
+  }
+  export function emptySwatchLedger(): SwatchLedgerState;
+  export function allocateSwatches(
+    state: SwatchLedgerState,
+    keys: readonly string[],
+    poolSize: number,
+  ): SwatchLedgerState;
+  export function swatchIndexFor(
+    state: SwatchLedgerState,
+    key: string,
+  ): number | null;
   ```
+
   `allocateSwatches` is pure: it returns a new state and never mutates its argument.
 
 - [ ] **Step 1: Write the failing tests**
@@ -679,17 +707,31 @@ Subject: `Deal colour by identity rather than by rank`.
 ### Task 3: Marching squares
 
 **Files:**
+
 - Create: `src/services/graphFolderRegion.ts`
 - Create: `test/unit/graphFolderRegion.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
+
   ```ts
-  export interface RegionPoint { x: number; y: number }
-  export interface FolderRegionOptions { radius: number; pitch: number; threshold?: number }
-  export function folderRegionContours(points: readonly RegionPoint[], options: FolderRegionOptions): RegionPoint[][]
+  export interface RegionPoint {
+    x: number;
+    y: number;
+  }
+  export interface FolderRegionOptions {
+    radius: number;
+    pitch: number;
+    threshold?: number;
+  }
+  export function folderRegionContours(
+    points: readonly RegionPoint[],
+    options: FolderRegionOptions,
+  ): RegionPoint[][];
   ```
+
   Points and contours are both in **data space**. Task 7 transforms the contours with the same viewport transform the nodes use, and dilates at draw time.
 
 - [ ] **Step 1: Write the failing tests**
@@ -731,7 +773,12 @@ describe("folder regions", function () {
     const loop = contours[0];
     expect(loop.length).to.be.greaterThan(6);
     // Closed: the last vertex meets the first.
-    expect(Math.hypot(loop[0].x - loop[loop.length - 1].x, loop[0].y - loop[loop.length - 1].y)).to.be.below(0.001);
+    expect(
+      Math.hypot(
+        loop[0].x - loop[loop.length - 1].x,
+        loop[0].y - loop[loop.length - 1].y,
+      ),
+    ).to.be.below(0.001);
     // Roughly circular and centred on the paper.
     const middle = centroid(loop);
     expect(middle.x).to.be.closeTo(0, 1);
@@ -740,7 +787,10 @@ describe("folder regions", function () {
 
   it("merges papers that sit close together into one loop", function () {
     const contours = folderRegionContours(
-      [{ x: 0, y: 0 }, { x: 6, y: 0 }],
+      [
+        { x: 0, y: 0 },
+        { x: 6, y: 0 },
+      ],
       OPTIONS,
     );
     expect(contours).to.have.length(1);
@@ -749,7 +799,10 @@ describe("folder regions", function () {
 
   it("leaves distant papers as separate islands", function () {
     const contours = folderRegionContours(
-      [{ x: 0, y: 0 }, { x: 80, y: 0 }],
+      [
+        { x: 0, y: 0 },
+        { x: 80, y: 0 },
+      ],
       OPTIONS,
     );
     expect(contours).to.have.length(2);
@@ -772,13 +825,21 @@ describe("folder regions", function () {
     const contours = folderRegionContours([{ x: 1000, y: -1000 }], OPTIONS);
     expect(contours).to.have.length(1);
     const loop = contours[0];
-    expect(Math.hypot(loop[0].x - loop[loop.length - 1].x, loop[0].y - loop[loop.length - 1].y)).to.be.below(0.001);
+    expect(
+      Math.hypot(
+        loop[0].x - loop[loop.length - 1].x,
+        loop[0].y - loop[loop.length - 1].y,
+      ),
+    ).to.be.below(0.001);
   });
 
   it("gives the same contour whatever the zoom, because the field is data space", function () {
     // The renderer transforms this contour for display; the shape itself must
     // not depend on the viewport, or a folder would fragment as you zoom in.
-    const points = [{ x: 0, y: 0 }, { x: 6, y: 0 }];
+    const points = [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+    ];
     const once = folderRegionContours(points, OPTIONS);
     const twice = folderRegionContours(points, OPTIONS);
     expect(twice).to.deep.equal(once);
@@ -919,10 +980,14 @@ function cellSegments(
     (br >= threshold ? 2 : 0) +
     (bl >= threshold ? 1 : 0);
 
-  const top = (): RegionPoint => interpolate(topLeft, topRight, tl, tr, threshold);
-  const right = (): RegionPoint => interpolate(topRight, bottomRight, tr, br, threshold);
-  const bottom = (): RegionPoint => interpolate(bottomLeft, bottomRight, bl, br, threshold);
-  const left = (): RegionPoint => interpolate(topLeft, bottomLeft, tl, bl, threshold);
+  const top = (): RegionPoint =>
+    interpolate(topLeft, topRight, tl, tr, threshold);
+  const right = (): RegionPoint =>
+    interpolate(topRight, bottomRight, tr, br, threshold);
+  const bottom = (): RegionPoint =>
+    interpolate(bottomLeft, bottomRight, bl, br, threshold);
+  const left = (): RegionPoint =>
+    interpolate(topLeft, bottomLeft, tl, bl, threshold);
 
   switch (code) {
     case 0:
@@ -952,12 +1017,24 @@ function cellSegments(
       const joinedThroughMiddle = mean >= threshold;
       if (code === 5) {
         return joinedThroughMiddle
-          ? [[left(), top()], [bottom(), right()]]
-          : [[left(), bottom()], [top(), right()]];
+          ? [
+              [left(), top()],
+              [bottom(), right()],
+            ]
+          : [
+              [left(), bottom()],
+              [top(), right()],
+            ];
       }
       return joinedThroughMiddle
-        ? [[left(), bottom()], [top(), right()]]
-        : [[left(), top()], [bottom(), right()]];
+        ? [
+            [left(), bottom()],
+            [top(), right()],
+          ]
+        : [
+            [left(), top()],
+            [bottom(), right()],
+          ];
     }
     default:
       return [];
@@ -1091,11 +1168,13 @@ Subject: `Compute a folder's territory as a contour, in data space`.
 ### Task 4: Category assignment stops dealing colour, and loses the folder metric
 
 **Files:**
+
 - Modify: `src/services/graphCategoryAssignment.ts`
 - Modify: `src/domain/graphTypes.ts`
 - Modify: `test/unit/graphCategoryAssignment.test.ts`
 
 **Interfaces:**
+
 - Consumes: `allocateSwatches`, `swatchIndexFor`, `emptySwatchLedger`, `SwatchLedgerState` (Task 2).
 - Produces: `assignCategories(nodes, metric, theme, options)` where `options` is `{ labels?: CategoryLabelSource; ledger: SwatchLedgerState }`, returning a `CategoryAssignment` that now carries `ledger: SwatchLedgerState` and `colorFor(node): string` **in place of** `colorsFor(node): string[]`. `labelsFor` and `keysFor` return a single string and a single key or null, for the same reason.
 
@@ -1108,43 +1187,53 @@ In `src/domain/graphTypes.ts`, find `GraphNodeColorMetric` and remove `"collecti
 In `test/unit/graphCategoryAssignment.test.ts`, replace any `"collection"` case with these. Keep the file's existing node fixture helper if it has one; otherwise build nodes with the minimum fields the metric reads.
 
 ```ts
-  it("holds a category's colour when another category arrives", function () {
-    // B12: the swatch follows the key, never the rank.
-    const theme = graphThemeFor("light");
-    const small = assignCategories(nodesOfTypes(["article"]), "publication-type", theme, {
+it("holds a category's colour when another category arrives", function () {
+  // B12: the swatch follows the key, never the rank.
+  const theme = graphThemeFor("light");
+  const small = assignCategories(
+    nodesOfTypes(["article"]),
+    "publication-type",
+    theme,
+    {
       ledger: emptySwatchLedger(),
-    });
-    const before = small.colorFor(nodeOfType("article"));
-    const larger = assignCategories(
-      nodesOfTypes(["article", "book", "book", "book"]),
-      "publication-type",
-      theme,
-      { ledger: small.ledger },
-    );
-    expect(larger.colorFor(nodeOfType("article"))).to.equal(before);
-  });
+    },
+  );
+  const before = small.colorFor(nodeOfType("article"));
+  const larger = assignCategories(
+    nodesOfTypes(["article", "book", "book", "book"]),
+    "publication-type",
+    theme,
+    { ledger: small.ledger },
+  );
+  expect(larger.colorFor(nodeOfType("article"))).to.equal(before);
+});
 
-  it("still ranks by count for which categories are named", function () {
-    const theme = graphThemeFor("light");
-    const assignment = assignCategories(
-      nodesOfTypes(["article", "book", "book"]),
-      "publication-type",
-      theme,
-      { ledger: emptySwatchLedger() },
-    );
-    expect(assignment.entries.map((entry) => entry.label)).to.deep.equal([
-      "book",
-      "article",
-    ]);
-  });
+it("still ranks by count for which categories are named", function () {
+  const theme = graphThemeFor("light");
+  const assignment = assignCategories(
+    nodesOfTypes(["article", "book", "book"]),
+    "publication-type",
+    theme,
+    { ledger: emptySwatchLedger() },
+  );
+  expect(assignment.entries.map((entry) => entry.label)).to.deep.equal([
+    "book",
+    "article",
+  ]);
+});
 
-  it("returns one colour per node, since no metric is multi-valued now", function () {
-    const theme = graphThemeFor("light");
-    const assignment = assignCategories(nodesOfTypes(["book"]), "publication-type", theme, {
+it("returns one colour per node, since no metric is multi-valued now", function () {
+  const theme = graphThemeFor("light");
+  const assignment = assignCategories(
+    nodesOfTypes(["book"]),
+    "publication-type",
+    theme,
+    {
       ledger: emptySwatchLedger(),
-    });
-    expect(assignment.colorFor(nodeOfType("book"))).to.be.a("string");
-  });
+    },
+  );
+  expect(assignment.colorFor(nodeOfType("book"))).to.be.a("string");
+});
 ```
 
 - [ ] **Step 3: Run to verify it fails**
@@ -1187,8 +1276,7 @@ export function assignCategories(
 
   const entries: CategoryEntry[] = assigned.map((entry) => ({
     ...entry,
-    color:
-      theme.categorical.swatches[swatchIndexFor(ledger, entry.key) ?? 0],
+    color: theme.categorical.swatches[swatchIndexFor(ledger, entry.key) ?? 0],
   }));
   // ... `other` and `noValue` unchanged.
 
@@ -1238,10 +1326,12 @@ Subject: `Take folder colouring out of the node's fill`.
 ### Task 5: State version 3 and its migration
 
 **Files:**
+
 - Modify: `src/services/graphViewState.ts`
 - Modify: `test/unit/graphViewState.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SwatchLedgerState` (Task 2).
 - Produces: on `GraphViewState` — `regions: number[]` (selected collection IDs, oldest first, at most `MAX_GRAPH_REGIONS`), `swatches: SwatchLedgerState`, `seedSwatches: SwatchLedgerState`; and `export const MAX_GRAPH_REGIONS = 4`.
 
@@ -1349,9 +1439,13 @@ Add them to `emptyGraphViewState`:
 `parseGraphViewState` currently rejects anything that is neither the current version nor 1. Widen it and add the migration:
 
 ```ts
-  if (raw.version !== GRAPH_VIEW_STATE_VERSION && raw.version !== 2 && raw.version !== 1) {
-    return null;
-  }
+if (
+  raw.version !== GRAPH_VIEW_STATE_VERSION &&
+  raw.version !== 2 &&
+  raw.version !== 1
+) {
+  return null;
+}
 ```
 
 and, where the parsed object is assembled:
@@ -1404,7 +1498,9 @@ function parsedLedger(raw: unknown): SwatchLedgerState {
     }
   }
   const releasedOrder = Array.isArray(record.releasedOrder)
-    ? record.releasedOrder.filter((key): key is string => typeof key === "string")
+    ? record.releasedOrder.filter(
+        (key): key is string => typeof key === "string",
+      )
     : [];
   return { assigned, releasedOrder };
 }
@@ -1431,11 +1527,13 @@ Subject: `Carry regions and colour ledgers in the graph's recipe`.
 ### Task 6: The colour dropdown loses Collection and gains Uniform
 
 **Files:**
+
 - Modify: `src/services/citationPreferences.ts`
 - Modify: `src/services/graphViewControls.ts`
 - Modify: `test/unit/citationPreferences.test.ts` (create the describe block if the file has none for appearance)
 
 **Interfaces:**
+
 - Consumes: the narrowed `GraphNodeColorMetric` (Task 4).
 - Produces: `DEFAULT_GRAPH_LAYOUT.nodeColorMetric === "uniform"`; `getGraphAppearance()` never returns `"collection"`.
 
@@ -1463,7 +1561,10 @@ describe("the graph appearance preference", function () {
     });
     const appearance = getGraphAppearance();
     expect(appearance.nodeColorMetric).to.equal("uniform");
-    expect(appearance.xScale).to.equal("log", "the rest of the record survives");
+    expect(appearance.xScale).to.equal(
+      "log",
+      "the rest of the record survives",
+    );
   });
 });
 ```
@@ -1513,13 +1614,13 @@ and return `withoutRetiredColouring({ ...DEFAULT_GRAPH_LAYOUT, ...parsed })` fro
 In `src/services/graphViewControls.ts`, delete the `"collection"` entry from `categoricalDefinitions` and prepend a Uniform option the way the size select already does:
 
 ```ts
-  const uniformColor = element(document, "option");
-  uniformColor.value = "uniform";
-  uniformColor.textContent = "Uniform";
-  uniformColor.title =
-    "One colour for every node. Folders are shown as regions, from the rail.";
-  uniformColor.dataset.metricDescription = uniformColor.title;
-  colorMetric.prepend(uniformColor);
+const uniformColor = element(document, "option");
+uniformColor.value = "uniform";
+uniformColor.textContent = "Uniform";
+uniformColor.title =
+  "One colour for every node. Folders are shown as regions, from the rail.";
+uniformColor.dataset.metricDescription = uniformColor.title;
+colorMetric.prepend(uniformColor);
 ```
 
 Keep `collectionLabelsByID` — the region legend needs it.
@@ -1543,10 +1644,12 @@ Subject: `Retire Collection as a colouring, without resetting the rest`.
 ### Task 7: The renderer draws regions, and a seed wears its own colour
 
 **Files:**
+
 - Modify: `src/services/citationGraphRenderer.ts`
 - Modify: `src/services/graphRendererScene.ts`
 
 **Interfaces:**
+
 - Consumes: `folderRegionContours` (Task 3), `assignCategories` with `colorFor` and `ledger` (Task 4), `seedColorAt` (Task 1).
 - Produces: `renderer.setRegions(regions: ReadonlyArray<{ collectionID: number; color: string; nodeKeys: ReadonlySet<string> }>): void`; `renderer.setSeedColors(colors: ReadonlyMap<string, string>)` keeps its name and now receives ledger-derived colours.
 
@@ -1579,10 +1682,10 @@ Replace `nodeColors` with:
 Update every call site to pass and receive one colour. In `drawNode`, replace the `colors: string[]` parameter with `color: string` and delete the slice loop, leaving a single filled arc:
 
 ```ts
-    context.beginPath();
-    context.arc(position.x, position.y, radius, 0, Math.PI * 2);
-    context.fillStyle = color;
-    context.fill();
+context.beginPath();
+context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+context.fillStyle = color;
+context.fill();
 ```
 
 The in-library ring's call becomes `inLibraryRingColor(color, this.theme)`.
@@ -1715,10 +1818,12 @@ In the draw pass, after the grid and before the edges:
 
 `this.toScreen` is the renderer's existing `projectToScreen(position, this.transform)` wrapper (line ~513). `baseNodeRadius()` is whatever the renderer already uses for an unsized node; reuse it rather than inventing a constant.
 
-- [ ] **Step 5: Check it by eye, then commit**
+- [ ] **Step 5: Run the unit suite and commit**
 
-Run: `npm run check`
-Expected: PASS once Tasks 8 and 9 are not yet required — if `graphKeyRail` still calls a removed API, finish Step 6 of Task 4's caller list first.
+`npm run check` still fails to typecheck here: the rail has not been updated yet, so it is still calling the API Task 4 removed. That break closes in Task 9. Run the unit suite alone:
+
+Run: `npm run test:unit`
+Expected: PASS. If a _renderer_ type error appears in the output, fix it; a `graphKeyRail.ts` or `graphViewService.ts` error is the expected break and belongs to Tasks 8 and 9.
 
 ```bash
 git add src/services/citationGraphRenderer.ts src/services/graphRendererScene.ts
@@ -1732,12 +1837,14 @@ Subject: `Draw folders behind the nodes and seeds in their own colour`.
 ### Task 8: The rail's row splits, and regions are selected
 
 **Files:**
+
 - Modify: `src/services/graphScopeRailModel.ts`
 - Modify: `src/services/graphKeyRail.ts`
 - Modify: `content/graph.css`
 - Modify: `test/unit/graphScopeRailModel.test.ts`
 
 **Interfaces:**
+
 - Consumes: `MAX_GRAPH_REGIONS` (Task 5).
 - Produces: on `ScopeRow` — `selected: boolean` and `color: string | null`; on the rail's `onScope` options — `selectRow(row: ScopeRow, selected: boolean): void`; and a pure `nextRegionSelection(current: readonly number[], collectionID: number, cap: number): number[]`.
 
@@ -1793,10 +1900,10 @@ export function nextRegionSelection(
 Add to `ScopeRow`:
 
 ```ts
-  /** Drawn as a region on the plot. */
-  selected: boolean;
-  /** The folder's colour while it is selected, else null. */
-  color: string | null;
+/** Drawn as a region on the plot. */
+selected: boolean;
+/** The folder's colour while it is selected, else null. */
+color: string | null;
 ```
 
 and populate both in `buildScopeRailModel` from a new `regions` and `regionColors` input.
@@ -1806,56 +1913,60 @@ and populate both in `buildScopeRailModel` from a new `regions` and `regionColor
 In `src/services/graphKeyRail.ts`, `scopeRowElement` currently wraps everything in a `<label>`, so clicking the name ticks the box. Split it:
 
 ```ts
-  function scopeRowElement(row: ScopeRow): HTMLElement {
-    const wrapper = element(document, "div", "cm-scope-row");
-    if (row.selected) {
-      wrapper.classList.add("cm-scope-row-selected");
-      if (row.color) wrapper.style.setProperty("--cm-row-color", row.color);
-    }
-
-    // The box keeps its own label so the checkbox still has a hit area of its
-    // own and a name for a screen reader; the row's body is now a button.
-    const boxLabel = element(document, "label", "cm-scope-check-label");
-    const box = element(document, "input", "cm-scope-check") as HTMLInputElement;
-    box.type = "checkbox";
-    box.checked = row.state !== "off";
-    box.indeterminate = row.state === "mixed";
-    box.title = `Show ${row.label} on the plot`;
-    box.addEventListener("change", () =>
-      options.onScope.toggleRow(row, box.checked),
-    );
-    boxLabel.appendChild(box);
-
-    const body = element(document, "button", "cm-scope-row-body") as HTMLButtonElement;
-    body.type = "button";
-    body.setAttribute("aria-pressed", row.selected ? "true" : "false");
-    const name = text(document, "span", row.label, "cm-scope-row-label");
-    name.title = `${row.label} — click to draw this folder as a region`;
-    const count = text(
-      document,
-      "span",
-      COUNT_FORMAT.format(row.count),
-      "cm-scope-row-count",
-    );
-    body.append(name, count);
-    if (row.kind === "collection") {
-      body.addEventListener("click", () =>
-        options.onScope.selectRow(row, !row.selected),
-      );
-      const collectionID = row.collectionID;
-      body.addEventListener("pointerenter", () => {
-        if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
-      });
-      body.addEventListener("pointerleave", () => {
-        if (!pinned) options.onEmphasise(null);
-      });
-    } else {
-      body.disabled = true;
-    }
-
-    wrapper.append(boxLabel, body);
-    return wrapper;
+function scopeRowElement(row: ScopeRow): HTMLElement {
+  const wrapper = element(document, "div", "cm-scope-row");
+  if (row.selected) {
+    wrapper.classList.add("cm-scope-row-selected");
+    if (row.color) wrapper.style.setProperty("--cm-row-color", row.color);
   }
+
+  // The box keeps its own label so the checkbox still has a hit area of its
+  // own and a name for a screen reader; the row's body is now a button.
+  const boxLabel = element(document, "label", "cm-scope-check-label");
+  const box = element(document, "input", "cm-scope-check") as HTMLInputElement;
+  box.type = "checkbox";
+  box.checked = row.state !== "off";
+  box.indeterminate = row.state === "mixed";
+  box.title = `Show ${row.label} on the plot`;
+  box.addEventListener("change", () =>
+    options.onScope.toggleRow(row, box.checked),
+  );
+  boxLabel.appendChild(box);
+
+  const body = element(
+    document,
+    "button",
+    "cm-scope-row-body",
+  ) as HTMLButtonElement;
+  body.type = "button";
+  body.setAttribute("aria-pressed", row.selected ? "true" : "false");
+  const name = text(document, "span", row.label, "cm-scope-row-label");
+  name.title = `${row.label} — click to draw this folder as a region`;
+  const count = text(
+    document,
+    "span",
+    COUNT_FORMAT.format(row.count),
+    "cm-scope-row-count",
+  );
+  body.append(name, count);
+  if (row.kind === "collection") {
+    body.addEventListener("click", () =>
+      options.onScope.selectRow(row, !row.selected),
+    );
+    const collectionID = row.collectionID;
+    body.addEventListener("pointerenter", () => {
+      if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
+    });
+    body.addEventListener("pointerleave", () => {
+      if (!pinned) options.onEmphasise(null);
+    });
+  } else {
+    body.disabled = true;
+  }
+
+  wrapper.append(boxLabel, body);
+  return wrapper;
+}
 ```
 
 Add `selectRow(row: ScopeRow, selected: boolean): void` to the rail's `onScope` interface beside `toggleRow`.
@@ -1905,7 +2016,7 @@ In `content/graph.css`, add beside the existing `.cm-scope-row` rules:
 - [ ] **Step 6: Run the tests and commit**
 
 Run: `node --import ./test/nodeResolve.mjs --test test/unit/graphScopeRailModel.test.ts`
-Expected: PASS.
+Expected: PASS. `npm run check` still does not typecheck at this point — the view service has not been wired yet — and Task 9 is what closes it.
 
 ```bash
 git add src/services/graphScopeRailModel.ts src/services/graphKeyRail.ts content/graph.css test/unit/graphScopeRailModel.test.ts
@@ -1919,9 +2030,11 @@ Subject: `Select a folder to draw it, tick it to show it`.
 ### Task 9: Wire selection to the plot
 
 **Files:**
+
 - Modify: `src/services/graphViewService.ts`
 
 **Interfaces:**
+
 - Consumes: everything above.
 - Produces: no new exports; the view holds `state.regions`, feeds `renderer.setRegions`, and keeps scope and selection consistent.
 
@@ -1930,31 +2043,31 @@ Subject: `Select a folder to draw it, tick it to show it`.
 Where `refreshScopeRail` builds its model, also build the regions and hand them over:
 
 ```ts
-  const regionsForRenderer = (): Array<{
-    collectionID: number;
-    color: string;
-    nodeKeys: ReadonlySet<string>;
-  }> => {
-    const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    const ledger = allocateSwatches(
-      state.swatches,
-      state.regions.map((id) => String(id)),
-      theme.categorical.swatches.length,
-    );
-    state.swatches = ledger;
-    return state.regions.map((collectionID) => ({
-      collectionID,
-      color:
-        theme.categorical.swatches[
-          swatchIndexFor(ledger, String(collectionID)) ?? 0
-        ],
-      nodeKeys: new Set(
-        visibleNodes()
-          .filter((node) => node.collectionIDs.includes(collectionID))
-          .map((node) => node.key),
-      ),
-    }));
-  };
+const regionsForRenderer = (): Array<{
+  collectionID: number;
+  color: string;
+  nodeKeys: ReadonlySet<string>;
+}> => {
+  const theme = renderer?.getTheme() ?? graphThemeFor("light");
+  const ledger = allocateSwatches(
+    state.swatches,
+    state.regions.map((id) => String(id)),
+    theme.categorical.swatches.length,
+  );
+  state.swatches = ledger;
+  return state.regions.map((collectionID) => ({
+    collectionID,
+    color:
+      theme.categorical.swatches[
+        swatchIndexFor(ledger, String(collectionID)) ?? 0
+      ],
+    nodeKeys: new Set(
+      visibleNodes()
+        .filter((node) => node.collectionIDs.includes(collectionID))
+        .map((node) => node.key),
+    ),
+  }));
+};
 ```
 
 Use the view's existing accessor for the visible node set in place of `visibleNodes()`.
@@ -1987,11 +2100,11 @@ Add `selectRow` beside the existing `toggleRow` handler:
 In the existing `toggleRow`, after the ticks are written, add:
 
 ```ts
-      // Unticking a selected folder clears its region, the mirror of selecting
-      // an unticked one ticking it: a region with nothing inside says nothing.
-      if (!ticked) {
-        state.regions = state.regions.filter((id) => id !== row.collectionID);
-      }
+// Unticking a selected folder clears its region, the mirror of selecting
+// an unticked one ticking it: a region with nothing inside says nothing.
+if (!ticked) {
+  state.regions = state.regions.filter((id) => id !== row.collectionID);
+}
 ```
 
 using the handler's own name for the new tick value.
@@ -2001,21 +2114,21 @@ using the handler's own name for the new tick value.
 Replace `seedColorsFor`:
 
 ```ts
-  /** Seeds hold a palette index for as long as they live, not a position. */
-  const seedColorsFor = (
-    projection: GraphFocusProjection,
-  ): Map<string, string> => {
-    const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    const keys = projection.state.seedKeys;
-    const ledger = allocateSwatches(state.seedSwatches, keys, theme.seeds.length);
-    state.seedSwatches = ledger;
-    return new Map(
-      keys.map((key) => [
-        key,
-        seedColorAt(swatchIndexFor(ledger, key) ?? 0, theme),
-      ]),
-    );
-  };
+/** Seeds hold a palette index for as long as they live, not a position. */
+const seedColorsFor = (
+  projection: GraphFocusProjection,
+): Map<string, string> => {
+  const theme = renderer?.getTheme() ?? graphThemeFor("light");
+  const keys = projection.state.seedKeys;
+  const ledger = allocateSwatches(state.seedSwatches, keys, theme.seeds.length);
+  state.seedSwatches = ledger;
+  return new Map(
+    keys.map((key) => [
+      key,
+      seedColorAt(swatchIndexFor(ledger, key) ?? 0, theme),
+    ]),
+  );
+};
 ```
 
 and make `scopeSeedRows()` read its colour from the same map rather than from the seed's index.
@@ -2045,6 +2158,7 @@ Subject: `Wire folder selection to the regions on the plot`.
 ### Task 10: The Zotero walk, the docs, and the XPI
 
 **Files:**
+
 - Create: `test/zotero/graphFolderRegions.test.ts`
 - Modify: `docs/superpowers/handoffs/2026-09-08-roadmap.md`
 - Modify: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`
@@ -2081,7 +2195,7 @@ Add `data-collection-id` to the row body in `graphKeyRail.ts` so the test can fi
 - [ ] **Step 2: Run the Zotero suite**
 
 Run: `npm test`
-Expected: the suite's known state — 37 passed, 1 failed (view 15, backlog B11, which fails on main too), plus the new case passing. Any *other* failure is a regression from this branch; fix it before continuing. Remember this deletes `.scaffold/build/meristema.xpi`.
+Expected: the suite's known state — 37 passed, 1 failed (view 15, backlog B11, which fails on main too), plus the new case passing. Any _other_ failure is a regression from this branch; fix it before continuing. Remember this deletes `.scaffold/build/meristema.xpi`.
 
 - [ ] **Step 3: Tick the roadmap and file the manual checks**
 
