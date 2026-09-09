@@ -3,6 +3,7 @@ import { expect } from "chai";
 
 import { buildKeyModel } from "../../src/services/graphKeyModel";
 import { assignCategories } from "../../src/services/graphCategoryAssignment";
+import { emptySwatchLedger } from "../../src/services/graphSwatchLedger";
 import { graphThemeFor } from "../../src/services/graphTheme";
 import type {
   CitationGraphNode,
@@ -72,19 +73,16 @@ function node(
   };
 }
 
-const LABELS = {
-  labelFor(id: number): string | null {
-    return `Folder ${id}`;
-  },
-};
-
 const LAYOUT: GraphLayoutOptions = {
   xMetric: "year",
   xScale: "linear",
   yMetric: "citations",
   yScale: "linear",
   nodeSizeMetric: "uniform",
-  nodeColorMetric: "collection",
+  // "collection" is retired as a colour metric (Task 3/7: folder membership
+  // draws a region now, never a node's fill), so the categorical cases below
+  // exercise a metric that still splits nodes into categories.
+  nodeColorMetric: "publication-type",
   nodeLabelMode: "author-year",
 };
 
@@ -102,12 +100,9 @@ function build(
   edgeCount = 4,
 ) {
   const merged = { ...LAYOUT, ...layout };
-  const assignment = assignCategories(
-    nodes,
-    merged.nodeColorMetric,
-    theme,
-    LABELS,
-  );
+  const assignment = assignCategories(nodes, merged.nodeColorMetric, theme, {
+    ledger: emptySwatchLedger(),
+  });
   return buildKeyModel({
     layout: merged,
     assignment,
@@ -125,17 +120,18 @@ function section(model: ReturnType<typeof build>, kind: string) {
 describe("Graph key model", () => {
   it("names every colour on screen, with the counts they cover", () => {
     // The complaint the whole redesign answers: a graph coloured by folder said
-    // nothing about which folder was which.
+    // nothing about which folder was which. Publication type stands in for
+    // that here, since folder membership no longer colours a node at all.
     const nodes = [
-      node(1, { collectionIDs: [7] }),
-      node(2, { collectionIDs: [7] }),
-      node(3, { collectionIDs: [9] }),
+      node(1, { publicationType: "article" }),
+      node(2, { publicationType: "article" }),
+      node(3, { publicationType: "book" }),
     ];
     const colour = section(build(nodes), "color")!;
-    expect(colour.subheading).to.equal("Collection");
+    expect(colour.subheading).to.equal("Publication type");
     expect(colour.entries.map((entry) => entry.label)).to.deep.equal([
-      "Folder 7",
-      "Folder 9",
+      "article",
+      "book",
     ]);
     expect(colour.entries.map((entry) => entry.count)).to.deep.equal([2, 1]);
     expect(colour.entries[0]!.mark.colors[0]).to.equal(
@@ -145,8 +141,8 @@ describe("Graph key model", () => {
 
   it("counts a categorical section up to the node count", () => {
     const nodes = [
-      node(1, { collectionIDs: [1] }),
-      node(2, { collectionIDs: [2] }),
+      node(1, { publicationType: "article" }),
+      node(2, { publicationType: "book" }),
       node(3, {}),
     ];
     const colour = section(build(nodes), "color")!;
@@ -192,10 +188,12 @@ describe("Graph key model", () => {
     // but a Key that lists a folder no longer on screen names a colour that
     // is not there.
     const all = [
-      node(1, { collectionIDs: [7] }),
-      node(2, { collectionIDs: [9] }),
+      node(1, { publicationType: "article" }),
+      node(2, { publicationType: "book" }),
     ];
-    const assignment = assignCategories(all, "collection", theme, LABELS);
+    const assignment = assignCategories(all, "publication-type", theme, {
+      ledger: emptySwatchLedger(),
+    });
     const model = buildKeyModel({
       layout: LAYOUT,
       assignment,
@@ -206,7 +204,7 @@ describe("Graph key model", () => {
     });
     const colour = section(model, "color")!;
     expect(colour.entries.map((entry) => entry.label)).to.deep.equal([
-      "Folder 7",
+      "article",
     ]);
     expect(colour.entries[0]!.mark.colors[0]).to.equal(
       theme.categorical.swatches[0],
@@ -268,14 +266,14 @@ describe("Graph key model", () => {
 
   it("matches the nodes an entry stands for, so hovering can emphasise them", () => {
     const nodes = [
-      node(1, { collectionIDs: [7] }),
-      node(2, { collectionIDs: [7, 9] }),
+      node(1, { publicationType: "article" }),
+      node(2, { publicationType: "article" }),
       node(3, {}),
     ];
     const colour = section(build(nodes), "color")!;
-    const folder7 = colour.entries.find((entry) => entry.label === "Folder 7")!;
+    const article = colour.entries.find((entry) => entry.label === "article")!;
     expect(
-      nodes.filter((candidate) => folder7.matches!(candidate)),
+      nodes.filter((candidate) => article.matches!(candidate)),
     ).to.have.length(2);
     const missing = colour.entries.find((entry) => entry.label === "No value")!;
     expect(
@@ -283,14 +281,20 @@ describe("Graph key model", () => {
     ).to.have.length(1);
   });
 
-  it("says when a disc is split, and only when one is", () => {
-    const split = section(
-      build([node(1, { collectionIDs: [1, 2] })]),
+  // Categories used to be multi-valued to serve folder membership, where a
+  // paper filed in two folders was drawn as a disc split between their
+  // colours ("says when a disc is split, and only when one is"). Folder
+  // membership has left the node's fill entirely (Task 7's region fill and
+  // Task 3's contours took the job), so a node now carries at most one
+  // category under any metric and a disc can never be split. There is no
+  // longer an input that produces the old split note; this replaces that
+  // case with the guarantee that the note is always absent.
+  it("never notes a split disc, since a node carries one category now", () => {
+    const colour = section(
+      build([node(1, { publicationType: "article" })]),
       "color",
     )!;
-    expect(split.note).to.match(/split/i);
-    const single = section(build([node(1, { collectionIDs: [1] })]), "color")!;
-    expect(single.note).to.equal(null);
+    expect(colour.note).to.equal(null);
   });
 
   it("emphasises nothing for an entry that stands for no set of nodes", () => {

@@ -34,6 +34,10 @@ export interface ScopeCollectionRow {
   state: CollectionTickState;
   /** The folder and every descendant: what one toggle writes. */
   cascadeIDs: number[];
+  /** Drawn as a region on the plot. */
+  selected: boolean;
+  /** The folder's colour while it is selected, else null. */
+  color: string | null;
 }
 
 export interface ScopeToggleRow {
@@ -41,6 +45,9 @@ export interface ScopeToggleRow {
   label: string;
   count: number;
   state: "on" | "off";
+  /** Never true: only a folder is drawn as a region. */
+  selected: false;
+  color: null;
 }
 
 export type ScopeRow = ScopeCollectionRow | ScopeToggleRow;
@@ -62,6 +69,10 @@ export interface ScopeRailInput {
   includeExternal: boolean;
   seeds: readonly ScopeSeedRow[];
   scope: GraphScopeResult;
+  /** The folders currently drawn as regions, oldest selection first. */
+  regions: readonly number[];
+  /** Each selected folder's colour, by collection ID. */
+  regionColors: ReadonlyMap<number, string>;
 }
 
 const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
@@ -79,6 +90,24 @@ export function seedRowLabel(paper: {
   return paper.year === null ? name : `${name} (${paper.year})`;
 }
 
+/**
+ * The regions after clicking one folder. Selection is a toggle and holds more
+ * than one, because seeing two folders' territories at once — where they
+ * overlap, which papers sit in neither — is the comparison a hull is best at.
+ * Past the cap the oldest selection is released: overlapping translucent
+ * hulls stop being readable past a handful.
+ */
+export function nextRegionSelection(
+  current: readonly number[],
+  collectionID: number,
+  cap: number,
+): number[] {
+  if (current.includes(collectionID)) {
+    return current.filter((id) => id !== collectionID);
+  }
+  return [...current, collectionID].slice(-cap);
+}
+
 function descendantsOf(collection: LibraryCollectionFilter): number[] {
   // `includedCollectionIDs` is the folder plus its subtree, as the snapshot
   // recorded it; a folder with no children lists only itself.
@@ -90,6 +119,7 @@ function descendantsOf(collection: LibraryCollectionFilter): number[] {
 export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
   const rows: ScopeRow[] = input.collections.map((collection) => {
     const descendants = descendantsOf(collection);
+    const selected = input.regions.includes(collection.collectionID);
     return {
       kind: "collection",
       collectionID: collection.collectionID,
@@ -102,6 +132,10 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
         descendants,
       ),
       cascadeIDs: [collection.collectionID, ...descendants],
+      selected,
+      color: selected
+        ? (input.regionColors.get(collection.collectionID) ?? null)
+        : null,
     };
   });
   // Every paper on the plot answers to exactly one tick the reader can find,
@@ -111,12 +145,16 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
     label: "Unfiled",
     count: input.scope.unfiledCount,
     state: input.includeUnfiled ? "on" : "off",
+    selected: false,
+    color: null,
   });
   rows.push({
     kind: "external",
     label: "Not in Zotero",
     count: input.scope.externalCount,
     state: input.includeExternal ? "on" : "off",
+    selected: false,
+    color: null,
   });
   return {
     countLine: `${COUNT_FORMAT.format(input.scope.shown)} of ${COUNT_FORMAT.format(input.scope.total)} papers`,

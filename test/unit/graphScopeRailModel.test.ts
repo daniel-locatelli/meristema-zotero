@@ -10,6 +10,7 @@ import {
 } from "../../src/services/graphScopeModel";
 import {
   buildScopeRailModel,
+  nextRegionSelection,
   seedRowLabel,
 } from "../../src/services/graphScopeRailModel";
 
@@ -66,6 +67,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       seeds: [],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     // `x` is external and nothing reaches it, so no admission rule covers it:
     // `computeGraphScope` shows 3 of the 4 papers (see graphScopeModel's own
@@ -83,6 +86,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: false,
       seeds: [],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     expect(model.rows.map((row) => row.label)).to.deep.equal([
       "PhD",
@@ -106,6 +111,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       seeds: [],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     const phd = model.rows[0];
     expect(phd.kind).to.equal("collection");
@@ -113,6 +120,29 @@ describe("buildScopeRailModel", function () {
     expect(phd.count).to.equal(1);
     expect(phd.cascadeIDs).to.deep.equal([1, 11, 12]);
     expect(phd.depth).to.equal(0);
+  });
+
+  it("marks a selected folder and carries its region colour", function () {
+    const model = buildScopeRailModel({
+      collections: TREE,
+      ticks: allCollectionsTicked(),
+      includeUnfiled: true,
+      includeExternal: true,
+      seeds: [],
+      scope: emptyScope(),
+      regions: [11],
+      regionColors: new Map([[11, "#123456"]]),
+    });
+    const phd = model.rows[0];
+    const reading = model.rows[1];
+    expect(phd.selected).to.equal(false);
+    expect(phd.color).to.equal(null);
+    expect(reading.selected).to.equal(true);
+    expect(reading.color).to.equal("#123456");
+    // Unfiled and Not in Zotero are never regions, whatever is selected.
+    const unfiled = model.rows.find((row) => row.kind === "unfiled")!;
+    expect(unfiled.selected).to.equal(false);
+    expect(unfiled.color).to.equal(null);
   });
 
   it("draws a parent mixed when a descendant disagrees", function () {
@@ -124,6 +154,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       seeds: [],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     expect(model.rows[0].state).to.equal("mixed");
     expect(model.rows[1].state).to.equal("off");
@@ -138,6 +170,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       seeds: [],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     expect(model.rows[0].state).to.equal("off");
     expect(model.rows[3].state).to.equal("on");
@@ -167,6 +201,8 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       seeds: [],
       scope,
+      regions: [],
+      regionColors: new Map(),
     });
     expect(model.hiddenLine).to.equal("1 hidden");
     expect(model.countLine).to.equal("1 of 2 papers");
@@ -195,8 +231,24 @@ describe("buildScopeRailModel", function () {
         { key: "s2", label: "Turing (1936)", color: "#222222" },
       ],
       scope: emptyScope(),
+      regions: [],
+      regionColors: new Map(),
     });
     expect(model.seedsHeading).to.equal("Seeds · 2");
     expect(model.seeds.map((seed) => seed.key)).to.deep.equal(["s1", "s2"]);
+  });
+});
+
+describe("selecting folders for regions", function () {
+  it("adds a folder, oldest first", function () {
+    expect(nextRegionSelection([4], 9, 4)).to.deep.equal([4, 9]);
+  });
+
+  it("toggles a selected folder off", function () {
+    expect(nextRegionSelection([4, 9], 4, 4)).to.deep.equal([9]);
+  });
+
+  it("releases the oldest when the cap is reached", function () {
+    expect(nextRegionSelection([1, 2, 3, 4], 5, 4)).to.deep.equal([2, 3, 4, 5]);
   });
 });

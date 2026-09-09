@@ -137,6 +137,8 @@ const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 export interface ScopeRailHandlers {
   /** A folder, Unfiled or Not in Zotero was ticked or unticked. */
   toggleRow(row: ScopeRow, ticked: boolean): void;
+  /** A folder's row body was clicked, to draw or drop it as a region. */
+  selectRow(row: ScopeRow, selected: boolean): void;
   removeSeed(seedKey: string): void;
   /** The reader asked for the seed search panel; the anchor is the link. */
   addSeed(anchor: HTMLElement): void;
@@ -392,7 +394,15 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   }
 
   function scopeRowElement(row: ScopeRow): HTMLElement {
-    const label = element(document, "label", "cm-scope-row");
+    const wrapper = element(document, "div", "cm-scope-row");
+    if (row.selected) {
+      wrapper.classList.add("cm-scope-row-selected");
+      if (row.color) wrapper.style.setProperty("--cm-row-color", row.color);
+    }
+
+    // The box keeps its own label so the checkbox still has a hit area of its
+    // own and a name for a screen reader; the row's body is now a button.
+    const boxLabel = element(document, "label", "cm-scope-check-label");
     const box = element(
       document,
       "input",
@@ -403,28 +413,45 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     // A parent whose descendants disagree draws mixed; clicking it commits to
     // ticked, which is what writes the same tick to the whole subtree.
     box.indeterminate = row.state === "mixed";
+    box.title = `Show ${row.label} on the plot`;
     box.addEventListener("change", () =>
       options.onScope.toggleRow(row, box.checked),
     );
+    boxLabel.appendChild(box);
+
+    const body = element(
+      document,
+      "button",
+      "cm-scope-row-body",
+    ) as HTMLButtonElement;
+    body.type = "button";
+    body.setAttribute("aria-pressed", row.selected ? "true" : "false");
     const name = text(document, "span", row.label, "cm-scope-row-label");
-    name.title = row.label;
+    name.title = `${row.label} — click to draw this folder as a region`;
     const count = text(
       document,
       "span",
       COUNT_FORMAT.format(row.count),
       "cm-scope-row-count",
     );
-    label.append(box, name, count);
+    body.append(name, count);
     if (row.kind === "collection") {
+      body.addEventListener("click", () =>
+        options.onScope.selectRow(row, !row.selected),
+      );
       const collectionID = row.collectionID;
-      label.addEventListener("pointerenter", () => {
+      body.addEventListener("pointerenter", () => {
         if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
       });
-      label.addEventListener("pointerleave", () => {
+      body.addEventListener("pointerleave", () => {
         if (!pinned) options.onEmphasise(null);
       });
+    } else {
+      body.disabled = true;
     }
-    return label;
+
+    wrapper.append(boxLabel, body);
+    return wrapper;
   }
 
   function sectionElement(section: KeySection): HTMLElement {

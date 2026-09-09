@@ -198,7 +198,7 @@ function colorSection(input: KeyModelInput): KeySection {
     count: entry.count,
     detail: null,
     mark: { kind: "swatch", colors: [entry.color] },
-    matches: (node) => assignment.keysFor(node).includes(entry.key),
+    matches: (node) => assignment.keyFor(node) === entry.key,
   }));
 
   if (assignment.other) {
@@ -209,8 +209,10 @@ function colorSection(input: KeyModelInput): KeySection {
       count: other.count,
       detail: null,
       mark: { kind: "swatch", colors: [other.color] },
-      matches: (node) =>
-        assignment.keysFor(node).some((key) => !assignedKeys.has(key)),
+      matches: (node) => {
+        const key = assignment.keyFor(node);
+        return key !== null && !assignedKeys.has(key);
+      },
     });
   }
 
@@ -222,7 +224,7 @@ function colorSection(input: KeyModelInput): KeySection {
       count: noValue.count,
       detail: null,
       mark: { kind: "swatch", colors: [noValue.color], dashed: true },
-      matches: (node) => assignment.keysFor(node).length === 0,
+      matches: (node) => assignment.keyFor(node) === null,
     });
   }
 
@@ -238,17 +240,15 @@ function colorSection(input: KeyModelInput): KeySection {
     }))
     .filter((entry) => entry.count > 0);
 
-  // Only worth saying when it is happening: a paper in two folders is drawn as
-  // two slices, and without the note its disc looks like a colour of its own.
-  const split = nodes.some((node) => assignment.keysFor(node).length > 1);
+  // A node now belongs to exactly one category, so no paper is ever split
+  // between two colours; the note that used to flag that case has nothing
+  // left to say.
   return {
     kind: "color",
     heading,
     subheading,
     entries: counted,
-    note: split
-      ? "A paper in several categories is split between their colours."
-      : null,
+    note: null,
   };
 }
 

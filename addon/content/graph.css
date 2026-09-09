@@ -1157,20 +1157,48 @@
 }
 .cm-scope-row {
   display: flex;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
   min-width: 0;
-  padding: 2px 4px;
-  border-radius: 4px;
+  border: 1.5px solid transparent;
+  border-radius: 3px;
   font-size: 12px;
-  cursor: pointer;
 }
-.cm-scope-row:hover {
-  background: color-mix(in srgb, CanvasText 8%, transparent);
+/* The box stops being the whole row, so it grows to stay comfortably hit. */
+.cm-scope-check {
+  width: 15px;
+  height: 15px;
+}
+.cm-scope-check-label {
+  display: flex;
+  align-items: center;
+  padding: 3px;
 }
 .meristema-root .cm-scope-check {
   flex: 0 0 auto;
   margin: 0;
+}
+.cm-scope-row-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 3px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.cm-scope-row-body:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+  border-radius: 4px;
+}
+.cm-scope-row-selected {
+  border-color: var(--cm-row-color, var(--cm-ink-muted));
+  background: var(--cm-surface-paper);
 }
 .cm-scope-row-label {
   flex: 1 1 auto;
