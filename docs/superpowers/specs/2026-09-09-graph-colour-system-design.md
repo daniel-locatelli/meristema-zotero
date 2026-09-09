@@ -49,12 +49,12 @@ verdict on the centre of a seed: it should not be the folder at all.
 
 One meaning per channel, and no palette shared between two channels.
 
-| meaning                        | channel                        | palette                                |
-| ------------------------------ | ------------------------------ | -------------------------------------- |
-| where a paper lives (folder)   | a **region** behind the nodes  | one categorical swatch per folder      |
-| how it scores (metric)         | the node's **fill**            | `theme.ramp`, or a categorical swatch  |
-| whether it is a seed           | the node's fill, **overriding** | new `theme.seeds`, six hues            |
-| whether the library holds it   | a thin **ring**                | a tint of the node's own fill          |
+| meaning                      | channel                         | palette                               |
+| ---------------------------- | ------------------------------- | ------------------------------------- |
+| where a paper lives (folder) | a **region** behind the nodes   | one categorical swatch per folder     |
+| how it scores (metric)       | the node's **fill**             | `theme.ramp`, or a categorical swatch |
+| whether it is a seed         | the node's fill, **overriding** | new `theme.seeds`, six hues           |
+| whether the library holds it | a thin **ring**                 | a tint of the node's own fill         |
 
 Reserved, not used here: the **unfilled outline** belongs to Stage 4's citation
 floor, and nothing in this spec may spend it. That is why the in-library mark
@@ -154,7 +154,7 @@ name, which is why `keysFor` exists.
 
 The scope row splits into two hit zones.
 
-- **The checkbox** still means *in scope or not*, with the mixed state for a
+- **The checkbox** still means _in scope or not_, with the mixed state for a
   partly-ticked subtree. Nothing about scope changes. It grows, because it
   stops being the whole row, and gains a keyboard path of its own.
 - **The rest of the row** becomes a **selected** state, which draws that

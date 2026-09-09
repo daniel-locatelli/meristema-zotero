@@ -44,12 +44,12 @@ are decisions, not proposals, and an executing session should not reopen them.
    swatches.
 3. **A folder becomes a background region** — the user's own addition, and the
    largest thing in the design: a marching-squares hull with islands allowed,
-   a solid border and a translucent fill. Their words: *"for the implementation
-   make sure to use a proper marching square algorithm"*. Not a convex hull,
+   a solid border and a translucent fill. Their words: _"for the implementation
+   make sure to use a proper marching square algorithm"_. Not a convex hull,
    not a blurred sprite, not a hand-rolled blob. The plan's Task 3 has the case
    table and the saddle disambiguation.
 4. **Regions are toggled by selecting the folder's row**, not by a new control.
-   The checkbox keeps meaning *in scope*; the rest of the row becomes a
+   The checkbox keeps meaning _in scope_; the rest of the row becomes a
    selection. Multi-select by plain click, cap of four, oldest released.
 
 ## The correction worth not re-deriving
