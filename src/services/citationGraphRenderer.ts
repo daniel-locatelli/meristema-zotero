@@ -216,13 +216,28 @@ export class CitationGraphRenderer {
     color: string;
     nodeKeys: ReadonlySet<string>;
   }> = [];
-  /** Contours in data space, cached until the positions or the set change. */
-  private regionContours = new Map<number, RegionPoint[][]>();
-  private regionRevision = "";
   /**
-   * Bumped whenever a node position could have moved — layout, resize, drag,
-   * or a model sync. Regions are cached in data space, so pan and zoom never
-   * touch this; only a change to where the papers actually sit does.
+   * Contours in data space, cached per folder. Each entry is only rebuilt
+   * when that folder's own node-key set or `layoutRevision` changes — a
+   * `setRegions` call that adds or drops one folder must not force the
+   * other three, still-selected folders to recompute (finding 4).
+   */
+  private regionContours = new Map<number, RegionPoint[][]>();
+  private regionSignatures = new Map<number, string>();
+  /** The offscreen layer `drawRegions` composites a folder's fill and dilation into before it is blended onto the plot; sized to the plot rect and reused across regions and frames. */
+  private regionLayerCanvas: HTMLCanvasElement | null = null;
+  private regionLayerContext: CanvasRenderingContext2D | null = null;
+  /**
+   * Bumped whenever a node position could have moved — layout, resize, or a
+   * model sync. Regions are cached in data space, so pan and zoom never touch
+   * this; only a change to where the papers actually sit does.
+   *
+   * A free-axis node drag bumps this only once, on pointer-up, not on every
+   * pointermove frame: the grid each region sums over is ~99×99 cells times
+   * every node in the folder, so recomputing it live for a 500-paper folder
+   * is ~20M distance computations a frame (finding 4). The region freezes at
+   * its pre-drag shape for the drag's duration and catches up when the
+   * pointer releases, the same way pan and zoom already ask nothing of it.
    */
   private layoutRevision = 0;
   /** Papers a seed reached that the library already holds. */
@@ -635,7 +650,9 @@ export class CitationGraphRenderer {
         const world = this.screenToWorld(event.clientX, event.clientY);
         if (this.layout.xMetric === "free") position.x = world.x;
         if (this.layout.yMetric === "free") position.y = world.y;
-        this.layoutRevision += 1;
+        // `layoutRevision` is not bumped here: any selected region's contour
+        // would otherwise resum its whole grid on every drag frame (finding
+        // 4). It catches up once, in `onPointerUp`, when the drag ends.
         this.canvas.style.cursor = "move";
         this.draw();
       }
@@ -678,9 +695,16 @@ export class CitationGraphRenderer {
     this.canvas.releasePointerCapture?.(event.pointerId);
     const wasBackgroundClick =
       this.pointer.down && this.pointer.panning && !this.pointer.moved;
+    const wasNodeDrag = this.pointer.down && Boolean(this.pointer.draggedKey);
     this.pointer.down = false;
     this.pointer.panning = false;
     this.pointer.draggedKey = null;
+    if (wasNodeDrag) {
+      // The one point a free-axis drag's region recomputation is allowed to
+      // land: catch the selected regions up to the node's final position.
+      this.layoutRevision += 1;
+      this.draw();
+    }
     if (wasBackgroundClick) {
       const world = this.screenToWorld(event.clientX, event.clientY);
       if (!this.hitTest(world.x, world.y)) {
@@ -1198,8 +1222,10 @@ export class CitationGraphRenderer {
     }>,
   ): void {
     this.regions = regions;
-    this.regionContours.clear();
-    this.regionRevision = "";
+    // No blanket cache clear: `regionsFor` below keys each folder's contour
+    // on its own node-key set, so a folder whose keys did not change keeps
+    // its cached contour even though `setRegions` runs on every keystroke in
+    // the search box (finding 4).
     this.draw();
   }
 
@@ -1222,18 +1248,23 @@ export class CitationGraphRenderer {
 
   /**
    * Contours are data-space, so pan and zoom never invalidate them — they are
-   * transformed at draw time like the nodes. Only the positions or the
-   * selected set can change them.
+   * transformed at draw time like the nodes. Only a folder's own node-key set
+   * or `layoutRevision` (a position change) can change its contour, and each
+   * folder is checked against its own cached signature, not a single global
+   * one — so `setRegions` clearing one folder's selection, or adding a
+   * fifth and dropping the oldest, cannot force the untouched folders to
+   * recompute (finding 4).
    */
   private regionsFor(): Map<number, RegionPoint[][]> {
-    const revision = `${this.layoutRevision}:${this.regions
-      .map((region) => region.collectionID)
-      .join(",")}`;
-    if (this.regionRevision === revision) return this.regionContours;
-
-    this.regionContours.clear();
     const spread = this.dataSpread();
+    const activeIDs = new Set<number>();
     for (const region of this.regions) {
+      activeIDs.add(region.collectionID);
+      const keySignature = [...region.nodeKeys].sort().join(",");
+      const signature = `${this.layoutRevision}:${keySignature}`;
+      if (this.regionSignatures.get(region.collectionID) === signature) {
+        continue;
+      }
       const points: RegionPoint[] = [];
       for (const key of region.nodeKeys) {
         const position = this.positions.get(key);
@@ -1246,9 +1277,44 @@ export class CitationGraphRenderer {
           pitch: spread * 0.012,
         }),
       );
+      this.regionSignatures.set(region.collectionID, signature);
     }
-    this.regionRevision = revision;
+    // Drop the cache for a folder that is no longer selected at all, so it
+    // does not linger and grow unbounded across a long session.
+    for (const collectionID of [...this.regionContours.keys()]) {
+      if (!activeIDs.has(collectionID)) {
+        this.regionContours.delete(collectionID);
+        this.regionSignatures.delete(collectionID);
+      }
+    }
     return this.regionContours;
+  }
+
+  /**
+   * The offscreen layer `drawRegions` composites each folder's fill and
+   * dilation stroke into before blending it onto the plot — see that
+   * method's docstring for why. Sized to the plot rect in device pixels and
+   * reused across regions and frames; resizing only when the plot itself
+   * resizes, since assigning `canvas.width`/`height` clears it.
+   */
+  private regionLayer(width: number, height: number): CanvasRenderingContext2D {
+    if (!this.regionLayerCanvas) {
+      this.regionLayerCanvas = this.canvas.ownerDocument.createElement(
+        "canvas",
+      ) as HTMLCanvasElement;
+      this.regionLayerContext = this.regionLayerCanvas.getContext("2d");
+    }
+    const canvas = this.regionLayerCanvas;
+    const w = Math.max(1, Math.ceil(width));
+    const h = Math.max(1, Math.ceil(height));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    if (!this.regionLayerContext) {
+      throw new Error("Meristema requires a 2D canvas context.");
+    }
+    return this.regionLayerContext;
   }
 
   /**
@@ -1258,12 +1324,30 @@ export class CitationGraphRenderer {
    * constant amount on screen, while the shape it clears is data-space and so
    * does not change with the zoom. A wide round-joined stroke under the fill
    * is the dilation.
+   *
+   * The fill and the dilation are drawn opaque onto an offscreen layer first,
+   * then that layer is blended onto the plot as one translucent image. Doing
+   * the fill and the stroke as two alpha-0.25 operations straight on the plot
+   * — the previous bug — composites them independently, so the band where
+   * they overlap (just inside the border) reads at roughly 1-(1-0.25)^2 ≈
+   * 0.44: a visibly darker rim around every region. Compositing them first at
+   * full opacity and blending the result once gives one even tone across the
+   * whole interior.
+   *
+   * Drawn inside the plot's clip, like `drawPlotBackdrop`'s own fills: a
+   * hull near the plot's edge must not wash over the panel surround or the
+   * axis furniture outside it.
    */
-  private drawRegions(): void {
+  private drawRegions(plot: PlotRect): void {
     if (!this.regions.length) return;
     const contours = this.regionsFor();
     const ratio = this.ratio;
     const dilation = (this.baseNodeRadius() + 5) * ratio * 2;
+    const context = this.context;
+    context.save();
+    context.beginPath();
+    context.rect(plot.left, plot.top, plot.width, plot.height);
+    context.clip();
     for (const region of this.regions) {
       const loops = contours.get(region.collectionID) ?? [];
       if (!loops.length) continue;
@@ -1276,19 +1360,28 @@ export class CitationGraphRenderer {
         });
         path.closePath();
       }
-      this.context.save();
-      this.context.lineJoin = "round";
-      this.context.lineCap = "round";
-      this.context.strokeStyle = region.color;
-      this.context.globalAlpha = 0.25;
-      this.context.lineWidth = dilation;
-      this.context.stroke(path);
-      this.context.fill(path, "evenodd");
-      this.context.globalAlpha = 1;
-      this.context.lineWidth = 1.6 * ratio;
-      this.context.stroke(path);
-      this.context.restore();
+
+      const layer = this.regionLayer(plot.width, plot.height);
+      layer.clearRect(0, 0, plot.width, plot.height);
+      layer.save();
+      layer.translate(-plot.left, -plot.top);
+      layer.lineJoin = "round";
+      layer.lineCap = "round";
+      layer.strokeStyle = region.color;
+      layer.fillStyle = region.color;
+      layer.lineWidth = dilation;
+      layer.stroke(path);
+      layer.fill(path, "evenodd");
+      layer.restore();
+
+      context.globalAlpha = 0.25;
+      context.drawImage(this.regionLayerCanvas!, plot.left, plot.top);
+      context.globalAlpha = 1;
+      context.strokeStyle = region.color;
+      context.lineWidth = 1.6 * ratio;
+      context.stroke(path);
     }
+    context.restore();
   }
 
   /**
@@ -1436,7 +1529,7 @@ export class CitationGraphRenderer {
       const xScale = axes.xFree ? null : this.axisScale(metricNodes, "x");
       const yScale = axes.yFree ? null : this.axisScale(metricNodes, "y");
       if (framed) this.drawPlotBackdrop(plot, metricNodes, xScale, yScale);
-      this.drawRegions();
+      this.drawRegions(plot);
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
           ? null
@@ -1533,7 +1626,16 @@ export class CitationGraphRenderer {
   }
 
   private tooltipForNode(node: CitationGraphNode): string {
-    const category = this.categories().labelFor(node);
+    // Under "uniform" or a numeric metric, `nodeCategory` returns null for
+    // every node — there is no category to name — so `labelFor` falls back
+    // to the literal string "No value", which is truthy and survives the
+    // `.filter(Boolean)` below. Since "uniform" is the shipped default, that
+    // line appeared on every hover card until this was caught (finding 6).
+    const metric = this.layout.nodeColorMetric;
+    const category =
+      metric === "uniform" || isMetricID(metric)
+        ? ""
+        : this.categories().labelFor(node);
     return [
       node.title,
       node.authors.slice(0, 3).join(", "),

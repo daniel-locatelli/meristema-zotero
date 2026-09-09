@@ -1796,11 +1796,25 @@ export function renderGraphView(
    *
    * Allocates as a side effect: any seed key not already in `seedSwatches`
    * claims a free index here, and that claim is written back to the outer
-   * `seedSwatches` ledger before this returns. That is only safe on a path
-   * that reaches `notifyStateChange()` in the same tick — otherwise a
-   * colour gets allocated (and taken out of the pool) but never persisted,
-   * so a caller that only wants to read the current colours — a tooltip,
-   * an export preview, a diagnostic render — must not call this.
+   * `seedSwatches` ledger before this returns.
+   *
+   * The docstring here used to claim every caller reaches `notifyStateChange`
+   * in the same tick, so an allocation always persists. That is already
+   * false: `applyFilters` → `refreshKeyRail` → `refreshScopeRail` →
+   * `scopeSeedRows` reaches this, and both the search box's `input` listener
+   * and (on some paths) the filter controller's `onChange` call `applyFilters`
+   * without `notifyStateChange` following in the same tick. In practice this
+   * is not a correctness bug: the allocation lands in the outer `seedSwatches`
+   * variable regardless, so a later state change (a tick, a seed add, closing
+   * the graph) still persists it, and if the tab closes first, a fresh ledger
+   * on the next load reallocates the same keys in the same order and lands on
+   * the same colours deterministically. What is actually true is: allocation
+   * can happen on a path that does not itself persist, and that is fine only
+   * because reallocation is deterministic, not because the invariant holds.
+   * The real fix — not done in this pass — is to split the allocating half
+   * (`ensureSwatchesFor`) out of this reader, called only from paths that do
+   * reach `notifyStateChange`, leaving a read-only `seedColorsFor` that never
+   * mutates `seedSwatches` for callers like a tooltip or an export preview.
    */
   const seedColorsFor = (
     projection: GraphFocusProjection,
@@ -3300,11 +3314,24 @@ export function renderGraphView(
    *
    * Allocates as a side effect: a region ID not already in `swatches` claims
    * a free index here, and that claim is written back to the outer
-   * `swatches` ledger before this returns. That is only safe on a path that
-   * reaches `notifyStateChange()` in the same tick — otherwise a colour gets
-   * allocated (and taken out of the pool) but never persisted, so a
-   * read-only caller — a tooltip, an export preview, a diagnostic render —
-   * must not use this.
+   * `swatches` ledger before this returns.
+   *
+   * The docstring here used to claim every caller reaches `notifyStateChange`
+   * in the same tick, so an allocation always persists. That is already
+   * false: `refreshScopeRail` calls this on every `applyFilters`, and
+   * `applyFilters` runs from the search box's `input` listener with no
+   * `notifyStateChange` following in the same tick. This is not a
+   * correctness bug: the allocation lands in the outer `swatches` variable
+   * regardless, so a later state change still persists it, and a fresh
+   * ledger on the next load reallocates the same folder IDs in the same
+   * order and lands on the same colours deterministically. What is actually
+   * true is: allocation may happen on a non-persisting path, in which case
+   * the colour is reallocated deterministically on the next load — not that
+   * the invariant holds. The real fix — not done in this pass — is to split
+   * the allocating half (`ensureSwatchesFor`) out of this reader, called only
+   * from paths that do reach `notifyStateChange`, leaving a read-only
+   * `regionsForRenderer` that never mutates `swatches` for callers like a
+   * tooltip or an export preview.
    */
   regionsForRenderer = (): Array<{
     collectionID: number;
