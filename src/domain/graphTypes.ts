@@ -41,7 +41,7 @@ export type GraphScaleType = "linear" | "log";
 export type GraphColorScheme = "light" | "dark";
 export type GraphNodeSizeMetric = "uniform" | MetricID;
 export type GraphNodeColorMetric =
-  | "collection"
+  | "uniform"
   | "publication-type"
   | "provider"
   | "open-access"

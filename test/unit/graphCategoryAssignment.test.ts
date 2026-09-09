@@ -6,6 +6,7 @@ import {
   graphThemeCustomProperties,
   graphThemeFor,
 } from "../../src/services/graphTheme";
+import { emptySwatchLedger } from "../../src/services/graphSwatchLedger";
 import { assignCategories } from "../../src/services/graphCategoryAssignment";
 
 function node(
@@ -21,6 +22,19 @@ function node(
     isRetracted: null,
     ...overrides,
   } as unknown as CitationGraphNode;
+}
+
+/** One node per publication type given, keyed by type and an index. */
+function nodesOfTypes(types: string[]): CitationGraphNode[] {
+  return types.map((type, index) =>
+    node(`${type}${index}`, { publicationType: type }),
+  );
+}
+
+/** A single node of the given publication type, matching `nodesOfTypes`'s
+ * first node of that type. */
+function nodeOfType(type: string): CitationGraphNode {
+  return node(`${type}0`, { publicationType: type });
 }
 
 const LIGHT = graphThemeFor("light");
@@ -69,7 +83,7 @@ describe("Graph theme tokens", function () {
   });
 });
 
-describe("Rank-based category assignment", function () {
+describe("Category assignment", function () {
   // Publication type is a free-text category, so it can carry more distinct
   // values than there are swatches — which is the case the cap exists for.
   const nodes = [
@@ -92,7 +106,9 @@ describe("Rank-based category assignment", function () {
   ];
 
   it("orders categories by node count and caps the assigned swatches", function () {
-    const assignment = assignCategories(nodes, "publication-type", LIGHT);
+    const assignment = assignCategories(nodes, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
     expect(assignment.entries.map((entry) => entry.key)).to.deep.equal([
       "article",
       "book",
@@ -108,30 +124,38 @@ describe("Rank-based category assignment", function () {
 
   it("breaks count ties by label so assignment is deterministic", function () {
     const shuffled = [...nodes].reverse();
-    const first = assignCategories(nodes, "publication-type", LIGHT);
-    const second = assignCategories(shuffled, "publication-type", LIGHT);
+    const first = assignCategories(nodes, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
+    const second = assignCategories(shuffled, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
     expect(second.entries.map((entry) => entry.key)).to.deep.equal(
       first.entries.map((entry) => entry.key),
     );
   });
 
   it("collapses everything past the limit into one Other entry", function () {
-    const assignment = assignCategories(nodes, "publication-type", LIGHT);
+    const assignment = assignCategories(nodes, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
     expect(assignment.other?.count).to.equal(2);
     expect(assignment.other?.color).to.equal(LIGHT.categorical.other);
   });
 
   it("gives a node with no value the no-value token, never a swatch", function () {
-    const assignment = assignCategories(nodes, "publication-type", LIGHT);
+    const assignment = assignCategories(nodes, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
     expect(assignment.noValue?.count).to.equal(1);
     expect(assignment.noValue?.color).to.equal(LIGHT.categorical.noValue);
-    expect(assignment.colorsFor(node("h0"))).to.deep.equal([
-      LIGHT.categorical.noValue,
-    ]);
+    expect(assignment.colorFor(node("h0"))).to.equal(LIGHT.categorical.noValue);
   });
 
   it("accounts for every node exactly once", function () {
-    const assignment = assignCategories(nodes, "publication-type", LIGHT);
+    const assignment = assignCategories(nodes, "publication-type", LIGHT, {
+      ledger: emptySwatchLedger(),
+    });
     const counted =
       assignment.entries.reduce((sum, entry) => sum + entry.count, 0) +
       (assignment.other?.count ?? 0) +
@@ -139,36 +163,58 @@ describe("Rank-based category assignment", function () {
     expect(counted).to.equal(nodes.length);
   });
 
-  it("splits a node across its collections, largest slice first", function () {
-    const collections = [
-      node("x", { collectionIDs: [1, 2] }),
-      node("y", { collectionIDs: [1] }),
-      node("z", { collectionIDs: [2] }),
-      node("w", { collectionIDs: [1] }),
-    ];
-    const assignment = assignCategories(collections, "collection", LIGHT, {
-      labelFor: (id) => `Folder ${id}`,
-    });
-    expect(assignment.entries.map((entry) => entry.label)).to.deep.equal([
-      "Folder 1",
-      "Folder 2",
-    ]);
-    expect(assignment.colorsFor(collections[0])).to.deep.equal([
-      LIGHT.categorical.swatches[0],
-      LIGHT.categorical.swatches[1],
-    ]);
-  });
-
-  it("draws at most four slices on a heavily filed paper", function () {
-    const heavy = node("x", { collectionIDs: [1, 2, 3, 4, 5, 6] });
-    const assignment = assignCategories([heavy], "collection", LIGHT, {
-      labelFor: (id) => `Folder ${id}`,
-    });
-    expect(assignment.colorsFor(heavy)).to.have.lengthOf(4);
-  });
-
   it("uses the scheme's own swatches", function () {
-    const assignment = assignCategories(nodes, "publication-type", DARK);
+    const assignment = assignCategories(nodes, "publication-type", DARK, {
+      ledger: emptySwatchLedger(),
+    });
     expect(assignment.entries[0].color).to.equal(DARK.categorical.swatches[0]);
+  });
+
+  it("holds a category's colour when another category arrives", function () {
+    // B12: the swatch follows the key, never the rank.
+    const theme = graphThemeFor("light");
+    const small = assignCategories(
+      nodesOfTypes(["article"]),
+      "publication-type",
+      theme,
+      {
+        ledger: emptySwatchLedger(),
+      },
+    );
+    const before = small.colorFor(nodeOfType("article"));
+    const larger = assignCategories(
+      nodesOfTypes(["article", "book", "book", "book"]),
+      "publication-type",
+      theme,
+      { ledger: small.ledger },
+    );
+    expect(larger.colorFor(nodeOfType("article"))).to.equal(before);
+  });
+
+  it("still ranks by count for which categories are named", function () {
+    const theme = graphThemeFor("light");
+    const assignment = assignCategories(
+      nodesOfTypes(["article", "book", "book"]),
+      "publication-type",
+      theme,
+      { ledger: emptySwatchLedger() },
+    );
+    expect(assignment.entries.map((entry) => entry.label)).to.deep.equal([
+      "book",
+      "article",
+    ]);
+  });
+
+  it("returns one colour per node, since no metric is multi-valued now", function () {
+    const theme = graphThemeFor("light");
+    const assignment = assignCategories(
+      nodesOfTypes(["book"]),
+      "publication-type",
+      theme,
+      {
+        ledger: emptySwatchLedger(),
+      },
+    );
+    expect(assignment.colorFor(nodeOfType("book"))).to.be.a("string");
   });
 });
