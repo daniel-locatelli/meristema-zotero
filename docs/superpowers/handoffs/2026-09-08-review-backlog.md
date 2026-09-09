@@ -403,6 +403,15 @@ Pointers: `src/services/graphCategoryAssignment.ts` (the `ranked` sort and
 `entries`), `test/unit/graphCategoryAssignment.test.ts`, the Key's colour
 section in `src/services/graphKeyModel.ts`.
 
+**Resolved by D3.** A folder no longer gets a fill colour at all — it left
+the node and became a region, drawn as a hull behind the plot — and that
+region's colour comes from a ledger keyed on the collection's own ID, which
+hands out the lowest free palette index and holds it while the key lives.
+Ticking or unticking a folder can no longer repaint another's colour, because
+no folder's colour is a function of rank any more.
+`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md` is the
+spec.
+
 ---
 
 ## B13. "+ Add seed" is too dark to read on the dark theme
@@ -762,6 +771,27 @@ glyph. Brainstorm the idea before drawing anything.
 
 Pointers: `addon/content/icons/`, `ICON` in `src/services/menuService.ts`,
 `addon/content/tabIcon.css`, the manifest's icon entries.
+
+---
+
+## B23. A deleted collection's ID can linger in a graph's saved `regions`
+
+Found finishing D3's Task 10. `regions` holds collection IDs, and nothing
+prunes one whose collection has since been deleted from the library. The
+rail's rows come from the library's current collections, so a deleted
+folder gets no row and so no checkbox to untick it with, while its ID stays
+in the saved state. `regionsForRenderer` still draws that ID a region — an
+empty one, since no node carries a deleted collection's ID any more — and it
+still occupies one of the four `MAX_GRAPH_REGIONS` slots, sitting there
+until a fifth pick evicts it.
+
+Fixing it means dropping an ID from `regions` the moment its collection is
+gone, the same way `toggleRow` already drops one the moment it is unticked;
+`snapshot.collections` is what already knows a collection no longer exists.
+
+Pointers: `regions` and `regionsForRenderer` in
+`src/services/graphViewService.ts`, `getState`/`applyState`'s `regions`
+round-trip, `snapshot.collections`.
 
 ---
 

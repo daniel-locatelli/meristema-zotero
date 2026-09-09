@@ -436,10 +436,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     );
     body.append(name, count);
     if (row.kind === "collection") {
+      const collectionID = row.collectionID;
+      body.setAttribute("data-collection-id", String(collectionID));
       body.addEventListener("click", () =>
         options.onScope.selectRow(row, !row.selected),
       );
-      const collectionID = row.collectionID;
       body.addEventListener("pointerenter", () => {
         if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
       });
