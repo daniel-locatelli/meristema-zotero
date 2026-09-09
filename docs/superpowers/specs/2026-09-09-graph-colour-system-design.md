@@ -114,6 +114,14 @@ A seed's colour is a property of the seed, not of its position: it is allocated
 when the seed is added and held until the seed is removed, so removing seed 1
 leaves the others alone.
 
+Past six seeds the palette is exhausted and two seeds must share a hue. The
+seventh takes the **longest-released** colour, or, if all six are held, the one
+held by the oldest live seed — never `index % 6`, which would repaint on every
+removal and reintroduce the fault this replaces. Two seeds of one colour are
+told apart in the rail, whose row hover already lights one seed and its edges;
+the plot is not asked to carry a distinction it has no channel for. Six is well
+past the seed counts in use, so this is a guard, not a working mode.
+
 ### The in-library ring
 
 `inLibraryRingColor` already derives from the node's fill — a 45% brightening —
@@ -155,10 +163,16 @@ The scope row splits into two hit zones.
 
 Selection is multi, by plain click, toggling; no modifier keys, because seeing
 two folders' territories at once is the comparison a hull is best at. A cap of
-**four** regions holds; selecting a fifth releases the oldest. Selecting an
-unticked folder ticks it first, since an out-of-scope folder has no papers on
-the plot and its region would be empty. A parent's region covers its whole
-subtree, matching how scope already cascades through `collectionScopeIDs`.
+**four** regions holds; selecting a fifth releases the oldest. A parent's
+region covers its whole subtree, matching how scope already cascades through
+`collectionScopeIDs`.
+
+Scope and selection stay consistent in both directions. Selecting an unticked
+folder ticks it first, since an out-of-scope folder has no papers on the plot
+and its region would be empty; and unticking a selected folder clears its
+selection, for the same reason — a region with nothing inside it is a shape
+that says nothing. Ticking it again does not bring the region back: the reader
+asks for a region by selecting it.
 
 This is new behaviour on an existing control: the row is a `<label>` wrapping
 its checkbox today, so clicking the name currently ticks it. After this, only
@@ -167,11 +181,34 @@ the box ticks.
 ### Where the regions are computed
 
 `src/services/graphFolderRegion.ts` is new, DOM-free and unit-tested. It takes
-node positions in screen space, a set of keys for one folder, and a grid pitch,
-and returns closed contours.
+node positions **in data space**, a set of keys for one folder, and a grid
+pitch, and returns closed contours in data space.
+
+Data space, not screen space, and that is the load-bearing choice. A field
+built from screen positions with a falloff in device pixels makes the contour a
+function of the zoom: zoom in and a folder's territory fragments into islands,
+zoom out and separate islands merge, because the nodes move apart and together
+on screen while the papers do not. The reader's handle on a folder would move
+under them again, in a new way. In data space the topology is invariant under
+pan and zoom, and a folder fragments only when its papers genuinely are apart.
+
+The mirror problem — a node's disc is a constant size in device pixels, so a
+data-space hull is a vast halo around small marks at high zoom and sits inside
+them at low zoom — is solved at draw time, not in the field: the contour is
+**dilated by a device-pixel amount** equal to the node radius plus a gap, by
+stroking the path with a wide, round-joined stroke beneath the fill. Clearance
+from the marks is then constant on screen while the shape being cleared is not
+a function of zoom.
+
+Pan and zoom therefore need no recomputation at all: the cached path is
+transformed by the same viewport transform the nodes use. The field is rebuilt
+only when node positions or the selected set change.
 
 - A scalar field on a fixed-pitch grid: each node contributes a radial falloff
-  over a radius in device pixels, summed.
+  over a radius in data units, summed. The grid's domain extends at least one
+  and a half falloff radii beyond the bounding box of the folder's nodes, so
+  the field reaches its threshold inside the grid and the contour tapers
+  closed instead of being clipped square at the edge.
 - **Marching squares** at a threshold, with the full case table and saddle
   cases disambiguated by the cell's mean value, so a contour never
   self-intersects. Linear interpolation along cell edges places each vertex.
@@ -201,6 +238,10 @@ rank order, so nothing repaints on the upgrade itself.
 
 - `graphFolderRegion` unit tests: a known field to a known contour, an island
   case, a hole case, a saddle case, an empty folder and a single-node folder.
+  Two more that guard the choices above: the same nodes under two different
+  zoom levels produce the **same contour** (the field is data-space, so zoom
+  cannot fragment a folder), and a folder whose nodes sit at the extreme of the
+  plot produces a **closed** contour, not one clipped by the grid's edge.
 - A **palette validator** as a unit test over the ramp, the eight swatches and
   the six seed colours together, in both themes: lightness band, chroma floor,
   CVD-simulated separation and normal-vision separation. This is new. Nothing
