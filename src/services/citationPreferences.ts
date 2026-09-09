@@ -174,9 +174,24 @@ const DEFAULT_GRAPH_LAYOUT: GraphLayoutOptions = {
   yMetric: "citations",
   yScale: "linear",
   nodeSizeMetric: "citations",
-  nodeColorMetric: "collection",
+  nodeColorMetric: "uniform",
   nodeLabelMode: "author-year",
 };
+
+/**
+ * "collection" was the default colouring until folders became regions. The
+ * appearance schema version is deliberately not bumped for it: a mismatch
+ * makes this function write DEFAULT_GRAPH_LAYOUT over the whole record, and
+ * changing one field is no reason to throw away the reader's axes, scales,
+ * size metric and label mode.
+ */
+function withoutRetiredColouring(
+  options: GraphLayoutOptions,
+): GraphLayoutOptions {
+  return (options.nodeColorMetric as string) === "collection"
+    ? { ...options, nodeColorMetric: "uniform" }
+    : options;
+}
 
 export function getGraphAppearance(): GraphLayoutOptions {
   const storedVersion = Number(
@@ -191,11 +206,12 @@ export function getGraphAppearance(): GraphLayoutOptions {
   }
 
   if (storedVersion !== GRAPH_APPEARANCE_SCHEMA_VERSION) {
-    setGraphAppearance(DEFAULT_GRAPH_LAYOUT);
-    return { ...DEFAULT_GRAPH_LAYOUT };
+    const reset = withoutRetiredColouring(DEFAULT_GRAPH_LAYOUT);
+    setGraphAppearance(reset);
+    return { ...reset };
   }
 
-  return { ...DEFAULT_GRAPH_LAYOUT, ...parsed };
+  return withoutRetiredColouring({ ...DEFAULT_GRAPH_LAYOUT, ...parsed });
 }
 export function setGraphAppearance(options: GraphLayoutOptions): void {
   Zotero.Prefs.set(key("graphAppearance"), JSON.stringify(options), true);

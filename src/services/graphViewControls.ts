@@ -419,12 +419,6 @@ export function createAxesAppearance(
     available: boolean;
   }> = [
     {
-      value: "collection",
-      label: "Collection",
-      description: "Colour nodes by their Zotero collection membership.",
-      available: nodes.some((node) => node.collectionIDs.length > 0),
-    },
-    {
       value: "publication-type",
       label: "Publication type",
       description:
@@ -473,15 +467,13 @@ export function createAxesAppearance(
       metricDescription(definition),
     );
   }
-  if (!colorMetric.options.length) {
-    appendMetricOption(
-      document,
-      colorMetric,
-      "provider",
-      "Uniform",
-      "No node colour metric has data for the currently loaded papers.",
-    );
-  }
+  const uniformColor = element(document, "option");
+  uniformColor.value = "uniform";
+  uniformColor.textContent = "Uniform";
+  uniformColor.title =
+    "One colour for every node. Folders are shown as regions, from the rail.";
+  uniformColor.dataset.metricDescription = uniformColor.title;
+  colorMetric.prepend(uniformColor);
   selectAvailableValue(colorMetric, initial.nodeColorMetric);
 
   const labels = element(document, "select", "cm-select");
