@@ -43,6 +43,8 @@ import {
   assignCategories,
   type CategoryAssignment,
 } from "./graphCategoryAssignment";
+import { folderRegionContours, type RegionPoint } from "./graphFolderRegion";
+import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
 import {
   devicePixelScale,
   offscreenPanDelta,
@@ -177,6 +179,8 @@ export class CitationGraphRenderer {
   private theme: GraphTheme = graphThemeFor("light");
   private categoryAssignment: CategoryAssignment | null = null;
   private categoryAssignmentKey = "";
+  /** Which palette index each category key holds, carried across reassignment. */
+  private categorySwatchLedger: SwatchLedgerState = emptySwatchLedger();
   private readonly onSelectionChange: (node: CitationGraphNode | null) => void;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
@@ -206,6 +210,21 @@ export class CitationGraphRenderer {
   private seedKeys = new Set<string>();
   /** Each seed's own colour, so the rail's bullseye and the plot's agree. */
   private seedColors = new Map<string, string>();
+  /** The folders drawn as regions, with the papers each one holds. */
+  private regions: ReadonlyArray<{
+    collectionID: number;
+    color: string;
+    nodeKeys: ReadonlySet<string>;
+  }> = [];
+  /** Contours in data space, cached until the positions or the set change. */
+  private regionContours = new Map<number, RegionPoint[][]>();
+  private regionRevision = "";
+  /**
+   * Bumped whenever a node position could have moved — layout, resize, drag,
+   * or a model sync. Regions are cached in data space, so pan and zoom never
+   * touch this; only a change to where the papers actually sit does.
+   */
+  private layoutRevision = 0;
   /** Papers a seed reached that the library already holds. */
   private inLibraryReachedKeys = new Set<string>();
   private hoverKey: string | null = null;
@@ -480,6 +499,7 @@ export class CitationGraphRenderer {
       preserveFreeX,
       preserveFreeY,
     );
+    this.layoutRevision += 1;
   }
 
   private axesState(): PlotAxisState {
@@ -522,17 +542,22 @@ export class CitationGraphRenderer {
     );
   }
 
+  /** The world-space radius of a node with no size metric applied. */
+  private baseNodeRadius(): number {
+    return 7;
+  }
+
   private nodeRadius(
     node: CitationGraphNode,
     domain?: [number, number] | null,
   ): number {
     const metric = this.layout.nodeSizeMetric;
-    if (metric === "uniform") return 7;
+    if (metric === "uniform") return this.baseNodeRadius();
     const value = metricNumber(node, metric);
     if (value === null) return MIN_NODE_RADIUS;
     const metricNodes = this.layoutNodes();
     const resolved = domain ?? metricExtent(metricNodes, metric);
-    if (!resolved) return 7;
+    if (!resolved) return this.baseNodeRadius();
     if (resolved[0] === resolved[1]) {
       const hasMissingValues = metricNodes.some(
         (visibleNode) => metricNumber(visibleNode, metric) === null,
@@ -610,6 +635,7 @@ export class CitationGraphRenderer {
         const world = this.screenToWorld(event.clientX, event.clientY);
         if (this.layout.xMetric === "free") position.x = world.x;
         if (this.layout.yMetric === "free") position.y = world.y;
+        this.layoutRevision += 1;
         this.canvas.style.cursor = "move";
         this.draw();
       }
@@ -799,36 +825,42 @@ export class CitationGraphRenderer {
         this.getScopeNodes(),
         this.layout.nodeColorMetric,
         this.theme,
-        { labelFor: (id) => this.collectionLabels.get(id) ?? null },
+        {
+          labels: { labelFor: (id) => this.collectionLabels.get(id) ?? null },
+          ledger: this.categorySwatchLedger,
+        },
       );
+      this.categorySwatchLedger = this.categoryAssignment.ledger;
       this.categoryAssignmentKey = key;
     }
     return this.categoryAssignment;
   }
 
-  private nodeColors(
+  private nodeColor(
     node: CitationGraphNode,
     colorDomain: [number, number] | null,
-  ): string[] {
+  ): string {
+    // A seed is always its own colour, whatever the colour metric. Seeds are
+    // the anchor set the reader navigates by; their metric values are read in
+    // the rail and the detail pane, not off the plot.
+    const seed = this.seedColors.get(node.key);
+    if (seed) return seed;
     const metric = this.layout.nodeColorMetric;
-    if (!isMetricID(metric)) return this.categories().colorsFor(node);
+    if (metric === "uniform") return this.theme.states.uniformFill;
+    if (!isMetricID(metric)) return this.categories().colorFor(node);
     const value = metricNumber(node, metric);
-    if (value === null || !colorDomain) {
-      return [this.theme.categorical.noValue];
-    }
-    return [
-      numericColor(
-        scaleValue(value, colorDomain[0], colorDomain[1], "linear"),
-        this.theme,
-      ),
-    ];
+    if (value === null || !colorDomain) return this.theme.categorical.noValue;
+    return numericColor(
+      scaleValue(value, colorDomain[0], colorDomain[1], "linear"),
+      this.theme,
+    );
   }
 
   private drawNode(
     node: CitationGraphNode,
     position: Position,
     radius: number,
-    colors: string[],
+    color: string,
     emphasis: number,
   ): void {
     const context = this.context;
@@ -839,23 +871,10 @@ export class CitationGraphRenderer {
     context.globalAlpha = emphasis;
     context.save();
     if (ghosted) context.globalAlpha = 0.46 * emphasis;
-    const slice = (Math.PI * 2) / Math.max(1, colors.length);
-    colors.forEach((color, index) => {
-      context.beginPath();
-      context.moveTo(position.x, position.y);
-      context.arc(
-        position.x,
-        position.y,
-        radius,
-        -Math.PI / 2 + slice * index,
-        -Math.PI / 2 + slice * (index + 1),
-      );
-      context.closePath();
-      context.fillStyle = color;
-      context.fill();
-    });
     context.beginPath();
     context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+    context.fillStyle = color;
+    context.fill();
     context.lineWidth = (node.isRetracted ? 3 : 1.1) * ratio;
     if (ghosted) context.setLineDash([4 * ratio, 3 * ratio]);
     context.strokeStyle = node.isRetracted
@@ -882,10 +901,7 @@ export class CitationGraphRenderer {
       context.beginPath();
       context.arc(position.x, position.y, radius + 2.5 * ratio, 0, Math.PI * 2);
       context.lineWidth = 1.4 * ratio;
-      context.strokeStyle = inLibraryRingColor(
-        colors[0] ?? this.theme.inks.primary,
-        this.theme,
-      );
+      context.strokeStyle = inLibraryRingColor(color, this.theme);
       context.stroke();
       context.restore();
     }
@@ -1171,6 +1187,111 @@ export class CitationGraphRenderer {
   }
 
   /**
+   * The folders drawn behind the nodes, at most four at once — the caller
+   * enforces the cap, not this renderer.
+   */
+  public setRegions(
+    regions: ReadonlyArray<{
+      collectionID: number;
+      color: string;
+      nodeKeys: ReadonlySet<string>;
+    }>,
+  ): void {
+    this.regions = regions;
+    this.regionContours.clear();
+    this.regionRevision = "";
+    this.draw();
+  }
+
+  /** The larger side of the laid-out plot, in data units. */
+  private dataSpread(): number {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const position of this.positions.values()) {
+      minX = Math.min(minX, position.x);
+      maxX = Math.max(maxX, position.x);
+      minY = Math.min(minY, position.y);
+      maxY = Math.max(maxY, position.y);
+    }
+    const width = maxX - minX;
+    const height = maxY - minY;
+    return Math.max(width, height, 1);
+  }
+
+  /**
+   * Contours are data-space, so pan and zoom never invalidate them — they are
+   * transformed at draw time like the nodes. Only the positions or the
+   * selected set can change them.
+   */
+  private regionsFor(): Map<number, RegionPoint[][]> {
+    const revision = `${this.layoutRevision}:${this.regions
+      .map((region) => region.collectionID)
+      .join(",")}`;
+    if (this.regionRevision === revision) return this.regionContours;
+
+    this.regionContours.clear();
+    const spread = this.dataSpread();
+    for (const region of this.regions) {
+      const points: RegionPoint[] = [];
+      for (const key of region.nodeKeys) {
+        const position = this.positions.get(key);
+        if (position) points.push({ x: position.x, y: position.y });
+      }
+      this.regionContours.set(
+        region.collectionID,
+        folderRegionContours(points, {
+          radius: spread * 0.06,
+          pitch: spread * 0.012,
+        }),
+      );
+    }
+    this.regionRevision = revision;
+    return this.regionContours;
+  }
+
+  /**
+   * A folder is a region behind the nodes, not a slice of their fill: cutting
+   * a paper filed in three folders into three pie slices left the fill unable
+   * to carry a metric at the same time. The hull clears the node discs by a
+   * constant amount on screen, while the shape it clears is data-space and so
+   * does not change with the zoom. A wide round-joined stroke under the fill
+   * is the dilation.
+   */
+  private drawRegions(): void {
+    if (!this.regions.length) return;
+    const contours = this.regionsFor();
+    const ratio = this.ratio;
+    const dilation = (this.baseNodeRadius() + 5) * ratio * 2;
+    for (const region of this.regions) {
+      const loops = contours.get(region.collectionID) ?? [];
+      if (!loops.length) continue;
+      const path = new Path2D();
+      for (const loop of loops) {
+        loop.forEach((point, index) => {
+          const screen = this.projectToScreen(point);
+          if (index === 0) path.moveTo(screen.x, screen.y);
+          else path.lineTo(screen.x, screen.y);
+        });
+        path.closePath();
+      }
+      this.context.save();
+      this.context.lineJoin = "round";
+      this.context.lineCap = "round";
+      this.context.strokeStyle = region.color;
+      this.context.globalAlpha = 0.25;
+      this.context.lineWidth = dilation;
+      this.context.stroke(path);
+      this.context.fill(path, "evenodd");
+      this.context.globalAlpha = 1;
+      this.context.lineWidth = 1.6 * ratio;
+      this.context.stroke(path);
+      this.context.restore();
+    }
+  }
+
+  /**
    * The frame around the plot, the ticks hanging outside it, and the axis
    * titles. The frame replaces the two bare axis lines this used to draw: one
    * hairline rectangle says the same thing and closes the figure.
@@ -1315,6 +1436,7 @@ export class CitationGraphRenderer {
       const xScale = axes.xFree ? null : this.axisScale(metricNodes, "x");
       const yScale = axes.yFree ? null : this.axisScale(metricNodes, "y");
       if (framed) this.drawPlotBackdrop(plot, metricNodes, xScale, yScale);
+      this.drawRegions();
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
           ? null
@@ -1388,8 +1510,8 @@ export class CitationGraphRenderer {
         this.drawNode(
           node,
           position,
-          radii.get(node.key) ?? 7 * this.ratio,
-          this.nodeColors(node, colorDomain),
+          radii.get(node.key) ?? this.baseNodeRadius() * this.ratio,
+          this.nodeColor(node, colorDomain),
           this.emphasisAlphaFor(node.key),
         );
       }
@@ -1411,13 +1533,13 @@ export class CitationGraphRenderer {
   }
 
   private tooltipForNode(node: CitationGraphNode): string {
-    const collections = this.categories().labelsFor(node);
+    const category = this.categories().labelFor(node);
     return [
       node.title,
       node.authors.slice(0, 3).join(", "),
       node.year ? String(node.year) : "",
       node.citationCount === null ? "" : `${node.citationCount} citations`,
-      collections.length ? collections.join(" · ") : "Unfiled",
+      category,
       node.isRetracted ? "RETRACTED" : "",
     ]
       .filter(Boolean)
@@ -1491,6 +1613,7 @@ export class CitationGraphRenderer {
       if (!this.model.nodes.some((node) => node.key === key)) continue;
       this.positions.set(key, { x: position.x, y: position.y });
     }
+    this.layoutRevision += 1;
     this.draw();
   }
 
