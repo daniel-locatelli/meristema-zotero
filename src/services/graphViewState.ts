@@ -351,11 +351,16 @@ function migratedRegions(ticks: GraphViewCollectionTicks): number[] {
  * Parsed defensively: a hand-edited, truncated or hostile record must not
  * throw. A version 2 record has neither field, which yields an empty ledger
  * here — correct, since it carried none.
+ *
+ * `assigned` must be a plain object, not an array: `Object.entries` would
+ * otherwise walk an array's indices as if they were keys, producing a
+ * plausible-looking but nonsensical map.
  */
 function parsedLedger(raw: unknown): SwatchLedgerState {
   const record = (isRecord(raw) ? raw : {}) as Partial<SwatchLedgerState>;
   const assigned: Record<string, number> = {};
-  for (const [key, value] of Object.entries(record.assigned ?? {})) {
+  const assignedSource = isRecord(record.assigned) ? record.assigned : {};
+  for (const [key, value] of Object.entries(assignedSource)) {
     if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
       assigned[key] = value;
     }
@@ -398,21 +403,12 @@ function migrateFromVersion1(
   };
 }
 
-/**
- * Accepts either a serialised recipe or an already-parsed record, since a
- * caller that has round-tripped a state through `JSON.stringify`/`JSON.parse`
- * for a deep clone ends up holding the latter.
- */
-export function parseGraphViewState(json: unknown): GraphViewState | null {
+export function parseGraphViewState(json: string): GraphViewState | null {
   let raw: unknown;
-  if (typeof json === "string") {
-    try {
-      raw = JSON.parse(json);
-    } catch {
-      return null;
-    }
-  } else {
-    raw = json;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return null;
   }
   if (!isRecord(raw)) return null;
   if (

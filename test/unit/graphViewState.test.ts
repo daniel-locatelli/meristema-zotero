@@ -327,13 +327,13 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
 describe("version 3", function () {
   it("keeps the regions a graph was saved with", function () {
     const state = { ...emptyGraphViewState(), regions: [7, 9] };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(state)));
+    const parsed = parseGraphViewState(JSON.stringify(state));
     expect(parsed?.regions).to.deep.equal([7, 9]);
   });
 
   it("caps the regions it will accept", function () {
     const state = { ...emptyGraphViewState(), regions: [1, 2, 3, 4, 5, 6] };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(state)));
+    const parsed = parseGraphViewState(JSON.stringify(state));
     expect(parsed?.regions).to.have.length(MAX_GRAPH_REGIONS);
   });
 
@@ -345,7 +345,7 @@ describe("version 3", function () {
       version: 2,
       collections: { base: "none", except: [12, 4, 30] },
     };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    const parsed = parseGraphViewState(JSON.stringify(legacy));
     expect(parsed?.regions).to.deep.equal([4, 12, 30]);
   });
 
@@ -356,7 +356,7 @@ describe("version 3", function () {
       version: 2,
       collections: { base: "all", except: [] },
     };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    const parsed = parseGraphViewState(JSON.stringify(legacy));
     expect(parsed?.regions).to.deep.equal([]);
   });
 
@@ -366,15 +366,27 @@ describe("version 3", function () {
       version: 2,
       collections: { base: "none", except: [5, 4, 3, 2, 1] },
     };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    const parsed = parseGraphViewState(JSON.stringify(legacy));
     expect(parsed?.regions).to.deep.equal([1, 2, 3, 4]);
   });
 
   it("starts a version 2 graph with empty ledgers", function () {
     const legacy = { ...emptyGraphViewState(), version: 2 };
-    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    const parsed = parseGraphViewState(JSON.stringify(legacy));
     expect(parsed?.swatches.assigned).to.deep.equal({});
     expect(parsed?.seedSwatches.assigned).to.deep.equal({});
+  });
+
+  it("degrades an array-shaped assigned ledger to an empty map", function () {
+    // A hostile or corrupt record could carry `assigned` as an array. Left
+    // unguarded, Object.entries would walk its indices as if they were
+    // keys, producing a plausible-looking but nonsensical map.
+    const hostile = {
+      ...emptyGraphViewState(),
+      swatches: { assigned: [1, 2, 3], releasedOrder: [] },
+    };
+    const parsed = parseGraphViewState(JSON.stringify(hostile));
+    expect(parsed?.swatches.assigned).to.deep.equal({});
   });
 });
 
