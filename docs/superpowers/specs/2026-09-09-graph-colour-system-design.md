@@ -223,16 +223,42 @@ cached against a revision the way `categoryAssignment` already is.
 
 ### State and migration
 
-State version **3**. New in the saved graph: the selected-region set, the
-colour assignment map, and seed colours as identity rather than position.
+Two stores are involved, and they are not the one store an earlier draft of
+this spec assumed.
 
-`"collection"` is today's **default** colour metric, so almost every saved graph
-carries it, and it is being removed. Such a graph migrates to `Uniform` fill
-**plus regions selected for its top-ranked folders, up to the cap of four** —
-so it opens looking like it did in spirit, its folders visible in colour,
-rather than opening grey. A graph already on a numeric or other categorical
-metric keeps its metric; it gains an assignment map seeded from its current
-rank order, so nothing repaints on the upgrade itself.
+**The colour metric is a preference, not part of a graph.** `nodeColorMetric`
+lives in `GraphLayoutOptions`, held in the single `graphAppearance` preference
+(`citationPreferences.ts`) and shared by every graph. So no saved graph carries
+`"collection"` and none needs migrating for it. `DEFAULT_GRAPH_LAYOUT`'s
+`nodeColorMetric` becomes `"uniform"`, and `getGraphAppearance` coerces a
+stored `"collection"` — now a value that no longer exists — to `"uniform"` on
+read, leaving every other option untouched.
+
+The appearance schema version is deliberately **not** bumped.
+`GRAPH_APPEARANCE_SCHEMA_VERSION` is a blunt instrument: a mismatch makes
+`getGraphAppearance` write `DEFAULT_GRAPH_LAYOUT` over the whole record, which
+would throw away the reader's axes, scales, size metric and label mode to
+change one field. The coercion above does the same job and costs them nothing.
+
+**State version 3** covers what is genuinely per graph: the selected-region
+set (ordered oldest first, capped at four), the swatch assignment map, and each
+seed's colour index.
+
+A version 2 graph is migrated by its ticks, because `parseGraphViewState` has a
+recipe and no nodes — it cannot rank folders by how many papers they hold, and
+must not pretend to.
+
+- Ticks of `{ base: "none", except: [...] }` — a graph made from folders — take
+  those folders as their regions, in ascending ID order, capped at four. The
+  graph opens showing the folders it was made from, which is what it looked
+  like when folder colour was the default fill, and is the same rule F7 asks
+  for on a new graph.
+- Ticks of `{ base: "all", ... }` — a whole-library graph — take no regions.
+  Choosing four folders out of a library the reader never singled out would be
+  noise dressed as continuity.
+
+Neither case can repaint anything on upgrade, since a version 2 graph has no
+recorded assignments to disagree with; the map fills as folders are selected.
 
 ## Verification
 
