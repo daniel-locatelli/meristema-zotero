@@ -4027,7 +4027,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_012QcQDybq8ac6xQ1bmCjzQa"
 ```
 
-- [ ] **Step 7: Build the XPI and push**
+- [x] **Step 7: Build the XPI and push**
 
 ```bash
 npm run build
