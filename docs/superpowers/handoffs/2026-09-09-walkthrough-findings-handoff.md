@@ -19,7 +19,7 @@ saved work was lost in the migration.
 
 What the walk found is a layer under the checks — the marks are right and the
 menus are right, but the colours behind the marks and the dressing around the
-menus are not. Fifteen items: **B12 to B21**, **F5 to F7**, **D3 to D5**, all
+menus are not. Seventeen items: **B12 to B22**, **F5 to F8**, **D3 to D5**, all
 written up in `2026-09-08-review-backlog.md` with pointers.
 
 ## Start with D3, not with B12
@@ -97,6 +97,38 @@ Two notes worth keeping:
 - **B19's label was deliberate.** "New { $graph }" exists so a folder already
   named like a graph does not read "New PhD Graph Graph". A flat "Create a new
   graph" solves that too, so the constraint is satisfied, not ignored.
+
+## Why Advanced is nearly empty, which is worth not re-deriving
+
+The user asked why most papers carry so little under Advanced. Four reasons,
+none of them visible in the product, traced through the code this session and
+written up as **F8**; **B22** is the user's request that the section stop being
+collapsed and stop padding itself with dashes.
+
+1. **No identifier, no enrichment — the big one.** `providerTasks` only builds
+   a provider task for a work an identifier function can name. OpenAlex needs
+   a DOI or an OpenAlex ID already on the record; Semantic Scholar needs a
+   DOI, PMID, arXiv ID or ISBN. A paper with none of those is never asked
+   about, so FWCI, percentile, influential citations and the journal indices
+   stay null no matter how often it is refreshed. Books, chapters, reports,
+   theses and standards are the usual casualties — the same population as F3.
+2. **Two providers, different coverage.** FWCI, percentile, top 1%/10% and
+   citations-by-year are OpenAlex's; influential citations are Semantic
+   Scholar's; the journal indices come from OpenAlex's source record. Disable
+   a provider and its rows can never fill.
+3. **Enrichment only runs where an update ran.** It is called for the records
+   that _changed_ in a run, and the automatic sweep covers the libraries
+   ticked in settings plus items modified since. An item that has never been
+   through an update has no metric record, and every Advanced value is read
+   off that record.
+4. **Some rows are computed, not fetched.** Reference coverage, mean reference
+   age and spread, estimated self-citations and connections in library are
+   derived from the reference list, so they wait on Refresh or Update
+   connections.
+
+The trap in B22: hiding the empty rows hides reason 1 as well, and a reader
+would never learn that adding a DOI is what would fill them. Decide B22 and F8
+together.
 
 ## Three questions the user asked, answered
 

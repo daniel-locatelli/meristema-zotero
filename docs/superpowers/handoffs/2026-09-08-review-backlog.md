@@ -570,6 +570,81 @@ Pointers: the `collectionTicks` initialiser in
 
 ---
 
+## B22. Advanced is collapsed, and pads itself with dashes
+
+Found in the 2026-09-09 walk-through of Stage 2. Two things the user wants
+changed about the detail pane's Advanced section:
+
+- **It should not be collapsed.** Nothing in it is editable, so there is
+  nothing to protect the reader from; hiding it behind a disclosure only
+  hides what the plugin knows.
+- **It should show what is known and hide the rest.** `advancedMetrics` walks
+  every registry entry whose `itemPane` is `"advanced"` and prints `—` when
+  the value is null, so the section is the same nineteen rows for every paper
+  and most of them are dashes.
+
+The one thing to decide before doing it: an unenriched paper would then have
+an **empty** Advanced section, which hides the fact that the data exists and
+could be fetched. See F8 — the honest version says which rows are missing
+_because nothing has been fetched yet_ and offers the fetch, rather than
+silently dropping them.
+
+Pointers: `advancedMetrics` and `createOverviewMetrics` in
+`src/services/paperDetailView.ts`; `METRIC_DEFINITIONS` and
+`SUPPLEMENTARY_PROPERTY_DEFINITIONS` in `src/services/metricRegistry.ts`
+carry the `itemPane: "advanced"` flags.
+
+---
+
+## F8. Nothing says why a paper has no metrics, and most papers have none
+
+The user's question from the walk-through: "why is it that most items do not
+have so much information under Advanced?" There are four reasons, none of
+them visible in the UI, and the first is the big one.
+
+**1. No identifier, no enrichment.** `providerTasks` only builds a task for a
+work that `openAlexIdentifierForWork` or `semanticScholarIdentifierForWork`
+can name. OpenAlex needs a DOI (or an OpenAlex ID already on the record);
+Semantic Scholar needs a DOI, PMID, arXiv ID or ISBN. A paper with none of
+those is never asked about, so FWCI, percentile, influential citations and
+the journal indices stay null forever, however many times it is refreshed.
+Books, chapters, reports, theses and standards are the usual casualties —
+which is the same population as F3.
+
+**2. The fields come from two providers with different coverage.** FWCI,
+citation percentile, top 1%/10% and citations-by-year are OpenAlex's;
+influential citations are Semantic Scholar's; journal h-index, i10 and
+two-year mean citedness come from OpenAlex's source record. Disable a
+provider in settings and its rows can never fill, and nothing says so.
+
+**3. Enrichment only runs where an update ran.** `citationUpdateService` calls
+`enrichCitationMetricRecords` for the records that _changed_ in that run, and
+the automatic coordinator only sweeps at startup for the libraries ticked in
+Meristema's settings, plus items modified since. An item in an unticked
+library, or one that has never been through an update, has no metric record
+at all, and `citationGraphService` reads every Advanced value off that record.
+
+**4. Some rows are computed, not fetched.** Reference coverage, mean reference
+age, reference-age spread, estimated self-citations and connections in library
+are derived from the item's reference list, so they stay null until the
+references have been fetched — the Refresh or Update connections path.
+
+What to build is a question for the design, not a given: a line saying why a
+row is missing, a badge on papers no provider can identify, a prompt to add a
+DOI, or simply a "Fetch metrics" action where the dashes are now. Decide it
+with B22, because B22 hides exactly the rows this entry wants to explain.
+
+Pointers: `providerTasks`, `needsOpenAlexEnrichment` and
+`needsSemanticScholarEnrichment` in `src/services/batchEnrichmentService.ts`;
+`semanticScholarIdentifierForWork` and `openAlexIdentifierForWork` in
+`src/providers/providerIdentifiers.ts`;
+`enrichCitationMetricRecords`'s caller in
+`src/services/citationUpdateService.ts`;
+`getSelectedCitationUpdateLibraryIDs` in
+`src/services/automaticUpdateCoordinator.ts`.
+
+---
+
 ## D3. The colour system has four palettes that collide
 
 Found in the walk-through, check 3 and an extra note; the largest finding of
