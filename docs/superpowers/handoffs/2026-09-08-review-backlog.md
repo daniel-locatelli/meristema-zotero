@@ -578,16 +578,13 @@ changed about the detail pane's Advanced section:
 - **It should not be collapsed.** Nothing in it is editable, so there is
   nothing to protect the reader from; hiding it behind a disclosure only
   hides what the plugin knows.
-- **It should show what is known and hide the rest.** `advancedMetrics` walks
-  every registry entry whose `itemPane` is `"advanced"` and prints `—` when
-  the value is null, so the section is the same nineteen rows for every paper
-  and most of them are dashes.
-
-The one thing to decide before doing it: an unenriched paper would then have
-an **empty** Advanced section, which hides the fact that the data exists and
-could be fetched. See F8 — the honest version says which rows are missing
-_because nothing has been fetched yet_ and offers the fetch, rather than
-silently dropping them.
+  **Decided 2026-09-09: the rows stay.** The user's first thought was to hide
+  what has no value, and then not to: a dash is evidence that the plugin looked
+  and found nothing, and hiding it would hide the reason as well — see F8, and
+  F9, which is what actually fixes the dashes. So this entry is now the first
+  half only: open the section, keep every row. If the dashes still read as noise
+  once F9 lands, revisit it then, with the rows that are still empty as the
+  evidence.
 
 Pointers: `advancedMetrics` and `createOverviewMetrics` in
 `src/services/paperDetailView.ts`; `METRIC_DEFINITIONS` and
@@ -602,14 +599,22 @@ The user's question from the walk-through: "why is it that most items do not
 have so much information under Advanced?" There are four reasons, none of
 them visible in the UI, and the first is the big one.
 
-**1. No identifier, no enrichment.** `providerTasks` only builds a task for a
-work that `openAlexIdentifierForWork` or `semanticScholarIdentifierForWork`
-can name. OpenAlex needs a DOI (or an OpenAlex ID already on the record);
-Semantic Scholar needs a DOI, PMID, arXiv ID or ISBN. A paper with none of
-those is never asked about, so FWCI, percentile, influential citations and
-the journal indices stay null forever, however many times it is refreshed.
-Books, chapters, reports, theses and standards are the usual casualties —
-which is the same population as F3.
+**1. Nothing the providers can name — the big one, but not as blunt as it
+first looks.** The batch enrichment pass only builds a task for a work that
+`openAlexIdentifierForWork` or `semanticScholarIdentifierForWork` can name:
+OpenAlex wants a DOI or an OpenAlex ID already on the record, Semantic Scholar
+a DOI, PMID, arXiv ID or ISBN. But the _core_ lookup that runs first has an
+**exact-title fallback** (`getExactTitleFallbackEnabled`, pref
+`exactTitleFallback`, default on), so a DOI-less item whose title matches a
+provider record is resolved anyway and the record keeps that
+`providerWorkID` — after which enrichment can name it and the rows fill.
+
+So the papers that stay empty are the ones whose **exact title does not
+match**: a different subtitle or capitalisation, a non-English title, an
+ambiguous match, or a work simply not in the providers at all — books,
+chapters, reports, theses, standards, grey literature. That is the same
+population as F3. For those, refreshing genuinely cannot help; for a paper
+whose title does match, it can.
 
 **2. The fields come from two providers with different coverage.** FWCI,
 citation percentile, top 1%/10% and citations-by-year are OpenAlex's;
@@ -642,6 +647,50 @@ Pointers: `providerTasks`, `needsOpenAlexEnrichment` and
 `src/services/citationUpdateService.ts`;
 `getSelectedCitationUpdateLibraryIDs` in
 `src/services/automaticUpdateCoordinator.ts`.
+
+---
+
+## F9. A tool for adding a DOI — starting with the one the plugin already has
+
+The user's call, 2026-09-09, after reading F8: "we should definitely have a
+tool to help adding a DOI." The interesting part is how much of it already
+exists.
+
+**The plugin usually knows the DOI and never writes it down.** When the core
+lookup resolves a library item — by identifier, or by the exact-title fallback
+— the result is persisted as a `CitationMetricRecord` that carries `doi`,
+`provider`, `providerWorkID`, `matchedBy`, `matchConfidence` and
+`matchConfirmed`. The Zotero item's own DOI field is never touched: the only
+`setField("DOI", …)` in the codebase is in `externalDiscoveryService`, when an
+external work is imported as a _new_ item. So an item can sit there with an
+empty DOI field while the plugin holds the DOI, the provider and a confidence
+for it.
+
+The first version is therefore small: where a paper has no DOI and the record
+has one, offer to write it into the item. Two things have to be got right:
+
+- **Confirmation.** A title match is not a certainty; that is exactly what
+  `matchConfirmed` and the "Match needs confirmation" badge exist for. Writing
+  a wrong DOI into someone's library is worse than leaving the field empty, so
+  an unconfirmed match must be shown with its evidence — matched title,
+  authors, year, `matchedBy`, confidence — and confirmed by the reader, not
+  written silently.
+- **Where it lives.** The item pane, the graph's detail pane, or a bulk action
+  over a selection. A "Find DOI" that walks a folder is where the value is, but
+  it multiplies the confirmation problem; the single-item case is the one to
+  build first.
+
+Beyond that first version: a lookup for items the exact-title fallback misses
+— Crossref's bibliographic-relevance query already exists in
+`crossrefDiscovery.ts` for a title-only item and returns candidates, which is
+the shape a "search for this paper" chooser would need.
+
+Pointers: the record built at the end of `citationUpdateService.ts` (`doi`,
+`matchedBy`, `matchConfidence`, `matchConfirmed`);
+`getExactTitleFallbackEnabled` in `src/services/citationPreferences.ts`;
+`createBadges` in `src/services/paperDetailView.ts` for the existing
+confirmation badge; `crossrefDiscovery.ts` for the relevance query;
+`externalDiscoveryService.ts:2171` for the one place a DOI is written today.
 
 ---
 

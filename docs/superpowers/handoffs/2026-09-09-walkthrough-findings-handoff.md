@@ -19,7 +19,7 @@ saved work was lost in the migration.
 
 What the walk found is a layer under the checks — the marks are right and the
 menus are right, but the colours behind the marks and the dressing around the
-menus are not. Seventeen items: **B12 to B22**, **F5 to F8**, **D3 to D5**, all
+menus are not. Eighteen items: **B12 to B22**, **F5 to F9**, **D3 to D5**, all
 written up in `2026-09-08-review-backlog.md` with pointers.
 
 ## Start with D3, not with B12
@@ -105,13 +105,18 @@ none of them visible in the product, traced through the code this session and
 written up as **F8**; **B22** is the user's request that the section stop being
 collapsed and stop padding itself with dashes.
 
-1. **No identifier, no enrichment — the big one.** `providerTasks` only builds
-   a provider task for a work an identifier function can name. OpenAlex needs
-   a DOI or an OpenAlex ID already on the record; Semantic Scholar needs a
-   DOI, PMID, arXiv ID or ISBN. A paper with none of those is never asked
-   about, so FWCI, percentile, influential citations and the journal indices
-   stay null no matter how often it is refreshed. Books, chapters, reports,
-   theses and standards are the usual casualties — the same population as F3.
+1. **Nothing the providers can name — the big one.** The enrichment pass only
+   builds a task for a work an identifier function can name: OpenAlex wants a
+   DOI or an OpenAlex ID already on the record, Semantic Scholar a DOI, PMID,
+   arXiv ID or ISBN. But the core lookup that runs first has an **exact-title
+   fallback** (`exactTitleFallback`, default on), which resolves a DOI-less
+   item whose title matches a provider record and stores the resulting
+   `providerWorkID` — and enrichment can name it after that. So what stays
+   empty is the paper whose exact title does _not_ match: a different subtitle
+   or capitalisation, a non-English title, an ambiguous match, or a work not in
+   the providers at all — books, chapters, reports, theses, standards. Same
+   population as F3. Refreshing helps when the title matches and cannot help
+   when it does not.
 2. **Two providers, different coverage.** FWCI, percentile, top 1%/10% and
    citations-by-year are OpenAlex's; influential citations are Semantic
    Scholar's; the journal indices come from OpenAlex's source record. Disable
@@ -126,9 +131,26 @@ collapsed and stop padding itself with dashes.
    derived from the reference list, so they wait on Refresh or Update
    connections.
 
-The trap in B22: hiding the empty rows hides reason 1 as well, and a reader
-would never learn that adding a DOI is what would fill them. Decide B22 and F8
-together.
+**Decided with the user, 2026-09-09.** The trap in B22 was that hiding the
+empty rows hides reason 1 as well, and a reader would never learn that adding
+a DOI is what would fill them. So B22 keeps the rows and only opens the
+section, and the dashes get fixed at the source instead — **F9**, a tool for
+adding a DOI.
+
+F9 is smaller than it sounds, because **the plugin usually knows the DOI
+already and never writes it down**. A resolved lookup is persisted as a
+`CitationMetricRecord` carrying `doi`, `provider`, `providerWorkID`,
+`matchedBy`, `matchConfidence` and `matchConfirmed`; the Zotero item's own DOI
+field is never touched. The only `setField("DOI", …)` in the codebase is in
+`externalDiscoveryService`, for a _new_ item imported from an external work.
+So the first version is: where the item has no DOI and the record has one,
+offer to write it in.
+
+The part not to skip is confirmation. A title match is not a certainty — that
+is what `matchConfirmed` and the "Match needs confirmation" badge are for — so
+an unconfirmed match has to be shown with its evidence and accepted by the
+reader. Writing a wrong DOI into someone's library is worse than an empty
+field.
 
 ## Three questions the user asked, answered
 
