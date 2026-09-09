@@ -504,6 +504,23 @@ Pointers: `openNewGraphWindow` in `src/services/windowService.ts`.
 
 ---
 
+## B21. File is fourth in the plot toolbar; it belongs first
+
+Found in the 2026-09-09 walk-through of Stage 2, check 6. The user's rule:
+"File always comes first in any UI." Today `toolbar.append` puts Filter,
+Similar, Export, File, Refresh in that order, so the menu that owns the
+document sits between two actions on it.
+
+Move File to the head of the toolbar. The search box stays at the far right —
+it is the only elastic item and it is what makes the bar match Zotero's
+`#zotero-items-toolbar`.
+
+Pointers: the `toolbar.append(...)` call in `src/services/graphViewService.ts`,
+and "view 5" in `test/zotero/graphViewVisual.test.ts`, which asserts the bar
+stays one row.
+
+---
+
 ## F5. The node's context menu should offer what the detail pane offers
 
 Found in the walk-through, extra note. Right-clicking a node offers the open

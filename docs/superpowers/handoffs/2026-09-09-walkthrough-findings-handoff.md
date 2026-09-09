@@ -19,7 +19,7 @@ saved work was lost in the migration.
 
 What the walk found is a layer under the checks — the marks are right and the
 menus are right, but the colours behind the marks and the dressing around the
-menus are not. Fourteen items: **B12 to B20**, **F5 to F7**, **D3 to D5**, all
+menus are not. Fifteen items: **B12 to B21**, **F5 to F7**, **D3 to D5**, all
 written up in `2026-09-08-review-backlog.md` with pointers.
 
 ## Start with D3, not with B12
@@ -77,9 +77,11 @@ glyph. Brainstorm the idea before drawing.
 
 ## The small ones
 
-B13, B14, B16 and B17 are four surface fixes — dark-theme contrast on "+ Add
-seed", the off-centre ellipse behind the seed row's ×, the centred Open list,
-the plugin icon repeated on every Tools row. One branch could carry all four.
+B13, B14, B16, B17 and B21 are five surface fixes — dark-theme contrast on
+"+ Add seed", the off-centre ellipse behind the seed row's ×, the centred Open
+list, the plugin icon repeated on every Tools row, and File sitting fourth in
+the plot toolbar when the user's rule is that File comes first anywhere. One
+branch could carry all five.
 
 B15 (two clicks to seed from the search panel), B18 (the graph jumps because
 the fit lands after the first frame), B19 (a folder's menu should read "Create
