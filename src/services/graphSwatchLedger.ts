@@ -24,14 +24,16 @@ export interface SwatchLedgerState {
    */
   assigned: Record<string, number>;
   /**
-   * Keys that have given up an index, oldest release first. This is a
-   * record of departure order, not a reuse queue: reuse always takes the
-   * lowest free index, not the longest-released one. A departed key's
-   * index cannot be carried forward here — the moment a key leaves
-   * `assigned` its index is gone from this state, so there is nowhere in
-   * this two-field shape to remember it — and no caller needs the
-   * distinction, since the lowest-free-index rule is fully deterministic on
-   * its own.
+   * Retained for the saved-state shape only — the parser for a persisted
+   * recipe still expects this field, so it cannot be dropped from the type.
+   * Nothing reads it: reuse always takes the lowest free index, never the
+   * longest-released one, so no caller needs departure order. `allocateSwatches`
+   * no longer writes to it, for exactly that reason — it used to append one
+   * entry per key ever released and never trim, so it grew without bound
+   * over a graph's lifetime (one entry per seed ever removed, for the seed
+   * ledger). A ledger loaded from an older saved state may still carry old
+   * entries in this array; they are dropped on the next `allocateSwatches`
+   * call rather than carried forward.
    */
   releasedOrder: string[];
 }
@@ -62,12 +64,10 @@ export function allocateSwatches(
 ): SwatchLedgerState {
   const live = new Set(keys);
   const assigned: Record<string, number> = {};
-  const releasedOrder = [...state.releasedOrder];
 
   // Hold what is still live.
   for (const [key, index] of Object.entries(state.assigned)) {
     if (live.has(key)) assigned[key] = index;
-    else if (!releasedOrder.includes(key)) releasedOrder.push(key);
   }
 
   const taken = new Set(Object.values(assigned));
@@ -102,6 +102,10 @@ export function allocateSwatches(
 
   return {
     assigned,
-    releasedOrder: releasedOrder.filter((key) => !(key in assigned)),
+    // Never written to any more — see the field's docstring. Always empty
+    // rather than carrying old entries forward from `state`, so a ledger
+    // loaded from an older saved state sheds them on its first reallocation
+    // instead of growing them forever.
+    releasedOrder: [],
   };
 }

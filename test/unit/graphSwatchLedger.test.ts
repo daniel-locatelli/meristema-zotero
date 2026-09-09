@@ -49,9 +49,11 @@ describe("the swatch ledger", function () {
     expect(swatchIndexFor(refilled, "e")).to.equal(1); // b's slot, freed first
   });
 
-  it("shares an index only once the pool is exhausted, oldest holder first", function () {
+  it("shares an index only once the pool is exhausted, lowest-indexed holder first", function () {
     // Six seeds hold the whole palette; the seventh must double up rather than
-    // repaint anyone, and it doubles with the oldest live holder.
+    // repaint anyone, and it doubles with the lowest-indexed live holder —
+    // the two coincide in this sequence only because s1 both arrived first
+    // and holds the lowest index.
     const full = allocateSwatches(emptySwatchLedger(), ["s1", "s2"], 2);
     const over = allocateSwatches(full, ["s1", "s2", "s3"], 2);
     expect(swatchIndexFor(over, "s1")).to.equal(0);

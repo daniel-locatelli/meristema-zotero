@@ -71,7 +71,18 @@ export interface GraphViewState {
    * past a handful, and the fifth selection releases the first.
    */
   regions: number[];
-  /** Which swatch each category key holds. Never dealt by rank; see B12. */
+  /**
+   * Which swatch each *collection ID* holds, stringified. Despite the name,
+   * this never holds a category assignment: `graphViewService.ts` only ever
+   * writes stringified collection IDs into it. The category ledger the spec
+   * describes (publication type, provider, ...) lives on the renderer's
+   * `categorySwatchLedger` instead and is never persisted — see B-category
+   * (docs/superpowers/handoffs/2026-09-08-review-backlog.md). If a category
+   * ledger is ever folded into this same field, its keys must be namespaced
+   * first: a collection ID and a category value can both be the string
+   * `"12"`, and an unnamespaced merge would let one silently clobber the
+   * other. Never dealt by rank; see B12.
+   */
   swatches: SwatchLedgerState;
   /** Which seed-palette index each seed key holds. */
   seedSwatches: SwatchLedgerState;

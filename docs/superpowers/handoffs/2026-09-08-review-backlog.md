@@ -795,6 +795,136 @@ round-trip, `snapshot.collections`.
 
 ---
 
+## B24. `regionsForRenderer` and `seedColorsFor` allocate on read, and the invariant that read is safe is already false
+
+Found in the final whole-branch review of D3. Both readers are documented
+(their own docstrings, updated in the "Fix the region's fill, its cost, and
+its silent tooltip" pass) as allocating a swatch as a side effect of reading
+one: a key not yet in the ledger claims a free index there and then, and the
+claim is written back to the outer `swatches`/`seedSwatches` variable before
+the function returns. The docstrings used to claim every caller reaches
+`notifyStateChange()` in the same tick, so an allocation always persists.
+That is already false in-tree — the search box's `input` listener reaches
+both through `applyFilters` → `refreshKeyRail`/`refreshScopeRail` without
+ever calling `notifyStateChange`.
+
+It is not a correctness bug today only because reallocation is deterministic:
+if the tab closes before a later state change persists the allocation, a
+fresh ledger on the next load reallocates the same keys in the same order and
+lands on the same colours. That is luck holding the invariant together, not
+the invariant itself, and the next caller that reads either function from a
+path with no later state change (a tooltip, an export preview) is the one
+that breaks it.
+
+The intended fix, named in both docstrings and not done in this pass: split
+an `ensureSwatchesFor` out of each reader — the allocating half, called only
+from paths that do reach `notifyStateChange` — leaving `regionsForRenderer`
+and `seedColorsFor` themselves read-only, never mutating `swatches` or
+`seedSwatches` for a caller that only wants to look.
+
+Pointers: `src/services/graphViewService.ts`, `regionsForRenderer` (~line 3336) and `seedColorsFor` (~line 1819), both with the invariant's history in
+their docstrings; `notifyStateChange` (~line 4072); the search box's `input`
+listener that calls `applyFilters` without it.
+
+---
+
+## B25. The category assignment map the spec promises is not persisted; it lives on the renderer and dies with it
+
+Found in the final whole-branch review of D3. The design spec
+(`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md`, lines
+137-144) says the category-to-swatch assignment is persisted with the graph,
+the same way seed and folder swatches are. It is not: `state.swatches` (the
+field the spec means) only ever receives stringified collection IDs, written
+by `graphViewService.ts`. The actual category ledger — which swatch
+"article", "OpenAlex" or "Retracted" holds — is `categorySwatchLedger` on
+`CitationGraphRenderer`, plain instance state that is never read into or
+written out of `GraphViewState`, and so it dies the moment the renderer is
+torn down.
+
+Effect: a category that came and went during one session (a publication type
+present in an early filter, gone after a later one, back again) can land on a
+different swatch after the graph is closed and reopened, even though nothing
+about the library data changed — the ledger a fresh renderer builds starts
+empty and reassigns from scratch. Seeds and folders do not have this problem
+any more (B12's fix, and D3's region ledger); categories are the one swatch
+family the spec's persistence promise does not hold for.
+
+Fixing it means giving `GraphViewState.swatches` an actual category ledger —
+or a second field alongside it — and wiring `categorySwatchLedger` to load
+from and save into it the way `seedSwatches` already does for seeds. Doing
+that without a hazard: `state.swatches` today holds a plain
+key-to-index map keyed on stringified collection IDs, and a category key can
+coincide with one (collection ID `12` and, say, provider value `"12"` are
+both the string `"12"`) — the two ledgers cannot share one map without
+namespacing their keys first (e.g. `collection:12` vs `provider:12`). See the
+docstring on `GraphViewState.swatches` in `src/services/graphViewState.ts`
+for the same hazard, recorded where the field is declared.
+
+Pointers: `src/services/graphViewState.ts` (`GraphViewState.swatches`),
+`src/services/citationGraphRenderer.ts` (`categorySwatchLedger`,
+`categories()`), `src/services/graphCategoryAssignment.ts`
+(`assignCategories`), the spec's persistence section.
+
+---
+
+## B26. Region membership follows the visible node set, so the search box can reshape or empty a selected folder's hull — and that is the opposite of the rule just decided for swatches
+
+Found in the final whole-branch review of D3. A region's contour is built
+from whichever of its folder's nodes are currently visible, so typing in the
+search box — which narrows the visible set through `applyFilters` — can
+shrink a selected region's hull mid-keystroke, or empty it to nothing if the
+search excludes every node the folder held. This may be the right behaviour
+(a region showing only what is actually on screen), but it was never decided
+as a rule; it is what fell out of building the contour from
+`getScopeNodes()`/the renderer's visible set.
+
+It sits two functions away from a rule already made explicit for a related
+concern: `seedColorsFor` and `regionsForRenderer` (B24) are being pulled
+apart precisely so that _allocation_ survives a filter that temporarily hides
+a key — a seed or a folder keeps its swatch even while filtered out of view.
+Region _membership_, by contrast, is allowed to follow the filtered view
+exactly, with no such survival. Whether that asymmetry is intended (a swatch
+is an identity, a hull is a picture of what is on screen right now) or an
+oversight is worth deciding on its own, not inheriting from whichever
+function happened to be touched first.
+
+Pointers: `src/services/graphViewService.ts` (`regionsForRenderer`'s node-set
+computation, `getScopeNodes()`), `src/services/graphFolderRegion.ts`
+(`folderRegionContours`, which only ever sees the points it is handed), the
+search box's `input` listener and `applyFilters`.
+
+---
+
+## B27. An out-of-range ledger index draws `strokeStyle = undefined`, and canvas silently keeps the previous region's colour
+
+Found in the final whole-branch review of D3. `swatchIndexFor` returns
+whatever integer `swatches.assigned` holds for a key, with no bound against
+the live palette size — a hand-edited saved state (`{"assigned": {"7": 99}}`
+against an eight-swatch palette, or any palette after a hand-edit shrinks
+`theme.categorical.swatches`) hands back index 99. `theme.categorical.
+swatches[99]` is `undefined`, so the region (or category disc) built from it
+gets `color: undefined`, and `context.strokeStyle = undefined` is not a
+canvas error — the 2D context silently ignores an unassignable style
+assignment and keeps whatever `strokeStyle` the previous draw call left
+behind. The visible result is one region borrowing the border colour of
+whichever region — or whatever else drew last with `stroke()` — happened to
+run immediately before it, with nothing in the console to say why.
+
+`GraphViewState.swatches`'s own docstring already notes that a live key
+holding an index outside `[0, poolSize)` is carried forward unchanged when
+the pool shrinks, "validating pool bounds is the caller's job" — this is
+that caller never doing it. Fixing it means clamping or rejecting an
+out-of-range index at the point a colour is read (`theme.categorical.
+swatches[index] ?? theme.categorical.other`, or equivalent for regions), not
+only at the point a ledger is parsed.
+
+Pointers: `src/services/graphSwatchLedger.ts` (`swatchIndexFor`,
+`SwatchLedgerState.assigned`'s docstring), `src/services/
+graphCategoryAssignment.ts` (`color: theme.categorical.swatches[swatchIndexFor(...) ?? 0]`),
+wherever `regionsForRenderer` resolves a region's colour the same way.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant

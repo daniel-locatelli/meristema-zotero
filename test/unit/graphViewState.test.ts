@@ -370,6 +370,43 @@ describe("version 3", function () {
     expect(parsed?.regions).to.deep.equal([1, 2, 3, 4]);
   });
 
+  it("gives a version 1 folder graph its own folders as regions", function () {
+    // Version 1 is the oldest saved-graph shape: it stored the scoped
+    // folders as a filter (`filters.collectionIDs`), not as ticks, so
+    // `migrateFromVersion1` has to turn that whitelist into `collections`
+    // before `migratedRegions` ever sees it. Both version 1 and version 2
+    // fall through to the same `migratedRegions(scope.collections)` call for
+    // regions, but only version 2 had coverage for it.
+    const v1 = JSON.stringify({
+      version: 1,
+      seeds: [],
+      explore: { direction: "both", locality: "all" },
+      filters: { collectionIDs: [30, 4, 12] },
+      camera: null,
+      title: null,
+    });
+    const parsed = parseGraphViewState(v1);
+    expect(parsed?.collections).to.deep.equal({
+      base: "none",
+      except: [4, 12, 30],
+    });
+    expect(parsed?.regions).to.deep.equal([4, 12, 30]);
+  });
+
+  it("gives a version 1 whole-library graph no regions", function () {
+    const v1 = JSON.stringify({
+      version: 1,
+      seeds: [],
+      explore: { direction: "both", locality: "all" },
+      filters: { collectionIDs: [] },
+      camera: null,
+      title: null,
+    });
+    const parsed = parseGraphViewState(v1);
+    expect(parsed?.collections).to.deep.equal({ base: "all", except: [] });
+    expect(parsed?.regions).to.deep.equal([]);
+  });
+
   it("starts a version 2 graph with empty ledgers", function () {
     const legacy = { ...emptyGraphViewState(), version: 2 };
     const parsed = parseGraphViewState(JSON.stringify(legacy));

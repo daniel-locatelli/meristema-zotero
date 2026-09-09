@@ -17,6 +17,15 @@
  * node discs by a constant margin on screen.
  *
  * Plain geometry in, plain geometry out: no canvas, no DOM.
+ *
+ * `stitch` walks the marching-squares segments into closed loops and, when a
+ * loop's walk runs out of unused segments before it returns to its start,
+ * force-closes it with a straight edge back to the start point rather than
+ * raising an error. That is silent: a pathological field — one that produces
+ * a genuinely unclosable fragment — yields a small, wrong polygon instead of
+ * a visible failure. If a region's shape ever looks subtly off in a way that
+ * does not track back to a renderer bug, look here first, not in the
+ * renderer's transform or compositing.
  */
 
 export interface RegionPoint {

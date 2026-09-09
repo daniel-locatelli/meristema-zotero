@@ -155,6 +155,130 @@ describe("the sequential ramp", function () {
   });
 });
 
+/**
+ * `theme.states.selected` and `.searchMatch` are deliberately extreme —
+ * near-black on light, near-white on dark — and `theme.states.inLibraryRing`
+ * is a deliberately neutral mid-grey (its own docstring: a ring on an
+ * unparseable fill must never read as a metric value). A flat ΔE floor is
+ * the wrong tool for any of the three: recomputing it here found light
+ * `selected` (#1b1d19) measures ΔE 19.2 against the darkest ramp stop
+ * (#0f3b33) and light `searchMatch` (#0f110d) measures 23.2 — both under the
+ * 30-point floor — purely because that stop is also low-lightness, even
+ * though its chroma (17.2) is nearly six times either state token's. Light
+ * `inLibraryRing` (#6f736a) measures ΔE 27.7 against the ramp's next stop
+ * (#1e6b52), also under the floor, for the same reason: shared mid-lightness,
+ * very different chroma. Both are genuine floor misses on the shipped
+ * colours, not bugs to fix — the colours are right, the flat floor is not
+ * the right measurement for this pair.
+ *
+ * What actually keeps a reader from mistaking these tokens for a data
+ * colour: `selected`/`searchMatch` sit clearly outside the lightness range
+ * every seed, categorical swatch and ramp stop occupies (measured margins:
+ * light 10.5-16.1, dark 12.1-20 — well clear of the 10-point clearance
+ * required below); `inLibraryRing` sits inside that range but reads as grey,
+ * not as any hue (chroma 5.6/6.3, against a categorical floor of 30 and the
+ * ramp's own least-saturated stop at 17.2/19.5). Every dichromacy simulation
+ * still clears CVD_SEPARATION_FLOOR for all three tokens against all three
+ * palettes (worst case 8.8, light inLibraryRing vs ramp under protanopia),
+ * so a colour-blind reader is never at risk either.
+ */
+const NEUTRAL_CHROMA_CEILING = 15; // ~half the ramp's own lowest-chroma stop
+const STATE_LIGHTNESS_CLEARANCE = 10; // measured margins: 10.5-20, both themes
+
+function dataLightnessRange(theme: GraphTheme): [number, number] {
+  const lightness = [
+    ...theme.seeds.map((c) => labOf(c)[0]),
+    ...theme.categorical.swatches.map((c) => labOf(c)[0]),
+    ...theme.ramp.map((c) => labOf(c)[0]),
+  ];
+  return [Math.min(...lightness), Math.max(...lightness)];
+}
+
+describe("the state tokens", function () {
+  it("keeps selected and searchMatch apart from every seed and categorical swatch, in normal vision and under each dichromacy", function () {
+    for (const theme of themes()) {
+      for (const stateName of ["selected", "searchMatch"] as const) {
+        const combined = [
+          theme.states[stateName],
+          ...theme.seeds,
+          ...theme.categorical.swatches,
+        ];
+        expect(
+          minimumSeparation(combined, null),
+          `${theme.scheme} ${stateName} normal`,
+        ).to.be.at.least(SEPARATION_FLOOR);
+        for (const kind of Object.keys(CVD_MATRICES)) {
+          expect(
+            minimumSeparation(combined, kind),
+            `${theme.scheme} ${stateName} ${kind}`,
+          ).to.be.at.least(CVD_SEPARATION_FLOOR);
+        }
+      }
+    }
+  });
+
+  it("keeps selected and searchMatch outside the lightness range any data colour occupies, and away from the ramp under every dichromacy", function () {
+    for (const theme of themes()) {
+      const [min, max] = dataLightnessRange(theme);
+      for (const stateName of ["selected", "searchMatch"] as const) {
+        const stateHex = theme.states[stateName];
+        const lab = labOf(stateHex);
+        const clearance = Math.max(min - lab[0], lab[0] - max);
+        expect(
+          clearance,
+          `${theme.scheme} ${stateName} lightness clearance`,
+        ).to.be.at.least(STATE_LIGHTNESS_CLEARANCE);
+        expect(
+          chroma(lab),
+          `${theme.scheme} ${stateName} chroma`,
+        ).to.be.at.most(NEUTRAL_CHROMA_CEILING);
+        for (const kind of Object.keys(CVD_MATRICES)) {
+          expect(
+            minimumSeparation([stateHex, ...theme.ramp], kind),
+            `${theme.scheme} ${stateName} vs ramp ${kind}`,
+          ).to.be.at.least(CVD_SEPARATION_FLOOR);
+        }
+      }
+    }
+  });
+
+  it("keeps inLibraryRing apart from every seed and categorical swatch, in normal vision and under each dichromacy", function () {
+    for (const theme of themes()) {
+      const combined = [
+        theme.states.inLibraryRing,
+        ...theme.seeds,
+        ...theme.categorical.swatches,
+      ];
+      expect(
+        minimumSeparation(combined, null),
+        `${theme.scheme} inLibraryRing normal`,
+      ).to.be.at.least(SEPARATION_FLOOR);
+      for (const kind of Object.keys(CVD_MATRICES)) {
+        expect(
+          minimumSeparation(combined, kind),
+          `${theme.scheme} inLibraryRing ${kind}`,
+        ).to.be.at.least(CVD_SEPARATION_FLOOR);
+      }
+    }
+  });
+
+  it("keeps inLibraryRing neutral rather than measuring it against the ramp on a flat floor", function () {
+    for (const theme of themes()) {
+      const ringHex = theme.states.inLibraryRing;
+      expect(
+        chroma(labOf(ringHex)),
+        `${theme.scheme} inLibraryRing chroma`,
+      ).to.be.at.most(NEUTRAL_CHROMA_CEILING);
+      for (const kind of Object.keys(CVD_MATRICES)) {
+        expect(
+          minimumSeparation([ringHex, ...theme.ramp], kind),
+          `${theme.scheme} inLibraryRing vs ramp ${kind}`,
+        ).to.be.at.least(CVD_SEPARATION_FLOOR);
+      }
+    }
+  });
+});
+
 describe("the seed palette", function () {
   it("has six colours in each theme", function () {
     for (const theme of themes()) expect(theme.seeds).to.have.length(6);

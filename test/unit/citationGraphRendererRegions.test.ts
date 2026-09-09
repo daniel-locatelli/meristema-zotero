@@ -6,6 +6,7 @@ import type {
   GraphLayoutOptions,
 } from "../../src/domain/graphTypes";
 import { CitationGraphRenderer } from "../../src/services/citationGraphRenderer";
+import { graphThemeFor } from "../../src/services/graphTheme";
 
 /**
  * A typed double for exactly the 2D canvas surface the renderer touches
@@ -411,4 +412,54 @@ describe("CitationGraphRenderer regions", function () {
       expect(title).to.not.include("No value");
     });
   });
+});
+
+describe("CitationGraphRenderer colour metric allowlist", function () {
+  it(
+    "treats a retired or unknown colour metric as a category, never as a " +
+      "numeric metric",
+    function () {
+      // "collection" was retired as a node colouring on this branch, but a
+      // reader's stored preference can still hold it (citationPreferences.ts
+      // coerces the *main* appearance record, but nothing guarantees every
+      // caller does before it reaches the renderer). `isMetricID` used to be
+      // a denylist of the four category metrics, so an unrecognised value
+      // like "collection" read as true and fell into `metricNumber`, which
+      // has no case for it — that reached `getMetricDefinition("collection")`
+      // downstream and threw "Unknown Meristema metric: collection",
+      // crashing the canvas on its first frame. `isMetricID` is now an
+      // allowlist over `METRIC_DEFINITIONS`, so an id it does not recognise
+      // routes to the category-assignment path instead, which fails closed:
+      // the node simply gets `theme.categorical.noValue`.
+      withPath2DPolyfill(() => {
+        const canvas = new FakeCanvas();
+        const graphNode = node("n1");
+        const renderer = new CitationGraphRenderer({
+          canvas: canvas as unknown as HTMLCanvasElement,
+          model: model([graphNode]),
+          layout: {
+            ...FREE_LAYOUT,
+            nodeColorMetric:
+              "collection" as GraphLayoutOptions["nodeColorMetric"],
+          },
+          collectionLabels: new Map(),
+          onSelectionChange: () => undefined,
+          onOpenNode: () => undefined,
+        });
+
+        expect(() =>
+          renderer.setNodePositions(new Map([["n1", { x: 100, y: 100 }]])),
+        ).to.not.throw();
+
+        const fills = canvas.context.calls.filter(
+          (call) => call.method === "fill" && call.args.length === 0,
+        );
+        expect(fills.length).to.be.greaterThan(0);
+        const theme = graphThemeFor("light");
+        expect(fills[fills.length - 1].fillStyle).to.equal(
+          theme.categorical.noValue,
+        );
+      });
+    },
+  );
 });

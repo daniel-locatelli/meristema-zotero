@@ -250,7 +250,7 @@ export function getFocusGraphAppearance(
   }
   try {
     const parsed = JSON.parse(raw) as Partial<GraphLayoutOptions>;
-    return {
+    return withoutRetiredColouring({
       ...fallback,
       ...parsed,
       xScale:
@@ -261,7 +261,7 @@ export function getFocusGraphAppearance(
         parsed.yMetric === "citation-sequence"
           ? "linear"
           : (parsed.yScale ?? fallback.yScale),
-    };
+    });
   } catch {
     setFocusGraphAppearance(fallback);
     return fallback;

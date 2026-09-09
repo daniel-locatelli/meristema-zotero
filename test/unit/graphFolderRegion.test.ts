@@ -92,9 +92,12 @@ describe("folder regions", function () {
     ).to.be.below(0.001);
   });
 
-  it("gives the same contour whatever the zoom, because the field is data space", function () {
-    // The renderer transforms this contour for display; the shape itself must
-    // not depend on the viewport, or a folder would fragment as you zoom in.
+  it("gives the same contour for the same input, deterministically", function () {
+    // This proves determinism, not zoom invariance: `folderRegionContours`
+    // takes no viewport, so it cannot even be handed a zoom level to vary.
+    // Zoom invariance holds structurally, because the renderer transforms
+    // this same data-space contour for display rather than recomputing it
+    // per zoom level — that is not testable at this module's boundary.
     const points = [
       { x: 0, y: 0 },
       { x: 6, y: 0 },

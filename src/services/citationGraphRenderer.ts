@@ -6,7 +6,11 @@ import type {
   GraphNodeColorMetric,
   MetricID,
 } from "../domain/graphTypes";
-import { formatMetricValue, getMetricDefinition } from "./metricRegistry";
+import {
+  formatMetricValue,
+  getMetricDefinition,
+  METRIC_DEFINITIONS,
+} from "./metricRegistry";
 import {
   axisTicksForVisibleDomain,
   visibleMetricDomain,
@@ -145,14 +149,23 @@ const MAX_NODE_RADIUS = 18;
 const MAX_CANVAS_DIMENSION = 8192;
 const MAX_CANVAS_PIXELS = 16_777_216;
 
+/**
+ * An allowlist, not a denylist: `value` counts as a metric id only when it
+ * names a metric `metricRegistry.ts` still knows about. A denylist of the
+ * four category metrics used to stand in for this and let anything else
+ * through, including a retired colouring like "collection" still sitting in
+ * a stored preference — that reached `getMetricDefinition`, which throws on
+ * an id it does not recognise and killed the canvas on its first frame. An
+ * id this returns false for falls back to the category-assignment path
+ * instead, which fails closed (an unrecognised value simply collapses into
+ * "Other").
+ */
+const METRIC_IDS = new Set<string>(
+  METRIC_DEFINITIONS.map((metric) => metric.id),
+);
+
 function isMetricID(value: GraphNodeColorMetric): value is MetricID {
-  return ![
-    "uniform",
-    "publication-type",
-    "provider",
-    "open-access",
-    "retraction",
-  ].includes(value);
+  return METRIC_IDS.has(value);
 }
 
 export class CitationGraphRenderer {

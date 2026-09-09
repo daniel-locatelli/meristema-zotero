@@ -190,9 +190,11 @@ export function externalWorkTitle(work: ExternalWork): string {
 }
 
 /**
- * The folder names the graph shows for a collection colouring. Which folders get
- * a swatch, and in what order, is decided by rank in `graphCategoryAssignment`,
- * not here — this only supplies the display names.
+ * The folder names the graph shows for the Scope rail and the region legend.
+ * "Collection" was retired as a node colouring on this branch — folder
+ * membership is drawn as a shaded region now, selected from the rail's Scope
+ * rows — but a region still needs a folder's display name to label its
+ * legend entry, which is what this supplies.
  */
 export function collectionLabelsByID(
   snapshot: LibrarySnapshot,

@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "chai";
 import { config } from "../../package.json";
-import { getGraphAppearance } from "../../src/services/citationPreferences";
+import {
+  getFocusGraphAppearance,
+  getGraphAppearance,
+} from "../../src/services/citationPreferences";
 
 const prefKey = (name: string): string => `${config.prefsPrefix}.${name}`;
 
@@ -54,6 +57,49 @@ describe("the graph appearance preference", function () {
     const appearance = getGraphAppearance();
     expect(appearance.nodeColorMetric).to.equal("uniform");
     expect(appearance.xScale).to.equal(
+      "log",
+      "the rest of the record survives",
+    );
+  });
+});
+
+describe("the focus graph appearance preference", function () {
+  it("coerces a stored Collection colouring to Uniform", function () {
+    // getFocusGraphAppearance has no callers today (confirmed by grep before
+    // this test was written), so this bug never fired in production — but a
+    // reader who changed appearance with a focus projection open before this
+    // branch retired "collection" still has it sitting in
+    // focusGraphAppearance, and the getter used to merge the stored record
+    // over its fallback with `...parsed` alone, never applying
+    // withoutRetiredColouring the way getGraphAppearance does. The schema
+    // version is deliberately not bumped, for the same reason as the main
+    // appearance record: a mismatch would rewrite the whole thing from
+    // defaults and throw away the reader's other settings for one retired
+    // field.
+    stubPrefs({
+      focusGraphAppearanceVersion: 1,
+      focusGraphAppearance: JSON.stringify({
+        xMetric: "citation-sequence",
+        xScale: "linear",
+        yMetric: "citations",
+        yScale: "log",
+        nodeSizeMetric: "citations",
+        nodeColorMetric: "collection",
+        nodeLabelMode: "author-year",
+      }),
+    });
+    const base = {
+      xMetric: "year",
+      xScale: "linear",
+      yMetric: "citations",
+      yScale: "linear",
+      nodeSizeMetric: "citations",
+      nodeColorMetric: "uniform",
+      nodeLabelMode: "author-year",
+    } as const;
+    const appearance = getFocusGraphAppearance(base);
+    expect(appearance.nodeColorMetric).to.equal("uniform");
+    expect(appearance.yScale).to.equal(
       "log",
       "the rest of the record survives",
     );

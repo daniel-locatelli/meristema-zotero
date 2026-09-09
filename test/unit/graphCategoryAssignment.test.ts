@@ -215,6 +215,8 @@ describe("Category assignment", function () {
         ledger: emptySwatchLedger(),
       },
     );
-    expect(assignment.colorFor(nodeOfType("book"))).to.be.a("string");
+    expect(assignment.colorFor(nodeOfType("book"))).to.equal(
+      theme.categorical.swatches[0],
+    );
   });
 });
