@@ -105,3 +105,9 @@ nothing about a finished task is kept anywhere else.
   tests. Then the protocol's first `npm test`: **28 passed, 6 failed**, four
   of them new, which stops the run. See
   `2026-09-08-stage-2-stopped-handoff.md`.
+- 2026-09-09, 4fb15de: not a task — the first of the four new Zotero failures
+  is fixed. The post-render adopt of Zotero's list selection replaced the seed
+  a saved graph had just restored, because its guard tested "can the graph
+  show this row" and the additive model can always show it.
+  `externalSeedImport` now fails one assertion later, on the seed not turning
+  local after the import. See `2026-09-09-stage-2-debugging-handoff.md`.
