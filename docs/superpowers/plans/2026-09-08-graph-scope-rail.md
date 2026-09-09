@@ -3730,7 +3730,7 @@ outcome is read from the rendered DOM.
   `shown`/`customMenu`/`command`/`waitFor`/`buttonNamed` helpers
   `externalSeedImport.test.ts` defines — copy them, as that test did.
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 Create `test/zotero/graphScopeRail.test.ts`. Structure it like
 `externalSeedImport.test.ts`: a `before` that creates a collection named by
@@ -3902,14 +3902,14 @@ The four cases run in order against one graph, so the seed the first adds is
 the seed the second and fourth rely on; keep them in one `describe` and do not
 reorder them.
 
-- [ ] **Step 2: Run the suite**
+- [x] **Step 2: Run the suite**
 
 Run: `npm test`
 Expected: the four new cases pass; the three known failures are unchanged.
 If a new case is flaky, make it wait on a condition with `waitFor` rather than
 on a fixed `delay`.
 
-- [ ] **Step 3: Run the gate and commit**
+- [x] **Step 3: Run the gate and commit**
 
 Run: `npm run check`
 Expected: PASS.
