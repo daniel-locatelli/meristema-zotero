@@ -5,6 +5,7 @@ import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
 import {
   emptyGraphViewState,
   GRAPH_VIEW_STATE_VERSION,
+  MAX_GRAPH_REGIONS,
   markExternalSeedImported,
   parseGraphViewState,
   resolveGraphViewSeeds,
@@ -318,8 +319,62 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 3 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 4 });
     expect(parseGraphViewState(future)).to.equal(null);
+  });
+});
+
+describe("version 3", function () {
+  it("keeps the regions a graph was saved with", function () {
+    const state = { ...emptyGraphViewState(), regions: [7, 9] };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(state)));
+    expect(parsed?.regions).to.deep.equal([7, 9]);
+  });
+
+  it("caps the regions it will accept", function () {
+    const state = { ...emptyGraphViewState(), regions: [1, 2, 3, 4, 5, 6] };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(state)));
+    expect(parsed?.regions).to.have.length(MAX_GRAPH_REGIONS);
+  });
+
+  it("gives a version 2 folder graph its own folders as regions", function () {
+    // The colour metric used to default to Collection, so a folder graph drew
+    // its folders in colour. It keeps doing so, now as regions.
+    const legacy = {
+      ...emptyGraphViewState(),
+      version: 2,
+      collections: { base: "none", except: [12, 4, 30] },
+    };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    expect(parsed?.regions).to.deep.equal([4, 12, 30]);
+  });
+
+  it("gives a version 2 whole-library graph no regions", function () {
+    // Choosing folders the reader never singled out would be noise.
+    const legacy = {
+      ...emptyGraphViewState(),
+      version: 2,
+      collections: { base: "all", except: [] },
+    };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    expect(parsed?.regions).to.deep.equal([]);
+  });
+
+  it("caps a version 2 migration at four folders", function () {
+    const legacy = {
+      ...emptyGraphViewState(),
+      version: 2,
+      collections: { base: "none", except: [5, 4, 3, 2, 1] },
+    };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    expect(parsed?.regions).to.deep.equal([1, 2, 3, 4]);
+  });
+
+  it("starts a version 2 graph with empty ledgers", function () {
+    const legacy = { ...emptyGraphViewState(), version: 2 };
+    const parsed = parseGraphViewState(JSON.parse(JSON.stringify(legacy)));
+    expect(parsed?.swatches.assigned).to.deep.equal({});
+    expect(parsed?.seedSwatches.assigned).to.deep.equal({});
   });
 });
 

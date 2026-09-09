@@ -19,6 +19,7 @@ import {
   defaultPaperListFilterState,
   type PaperListFilterState,
 } from "./paperListViewService";
+import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
 
 export type { GraphViewCollectionTicks };
 
@@ -31,7 +32,10 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 2;
+export const GRAPH_VIEW_STATE_VERSION = 3;
+
+/** At most this many folder regions are drawn at once. */
+export const MAX_GRAPH_REGIONS = 4;
 
 export type GraphViewSeed =
   /** A Zotero item, by key rather than ID: keys survive sync, IDs do not. */
@@ -61,6 +65,16 @@ export interface GraphViewState {
   includeExternal: boolean;
   /** Papers the reader removed one by one. */
   hiddenKeys: string[];
+  /**
+   * The folders drawn as regions, oldest selection first. Capped at
+   * `MAX_GRAPH_REGIONS`: overlapping translucent hulls stop being readable
+   * past a handful, and the fifth selection releases the first.
+   */
+  regions: number[];
+  /** Which swatch each category key holds. Never dealt by rank; see B12. */
+  swatches: SwatchLedgerState;
+  /** Which seed-palette index each seed key holds. */
+  seedSwatches: SwatchLedgerState;
   camera: GraphViewTransform | null;
   /** The custom tab title, or null when the title is derived. */
   title: string | null;
@@ -92,6 +106,9 @@ export function emptyGraphViewState(): GraphViewState {
     includeUnfiled: true,
     includeExternal: true,
     hiddenKeys: [],
+    regions: [],
+    swatches: emptySwatchLedger(),
+    seedSwatches: emptySwatchLedger(),
     camera: null,
     title: null,
   };
@@ -306,6 +323,51 @@ function parseKeys(value: unknown): string[] {
   ];
 }
 
+function normalizedRegions(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = raw.filter(
+    (id): id is number => Number.isInteger(id) && (id as number) > 0,
+  );
+  return [...new Set(ids)].slice(0, MAX_GRAPH_REGIONS);
+}
+
+/**
+ * A version 2 graph carried no regions, because folder membership was a node
+ * fill and the colour metric defaulted to Collection. A graph made from
+ * folders keeps showing those folders, now as regions; a whole-library graph
+ * takes none, since picking four folders the reader never singled out would
+ * be noise dressed as continuity.
+ *
+ * The ticks are all there is to go on: `parseGraphViewState` holds a recipe
+ * and no nodes, so it cannot rank folders by how many papers they hold and
+ * must not pretend to. Ascending ID order is arbitrary but stable.
+ */
+function migratedRegions(ticks: GraphViewCollectionTicks): number[] {
+  if (ticks.base !== "none") return [];
+  return [...ticks.except].sort((a, b) => a - b).slice(0, MAX_GRAPH_REGIONS);
+}
+
+/**
+ * Parsed defensively: a hand-edited, truncated or hostile record must not
+ * throw. A version 2 record has neither field, which yields an empty ledger
+ * here — correct, since it carried none.
+ */
+function parsedLedger(raw: unknown): SwatchLedgerState {
+  const record = (isRecord(raw) ? raw : {}) as Partial<SwatchLedgerState>;
+  const assigned: Record<string, number> = {};
+  for (const [key, value] of Object.entries(record.assigned ?? {})) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+      assigned[key] = value;
+    }
+  }
+  const releasedOrder = Array.isArray(record.releasedOrder)
+    ? record.releasedOrder.filter(
+        (key): key is string => typeof key === "string",
+      )
+    : [];
+  return { assigned, releasedOrder };
+}
+
 /**
  * A version 1 recipe stored the folders a graph was scoped to — a whitelist —
  * so an empty list is the whole library and a non-empty one is exactly those
@@ -336,15 +398,28 @@ function migrateFromVersion1(
   };
 }
 
-export function parseGraphViewState(json: string): GraphViewState | null {
+/**
+ * Accepts either a serialised recipe or an already-parsed record, since a
+ * caller that has round-tripped a state through `JSON.stringify`/`JSON.parse`
+ * for a deep clone ends up holding the latter.
+ */
+export function parseGraphViewState(json: unknown): GraphViewState | null {
   let raw: unknown;
-  try {
-    raw = JSON.parse(json);
-  } catch {
-    return null;
+  if (typeof json === "string") {
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      return null;
+    }
+  } else {
+    raw = json;
   }
   if (!isRecord(raw)) return null;
-  if (raw.version !== GRAPH_VIEW_STATE_VERSION && raw.version !== 1) {
+  if (
+    raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 2 &&
+    raw.version !== 1
+  ) {
     return null;
   }
   const empty = emptyGraphViewState();
@@ -366,6 +441,10 @@ export function parseGraphViewState(json: string): GraphViewState | null {
           hiddenKeys: parseKeys(raw.hiddenKeys),
           ticksNeedDescendants: false,
         };
+  const regions =
+    raw.version === GRAPH_VIEW_STATE_VERSION
+      ? normalizedRegions(raw.regions)
+      : migratedRegions(scope.collections);
   return {
     version: GRAPH_VIEW_STATE_VERSION,
     seeds: Array.isArray(raw.seeds)
@@ -379,6 +458,9 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     },
     filters,
     ...scope,
+    regions,
+    swatches: parsedLedger(raw.swatches),
+    seedSwatches: parsedLedger(raw.seedSwatches),
     camera: parseCamera(raw.camera),
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : null,
   };
