@@ -138,11 +138,11 @@ function ghostColor(
   nodes: CitationGraphNode[],
 ): string {
   const theme = renderer.getTheme();
-  const metric = renderer.layout.nodeColorMetric ?? "collection";
+  const metric = renderer.layout.nodeColorMetric ?? "uniform";
+  if (metric === "uniform") return theme.states.uniformFill;
   // A ghost is a preview of a paper that is not in the graph yet, so it belongs
   // to none of the assigned categories. Only a numeric metric can place it.
   if (
-    metric === "collection" ||
     metric === "publication-type" ||
     metric === "provider" ||
     metric === "open-access"

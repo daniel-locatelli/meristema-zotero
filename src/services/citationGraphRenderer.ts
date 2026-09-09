@@ -1485,7 +1485,7 @@ export class CitationGraphRenderer {
         this.drawArrow(
           source,
           target,
-          radii.get(edge.target) ?? 7 * this.ratio,
+          radii.get(edge.target) ?? this.baseNodeRadius() * this.ratio,
           connection,
           selectedKey !== null && connection === null,
           Boolean(
