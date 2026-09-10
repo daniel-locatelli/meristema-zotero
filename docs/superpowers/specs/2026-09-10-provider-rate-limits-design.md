@@ -65,7 +65,7 @@ Semantic Scholar's key application asks an applicant to commit to.
 Settled with the user on 2026-09-10, from the providers' own documentation.
 
 **Semantic Scholar**, authenticated: 1 request per second, cumulative across
-all endpoints, and the application asks the applicant to sit *below* that
+all endpoints, and the application asks the applicant to sit _below_ that
 threshold. Unauthenticated traffic goes to a shared pool with no per-user
 guarantee, which the existing 1100 ms already respects.
 
@@ -81,7 +81,7 @@ budget.
 
 ### B9: delete the concept, do not re-tune it
 
-Semantic Scholar's keyed rate turns out to be *identical* to its keyless one.
+Semantic Scholar's keyed rate turns out to be _identical_ to its keyless one.
 A key buys `batchSize: 500`, `relationshipPageSize: 200` and a private quota;
 it does not buy speed. OpenAlex has no keyless path at all. So there is no
 case left in which "a key means go faster" is true.
@@ -101,10 +101,10 @@ Both keyless overrides are deleted, and with them the module's imports from
 `STATIC_POLICY` becomes the single statement of the rates, with the plan each
 number matches recorded beside it so the next reader does not tune it back up:
 
-| provider          | parallelism | gap     | why                                                                  |
-| ----------------- | ----------- | ------- | -------------------------------------------------------------------- |
-| semantic-scholar  | 1           | 1100 ms | 1 req/s cumulative, keyed or not, with the headroom the plan asks for |
-| openalex          | 2           | 250 ms  | ~8 req/s against a 100 req/s ceiling; the real limit is the daily budget |
+| provider         | parallelism | gap     | why                                                                      |
+| ---------------- | ----------- | ------- | ------------------------------------------------------------------------ |
+| semantic-scholar | 1           | 1100 ms | 1 req/s cumulative, keyed or not, with the headroom the plan asks for    |
+| openalex         | 2           | 250 ms  | ~8 req/s against a 100 req/s ceiling; the real limit is the daily budget |
 
 The other three providers (`crossref`, `opencitations`, `inspire`) never had
 an override and are unchanged.
@@ -132,14 +132,17 @@ Three changes:
 2. **Jitter, upward only.** A new pure function in `http.ts`:
 
    ```ts
-   export function backoffDelayMs(attempt: number, random = Math.random): number;
+   export function backoffDelayMs(
+     attempt: number,
+     random = Math.random,
+   ): number;
    ```
 
    It returns `base * (1 + random() * 0.25)` for `base = RETRY_DELAYS_MS[attempt]`,
    clamped to `MAX_RETRY_AFTER_MS`, and falls back to the last base delay for
    an attempt past the end of the array. Jitter only ever lengthens the wait.
    The usual full-jitter argument — de-correlating clients that would
-   otherwise retry in lockstep — is about *per-client* spread, and a
+   otherwise retry in lockstep — is about _per-client_ spread, and a
    provider-wide queue already provides that; jitter that could shrink the
    delay would instead let the whole provider resume earlier than the backoff
    intended.
@@ -170,6 +173,25 @@ user exhausts it, OpenAlex returns 429 and the new backoff is what responds.
 Recording it here so the next reader knows the gap is known rather than
 missed.
 
+**Three retries overturns an earlier decision, deliberately.** `http.ts` used
+to carry a comment, now deleted, that read: "One bounded retry is enough for
+interactive updates. Multiple 30-second retries used to block every request
+queued behind one unavailable provider." That was a real decision, not an
+oversight: the alternative on the table at the time was several retries at a
+fixed 30 seconds apiece, long enough that one unreachable provider could
+freeze every request queued behind it, so the limit was cut to one retry to
+keep that from happening. `[1000, 2000, 4000]` is a different shape of
+problem — it tops out at 4 seconds before jitter, nowhere near the
+30-second retries the old comment was guarding against, which is why three
+retries does not resurrect the failure mode that justified the earlier limit.
+It still costs more than one retry did. `REQUEST_TIMEOUT_MS` is 15 s per
+attempt and status 0 is retryable, so an unreachable provider now costs up
+to 4 × 15 s = 60 s per request instead of 2 × 15 s = 30 s, and each failing
+request pushes the provider's `nextStartAt` forward by roughly 8.75 s of
+backoff instead of 1.5 s. That increase is accepted, not waved away, because
+it buys the provider genuine room to recover from a transient 429 instead of
+giving up after one try.
+
 ## Testing
 
 Both changes are pure logic, so unit tests cover them end to end and nothing
@@ -185,7 +207,7 @@ here needs checking by hand in Zotero.
   the regression test for B9 proper.
 - The same for OpenAlex, whose policy must not depend on a stored key either.
 - OpenAlex stays under its documented ceiling: `parallelism /
-  (minimumStartDelayMs / 1000)` is well below 100 req/s.
+(minimumStartDelayMs / 1000)` is well below 100 req/s.
 - No provider is missing from `STATIC_POLICY`.
 
 `test/unit/providerBackoff.test.ts`:

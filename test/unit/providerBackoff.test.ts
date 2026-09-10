@@ -27,8 +27,9 @@ describe("Provider retry backoff", function () {
     }
   });
 
-  it("starts at one second and reaches four", function () {
+  it("starts at one second, doubles, and reaches four", function () {
     expect(backoffDelayMs(0, () => 0)).to.equal(1000);
+    expect(backoffDelayMs(1, () => 0)).to.equal(2000);
     expect(backoffDelayMs(2, () => 0)).to.equal(4000);
   });
 
