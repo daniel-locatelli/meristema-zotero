@@ -358,10 +358,7 @@ function collectionMenus(): MenuData[] {
         const target = scope(context);
         if (!target) return;
         context.setL10nArgs(
-          JSON.stringify({
-            graph: target.title,
-            count: target.collectionIDs.length,
-          }),
+          JSON.stringify({ count: target.collectionIDs.length }),
         );
       },
     ),
@@ -379,11 +376,8 @@ function fillSavedGraphPopup(
   const document = popup.ownerDocument as any;
   return fillSavedGraphRows(popup as any, {
     list: () => listSavedGraphs(libraryID),
-    createRow: () => {
-      const item = document.createXULElement("menuitem");
-      item.setAttribute("image", ICON);
-      return item;
-    },
+    // No icon on a row: the submenu these sit in already carries it (B17).
+    createRow: () => document.createXULElement("menuitem"),
     open: (graph) => {
       void openSavedGraph(graph.id, hostWindow)
         .then((result) => {
@@ -406,7 +400,6 @@ function openSavedGraphSubmenu(): MenuData {
   return {
     menuType: "submenu",
     l10nID: `${config.addonRef}-open-saved-graph-submenu`,
-    icon: ICON,
     onShowing: (_event: Event, context: any) => {
       const menuElem = safeContextValue(context, "menuElem") as
         HTMLElement | undefined;
@@ -451,7 +444,6 @@ function graphStateCommand(
   return {
     menuType: "menuitem",
     l10nID,
-    icon: ICON,
     onShowing: (_event: Event, context: any) => {
       const active = getOpenGraphViews(contextWindow(context)).find(
         (view) => view.active,
@@ -467,6 +459,12 @@ function graphStateCommand(
   };
 }
 
+/**
+ * The submenu carries the icon; its rows do not. Open, Save and Save as… sit
+ * inside an entry already labelled Meristema and already marked with it, and
+ * repeating the mark on every row said nothing (B17). The item and folder
+ * context menus are the opposite case: flat, so each row keeps its icon.
+ */
 function toolsSubmenu(): MenuData {
   return {
     menuType: "submenu",

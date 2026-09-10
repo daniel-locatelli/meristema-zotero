@@ -428,7 +428,7 @@ spec.
 
 ---
 
-## B13. "+ Add seed" is too dark to read on the dark theme
+## B13. "+ Add seed" is too dark to read on the dark theme — FIXED
 
 Found in the walk-through, check 5. The link is blue on a dark ground and the
 contrast is too low to pick out. It is the only way to add the first seed, so
@@ -439,7 +439,7 @@ tokens in `src/services/graphTheme.ts`.
 
 ---
 
-## B14. The seed row's × grows an off-centre ellipse on hover
+## B14. The seed row's × grows an off-centre ellipse on hover — FIXED
 
 Found in the walk-through, extra note. Hovering the remove control on a Seeds
 row paints a shape behind the × that is neither centred on it nor round. The
@@ -463,7 +463,7 @@ Pointers: the seed popover rows in `src/services/graphViewService.ts`
 
 ---
 
-## B16. The Open list centres the graph names
+## B16. The Open list centres the graph names — FIXED
 
 Found in the walk-through, check 6. Rows under File › Open and Tools ›
 Meristema › Open are centred while every other menu entry is left-aligned.
@@ -473,7 +473,7 @@ in `addon/content/graph.css`.
 
 ---
 
-## B17. Tools › Meristema repeats the Meristema icon on every row
+## B17. Tools › Meristema repeats the Meristema icon on every row — FIXED
 
 Found in the walk-through, check 6. Open, Save and Save as… each carry the
 plugin icon inside a submenu that is already labelled Meristema and already
@@ -501,7 +501,7 @@ Pointers: `scheduleFocusFit` and `applySeedProjection` in
 
 ---
 
-## B19. A folder's context menu reads "New PhD Graph"
+## B19. A folder's context menu reads "New PhD Graph" — FIXED
 
 Found in the walk-through, extra note. Right-clicking a folder offers
 "New { $graph }" for one folder. The user wants "Create a new graph".
@@ -527,7 +527,7 @@ Pointers: `openNewGraphWindow` in `src/services/windowService.ts`.
 
 ---
 
-## B21. File is fourth in the plot toolbar; it belongs first
+## B21. File is fourth in the plot toolbar; it belongs first — FIXED
 
 Found in the 2026-09-09 walk-through of Stage 2, check 6. The user's rule:
 "File always comes first in any UI." Today `toolbar.append` puts Filter,
@@ -541,6 +541,18 @@ it is the only elastic item and it is what makes the bar match Zotero's
 Pointers: the `toolbar.append(...)` call in `src/services/graphViewService.ts`,
 and "view 5" in `test/zotero/graphViewVisual.test.ts`, which asserts the bar
 stays one row.
+
+### B13, B14, B16, B17, B19 and B21 fixed 2026-09-11, branch `surface-fixes`
+
+One commit. B13: a `--cm-link` token, the accent on light and `#8fb8ff` on
+dark, used by "+ Add seed" and "Show all". B14: the × is styled as a glyph —
+no background, no radius, hover and focus-visible change ink and weight. B16:
+`text-align: start` on the Open list's buttons. B17: `openSavedGraphSubmenu`,
+`graphStateCommand` and the saved-graph `createRow` drop their icon; the
+Tools submenu keeps it; the flat item and folder menus are untouched. B19:
+the one-folder branch of `collection-new-graph-command` reads "Create a new
+graph" and the `$graph` argument is no longer passed. B21: `graphWrap` leads
+`toolbar.append`. All six are visual and are on the roadmap's manual batch.
 
 ---
 
