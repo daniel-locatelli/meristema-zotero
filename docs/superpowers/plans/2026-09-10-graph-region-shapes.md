@@ -37,7 +37,7 @@ current and which this spec amends.
   purpose.** In `test/unit/graphFolderRegion.test.ts`, the case "sums the field
   to the same contour however it is accumulated" asserts `length = 68`,
   `x = 475.8592418546`, `y = 439.2057750520` for its first loop. **If those
-  three fail, the code is wrong, not the golden.** Only its *second* triple may
+  three fail, the code is wrong, not the golden.** Only its _second_ triple may
   move, and only into the disc assertion Task 3 gives it.
 - Prettier settings are `printWidth: 80`, `tabWidth: 2`. Run
   `npm run lint:fix` before committing if formatting drifts.
@@ -243,9 +243,8 @@ describe("CitationGraphRenderer region cache", function () {
         },
       },
     });
-    const { CitationGraphRenderer } = await import(
-      "../../src/services/citationGraphRenderer"
-    );
+    const { CitationGraphRenderer } =
+      await import("../../src/services/citationGraphRenderer");
 
     const canvas = new FakeCanvas();
     const graphNode = node("n1", { collectionIDs: [1] });
@@ -306,9 +305,9 @@ A test that has never failed proves nothing. Break the cache on purpose: in
 early return
 
 ```ts
-      if (this.regionSignatures.get(region.collectionID) === signature) {
-        continue;
-      }
+if (this.regionSignatures.get(region.collectionID) === signature) {
+  continue;
+}
 ```
 
 Run: `npm run test:unit`
@@ -362,134 +361,134 @@ Append to the `describe("folder regions", ...)` block in
 list at the top of the file:
 
 ```ts
-  it("splits papers more than 2R apart into separate components", function () {
-    const components = regionComponents(
+it("splits papers more than 2R apart into separate components", function () {
+  const components = regionComponents(
+    [
+      { x: 0, y: 0 },
+      { x: 30, y: 0 },
+    ],
+    10,
+  );
+  expect(components).to.have.length(2);
+  expect(components[0]).to.deep.equal([{ x: 0, y: 0 }]);
+  expect(components[1]).to.deep.equal([{ x: 30, y: 0 }]);
+});
+
+it("keeps papers closer than 2R in one component", function () {
+  expect(
+    regionComponents(
       [
         { x: 0, y: 0 },
-        { x: 30, y: 0 },
+        { x: 12, y: 0 },
       ],
       10,
-    );
-    expect(components).to.have.length(2);
-    expect(components[0]).to.deep.equal([{ x: 0, y: 0 }]);
-    expect(components[1]).to.deep.equal([{ x: 30, y: 0 }]);
-  });
+    ),
+  ).to.have.length(1);
+});
 
-  it("keeps papers closer than 2R in one component", function () {
-    expect(
-      regionComponents(
-        [
-          { x: 0, y: 0 },
-          { x: 12, y: 0 },
-        ],
-        10,
-      ),
-    ).to.have.length(1);
-  });
-
-  /**
-   * The conservative boundary, pinned. The exact isolation radius is
-   * `R(1 + sqrt(1 - t))`, about `1.707R`; the spec takes `2R` instead so a
-   * grouped component's grid can never omit a neighbour whose support
-   * overlaps its domain. Anyone later tightening this to 1.707R has to change
-   * this case, which is the point.
-   */
-  it("groups at exactly the 2R boundary and splits just past it", function () {
-    expect(
-      regionComponents(
-        [
-          { x: 0, y: 0 },
-          { x: 19.999, y: 0 },
-        ],
-        10,
-      ),
-      "just inside 2R is one component",
-    ).to.have.length(1);
-    expect(
-      regionComponents(
-        [
-          { x: 0, y: 0 },
-          { x: 20, y: 0 },
-        ],
-        10,
-      ),
-      "exactly 2R is two components",
-    ).to.have.length(2);
-  });
-
-  it("chains papers into one component through their neighbours", function () {
-    // Ends 60 apart, so no single hop; every step is 15, well inside 2R.
-    const chain = [0, 15, 30, 45, 60].map((x) => ({ x, y: 0 }));
-    const components = regionComponents(chain, 10);
-    expect(components).to.have.length(1);
-    expect(components[0]).to.have.length(5);
-  });
-
-  /**
-   * 400 papers in twenty well-separated clusters. This exercises the spatial
-   * hash's neighbour lookup at a size where a naive all-pairs pass would be
-   * doing 160 000 comparisons — but it asserts the partition, not the clock:
-   * 400 points is small enough that even the quadratic version finishes
-   * instantly, so a timing assertion here would be flaky and prove nothing.
-   * What it does prove is that hashing into cells never loses or merges a
-   * component.
-   */
-  it("partitions four hundred papers into the clusters they form", function () {
-    const points: RegionPoint[] = [];
-    for (let cluster = 0; cluster < 20; cluster += 1) {
-      for (let member = 0; member < 20; member += 1) {
-        points.push({
-          x: cluster * 1000 + (member % 5) * 4,
-          y: Math.floor(member / 5) * 4,
-        });
-      }
-    }
-    const components = regionComponents(points, 10);
-    expect(components).to.have.length(20);
-    for (const component of components) {
-      expect(component).to.have.length(20);
-    }
-  });
-
-  it("never throws on degenerate partition input", function () {
-    expect(regionComponents([], 10)).to.deep.equal([]);
-    expect(regionComponents([{ x: 1, y: 1 }], 10)).to.deep.equal([
-      [{ x: 1, y: 1 }],
-    ]);
-    // Coincident papers are one component, not one each.
-    expect(
-      regionComponents(
-        [
-          { x: 2, y: 2 },
-          { x: 2, y: 2 },
-        ],
-        10,
-      ),
-    ).to.have.length(1);
-    // A non-finite paper joins nothing, and takes nothing down with it.
-    const withNaN = regionComponents(
+/**
+ * The conservative boundary, pinned. The exact isolation radius is
+ * `R(1 + sqrt(1 - t))`, about `1.707R`; the spec takes `2R` instead so a
+ * grouped component's grid can never omit a neighbour whose support
+ * overlaps its domain. Anyone later tightening this to 1.707R has to change
+ * this case, which is the point.
+ */
+it("groups at exactly the 2R boundary and splits just past it", function () {
+  expect(
+    regionComponents(
       [
         { x: 0, y: 0 },
-        { x: Number.NaN, y: 0 },
-        { x: 5, y: 0 },
+        { x: 19.999, y: 0 },
       ],
       10,
-    );
-    expect(withNaN).to.have.length(2);
-    expect(withNaN[0]).to.have.length(2);
-    // A radius that is not a positive number leaves every paper on its own
-    // rather than dividing by it.
-    expect(regionComponents([{ x: 0, y: 0 }], 0)).to.have.length(1);
-    expect(
-      regionComponents(
-        [
-          { x: 0, y: 0 },
-          { x: 1, y: 0 },
-        ],
-        Number.NaN,
-      ),
-    ).to.have.length(2);
-  });
+    ),
+    "just inside 2R is one component",
+  ).to.have.length(1);
+  expect(
+    regionComponents(
+      [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+      ],
+      10,
+    ),
+    "exactly 2R is two components",
+  ).to.have.length(2);
+});
+
+it("chains papers into one component through their neighbours", function () {
+  // Ends 60 apart, so no single hop; every step is 15, well inside 2R.
+  const chain = [0, 15, 30, 45, 60].map((x) => ({ x, y: 0 }));
+  const components = regionComponents(chain, 10);
+  expect(components).to.have.length(1);
+  expect(components[0]).to.have.length(5);
+});
+
+/**
+ * 400 papers in twenty well-separated clusters. This exercises the spatial
+ * hash's neighbour lookup at a size where a naive all-pairs pass would be
+ * doing 160 000 comparisons — but it asserts the partition, not the clock:
+ * 400 points is small enough that even the quadratic version finishes
+ * instantly, so a timing assertion here would be flaky and prove nothing.
+ * What it does prove is that hashing into cells never loses or merges a
+ * component.
+ */
+it("partitions four hundred papers into the clusters they form", function () {
+  const points: RegionPoint[] = [];
+  for (let cluster = 0; cluster < 20; cluster += 1) {
+    for (let member = 0; member < 20; member += 1) {
+      points.push({
+        x: cluster * 1000 + (member % 5) * 4,
+        y: Math.floor(member / 5) * 4,
+      });
+    }
+  }
+  const components = regionComponents(points, 10);
+  expect(components).to.have.length(20);
+  for (const component of components) {
+    expect(component).to.have.length(20);
+  }
+});
+
+it("never throws on degenerate partition input", function () {
+  expect(regionComponents([], 10)).to.deep.equal([]);
+  expect(regionComponents([{ x: 1, y: 1 }], 10)).to.deep.equal([
+    [{ x: 1, y: 1 }],
+  ]);
+  // Coincident papers are one component, not one each.
+  expect(
+    regionComponents(
+      [
+        { x: 2, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      10,
+    ),
+  ).to.have.length(1);
+  // A non-finite paper joins nothing, and takes nothing down with it.
+  const withNaN = regionComponents(
+    [
+      { x: 0, y: 0 },
+      { x: Number.NaN, y: 0 },
+      { x: 5, y: 0 },
+    ],
+    10,
+  );
+  expect(withNaN).to.have.length(2);
+  expect(withNaN[0]).to.have.length(2);
+  // A radius that is not a positive number leaves every paper on its own
+  // rather than dividing by it.
+  expect(regionComponents([{ x: 0, y: 0 }], 0)).to.have.length(1);
+  expect(
+    regionComponents(
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      Number.NaN,
+    ),
+  ).to.have.length(2);
+});
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
@@ -667,115 +666,115 @@ ones. Everything not named here stays exactly as it is.
 Replace `"draws nothing for a folder with no papers"`:
 
 ```ts
-  it("draws nothing for a folder with no papers", function () {
-    expect(folderRegionContours([], OPTIONS)).to.deep.equal({
-      radius: 0,
-      pitch: 0,
-      discs: [],
-      loops: [],
-    });
+it("draws nothing for a folder with no papers", function () {
+  expect(folderRegionContours([], OPTIONS)).to.deep.equal({
+    radius: 0,
+    pitch: 0,
+    discs: [],
+    loops: [],
   });
+});
 ```
 
 Replace `"draws one closed loop around a single paper"` — a lone paper is a
 disc now, and its radius is exact rather than a grid's best effort:
 
 ```ts
-  it("draws an exact circle around a single paper", function () {
-    const shapes = folderRegionContours([{ x: 0, y: 0 }], OPTIONS);
-    expect(shapes.loops).to.have.length(0);
-    expect(shapes.discs).to.have.length(1);
-    expect(shapes.discs[0].centre).to.deep.equal({ x: 0, y: 0 });
-    // The field is `1 - d^2/R^2` and the threshold is 0.5, so the contour of
-    // a lone paper is the circle `R * sqrt(1 - t)` — an exact answer, and one
-    // no grid and no fit can improve on.
-    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
-  });
+it("draws an exact circle around a single paper", function () {
+  const shapes = folderRegionContours([{ x: 0, y: 0 }], OPTIONS);
+  expect(shapes.loops).to.have.length(0);
+  expect(shapes.discs).to.have.length(1);
+  expect(shapes.discs[0].centre).to.deep.equal({ x: 0, y: 0 });
+  // The field is `1 - d^2/R^2` and the threshold is 0.5, so the contour of
+  // a lone paper is the circle `R * sqrt(1 - t)` — an exact answer, and one
+  // no grid and no fit can improve on.
+  expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
+});
 ```
 
 Replace `"merges papers that sit close together into one loop"`:
 
 ```ts
-  it("merges papers that sit close together into one loop", function () {
-    const shapes = folderRegionContours(
-      [
-        { x: 0, y: 0 },
-        { x: 6, y: 0 },
-      ],
-      OPTIONS,
-    );
-    expect(shapes.discs).to.have.length(0);
-    expect(shapes.loops).to.have.length(1);
-    expect(extent(shapes.loops[0])).to.be.greaterThan(14);
-  });
+it("merges papers that sit close together into one loop", function () {
+  const shapes = folderRegionContours(
+    [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+    ],
+    OPTIONS,
+  );
+  expect(shapes.discs).to.have.length(0);
+  expect(shapes.loops).to.have.length(1);
+  expect(extent(shapes.loops[0])).to.be.greaterThan(14);
+});
 ```
 
 Replace `"leaves distant papers as separate islands"`:
 
 ```ts
-  it("leaves distant papers as separate discs", function () {
-    const shapes = folderRegionContours(
-      [
-        { x: 0, y: 0 },
-        { x: 80, y: 0 },
-      ],
-      OPTIONS,
-    );
-    expect(shapes.loops).to.have.length(0);
-    expect(shapes.discs).to.have.length(2);
-  });
+it("leaves distant papers as separate discs", function () {
+  const shapes = folderRegionContours(
+    [
+      { x: 0, y: 0 },
+      { x: 80, y: 0 },
+    ],
+    OPTIONS,
+  );
+  expect(shapes.loops).to.have.length(0);
+  expect(shapes.discs).to.have.length(2);
+});
 ```
 
 Replace `"draws a hole as its own loop when papers ring an empty middle"`'s last
 two lines with:
 
 ```ts
-    const shapes = folderRegionContours(ring, { radius: 10, pitch: 2 });
-    // An outer loop and an inner one: the ring's middle is below threshold.
-    expect(shapes.loops.length).to.be.at.least(2);
+const shapes = folderRegionContours(ring, { radius: 10, pitch: 2 });
+// An outer loop and an inner one: the ring's middle is below threshold.
+expect(shapes.loops.length).to.be.at.least(2);
 ```
 
 Replace `"closes a contour whose papers sit at the extreme of the plot"` — it
 needs a cluster now, since a lone paper no longer reaches the grid at all:
 
 ```ts
-  it("closes a contour whose papers sit at the extreme of the plot", function () {
-    // The grid must extend past the nodes' bounding box, or the loop is cut
-    // square at the edge instead of tapering shut. Two papers, not one: a
-    // singleton is an exact circle and never touches the grid.
-    const shapes = folderRegionContours(
-      [
-        { x: 1000, y: -1000 },
-        { x: 1006, y: -1000 },
-      ],
-      OPTIONS,
-    );
-    expect(shapes.loops).to.have.length(1);
-    const loop = shapes.loops[0];
-    expect(
-      Math.hypot(
-        loop[0].x - loop[loop.length - 1].x,
-        loop[0].y - loop[loop.length - 1].y,
-      ),
-    ).to.be.below(0.001);
-  });
+it("closes a contour whose papers sit at the extreme of the plot", function () {
+  // The grid must extend past the nodes' bounding box, or the loop is cut
+  // square at the edge instead of tapering shut. Two papers, not one: a
+  // singleton is an exact circle and never touches the grid.
+  const shapes = folderRegionContours(
+    [
+      { x: 1000, y: -1000 },
+      { x: 1006, y: -1000 },
+    ],
+    OPTIONS,
+  );
+  expect(shapes.loops).to.have.length(1);
+  const loop = shapes.loops[0];
+  expect(
+    Math.hypot(
+      loop[0].x - loop[loop.length - 1].x,
+      loop[0].y - loop[loop.length - 1].y,
+    ),
+  ).to.be.below(0.001);
+});
 ```
 
 In `"gives the same contour for the same input, deterministically"`, replace the
 final two assertions:
 
 ```ts
-    expect(twice).to.deep.equal(once);
-    expect(once.loops).to.have.length(1);
+expect(twice).to.deep.equal(once);
+expect(once.loops).to.have.length(1);
 ```
 
 In `"resolves a saddle without crossing itself"`, replace the last four lines:
 
 ```ts
-    expect(shapes.loops.length).to.be.at.least(1);
-    for (const loop of shapes.loops) {
-      expect(loop.length).to.be.greaterThan(6);
-    }
+expect(shapes.loops.length).to.be.at.least(1);
+for (const loop of shapes.loops) {
+  expect(loop.length).to.be.greaterThan(6);
+}
 ```
 
 (rename its local `const contours` to `const shapes` throughout that case.)
@@ -784,210 +783,210 @@ Replace `"coarsens rather than allocating an unbounded grid"` — its old fixtur
 is two papers 7071 apart, which are now two discs and never build a grid:
 
 ```ts
-  /** A pitch small enough to blow the cell budget is coarsened rather than
-   *  allocated. The fixture must be one *component*, since discs cost no
-   *  cells at all: a chain whose every hop is inside 2R but whose ends are
-   *  5000 apart. With the shipped constants this cannot happen in the
-   *  product; it is a guard against a later change moving them. */
-  it("coarsens rather than allocating an unbounded grid", function () {
-    const chain: RegionPoint[] = [];
-    for (let x = 0; x <= 5000; x += 150) chain.push({ x, y: 0 });
-    const shapes = folderRegionContours(chain, { radius: 100, pitch: 0.05 });
-    expect(shapes.loops.length).to.be.at.least(1);
-    expect(shapes.pitch).to.be.greaterThan(0.05);
-  });
+/** A pitch small enough to blow the cell budget is coarsened rather than
+ *  allocated. The fixture must be one *component*, since discs cost no
+ *  cells at all: a chain whose every hop is inside 2R but whose ends are
+ *  5000 apart. With the shipped constants this cannot happen in the
+ *  product; it is a guard against a later change moving them. */
+it("coarsens rather than allocating an unbounded grid", function () {
+  const chain: RegionPoint[] = [];
+  for (let x = 0; x <= 5000; x += 150) chain.push({ x, y: 0 });
+  const shapes = folderRegionContours(chain, { radius: 100, pitch: 0.05 });
+  expect(shapes.loops.length).to.be.at.least(1);
+  expect(shapes.pitch).to.be.greaterThan(0.05);
+});
 ```
 
 Replace the golden's tail — its first triple is untouched, its second becomes
 the disc assertion:
 
 ```ts
-  it("sums the field to the same contour however it is accumulated", function () {
-    const shapes = folderRegionContours(
-      [
-        { x: 0, y: 0 },
-        { x: 14, y: 3 },
-        { x: 7, y: 16 },
-        { x: 40, y: 40 },
-      ],
-      { radius: 10, pitch: 2 },
-    );
-    expect(shapes.loops).to.have.length(1);
-    const loop = shapes.loops[0];
-    expect(loop.length).to.equal(68);
-    expect(loop.reduce((total, point) => total + point.x, 0)).to.be.closeTo(
-      475.8592418546,
-      1e-6,
-    );
-    expect(loop.reduce((total, point) => total + point.y, 0)).to.be.closeTo(
-      439.205775052,
-      1e-6,
-    );
-    // The fourth paper is 40-odd units from the nearest of the other three,
-    // well past 2R, so it leaves the loop list and comes back as an exact
-    // disc. Its old triple (26, 1040, 1014) was a grid's approximation of
-    // this circle.
-    expect(shapes.discs).to.have.length(1);
-    expect(shapes.discs[0].centre).to.deep.equal({ x: 40, y: 40 });
-    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
-  });
+it("sums the field to the same contour however it is accumulated", function () {
+  const shapes = folderRegionContours(
+    [
+      { x: 0, y: 0 },
+      { x: 14, y: 3 },
+      { x: 7, y: 16 },
+      { x: 40, y: 40 },
+    ],
+    { radius: 10, pitch: 2 },
+  );
+  expect(shapes.loops).to.have.length(1);
+  const loop = shapes.loops[0];
+  expect(loop.length).to.equal(68);
+  expect(loop.reduce((total, point) => total + point.x, 0)).to.be.closeTo(
+    475.8592418546,
+    1e-6,
+  );
+  expect(loop.reduce((total, point) => total + point.y, 0)).to.be.closeTo(
+    439.205775052,
+    1e-6,
+  );
+  // The fourth paper is 40-odd units from the nearest of the other three,
+  // well past 2R, so it leaves the loop list and comes back as an exact
+  // disc. Its old triple (26, 1040, 1014) was a grid's approximation of
+  // this circle.
+  expect(shapes.discs).to.have.length(1);
+  expect(shapes.discs[0].centre).to.deep.equal({ x: 40, y: 40 });
+  expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
+});
 ```
 
 Now add the new cases, at the end of the same `describe` block:
 
 ```ts
-  /**
-   * The shared lattice, asserted rather than assumed. Every component is
-   * sampled on the folder's own lattice — the folder's pitch, anchored at the
-   * folder's min corner — so a component sees exactly the cell corners it saw
-   * when the whole folder was one grid. At a given radius and pitch, every
-   * surviving loop is therefore byte-identical to the one that shipped.
-   *
-   * Anchoring each component at its own min corner instead would shift the
-   * sampling lattice per component and move every vertex slightly: a visible
-   * change nobody asked for, and one that would have forced the golden above
-   * to be re-recorded.
-   */
-  it("samples every component on one lattice, so a loop is unchanged by a distant paper", function () {
-    const cluster = [
-      { x: 0, y: 0 },
-      { x: 14, y: 3 },
-      { x: 7, y: 16 },
-    ];
-    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
-    const withDistant = folderRegionContours(
-      [...cluster, { x: 40, y: 40 }],
-      { radius: 10, pitch: 2 },
-    );
-    expect(withDistant.loops[0]).to.deep.equal(alone.loops[0]);
+/**
+ * The shared lattice, asserted rather than assumed. Every component is
+ * sampled on the folder's own lattice — the folder's pitch, anchored at the
+ * folder's min corner — so a component sees exactly the cell corners it saw
+ * when the whole folder was one grid. At a given radius and pitch, every
+ * surviving loop is therefore byte-identical to the one that shipped.
+ *
+ * Anchoring each component at its own min corner instead would shift the
+ * sampling lattice per component and move every vertex slightly: a visible
+ * change nobody asked for, and one that would have forced the golden above
+ * to be re-recorded.
+ */
+it("samples every component on one lattice, so a loop is unchanged by a distant paper", function () {
+  const cluster = [
+    { x: 0, y: 0 },
+    { x: 14, y: 3 },
+    { x: 7, y: 16 },
+  ];
+  const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+  const withDistant = folderRegionContours([...cluster, { x: 40, y: 40 }], {
+    radius: 10,
+    pitch: 2,
   });
+  expect(withDistant.loops[0]).to.deep.equal(alone.loops[0]);
+});
 
-  it("reports the radius and the pitch it built the shapes at", function () {
-    const shapes = folderRegionContours(
+it("reports the radius and the pitch it built the shapes at", function () {
+  const shapes = folderRegionContours(
+    [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+    ],
+    OPTIONS,
+  );
+  expect(shapes.radius).to.equal(10);
+  expect(shapes.pitch).to.equal(2);
+});
+
+it("returns shapes and throws nothing on degenerate folders", function () {
+  // `draw()` latches `canvasError` after one throw, so this asserts the
+  // absence of an exception rather than any shape.
+  const abuse: Array<[RegionPoint[], { radius: number; pitch: number }]> = [
+    [[], OPTIONS],
+    [[{ x: 0, y: 0 }], OPTIONS],
+    [
       [
-        { x: 0, y: 0 },
-        { x: 6, y: 0 },
+        { x: 3, y: 3 },
+        { x: 3, y: 3 },
       ],
       OPTIONS,
-    );
-    expect(shapes.radius).to.equal(10);
-    expect(shapes.pitch).to.equal(2);
-  });
-
-  it("returns shapes and throws nothing on degenerate folders", function () {
-    // `draw()` latches `canvasError` after one throw, so this asserts the
-    // absence of an exception rather than any shape.
-    const abuse: Array<[RegionPoint[], { radius: number; pitch: number }]> = [
-      [[], OPTIONS],
-      [[{ x: 0, y: 0 }], OPTIONS],
+    ],
+    [[{ x: Number.NaN, y: 0 }], OPTIONS],
+    [
       [
-        [
-          { x: 3, y: 3 },
-          { x: 3, y: 3 },
-        ],
-        OPTIONS,
+        { x: 0, y: 0 },
+        { x: 1, y: Number.POSITIVE_INFINITY },
       ],
-      [[{ x: Number.NaN, y: 0 }], OPTIONS],
-      [
-        [
-          { x: 0, y: 0 },
-          { x: 1, y: Number.POSITIVE_INFINITY },
-        ],
-        OPTIONS,
-      ],
-      [[{ x: 0, y: 0 }], { radius: 0, pitch: 2 }],
-      [[{ x: 0, y: 0 }], { radius: 10, pitch: 0 }],
-      [[{ x: 0, y: 0 }], { radius: Number.NaN, pitch: Number.NaN }],
-    ];
-    for (const [points, options] of abuse) {
-      let shapes: FolderRegionShapes | null = null;
-      expect(() => {
-        shapes = folderRegionContours(points, options);
-      }, JSON.stringify(points)).to.not.throw();
-      expect(shapes).to.not.equal(null);
-      for (const loop of shapes!.loops) {
-        for (const point of loop) {
-          expect(Number.isFinite(point.x) && Number.isFinite(point.y)).to.equal(
-            true,
-          );
-        }
+      OPTIONS,
+    ],
+    [[{ x: 0, y: 0 }], { radius: 0, pitch: 2 }],
+    [[{ x: 0, y: 0 }], { radius: 10, pitch: 0 }],
+    [[{ x: 0, y: 0 }], { radius: Number.NaN, pitch: Number.NaN }],
+  ];
+  for (const [points, options] of abuse) {
+    let shapes: FolderRegionShapes | null = null;
+    expect(() => {
+      shapes = folderRegionContours(points, options);
+    }, JSON.stringify(points)).to.not.throw();
+    expect(shapes).to.not.equal(null);
+    for (const loop of shapes!.loops) {
+      for (const point of loop) {
+        expect(Number.isFinite(point.x) && Number.isFinite(point.y)).to.equal(
+          true,
+        );
       }
     }
-  });
+  }
+});
 
-  it("emits one arc per disc and no curve", function () {
-    const { view } = recordingView();
-    const path = regionPathFor(
-      view,
-      {
-        radius: 10,
-        pitch: 2,
-        discs: [{ centre: { x: 4, y: 5 }, radius: 7 }],
-        loops: [],
-      },
-      (point: RegionPoint) => ({ x: point.x * 3, y: point.y * 3 }),
-      3,
-    );
-    const commands = (path as unknown as RecordingPath).commands;
-    expect(commands.map((command) => command.op)).to.deep.equal([
-      "moveTo",
-      "arc",
-      "closePath",
-    ]);
-    // `arc()` continues the current subpath, so the disc opens its own with a
-    // moveTo onto the circle; without it a disc after a loop is joined to it
-    // by a straight line across the plot.
-    expect(commands[0].args).to.deep.equal([12 + 21, 15]);
-    expect(commands[1].args[0]).to.equal(12);
-    expect(commands[1].args[1]).to.equal(15);
-    expect(commands[1].args[2]).to.equal(21);
-    expect(commands.some((command) => command.op === "bezierCurveTo")).to.equal(
-      false,
-    );
-  });
+it("emits one arc per disc and no curve", function () {
+  const { view } = recordingView();
+  const path = regionPathFor(
+    view,
+    {
+      radius: 10,
+      pitch: 2,
+      discs: [{ centre: { x: 4, y: 5 }, radius: 7 }],
+      loops: [],
+    },
+    (point: RegionPoint) => ({ x: point.x * 3, y: point.y * 3 }),
+    3,
+  );
+  const commands = (path as unknown as RecordingPath).commands;
+  expect(commands.map((command) => command.op)).to.deep.equal([
+    "moveTo",
+    "arc",
+    "closePath",
+  ]);
+  // `arc()` continues the current subpath, so the disc opens its own with a
+  // moveTo onto the circle; without it a disc after a loop is joined to it
+  // by a straight line across the plot.
+  expect(commands[0].args).to.deep.equal([12 + 21, 15]);
+  expect(commands[1].args[0]).to.equal(12);
+  expect(commands[1].args[1]).to.equal(15);
+  expect(commands[1].args[2]).to.equal(21);
+  expect(commands.some((command) => command.op === "bezierCurveTo")).to.equal(
+    false,
+  );
+});
 
-  it("draws discs and loops onto one path", function () {
-    const path = regionPathFor(
-      recordingView().view,
-      {
-        radius: 10,
-        pitch: 0,
-        discs: [{ centre: { x: 100, y: 0 }, radius: 5 }],
-        loops: [
-          [
-            { x: 0, y: 0 },
-            { x: 10, y: 0 },
-            { x: 10, y: 10 },
-            { x: 0, y: 10 },
-          ],
+it("draws discs and loops onto one path", function () {
+  const path = regionPathFor(
+    recordingView().view,
+    {
+      radius: 10,
+      pitch: 0,
+      discs: [{ centre: { x: 100, y: 0 }, radius: 5 }],
+      loops: [
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
         ],
-      },
-      IDENTITY,
-      1,
-    );
-    const ops = (path as unknown as RecordingPath).commands.map((c) => c.op);
-    expect(ops.filter((op) => op === "arc")).to.have.length(1);
-    expect(ops.filter((op) => op === "bezierCurveTo")).to.have.length(4);
-  });
+      ],
+    },
+    IDENTITY,
+    1,
+  );
+  const ops = (path as unknown as RecordingPath).commands.map((c) => c.op);
+  expect(ops.filter((op) => op === "arc")).to.have.length(1);
+  expect(ops.filter((op) => op === "bezierCurveTo")).to.have.length(4);
+});
 
-  it("skips a disc it cannot draw rather than emitting a NaN arc", function () {
-    const path = regionPathFor(
-      recordingView().view,
-      {
-        radius: 10,
-        pitch: 0,
-        discs: [
-          { centre: { x: Number.NaN, y: 0 }, radius: 5 },
-          { centre: { x: 0, y: 0 }, radius: 0 },
-          { centre: { x: 0, y: 0 }, radius: Number.POSITIVE_INFINITY },
-        ],
-        loops: [],
-      },
-      IDENTITY,
-      1,
-    );
-    expect((path as unknown as RecordingPath).commands).to.deep.equal([]);
-  });
+it("skips a disc it cannot draw rather than emitting a NaN arc", function () {
+  const path = regionPathFor(
+    recordingView().view,
+    {
+      radius: 10,
+      pitch: 0,
+      discs: [
+        { centre: { x: Number.NaN, y: 0 }, radius: 5 },
+        { centre: { x: 0, y: 0 }, radius: 0 },
+        { centre: { x: 0, y: 0 }, radius: Number.POSITIVE_INFINITY },
+      ],
+      loops: [],
+    },
+    IDENTITY,
+    1,
+  );
+  expect((path as unknown as RecordingPath).commands).to.deep.equal([]);
+});
 ```
 
 Finally, every remaining `regionPathFor(...)` call in this file takes the new
@@ -1016,16 +1015,16 @@ So, for example, `regionPathFor(view, [ring], IDENTITY)` becomes
 `"returns null when the window has no Path2D at all"` case becomes:
 
 ```ts
-  it("returns null when the window has no Path2D at all", function () {
-    expect(
-      regionPathFor(
-        {} as unknown as Window,
-        fitOnly([[{ x: 0, y: 0 }]]),
-        (p: RegionPoint) => p,
-        1,
-      ),
-    ).to.equal(null);
-  });
+it("returns null when the window has no Path2D at all", function () {
+  expect(
+    regionPathFor(
+      {} as unknown as Window,
+      fitOnly([[{ x: 0, y: 0 }]]),
+      (p: RegionPoint) => p,
+      1,
+    ),
+  ).to.equal(null);
+});
 ```
 
 The `centroid` helper at the top of the file was used only by the single-paper
@@ -1329,27 +1328,27 @@ and change `private regionContours = new Map<number, RegionPoint[][]>();` to
 Then in `drawRegions` (~line 1405), replace:
 
 ```ts
-      const loops = contours.get(region.collectionID) ?? [];
-      if (!loops.length) continue;
-      const path = regionPathFor(
-        this.canvas.ownerDocument.defaultView,
-        loops,
-        (point) => this.projectToScreen(point),
-      );
+const loops = contours.get(region.collectionID) ?? [];
+if (!loops.length) continue;
+const path = regionPathFor(
+  this.canvas.ownerDocument.defaultView,
+  loops,
+  (point) => this.projectToScreen(point),
+);
 ```
 
 with:
 
 ```ts
-      const shapes = contours.get(region.collectionID);
-      if (!shapes) continue;
-      if (!shapes.discs.length && !shapes.loops.length) continue;
-      const path = regionPathFor(
-        this.canvas.ownerDocument.defaultView,
-        shapes,
-        (point) => this.projectToScreen(point),
-        this.transform.scale,
-      );
+const shapes = contours.get(region.collectionID);
+if (!shapes) continue;
+if (!shapes.discs.length && !shapes.loops.length) continue;
+const path = regionPathFor(
+  this.canvas.ownerDocument.defaultView,
+  shapes,
+  (point) => this.projectToScreen(point),
+  this.transform.scale,
+);
 ```
 
 Rename the local `const contours = this.regionsFor(...)` to `const shapesByFolder`
@@ -1364,11 +1363,11 @@ In `test/unit/citationGraphRendererRegions.test.ts`, the case
 its two assertion messages:
 
 ```ts
-      // Each territory opens its own subpath: a cluster with a moveTo onto
-      // the fit's first on-curve point, a lone paper with a moveTo onto its
-      // circle's rim before the arc.
-      const territoriesDrawn = (path: FakePath2D): number =>
-        path.commands.filter((command) => command.op === "moveTo").length;
+// Each territory opens its own subpath: a cluster with a moveTo onto
+// the fit's first on-curve point, a lone paper with a moveTo onto its
+// circle's rim before the arc.
+const territoriesDrawn = (path: FakePath2D): number =>
+  path.commands.filter((command) => command.op === "moveTo").length;
 ```
 
 and rename the two call sites to `territoriesDrawn`, with messages
@@ -1426,197 +1425,200 @@ Add `resampleRing` to the import list, then append to
 `describe("folder regions", ...)`:
 
 ```ts
-  /**
-   * The uneven ring these cases share: sixty vertices on a circle of radius
-   * 100, with the angular gaps alternating 0.3x and 1.7x of even. No radial
-   * jitter at all — the vertices lie exactly on the circle — so anything the
-   * fitted curve does other than trace that circle is a parameterisation
-   * artefact and nothing else. That is the isolation the measurement in the
-   * spec made, reproduced as a fixture.
-   */
-  function unevenRing(): RegionPoint[] {
-    const ring: RegionPoint[] = [];
-    const base = (2 * Math.PI) / 60;
-    let angle = 0;
-    const push = (): void => {
-      ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
-    };
-    for (let pair = 0; pair < 30; pair += 1) {
-      push();
-      angle += base * 0.3;
-      push();
-      angle += base * 1.7;
+/**
+ * The uneven ring these cases share: sixty vertices on a circle of radius
+ * 100, with the angular gaps alternating 0.3x and 1.7x of even. No radial
+ * jitter at all — the vertices lie exactly on the circle — so anything the
+ * fitted curve does other than trace that circle is a parameterisation
+ * artefact and nothing else. That is the isolation the measurement in the
+ * spec made, reproduced as a fixture.
+ */
+function unevenRing(): RegionPoint[] {
+  const ring: RegionPoint[] = [];
+  const base = (2 * Math.PI) / 60;
+  let angle = 0;
+  const push = (): void => {
+    ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
+  };
+  for (let pair = 0; pair < 30; pair += 1) {
+    push();
+    angle += base * 0.3;
+    push();
+    angle += base * 1.7;
+  }
+  return ring;
+}
+
+function spacingsOf(ring: readonly RegionPoint[]): number[] {
+  return ring.map((point, index) => {
+    const next = ring[(index + 1) % ring.length];
+    return Math.hypot(next.x - point.x, next.y - point.y);
+  });
+}
+
+/** How far the fitted curve wanders in and out, sampled along every span:
+ *  the radial spread of the curve, which is what "wobble" means here. */
+function radialRange(shapes: FolderRegionShapes): number {
+  const path = regionPathFor(
+    recordingView().view,
+    shapes,
+    IDENTITY,
+    1,
+  ) as unknown as RecordingPath;
+  const radii: number[] = [];
+  let current = path.commands[0].args;
+  for (const command of path.commands.slice(1)) {
+    if (command.op !== "bezierCurveTo") continue;
+    const c1 = command.args.slice(0, 2);
+    const c2 = command.args.slice(2, 4);
+    const end = command.args.slice(4, 6);
+    for (let step = 0; step < 16; step += 1) {
+      const t = step / 16;
+      const u = 1 - t;
+      const x =
+        u * u * u * current[0] +
+        3 * u * u * t * c1[0] +
+        3 * u * t * t * c2[0] +
+        t * t * t * end[0];
+      const y =
+        u * u * u * current[1] +
+        3 * u * u * t * c1[1] +
+        3 * u * t * t * c2[1] +
+        t * t * t * end[1];
+      radii.push(Math.hypot(x, y));
     }
-    return ring;
+    current = end;
   }
+  return Math.max(...radii) - Math.min(...radii);
+}
 
-  function spacingsOf(ring: readonly RegionPoint[]): number[] {
-    return ring.map((point, index) => {
-      const next = ring[(index + 1) % ring.length];
-      return Math.hypot(next.x - point.x, next.y - point.y);
-    });
+/**
+ * The discriminating test, and the reason the resampler exists.
+ *
+ * D6's existing jitter case is *not* discriminating: the measurement in the
+ * spec showed the shipping fit already handles radial jitter and fails on
+ * uneven spacing. This one holds the vertices exactly on a circle and varies
+ * only their spacing, so the fit has nothing to smooth away and only the
+ * parameterisation can be at fault.
+ *
+ * Measured on this fixture: 0.3198 without the resampler, 0.1285 with it, a
+ * 2.5x improvement. The assertion asks for half, which leaves the margin
+ * the numbers deserve and still fails outright on today's code, where both
+ * sides are the same path.
+ */
+it("evens the spacing so the fit stops wobbling", function () {
+  const ring = unevenRing();
+  const spacings = spacingsOf(ring);
+  expect(Math.max(...spacings) / Math.min(...spacings)).to.be.greaterThan(
+    5,
+    "the fixture must actually be unevenly spaced",
+  );
+
+  const withoutResampling = radialRange(fitOnly([ring]));
+  // The ring's perimeter is about 628, so a pitch of 10 asks for 63 points
+  // and the never-upsample rule caps it at the source's own 60: the same
+  // vertex count, evenly spaced.
+  const withResampling = radialRange({
+    radius: 10,
+    pitch: 10,
+    discs: [],
+    loops: [ring],
+  });
+
+  expect(
+    withResampling,
+    "resampling to even arc length should halve the curve's wobble",
+  ).to.be.lessThan(withoutResampling / 2);
+});
+
+it("resamples a ring to even spacing without adding vertices", function () {
+  const ring = unevenRing();
+  const even = resampleRing(ring, 10);
+  expect(even.length).to.equal(60);
+  const spacings = spacingsOf(even);
+  // Chords, not arcs: an interval that happens to straddle one of the
+  // source polyline's corners is a hair shorter than one that does not, so
+  // this is even to within a fraction of a percent rather than exactly.
+  expect(Math.max(...spacings) / Math.min(...spacings)).to.be.lessThan(1.02);
+});
+
+it("never sharpens a ring that is already at the pitch", function () {
+  // Upsampling inserts points along straight chords: no new information,
+  // but more control points, which un-smooths the fit back toward the
+  // polyline it came from. Tying the spacing to the pitch is what makes
+  // that impossible.
+  const ring: RegionPoint[] = [];
+  for (let index = 0; index < 40; index += 1) {
+    const angle = (index / 40) * 2 * Math.PI;
+    ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
   }
+  expect(resampleRing(ring, 0.1).length).to.equal(40);
+  expect(resampleRing(ring, 1e-9).length).to.equal(40);
+});
 
-  /** How far the fitted curve wanders in and out, sampled along every span:
-   *  the radial spread of the curve, which is what "wobble" means here. */
-  function radialRange(shapes: FolderRegionShapes): number {
-    const path = regionPathFor(
-      recordingView().view,
-      shapes,
-      IDENTITY,
-      1,
-    ) as unknown as RecordingPath;
-    const radii: number[] = [];
-    let current = path.commands[0].args;
-    for (const command of path.commands.slice(1)) {
-      if (command.op !== "bezierCurveTo") continue;
-      const c1 = command.args.slice(0, 2);
-      const c2 = command.args.slice(2, 4);
-      const end = command.args.slice(4, 6);
-      for (let step = 0; step < 16; step += 1) {
-        const t = step / 16;
-        const u = 1 - t;
-        const x =
-          u * u * u * current[0] +
-          3 * u * u * t * c1[0] +
-          3 * u * t * t * c2[0] +
-          t * t * t * end[0];
-        const y =
-          u * u * u * current[1] +
-          3 * u * u * t * c1[1] +
-          3 * u * t * t * c2[1] +
-          t * t * t * end[1];
-        radii.push(Math.hypot(x, y));
-      }
-      current = end;
-    }
-    return Math.max(...radii) - Math.min(...radii);
-  }
-
-  /**
-   * The discriminating test, and the reason the resampler exists.
-   *
-   * D6's existing jitter case is *not* discriminating: the measurement in the
-   * spec showed the shipping fit already handles radial jitter and fails on
-   * uneven spacing. This one holds the vertices exactly on a circle and varies
-   * only their spacing, so the fit has nothing to smooth away and only the
-   * parameterisation can be at fault.
-   *
-   * Measured on this fixture: 0.3198 without the resampler, 0.1285 with it, a
-   * 2.5x improvement. The assertion asks for half, which leaves the margin
-   * the numbers deserve and still fails outright on today's code, where both
-   * sides are the same path.
-   */
-  it("evens the spacing so the fit stops wobbling", function () {
-    const ring = unevenRing();
-    const spacings = spacingsOf(ring);
-    expect(Math.max(...spacings) / Math.min(...spacings)).to.be.greaterThan(
-      5,
-      "the fixture must actually be unevenly spaced",
-    );
-
-    const withoutResampling = radialRange(fitOnly([ring]));
-    // The ring's perimeter is about 628, so a pitch of 10 asks for 63 points
-    // and the never-upsample rule caps it at the source's own 60: the same
-    // vertex count, evenly spaced.
-    const withResampling = radialRange({
-      radius: 10,
-      pitch: 10,
-      discs: [],
-      loops: [ring],
-    });
-
+it("returns a ring and throws nothing on degenerate resampling input", function () {
+  const cases: Array<[RegionPoint[], number]> = [
+    [[], 10],
+    [[{ x: 1, y: 1 }], 10],
+    [
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ],
+      10,
+    ],
+    [
+      [
+        { x: 2, y: 2 },
+        { x: 2, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      10,
+    ],
+    [
+      [
+        { x: Number.NaN, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ],
+      10,
+    ],
+    [
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 9 },
+      ],
+      0,
+    ],
+    [
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 9 },
+      ],
+      Number.NaN,
+    ],
+    [
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 9 },
+      ],
+      Number.POSITIVE_INFINITY,
+    ],
+  ];
+  for (const [ring, spacing] of cases) {
+    let result: RegionPoint[] | null = null;
     expect(
-      withResampling,
-      "resampling to even arc length should halve the curve's wobble",
-    ).to.be.lessThan(withoutResampling / 2);
-  });
-
-  it("resamples a ring to even spacing without adding vertices", function () {
-    const ring = unevenRing();
-    const even = resampleRing(ring, 10);
-    expect(even.length).to.equal(60);
-    const spacings = spacingsOf(even);
-    // Chords, not arcs: an interval that happens to straddle one of the
-    // source polyline's corners is a hair shorter than one that does not, so
-    // this is even to within a fraction of a percent rather than exactly.
-    expect(Math.max(...spacings) / Math.min(...spacings)).to.be.lessThan(1.02);
-  });
-
-  it("never sharpens a ring that is already at the pitch", function () {
-    // Upsampling inserts points along straight chords: no new information,
-    // but more control points, which un-smooths the fit back toward the
-    // polyline it came from. Tying the spacing to the pitch is what makes
-    // that impossible.
-    const ring: RegionPoint[] = [];
-    for (let index = 0; index < 40; index += 1) {
-      const angle = (index / 40) * 2 * Math.PI;
-      ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
-    }
-    expect(resampleRing(ring, 0.1).length).to.equal(40);
-    expect(resampleRing(ring, 1e-9).length).to.equal(40);
-  });
-
-  it("returns a ring and throws nothing on degenerate resampling input", function () {
-    const cases: Array<[RegionPoint[], number]> = [
-      [[], 10],
-      [[{ x: 1, y: 1 }], 10],
-      [
-        [
-          { x: 0, y: 0 },
-          { x: 4, y: 0 },
-        ],
-        10,
-      ],
-      [
-        [
-          { x: 2, y: 2 },
-          { x: 2, y: 2 },
-          { x: 2, y: 2 },
-        ],
-        10,
-      ],
-      [
-        [
-          { x: Number.NaN, y: 0 },
-          { x: 0, y: 1 },
-          { x: 1, y: 1 },
-        ],
-        10,
-      ],
-      [
-        [
-          { x: 0, y: 0 },
-          { x: 10, y: 0 },
-          { x: 5, y: 9 },
-        ],
-        0,
-      ],
-      [
-        [
-          { x: 0, y: 0 },
-          { x: 10, y: 0 },
-          { x: 5, y: 9 },
-        ],
-        Number.NaN,
-      ],
-      [
-        [
-          { x: 0, y: 0 },
-          { x: 10, y: 0 },
-          { x: 5, y: 9 },
-        ],
-        Number.POSITIVE_INFINITY,
-      ],
-    ];
-    for (const [ring, spacing] of cases) {
-      let result: RegionPoint[] | null = null;
-      expect(() => {
+      () => {
         result = resampleRing(ring, spacing);
-      }, `${JSON.stringify(ring)} at ${spacing}`).to.not.throw();
-      expect(Array.isArray(result)).to.equal(true);
-    }
-  });
+      },
+      `${JSON.stringify(ring)} at ${spacing}`,
+    ).to.not.throw();
+    expect(Array.isArray(result)).to.equal(true);
+  }
+});
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
@@ -1715,16 +1717,16 @@ export function resampleRing(
 Then in `regionPathFor`, replace the line that builds the ring:
 
 ```ts
-    const ring = ringOf(loop.map(project));
+const ring = ringOf(loop.map(project));
 ```
 
 with:
 
 ```ts
-    const ring = resampleRing(
-      ringOf(loop.map(project)),
-      shapes.pitch * scale * RESAMPLE_PITCH_FACTOR,
-    );
+const ring = resampleRing(
+  ringOf(loop.map(project)),
+  shapes.pitch * scale * RESAMPLE_PITCH_FACTOR,
+);
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -1831,11 +1833,11 @@ In `cellSegments`, between the `code` computation and the four `const top =`
 closures:
 
 ```ts
-  // An empty or a full cell crosses nothing, and these two codes dominate a
-  // sparse field: the four interpolators below are allocated on every cell
-  // and thrown away on most of them. Deciding before building them is the
-  // whole of this early return.
-  if (code === 0 || code === 15) return [];
+// An empty or a full cell crosses nothing, and these two codes dominate a
+// sparse field: the four interpolators below are allocated on every cell
+// and thrown away on most of them. Deciding before building them is the
+// whole of this early return.
+if (code === 0 || code === 15) return [];
 ```
 
 Leave the `case 0: case 15: return [];` arm in the switch where it is: the
@@ -1892,62 +1894,62 @@ occurrence of the radius `40` with `30`, and rewrite the floor case and the
 pitch case:
 
 ```ts
-  it("holds today's radius at and below the fit zoom", function () {
-    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(30);
-    expect(regionZoomBucket(0.5, 1)).to.equal(0);
-    expect(regionZoomBucket(1, 1)).to.equal(0);
-  });
+it("holds today's radius at and below the fit zoom", function () {
+  expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(30);
+  expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(30);
+  expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(30);
+  expect(regionZoomBucket(0.5, 1)).to.equal(0);
+  expect(regionZoomBucket(1, 1)).to.equal(0);
+});
 
-  it("tightens in 12% steps past the fit zoom", function () {
-    expect(regionZoomBucket(1.12, 1)).to.equal(1);
-    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(30 / 1.12, 1e-9);
-    expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
-    expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
-      30 / 1.12 ** 4,
-      1e-9,
-    );
-    // The fit zoom moves the crossover with it, rather than the crossover
-    // being a fixed scale.
-    expect(regionZoomBucket(2.24, 2)).to.equal(1);
-    expect(regionZoomBucket(1.5, 3)).to.equal(0);
-  });
+it("tightens in 12% steps past the fit zoom", function () {
+  expect(regionZoomBucket(1.12, 1)).to.equal(1);
+  expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(30 / 1.12, 1e-9);
+  expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
+  expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
+    30 / 1.12 ** 4,
+    1e-9,
+  );
+  // The fit zoom moves the crossover with it, rather than the crossover
+  // being a fixed scale.
+  expect(regionZoomBucket(2.24, 2)).to.equal(1);
+  expect(regionZoomBucket(1.5, 3)).to.equal(0);
+});
 
-  /**
-   * D6 floored the tightening at roughly 8x (`1.12 ** 18`) for work and
-   * memory, with the acknowledged cost that past 8x the halo starts growing on
-   * screen again — the original complaint returning in the far corner of the
-   * zoom range. The decomposition inverts that cost curve, so the floor moves
-   * out to where the zoom range actually ends: the viewport scale clamps at 8
-   * while `fitScale` can sit well below 1, so a ratio in the twenties is
-   * reachable on an ordinary graph, and `1.12 ** 30` is about 30.
-   */
-  it("stops tightening at the 30-bucket ceiling", function () {
-    expect(regionZoomBucket(1.12 ** 30, 1)).to.equal(30);
-    expect(regionZoomBucket(1.12 ** 60, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
-      30 / 1.12 ** 30,
-      1e-9,
-    );
-  });
+/**
+ * D6 floored the tightening at roughly 8x (`1.12 ** 18`) for work and
+ * memory, with the acknowledged cost that past 8x the halo starts growing on
+ * screen again — the original complaint returning in the far corner of the
+ * zoom range. The decomposition inverts that cost curve, so the floor moves
+ * out to where the zoom range actually ends: the viewport scale clamps at 8
+ * while `fitScale` can sit well below 1, so a ratio in the twenties is
+ * reachable on an ordinary graph, and `1.12 ** 30` is about 30.
+ */
+it("stops tightening at the 30-bucket ceiling", function () {
+  expect(regionZoomBucket(1.12 ** 30, 1)).to.equal(30);
+  expect(regionZoomBucket(1.12 ** 60, 1)).to.equal(30);
+  expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
+    30 / 1.12 ** 30,
+    1e-9,
+  );
+});
 
-  it("keeps the pitch a third of the radius", function () {
-    // The pitch's only job is contour accuracy now: the fit's control-point
-    // spacing is the resampler's, not the grid's, so a fifth was buying
-    // 0.14 px of fidelity under a curve that misses by 0.51 px.
-    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(10);
-    expect(regionGridPitch(30 / 1.12)).to.be.closeTo(10 / 1.12, 1e-9);
-  });
+it("keeps the pitch a third of the radius", function () {
+  // The pitch's only job is contour accuracy now: the fit's control-point
+  // spacing is the resampler's, not the grid's, so a fifth was buying
+  // 0.14 px of fidelity under a curve that misses by 0.51 px.
+  expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(10);
+  expect(regionGridPitch(30 / 1.12)).to.be.closeTo(10 / 1.12, 1e-9);
+});
 ```
 
 And in `"falls back to bucket zero rather than NaN on degenerate input"`,
 change the two lines that name the old numbers:
 
 ```ts
-    expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(30);
+expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(30);
+expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(30);
+expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(30);
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
