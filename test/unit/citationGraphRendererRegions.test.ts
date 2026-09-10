@@ -26,6 +26,9 @@ class FakePath2D {
   lineTo(x: number, y: number): void {
     this.commands.push({ op: "lineTo", args: [x, y] });
   }
+  bezierCurveTo(...args: number[]): void {
+    this.commands.push({ op: "bezierCurveTo", args });
+  }
   closePath(): void {
     this.commands.push({ op: "closePath", args: [] });
   }

@@ -51,6 +51,14 @@ const DEFAULT_THRESHOLD = 0.5;
 const DOMAIN_MARGIN = 1.5;
 /** Vertices closer than this share a stitching slot. */
 const WELD = 1e-6;
+/**
+ * Two knots closer than this, in device pixels, are one knot. Marching-squares
+ * vertices bunch tightly at grid corners, so a knot difference genuinely does
+ * reach zero and the Catmull-Rom denominators genuinely do divide by it.
+ */
+const KNOT_EPSILON = 1e-6;
+/** A ring's trailing repeat of its own first point, in device pixels. */
+const RING_WELD = 1e-4;
 
 /** Each paper contributes a smooth bump with compact support. */
 function fieldAt(
@@ -299,7 +307,116 @@ export function folderRegionContours(
  *
  * Null when the window has no `Path2D` at all, so the caller skips the region
  * rather than losing the frame the nodes are drawn in.
+ *
+ * The outline is a centripetal Catmull-Rom fit, one cubic Bézier per contour
+ * segment, wrapping because the loops are closed. A polyline in data space
+ * re-facets as you zoom in — its segments grow on screen with everything else
+ * — while a curve does not, because the rasterizer flattens it in device
+ * pixels. The contour it is fitted through is untouched: same points, same
+ * topology, same `evenodd` fill, same dilation stroke (backlog D6).
  */
+
+/**
+ * One segment's two cubic control points, centripetal Catmull-Rom → Bézier
+ * (Barry–Goldman, α = 0.5).
+ *
+ * Centripetal is not a detail to swap out for uniform. Marching-squares
+ * vertices bunch tightly at grid corners, and a uniform parameterisation over
+ * spacing like that overshoots and can loop the curve back through itself
+ * exactly there — a self-intersecting fill in the one place the contour is
+ * most detailed.
+ *
+ * The guards are per control point, not per segment: a degenerate neighbour on
+ * one side must not flatten the other side, which is perfectly well defined.
+ * `t2 - t0` and `t3 - t1` need guarding as much as the adjacent differences —
+ * each is a sum of two non-negative terms, so it vanishes when both halves do,
+ * which is three coincident vertices.
+ */
+function segmentControls(
+  p0: RegionPoint,
+  p1: RegionPoint,
+  p2: RegionPoint,
+  p3: RegionPoint,
+): [RegionPoint, RegionPoint] {
+  // Knot spacing is the *Euclidean* distance raised to α, not a squared
+  // distance and not a per-axis delta.
+  const d10 = Math.sqrt(Math.hypot(p1.x - p0.x, p1.y - p0.y));
+  const d21 = Math.sqrt(Math.hypot(p2.x - p1.x, p2.y - p1.y));
+  const d32 = Math.sqrt(Math.hypot(p3.x - p2.x, p3.y - p2.y));
+  const d20 = d10 + d21;
+  const d31 = d21 + d32;
+
+  const straightFirst: RegionPoint = {
+    x: p1.x + (p2.x - p1.x) / 3,
+    y: p1.y + (p2.y - p1.y) / 3,
+  };
+  const straightSecond: RegionPoint = {
+    x: p2.x - (p2.x - p1.x) / 3,
+    y: p2.y - (p2.y - p1.y) / 3,
+  };
+  if (!(d21 > KNOT_EPSILON)) return [straightFirst, straightSecond];
+
+  const first =
+    !(d10 > KNOT_EPSILON) || !(d20 > KNOT_EPSILON)
+      ? straightFirst
+      : {
+          x:
+            p1.x +
+            (d21 *
+              ((p1.x - p0.x) / d10 -
+                (p2.x - p0.x) / d20 +
+                (p2.x - p1.x) / d21)) /
+              3,
+          y:
+            p1.y +
+            (d21 *
+              ((p1.y - p0.y) / d10 -
+                (p2.y - p0.y) / d20 +
+                (p2.y - p1.y) / d21)) /
+              3,
+        };
+  const second =
+    !(d32 > KNOT_EPSILON) || !(d31 > KNOT_EPSILON)
+      ? straightSecond
+      : {
+          x:
+            p2.x -
+            (d21 *
+              ((p2.x - p1.x) / d21 -
+                (p3.x - p1.x) / d31 +
+                (p3.x - p2.x) / d32)) /
+              3,
+          y:
+            p2.y -
+            (d21 *
+              ((p2.y - p1.y) / d21 -
+                (p3.y - p1.y) / d31 +
+                (p3.y - p2.y) / d32)) /
+              3,
+        };
+  return [first, second];
+}
+
+/**
+ * A projected loop as a ring: finite points only, and without the trailing
+ * repeat of the first point that `stitch` always leaves on a closed loop.
+ */
+function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
+  const ring = loop.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+  while (
+    ring.length > 1 &&
+    Math.hypot(
+      ring[ring.length - 1].x - ring[0].x,
+      ring[ring.length - 1].y - ring[0].y,
+    ) < RING_WELD
+  ) {
+    ring.pop();
+  }
+  return ring;
+}
+
 export function regionPathFor(
   view: Window | null,
   loops: readonly (readonly RegionPoint[])[],
@@ -309,11 +426,26 @@ export function regionPathFor(
   if (!constructor) return null;
   const path = new constructor();
   for (const loop of loops) {
-    loop.forEach((point, index) => {
-      const screen = project(point);
-      if (index === 0) path.moveTo(screen.x, screen.y);
-      else path.lineTo(screen.x, screen.y);
-    });
+    // Projected first, then fitted: the projection is a uniform similarity,
+    // so the shape is the same either way, but fitting afterwards puts the
+    // epsilons in device pixels, where "degenerate" means "sub-pixel".
+    const ring = ringOf(loop.map(project));
+    if (!ring.length) continue;
+    path.moveTo(ring[0].x, ring[0].y);
+    if (ring.length < 3) {
+      // No curve to fit through two points.
+      for (const point of ring.slice(1)) path.lineTo(point.x, point.y);
+      path.closePath();
+      continue;
+    }
+    for (let index = 0; index < ring.length; index += 1) {
+      const p0 = ring[(index - 1 + ring.length) % ring.length];
+      const p1 = ring[index];
+      const p2 = ring[(index + 1) % ring.length];
+      const p3 = ring[(index + 2) % ring.length];
+      const [first, second] = segmentControls(p0, p1, p2, p3);
+      path.bezierCurveTo(first.x, first.y, second.x, second.y, p2.x, p2.y);
+    }
     path.closePath();
   }
   return path;
