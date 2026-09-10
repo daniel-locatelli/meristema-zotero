@@ -956,7 +956,15 @@ Symptom, two faces of one bug:
   already in `regions`. A graph started from one or more items opens
   normally, and the same recovery works: unselect the folder, fit to view.
 
-So the trigger is a non-empty `regions`, not the click.
+- Opening a **saved** graph that was made from a folder blanks the same way,
+  whether it was saved before this release (state version 2, regions restored
+  by the migration) or after it. The user confirmed this on 2026-09-11 after
+  first testing the migration on a non-folder graph, which opened fine.
+
+So the trigger is a non-empty `regions`, not the click, and it does not matter
+whether the selection came from a click, from `initialCollectionIDs`, from a
+restored state or from the version 2 migration. Any one of those is a
+reproduction; the cheapest is a graph opened from a folder.
 
 First hypothesis, untested: `drawRegions` throws, the frame aborts part-way,
 and the nodes — drawn after the regions — never run. That fits every
