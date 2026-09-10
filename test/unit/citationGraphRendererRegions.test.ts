@@ -423,6 +423,132 @@ describe("CitationGraphRenderer regions", function () {
       expect(title).to.not.include("No value");
     }
   });
+
+  /**
+   * Three papers, deliberately: two close together and one far away. At the
+   * fit zoom the close pair merges into one loop and the far paper is a
+   * second, so the region is two loops. Past the fit the falloff tightens
+   * until the pair no longer reaches across the gap, and the territory pulls
+   * apart into three — which is the behaviour D6 exists to produce, and is
+   * also the only assertion that cannot be satisfied by a re-projection.
+   *
+   * A single paper would prove nothing here: its contour is *self-similar*
+   * under the tightening, because the pitch follows the radius, so both the
+   * vertex count and the normalised shape survive a zoom unchanged.
+   */
+  it("pulls a territory apart on a zoom but recomputes nothing on a pan", function () {
+    {
+      const canvas = new FakeCanvas();
+      const nodes = [
+        node("near", { collectionIDs: [1] }),
+        node("pair", { collectionIDs: [1] }),
+        node("far", { collectionIDs: [1] }),
+      ];
+      const renderer = new CitationGraphRenderer({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        model: model(nodes),
+        layout: FREE_LAYOUT,
+        collectionLabels: new Map(),
+        onSelectionChange: () => undefined,
+        onOpenNode: () => undefined,
+      });
+      attachView(canvas);
+      // Spread is 1000, so the fit-zoom falloff radius is 60: "near" and
+      // "pair" are 30 apart and merge, "far" is on its own.
+      renderer.setNodePositions(
+        new Map([
+          ["near", { x: 0, y: 0 }],
+          ["pair", { x: 30, y: 0 }],
+          ["far", { x: 1000, y: 0 }],
+        ]),
+      );
+      renderer.setRegions([
+        {
+          collectionID: 1,
+          color: "#336699",
+          nodeKeys: new Set(["near", "pair", "far"]),
+        },
+      ]);
+
+      const loopsDrawn = (path: FakePath2D): number =>
+        path.commands.filter((command) => command.op === "moveTo").length;
+
+      // 0.15 is the viewport's minimum scale, so it is below the fit zoom
+      // whatever the plot rect works out to: bucket 0, today's radius.
+      renderer.setViewTransform({ x: 0, y: 0, scale: 0.15 });
+      const zoomedOut = lastRegionStroke(canvas.context).args[0] as FakePath2D;
+      expect(
+        loopsDrawn(zoomedOut),
+        "at the fit zoom the close pair is one territory",
+      ).to.equal(2);
+
+      // A pan: same scale, different origin. Every coordinate must be the old
+      // one shifted by the same delta — that is a re-projection of the cached
+      // contour, not a resum over the grid.
+      renderer.setViewTransform({ x: 40, y: -25, scale: 0.15 });
+      const panned = lastRegionStroke(canvas.context).args[0] as FakePath2D;
+      expect(panned.commands.map((command) => command.op)).to.deep.equal(
+        zoomedOut.commands.map((command) => command.op),
+      );
+      panned.commands.forEach((command, index) => {
+        command.args.forEach((value, position) => {
+          const shift = position % 2 === 0 ? 40 : -25;
+          expect(
+            value - shift,
+            `command ${index} argument ${position} moved by more than the pan`,
+          ).to.be.closeTo(zoomedOut.commands[index].args[position], 1e-9);
+        });
+      });
+
+      // 8 is the viewport's maximum scale, so it is many buckets past the fit
+      // and the falloff has hit its floor. The pair can no longer reach.
+      renderer.setViewTransform({ x: 0, y: 0, scale: 8 });
+      const zoomedIn = lastRegionStroke(canvas.context).args[0] as FakePath2D;
+      expect(
+        loopsDrawn(zoomedIn),
+        "zoomed in, the territory is three separate papers",
+      ).to.equal(3);
+    }
+  });
+
+  it("draws a region at every zoom rather than losing it", function () {
+    // The tightening must never take a folder off the plot: at maximum zoom a
+    // lone paper still has a halo, it is simply a smaller one in data space. A
+    // dropped region here would look exactly like B28 coming back.
+    {
+      const canvas = new FakeCanvas();
+      const graphNode = node("n1", { collectionIDs: [1] });
+      const renderer = new CitationGraphRenderer({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        model: model([graphNode]),
+        layout: FREE_LAYOUT,
+        collectionLabels: new Map(),
+        onSelectionChange: () => undefined,
+        onOpenNode: () => undefined,
+      });
+      attachView(canvas);
+      renderer.setNodePositions(new Map([["n1", { x: 100, y: 100 }]]));
+      renderer.setRegions([
+        { collectionID: 1, color: "#336699", nodeKeys: new Set(["n1"]) },
+      ]);
+      for (const scale of [0.15, 1, 2, 4, 8]) {
+        renderer.setViewTransform({ x: 0, y: 0, scale });
+        const path = lastRegionStroke(canvas.context).args[0] as FakePath2D;
+        expect(
+          path.commands.length,
+          `a region at scale ${scale}`,
+        ).to.be.greaterThan(0);
+        for (const command of path.commands) {
+          for (const value of command.args) {
+            expect(
+              Number.isFinite(value),
+              `scale ${scale} produced ${value}`,
+            ).to.equal(true);
+          }
+        }
+      }
+    }
+  });
 });
 
 describe("CitationGraphRenderer colour metric allowlist", function () {

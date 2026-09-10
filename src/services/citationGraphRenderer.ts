@@ -49,7 +49,11 @@ import {
 } from "./graphCategoryAssignment";
 import {
   folderRegionContours,
+  regionFalloffRadius,
+  regionFitScale,
+  regionGridPitch,
   regionPathFor,
+  regionZoomBucket,
   type RegionPoint,
 } from "./graphFolderRegion";
 import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
@@ -1246,8 +1250,13 @@ export class CitationGraphRenderer {
     this.draw();
   }
 
-  /** The larger side of the laid-out plot, in data units. */
-  private dataSpread(): number {
+  /**
+   * The laid-out plot's bounding box in data units, and its larger side.
+   *
+   * Both are needed: the falloff is a fraction of the larger side, while the
+   * fit scale is measured per axis against the plot rect (D6).
+   */
+  private dataExtent(): { width: number; height: number; spread: number } {
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -1260,25 +1269,49 @@ export class CitationGraphRenderer {
     }
     const width = maxX - minX;
     const height = maxY - minY;
-    return Math.max(width, height, 1);
+    return {
+      width: Number.isFinite(width) ? width : 0,
+      height: Number.isFinite(height) ? height : 0,
+      spread: Math.max(width, height, 1),
+    };
   }
 
   /**
-   * Contours are data-space, so pan and zoom never invalidate them — they are
-   * transformed at draw time like the nodes. Only a folder's own node-key set
-   * or `layoutRevision` (a position change) can change its contour, and each
-   * folder is checked against its own cached signature, not a single global
-   * one — so `setRegions` clearing one folder's selection, or adding a
-   * fifth and dropping the oldest, cannot force the untouched folders to
-   * recompute (finding 4).
+   * A folder's contour is cached per folder, and the cache key says exactly
+   * what can change it: the layout revision (a position moved), the folder's
+   * own node-key set, and the zoom bucket.
+   *
+   * The bucket is D6. The falloff radius holds today's value at and below the
+   * fit zoom and tightens past it, so that the halo holds a constant size on
+   * screen rather than swallowing the viewport — see `regionFalloffRadius`.
+   * Quantising the zoom into 12% buckets is what keeps this a cache rather
+   * than a recompute on every wheel notch, and deriving the radius from the
+   * bucket rather than the raw scale is what keeps the cache honest: two
+   * frames in one bucket draw the contour that bucket's radius produced.
+   *
+   * A pan changes neither the revision nor the bucket, so it still recomputes
+   * nothing. Each folder is checked against its own signature, so `setRegions`
+   * clearing one selection cannot force the others to resum (finding 4).
    */
-  private regionsFor(): Map<number, RegionPoint[][]> {
-    const spread = this.dataSpread();
+  private regionsFor(
+    plot: PlotRect,
+    scale: number,
+  ): Map<number, RegionPoint[][]> {
+    const extent = this.dataExtent();
+    const spread = extent.spread;
+    const fitScale = regionFitScale(
+      plot.width,
+      plot.height,
+      extent.width,
+      extent.height,
+    );
+    const bucket = regionZoomBucket(scale, fitScale);
+    const radius = regionFalloffRadius(spread, scale, fitScale);
     const activeIDs = new Set<number>();
     for (const region of this.regions) {
       activeIDs.add(region.collectionID);
       const keySignature = [...region.nodeKeys].sort().join(",");
-      const signature = `${this.layoutRevision}:${keySignature}`;
+      const signature = `${this.layoutRevision}:${bucket}:${keySignature}`;
       if (this.regionSignatures.get(region.collectionID) === signature) {
         continue;
       }
@@ -1290,8 +1323,8 @@ export class CitationGraphRenderer {
       this.regionContours.set(
         region.collectionID,
         folderRegionContours(points, {
-          radius: spread * 0.06,
-          pitch: spread * 0.012,
+          radius,
+          pitch: regionGridPitch(radius),
         }),
       );
       this.regionSignatures.set(region.collectionID, signature);
@@ -1357,7 +1390,7 @@ export class CitationGraphRenderer {
    */
   private drawRegions(plot: PlotRect): void {
     if (!this.regions.length) return;
-    const contours = this.regionsFor();
+    const contours = this.regionsFor(plot, this.transform.scale);
     const ratio = this.ratio;
     const dilation = (this.baseNodeRadius() + 5) * ratio * 2;
     const context = this.context;

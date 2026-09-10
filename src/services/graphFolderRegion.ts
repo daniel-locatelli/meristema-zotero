@@ -6,15 +6,24 @@
  * metric at the same time. It is drawn as a region behind the nodes instead,
  * and this module computes the shape.
  *
- * The field is built in **data space**, not screen space, and that is the
- * load-bearing choice. A screen-space field with a falloff in device pixels
- * makes the contour a function of the zoom: zoom in and a folder fragments
- * into islands, zoom out and islands merge, because the nodes move apart and
- * together on screen while the papers do not. In data space the topology is
- * invariant, and a folder fragments only when its papers genuinely are apart.
- * The renderer transforms these contours with the same viewport transform the
- * nodes use, and dilates them by a device-pixel amount so the hull clears the
- * node discs by a constant margin on screen.
+ * The field is built in **data space**, and the falloff radius is constant at
+ * and below the fit zoom, so the topology is invariant through the whole
+ * zoomed-out range: a folder fragments only when its papers genuinely are
+ * apart. The renderer transforms these contours with the same viewport
+ * transform the nodes use, and dilates them by a device-pixel amount so the
+ * hull clears the node discs by a constant margin on screen.
+ *
+ * **Past the fit zoom the radius tightens** (`regionFalloffRadius`), so the
+ * halo holds a constant size on screen and a territory pulls apart into its
+ * papers as the reader zooms in. That reverses D3's original rule, which held
+ * the radius constant at every zoom precisely so topology was never a function
+ * of the zoom. It was reversed knowingly, on a reason D3's review never
+ * weighed: zoomed in, a data-space hull has its edge off-screen and stops
+ * telling the reader which papers made it — the region swallows the viewport,
+ * and a shape that covers everything identifies nothing. What makes it
+ * defensible is that it is scoped to past the fit, where the alternative is
+ * not a stable shape but an edge nobody can see. See
+ * `docs/superpowers/specs/2026-09-10-graph-region-curves-design.md` (D6).
  *
  * Plain geometry in, plain geometry out: no canvas, no DOM.
  *

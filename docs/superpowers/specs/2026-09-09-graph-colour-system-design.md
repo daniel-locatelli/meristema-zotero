@@ -192,6 +192,16 @@ on screen while the papers do not. The reader's handle on a folder would move
 under them again, in a new way. In data space the topology is invariant under
 pan and zoom, and a folder fragments only when its papers genuinely are apart.
 
+> **Amended 2026-09-10 by D6**
+> (`2026-09-10-graph-region-curves-design.md`). This still holds at and below
+> the fit zoom, and the contour there is byte-identical to what this spec
+> shipped. Past the fit zoom the falloff radius tightens in inverse proportion
+> to the zoom, so a folder's topology _is_ a function of the zoom there. That
+> reverses this paragraph knowingly, on a reason this spec's review never
+> weighed: zoomed in, a data-space hull has its edge off-screen and stops
+> telling the reader which papers made it. Read D6's "The reversal, and why it
+> is allowed" before treating the rule above as current.
+
 The mirror problem — a node's disc is a constant size in device pixels, so a
 data-space hull is a vast halo around small marks at high zoom and sits inside
 them at low zoom — is solved at draw time, not in the field: the contour is
@@ -268,6 +278,9 @@ recorded assignments to disagree with; the map fills as folders are selected.
   zoom levels produce the **same contour** (the field is data-space, so zoom
   cannot fragment a folder), and a folder whose nodes sit at the extreme of the
   plot produces a **closed** contour, not one clipped by the grid's edge.
+  (Amended by D6, 2026-09-10: this now reads "two zoom levels **at or below
+  the fit** produce the same contour", and a second case asserts that a zoom
+  past the fit produces a tighter one.)
 - A **palette validator** as a unit test over the ramp, the eight swatches and
   the six seed colours together, in both themes: lightness band, chroma floor,
   CVD-simulated separation and normal-vision separation. This is new. Nothing
