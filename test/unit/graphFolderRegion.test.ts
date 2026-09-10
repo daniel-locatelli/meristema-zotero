@@ -401,6 +401,52 @@ describe("folder regions", function () {
       ),
     ).to.equal(null);
   });
+
+  /**
+   * The field is summed by stamping each node into its own footprint rather
+   * than evaluating every node against every cell. That is an exact refactor
+   * — the same sum in a different order — so these numbers are the ones the
+   * per-cell evaluator produced, recorded before the change. Vertex counts
+   * and coordinate sums together catch a reordering error that still yields a
+   * plausible-looking shape.
+   */
+  it("sums the field to the same contour however it is accumulated", function () {
+    const contours = folderRegionContours(
+      [
+        { x: 0, y: 0 },
+        { x: 14, y: 3 },
+        { x: 7, y: 16 },
+        { x: 40, y: 40 },
+      ],
+      { radius: 10, pitch: 2 },
+    );
+    expect(contours).to.have.length(2);
+    const sums = contours.map((loop) => ({
+      length: loop.length,
+      x: loop.reduce((total, point) => total + point.x, 0),
+      y: loop.reduce((total, point) => total + point.y, 0),
+    }));
+    expect(sums[0].length).to.equal(68);
+    expect(sums[0].x).to.be.closeTo(475.8592418546, 1e-6);
+    expect(sums[0].y).to.be.closeTo(439.205775052, 1e-6);
+    expect(sums[1].length).to.equal(26);
+    expect(sums[1].x).to.be.closeTo(1040, 1e-6);
+    expect(sums[1].y).to.be.closeTo(1014, 1e-6);
+  });
+
+  /** A pitch small enough to blow the cell budget is coarsened rather than
+   *  allocated. With the 8x tightening floor in place this cannot happen in
+   *  the product; it is a guard against a later change moving that floor. */
+  it("coarsens rather than allocating an unbounded grid", function () {
+    const contours = folderRegionContours(
+      [
+        { x: 0, y: 0 },
+        { x: 5000, y: 5000 },
+      ],
+      { radius: 100, pitch: 0.05 },
+    );
+    expect(contours.length).to.be.at.least(1);
+  });
 });
 
 describe("region zoom rules", function () {

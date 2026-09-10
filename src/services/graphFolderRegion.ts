@@ -60,23 +60,14 @@ const KNOT_EPSILON = 1e-6;
 /** A ring's trailing repeat of its own first point, in device pixels. */
 const RING_WELD = 1e-4;
 
-/** Each paper contributes a smooth bump with compact support. */
-function fieldAt(
-  points: readonly RegionPoint[],
-  x: number,
-  y: number,
-  radius: number,
-): number {
-  const squared = radius * radius;
-  let total = 0;
-  for (const point of points) {
-    const dx = x - point.x;
-    const dy = y - point.y;
-    const distance = dx * dx + dy * dy;
-    if (distance < squared) total += 1 - distance / squared;
-  }
-  return total;
-}
+/**
+ * A hard ceiling on the field grid. With the falloff's 8x tightening floor and
+ * `pitch = radius / 5` the grid never exceeds roughly 640 steps across a
+ * folder's bounding box, about 410 000 cells, so this cannot trigger in the
+ * product. It is here so that a later change to the floor coarsens the pitch
+ * instead of allocating unboundedly on a wheel notch.
+ */
+const MAX_GRID_CELLS = 500_000;
 
 function interpolate(
   first: RegionPoint,
@@ -248,27 +239,51 @@ export function folderRegionContours(
   const minY = Math.min(...ys) - margin;
   const maxY = Math.max(...ys) + margin;
 
-  const columns = Math.ceil((maxX - minX) / pitch) + 1;
-  const rows = Math.ceil((maxY - minY) / pitch) + 1;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  // Coarsen rather than allocate: see MAX_GRID_CELLS.
+  const cellPitch = Math.max(
+    pitch,
+    Math.sqrt((width * height) / MAX_GRID_CELLS),
+  );
+  const columns = Math.ceil(width / cellPitch) + 1;
+  const rows = Math.ceil(height / cellPitch) + 1;
 
-  const values: number[][] = [];
-  for (let row = 0; row < rows; row += 1) {
-    const line: number[] = [];
-    for (let column = 0; column < columns; column += 1) {
-      line.push(
-        fieldAt(points, minX + column * pitch, minY + row * pitch, radius),
-      );
+  // Each paper's bump has compact support, so the field is accumulated by
+  // stamping every node into the cells inside its own footprint rather than
+  // evaluating every node against every cell. Same sum, different order:
+  // O(nodes x (radius/pitch)^2) instead of O(cells x nodes), which is what
+  // keeps the cost flat as the falloff tightens with the zoom (D6).
+  const values = new Float64Array(rows * columns);
+  const squared = radius * radius;
+  const reach = Math.ceil(radius / cellPitch);
+  for (const point of points) {
+    const centreColumn = Math.round((point.x - minX) / cellPitch);
+    const centreRow = Math.round((point.y - minY) / cellPitch);
+    const firstRow = Math.max(0, centreRow - reach);
+    const lastRow = Math.min(rows - 1, centreRow + reach);
+    const firstColumn = Math.max(0, centreColumn - reach);
+    const lastColumn = Math.min(columns - 1, centreColumn + reach);
+    for (let row = firstRow; row <= lastRow; row += 1) {
+      const dy = minY + row * cellPitch - point.y;
+      const dySquared = dy * dy;
+      for (let column = firstColumn; column <= lastColumn; column += 1) {
+        const dx = minX + column * cellPitch - point.x;
+        const distance = dx * dx + dySquared;
+        if (distance < squared) {
+          values[row * columns + column] += 1 - distance / squared;
+        }
+      }
     }
-    values.push(line);
   }
 
   const segments: Array<[RegionPoint, RegionPoint]> = [];
   for (let row = 0; row + 1 < rows; row += 1) {
     for (let column = 0; column + 1 < columns; column += 1) {
-      const left = minX + column * pitch;
-      const right = left + pitch;
-      const top = minY + row * pitch;
-      const bottom = top + pitch;
+      const left = minX + column * cellPitch;
+      const right = left + cellPitch;
+      const top = minY + row * cellPitch;
+      const bottom = top + cellPitch;
       segments.push(
         ...cellSegments(
           [
@@ -278,10 +293,10 @@ export function folderRegionContours(
             { x: left, y: bottom },
           ],
           [
-            values[row][column],
-            values[row][column + 1],
-            values[row + 1][column + 1],
-            values[row + 1][column],
+            values[row * columns + column],
+            values[row * columns + column + 1],
+            values[(row + 1) * columns + column + 1],
+            values[(row + 1) * columns + column],
           ],
           threshold,
         ),
