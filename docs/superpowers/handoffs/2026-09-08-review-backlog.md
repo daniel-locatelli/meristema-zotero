@@ -966,7 +966,50 @@ whether the selection came from a click, from `initialCollectionIDs`, from a
 restored state or from the version 2 migration. Any one of those is a
 reproduction; the cheapest is a graph opened from a folder.
 
-First hypothesis, untested: `drawRegions` throws, the frame aborts part-way,
+### What the 2026-09-10 investigation established
+
+**The blank is permanent, and that is by design in `draw()`.** The frame is
+wrapped in one try/catch: the catch sets `this.canvasError = true` and logs
+**once** through `Zotero.logError`, and the method's first line is
+`if (this.destroyed || this.canvasError) return;`. So a single throw anywhere
+in a frame bricks that renderer for the rest of its life — every later frame
+returns before painting. The catch also runs after the opening `clearRect`
+and the panel `fillRect`, and the draw order is backdrop → **regions** →
+edges → nodes → labels → **axes**, so a throw in `drawRegions` leaves a flat
+panel fill with no axes and no nodes. That matches the report exactly, and it
+means unselecting the folder cannot repaint the plot: only a new renderer can.
+Closing and reopening the graph tab is the real recovery, not "Fit".
+
+**It follows that the Error Console holds the stack**, logged exactly once per
+renderer. Get that before anything else; it names the throw outright.
+
+**Two hypotheses are already dead.** Neither the harness nor a real tab
+reproduces it:
+
+- `test/zotero/graphRegionBlank.test.ts` opens a graph with
+  `initialCollectionIDs` and clicks a folder row through the window harness:
+  the canvas draws, nothing throws.
+- `graphFolderRegions.test.ts` gained a case that stubs `Zotero.logError`,
+  clicks a folder row in a real **tab**, and reads the plot canvas back: it
+  paints and logs nothing. (Both cases are worth keeping regardless — the
+  original region test only ever read the rail's selected class, which is why
+  it stayed green while the plot underneath it was blank.)
+- The namespace asymmetry that suggested itself — `regionLayer` is the one
+  bare `document.createElement("canvas")` in the renderer (line ~1315) while
+  every other element goes through `element()`'s
+  `createElementNS(HTML_NS, …)` — is therefore **not** the trigger on its
+  own, since a tab exercises exactly that path and works. It is still worth
+  tidying for consistency, but it is not the fix and must not be sold as one.
+
+So the trigger needs something the fixtures do not have: real papers (missing
+years, identical positions, papers in many folders), a folder with subfolders,
+a folder with more papers than the swatch pool has colours (B27's
+`strokeStyle = undefined`), a light theme, or a detached window. The user's
+console output is what narrows this; ask before guessing again.
+
+### The original hypothesis, superseded above
+
+`drawRegions` throws, the frame aborts part-way,
 and the nodes — drawn after the regions — never run. That fits every
 observation, including why unselecting fixes it (`if (!this.regions.length)
 return;` is the method's first line, so an empty selection never enters the

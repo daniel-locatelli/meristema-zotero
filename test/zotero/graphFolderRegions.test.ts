@@ -180,4 +180,60 @@ describe("The graph's folder regions", function () {
     expect(isSelected(collectionID!)).to.equal(false);
     expect(isSelected(siblingID!)).to.equal(true);
   });
+
+  /**
+   * B28. The case above reads the rail's class and nothing else, so it passed
+   * while the plot underneath it was blank. `draw()` catches, logs once and
+   * latches `canvasError`, after which every later frame returns immediately —
+   * so a single throw in the region path leaves the canvas on its flat panel
+   * fill for the rest of the renderer's life, with no axes and no nodes.
+   * Zotero.logError is stubbed to capture what actually threw.
+   */
+  it("keeps drawing the plot once a folder is selected", async function () {
+    this.timeout(30_000);
+    const canvas = graphRoot().querySelector(
+      "canvas.cm-graph-canvas",
+    ) as HTMLCanvasElement;
+    expect(canvas, "the plot canvas").to.exist;
+
+    const logged: string[] = [];
+    const original = (Zotero as any).logError;
+    (Zotero as any).logError = (...args: any[]) => {
+      const error = args[0];
+      logged.push(`${error?.message ?? String(error)} ${error?.stack ?? ""}`);
+      return original.apply(Zotero, args);
+    };
+
+    const painted = (): number => {
+      const context = canvas.getContext("2d")!;
+      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const first = [data[0], data[1], data[2]];
+      let different = 0;
+      for (let index = 0; index < data.length; index += 160) {
+        if (
+          data[index] !== first[0] ||
+          data[index + 1] !== first[1] ||
+          data[index + 2] !== first[2]
+        ) {
+          different += 1;
+        }
+      }
+      return different;
+    };
+
+    try {
+      const before = painted();
+      scopeRowBody(siblingID!).click();
+      await waitFor(() => isSelected(siblingID!), 5_000);
+      await delay(400);
+      const after = painted();
+      console.log(
+        `B28 tab: before=${before} after=${after} logged=${JSON.stringify(logged)}`,
+      );
+      expect(logged, `the renderer logged: ${logged.join(" ;; ")}`).to.be.empty;
+      expect(after, "the plot still has something on it").to.be.greaterThan(50);
+    } finally {
+      (Zotero as any).logError = original;
+    }
+  });
 });
