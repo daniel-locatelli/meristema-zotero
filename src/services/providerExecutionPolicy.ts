@@ -16,7 +16,8 @@ const STATIC_POLICY: Record<CitationProviderID, ProviderExecutionPolicy> = {
   },
   // Semantic Scholar grants 1 request per second, cumulative across all
   // endpoints, keyed or keyless, and asks applicants to stay below it. A key
-  // buys the batch and page sizes and a private quota, never speed.
+  // buys a private quota, never speed; the batch and page sizes below apply
+  // either way.
   "semantic-scholar": {
     batchSize: 500,
     requestParallelism: 1,
