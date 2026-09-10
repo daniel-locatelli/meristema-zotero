@@ -2,6 +2,10 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { GraphLayoutOptions } from "../../src/domain/graphTypes";
 import { CitationGraphRenderer } from "../../src/services/citationGraphRenderer";
+import {
+  regionFalloffRadius,
+  regionFitScale,
+} from "../../src/services/graphFolderRegion";
 import { graphThemeFor } from "../../src/services/graphTheme";
 import {
   attachView,
@@ -278,6 +282,28 @@ describe("CitationGraphRenderer regions", function () {
         territoriesDrawn(zoomedIn),
         "zoomed in, the territory is three separate papers",
       ).to.equal(3);
+
+      // Nothing above asserts the *value* of the scale `drawRegions` hands
+      // `regionPathFor` — only that some radius survives a pan unmoved and
+      // that some number of subpaths gets drawn. Passing 1, or the device
+      // pixel ratio, instead of `this.transform.scale` would ship visibly
+      // wrong halo sizes with every assertion above still green. All three
+      // papers are separate discs at this zoom, so every recorded `arc`
+      // command's radius must equal the disc's data-space radius — today's
+      // spread (1000) run through the same fit-scale and falloff-radius
+      // arithmetic the renderer itself uses, for the canvas's own plot rect
+      // (800x600 device pixels, free axes on both sides: insets of 18 left,
+      // 14 right leave a 768-wide plot; the extent's height is 0, so the
+      // plot's height cannot affect the fit) — times `Math.SQRT1_2` for the
+      // threshold-0.5 disc radius, times the transform's scale of 8.
+      const fitScale = regionFitScale(768, 568, 1000, 0);
+      const dataSpaceRadius =
+        regionFalloffRadius(1000, 8, fitScale) * Math.SQRT1_2;
+      const arcs = zoomedIn.commands.filter((command) => command.op === "arc");
+      expect(arcs.length).to.equal(3);
+      for (const arc of arcs) {
+        expect(arc.args[2]).to.be.closeTo(dataSpaceRadius * 8, 1e-9);
+      }
     }
   });
 

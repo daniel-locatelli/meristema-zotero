@@ -743,7 +743,56 @@ describe("folder regions", function () {
       radius: 10,
       pitch: 2,
     });
+    expect(alone.loops).to.have.length(1);
+    expect(withDistant.loops).to.have.length(1);
     expect(withDistant.loops[0]).to.deep.equal(alone.loops[0]);
+  });
+
+  /**
+   * The case above does not actually pin the anchor: `(0,0)` is both the
+   * folder's min corner and the cluster's own min corner, with or without the
+   * distant paper at `(40,40)`, so per-component anchoring produces the same
+   * byte-identical output as folder anchoring. That is a false pass — it
+   * cannot distinguish the two anchors. Here the distant paper sits at
+   * `(-101, -101)`, which actually drags the folder's min corner away from
+   * the cluster's own min corner, by an offset that is not a whole number of
+   * lattice pitches, so the two anchoring rules disagree about where every
+   * vertex lands. Under the folder anchor every vertex still sits on the
+   * folder's lattice; under a per-component anchor it would be off-lattice by
+   * half a cell.
+   */
+  it("pins the shared lattice with a distant paper that actually moves the folder's min corner", function () {
+    const cluster = [
+      { x: 0, y: 0 },
+      { x: 14, y: 3 },
+      { x: 7, y: 16 },
+    ];
+    const options = { radius: 10, pitch: 2 };
+    const shapes = folderRegionContours(
+      [...cluster, { x: -101, y: -101 }],
+      options,
+    );
+    // The distant paper is far past 2R from everything, so it comes back as
+    // its own disc and the cluster comes back as exactly one loop — the case
+    // cannot pass on an empty result.
+    expect(shapes.discs).to.have.length(1);
+    expect(shapes.discs[0].centre).to.deep.equal({ x: -101, y: -101 });
+    expect(shapes.loops).to.have.length(1);
+
+    // The folder's min corner is (-101, -101), so the lattice origin is
+    // margin = radius * 1.5 = 15 below that on each axis: (-116, -116).
+    const origin = -101 - 10 * 1.5;
+    const pitch = shapes.pitch;
+    const distanceFromInteger = (value: number): number =>
+      Math.abs(value - Math.round(value));
+    for (const point of shapes.loops[0]) {
+      const onX = distanceFromInteger((point.x - origin) / pitch);
+      const onY = distanceFromInteger((point.y - origin) / pitch);
+      expect(
+        Math.min(onX, onY),
+        `point ${JSON.stringify(point)} off the shared lattice`,
+      ).to.be.below(1e-9);
+    }
   });
 
   it("reports the radius and the pitch it built the shapes at", function () {
