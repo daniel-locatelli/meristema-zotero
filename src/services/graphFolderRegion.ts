@@ -450,3 +450,103 @@ export function regionPathFor(
   }
   return path;
 }
+
+/** Today's falloff, as a fraction of the plot's larger side. */
+const FALLOFF_FRACTION = 0.06;
+/**
+ * One zoom bucket. About 12%: small enough that the shape reads as following
+ * the zoom rather than jumping, large enough that a slow zoom across the whole
+ * range recomputes a handful of times rather than once per wheel notch.
+ */
+const ZOOM_STEP = 1.12;
+/**
+ * The tightening stops at roughly 8x past the fit (`1.12 ** 18 ≈ 7.7`).
+ *
+ * This floor is about work and memory, not looks. The grid grows
+ * quadratically with the tightening and nothing else stops it: the viewport
+ * scale clamps at 8 while the fit scale can sit well below 1, so a ratio in
+ * the twenties is reachable on an ordinary graph. The honest cost is that
+ * past 8x the halo starts growing on screen again.
+ */
+const MAX_ZOOM_BUCKET = 18;
+/** `pitch = radius / 5`, which is `spread * 0.012` at bucket 0. */
+const PITCH_DIVISOR = 5;
+
+/**
+ * The scale at which the laid-out papers just fill the plot.
+ *
+ * Computed, not remembered. Latching the scale of the last `fitView()` was
+ * rejected: a saved graph restores a transform and may never fit at all, so
+ * the latch would be undefined at first paint, and pressing "Fit" would
+ * silently redefine where the halo starts tightening — a viewport control
+ * quietly editing a drawing rule.
+ *
+ * On a whole-graph fit this is deliberately an upper bound on `fitView`'s own
+ * scale, which divides a smaller box (canvas minus axis gutters) by a larger
+ * extent (positions plus label padding). So pressing "Fit" lands at or below
+ * the crossover, in bucket 0, at today's radius.
+ *
+ * Zero when there is no usable fit, which the callers read as bucket 0.
+ */
+export function regionFitScale(
+  plotWidth: number,
+  plotHeight: number,
+  extentWidth: number,
+  extentHeight: number,
+): number {
+  const byWidth = extentWidth > 0 ? plotWidth / extentWidth : Infinity;
+  const byHeight = extentHeight > 0 ? plotHeight / extentHeight : Infinity;
+  const fit = Math.min(byWidth, byHeight);
+  return Number.isFinite(fit) && fit > 0 ? fit : 0;
+}
+
+/**
+ * How many 12% steps past the fit zoom the view is, clamped to `[0, 18]`.
+ *
+ * Clamping at zero is what makes "at or below the fit is unchanged" exact:
+ * every scale at or below the fit lands in bucket 0, and bucket 0's radius is
+ * `spread * 0.06` to the last bit.
+ */
+export function regionZoomBucket(scale: number, fitScale: number): number {
+  if (!(scale > 0) || !(fitScale > 0)) return 0;
+  const steps = Math.log(scale / fitScale) / Math.log(ZOOM_STEP);
+  if (Number.isNaN(steps)) return 0;
+  if (steps >= MAX_ZOOM_BUCKET) return MAX_ZOOM_BUCKET;
+  return Math.min(MAX_ZOOM_BUCKET, Math.max(0, Math.round(steps)));
+}
+
+/**
+ * The falloff radius in data units: today's constant at or below the fit
+ * zoom, shrinking in inverse proportion to the zoom past it, which is the
+ * same statement as the halo holding a constant size on screen.
+ *
+ * The radius comes from the *bucket*, not from the raw scale, and that is
+ * deliberate. If the radius tracked the raw scale while the contour cache key
+ * tracked the bucket, two frames sharing a bucket would draw a contour
+ * computed at some other frame's radius — a cache that lies. The cost is that
+ * the radius moves in 12% steps; it agrees with the continuous rule at every
+ * bucket boundary and is never more than 6% from it between them, which is
+ * under a third of a grid cell.
+ */
+export function regionFalloffRadius(
+  spread: number,
+  scale: number,
+  fitScale: number,
+): number {
+  if (!(spread > 0) || !Number.isFinite(spread)) return 0;
+  return (
+    spread * FALLOFF_FRACTION * ZOOM_STEP ** -regionZoomBucket(scale, fitScale)
+  );
+}
+
+/**
+ * The grid pitch that goes with a falloff radius.
+ *
+ * Holding the literal `spread * 0.012` while the radius shrinks under-samples
+ * the field: at high zoom the falloff would be narrower than a cell and the
+ * contour would break into rubble or vanish. A fixed ratio keeps the contour's
+ * fidelity relative to the falloff constant at every zoom.
+ */
+export function regionGridPitch(radius: number): number {
+  return radius / PITCH_DIVISOR;
+}
