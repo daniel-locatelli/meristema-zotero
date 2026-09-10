@@ -176,16 +176,15 @@ const WELD = 1e-6;
 const RING_WELD = 1e-4;
 /**
  * A ring vertex within this many device pixels of the previously kept one is
- * dropped before the B-spline fit. An earlier version of this docstring blamed
- * this on smoothing — a uniform knot vector weighting a corner bunch too
- * heavily — but `resampleRing` runs immediately after `ringOf` and subsumes
- * that parameterisation concern entirely. What a near-duplicate weld still
- * has to do, and what `resampleRing` cannot do for it, is keep a zero-length
- * segment out of that resampler's arc-length sum and out of its never-upsample
- * vertex cap — both of which a coincident pair of vertices would corrupt
- * before the resampler ever runs. This is a near-duplicate weld, not
- * decimation — it only ever removes vertices a fit-worthy distance apart,
- * never ones that are merely close together along a smooth run.
+ * dropped before the B-spline fit. This is a degeneracy guard, not a
+ * smoothness control: `resampleRing` runs immediately after `ringOf` and owns
+ * the spacing the fit sees. What the weld still does, and what the resampler
+ * cannot do for it, is keep a duplicate vertex out of `ring.length` — which is
+ * the resampler's never-upsample cap, so a bunch of coincident vertices would
+ * otherwise buy itself a finer resampling than the ring's real detail
+ * supports. This is a near-duplicate weld, not decimation: it only ever
+ * removes vertices a fit-worthy distance apart, never ones that are merely
+ * close together along a smooth run.
  */
 const DEVICE_WELD = 1.5;
 
@@ -206,10 +205,10 @@ const RESAMPLE_PITCH_FACTOR = 1;
  * (8 bytes a cell) and applied to their **sum**. Exceeding it coarsens every
  * component by the same factor, so the shared lattice survives.
  *
- * It was raised twice chasing the offset, to 1 200 000; the decomposition
- * measured at 21 000 cells for a 300-paper folder at a typical bucket, and at
- * about 5 000 for the same folder at a different one — both comfortably under
- * budget. That is not a ceiling on every case: the on-screen halo size is
+ * It was raised twice chasing the offset, to 1 200 000. On the settings that
+ * shipped, a 300-paper folder measures about 15 000 cells at its worst bucket
+ * and about 5 000 at maximum zoom — the decomposition inverts the curve, so
+ * the deepest zoom is the cheapest case rather than the most expensive. That is not a ceiling on every case: the on-screen halo size is
  * constant across buckets, so a single cluster spanning the whole layout has
  * its cell count grow as the span-to-pitch ratio squared as the pitch shrinks
  * with the zoom, and a dense chain spanning the whole plot at a deep bucket
@@ -710,9 +709,10 @@ export function resampleRing(
   if (!Number.isFinite(total) || total <= 0) return [...ring];
 
   // `Math.min(ring.length, …)` is the never-upsample cap the docstring above
-  // describes; `Math.max(3, …)` is a separate floor, for a spacing coarser
-  // than the whole ring, that keeps a resample from collapsing below the
-  // three points a loop needs.
+  // describes. `Math.max(3, …)` floors the spacing term, for a spacing coarser
+  // than the whole ring; it is not a floor on `count`, since the cap outside
+  // it wins — a two-point ring stays two points, and is returned before this
+  // line anyway.
   const count = Math.min(ring.length, Math.max(3, Math.round(total / spacing)));
   const step = total / count;
   const resampled: RegionPoint[] = [];
