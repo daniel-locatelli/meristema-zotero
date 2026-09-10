@@ -1488,26 +1488,37 @@ describe("Graph view, as the product builds it", function () {
     const controller = getGraphViewController(view.mount)!;
     const local = view.model.nodes.filter((node) => node.kind !== "external");
     expect(local.length).to.be.greaterThan(2);
-    const [a, b, c] = local.map((node) => node.itemID);
-    const placeholder = (): Element | null =>
-      view.root.querySelector(".cm-detail-body .cm-placeholder");
+    const [a, b, c] = local;
+    /*
+     * Whether a paper is selected is read off the detail pane's header: a
+     * selected paper puts its own title there, and the empty state names
+     * itself "Paper details". The body's `.cm-placeholder` cannot answer it —
+     * a selected paper with no metrics carries a placeholder of its own ("No
+     * impact metrics for this paper yet."), which is every paper the harness's
+     * corpus builds, so a body-wide placeholder query reads a selected paper
+     * as an empty pane.
+     */
+    const detailTitle = (): string =>
+      view.root.querySelector(".cm-detail-title")?.textContent ?? "";
 
-    controller.applyLibrarySelection([a]);
+    controller.applyLibrarySelection([a.itemID]);
     await settle(view.window, 4);
-    expect(placeholder(), "one item: its node is selected").to.equal(null);
+    expect(detailTitle(), "one item: its node is selected").to.equal(a.title);
     expect(reported, "sync never reports back").to.deep.equal([]);
     expect(view.selected, "and never selects a paper").to.deep.equal([]);
     await shot("view-15-single");
 
-    controller.applyLibrarySelection([a, b, c]);
+    controller.applyLibrarySelection([a.itemID, b.itemID, c.itemID]);
     await settle(view.window, 4);
-    expect(placeholder(), "many: the selection is cleared").to.not.equal(null);
+    expect(detailTitle(), "many: the selection is cleared").to.equal(
+      "Paper details",
+    );
     expect(reported).to.deep.equal([]);
     await shot("view-15-many");
 
     controller.applyLibrarySelection([]);
     await settle(view.window, 4);
-    expect(placeholder(), "none: still cleared").to.not.equal(null);
+    expect(detailTitle(), "none: still cleared").to.equal("Paper details");
     await shot("view-15-cleared");
 
     controller.applyLibrarySelection([-1]);
@@ -1515,13 +1526,35 @@ describe("Graph view, as the product builds it", function () {
     // Nothing is selected and no emphasis is set, so an absent item resolves
     // to nothing and hits the early return: it changes nothing and reports
     // nothing.
-    expect(placeholder(), "an absent item changes nothing").to.not.equal(null);
+    expect(detailTitle(), "an absent item changes nothing").to.equal(
+      "Paper details",
+    );
     expect(reported).to.deep.equal([]);
 
-    // A user command that selects a node is reported exactly once.
-    controller.addFocusItems([b]);
+    /*
+     * A controller command is not a gesture. It seeds and selects on the
+     * view's own behalf — `addFocusItems` goes through `activateFocusState`,
+     * which suppresses by design — so Zotero's list must not follow it. The
+     * selection-sync spec's list of commands that "keep reporting" named
+     * `revealItem` and its neighbours, every one of which Stage 2 retired;
+     * `addFocusItems` is the survivor and it reports nothing.
+     */
+    controller.addFocusItems([b.itemID]);
     await settle(view.window, 4);
-    expect(reported).to.deep.equal([b]);
-    expect(placeholder()).to.equal(null);
+    expect(detailTitle(), "a command selects its seed").to.equal(b.title);
+    expect(reported, "and is not reported either").to.deep.equal([]);
+
+    /*
+     * The suppression is scoped to those applies and not a flag left on: a
+     * gesture in the graph still reaches Zotero. Escape is the renderer's own
+     * deselect, and it reports the null the window service reads as "leave
+     * the list alone" — the report itself is what this case is here to see.
+     */
+    view.canvas.dispatchEvent(
+      new (view.window as any).KeyboardEvent("keydown", { key: "Escape" }),
+    );
+    await settle(view.window, 4);
+    expect(reported, "a gesture reports exactly once").to.deep.equal([null]);
+    expect(detailTitle(), "and clears the pane").to.equal("Paper details");
   });
 });

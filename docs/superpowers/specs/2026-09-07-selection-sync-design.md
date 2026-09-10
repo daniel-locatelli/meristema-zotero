@@ -210,11 +210,16 @@ Behaviour:
   selection, `applyState` (opening a saved graph, restoring a tab, a
   background refresh), `activateFocusState`'s seed selection,
   `restoreSelection` when Explore is left, and the whole initial
-  request/state block at the end of `renderGraphView`. Controller commands
-  the user invokes from Zotero's menus (`revealItem`, `revealItems`,
-  `replaceMapItems`, `addMapItems`, `openFocusItem`, `openFocusItems`,
-  `addFocusItems`, `openCollections`) keep reporting: the item they select is
-  already the list's selection, so `selectListed` is a no-op there.
+  request/state block at the end of `renderGraphView`. This was written when
+  the controller also carried commands the user invoked from Zotero's menus
+  (`revealItem`, `revealItems`, `replaceMapItems`, `addMapItems`,
+  `openFocusItem`, `openFocusItems`), which kept reporting because the item
+  they select is already the list's selection, so `selectListed` is a no-op
+  there. Stage 2 retired all of them. What is left — `addFocusItems`,
+  `openCollections`, `applyState` — selects through `activateFocusState`,
+  which suppresses, so no controller command reports today. Only a gesture in
+  the graph reaches Zotero, which is the rule this list was serving; the
+  no-op argument was never a reason a command _had_ to report.
 - Resolution, factored into a pure helper so it is unit tested:
 
   ```ts
@@ -314,10 +319,17 @@ does not stop the others.
   past a corner.
 - Visual harness view 15 (`test/zotero`): render a view, call
   `applyLibrarySelection` with one, several, no and an unknown ID; assert
-  the selected node, the emphasis, that nothing is reported through
-  `onGraphSelection`, that the harness's `selected` log stays empty (no
-  `onSelectPaper` from sync), and that a user command (`revealItem`) does
-  report exactly once.
+  the selected node, that nothing is reported through `onGraphSelection`,
+  and that the harness's `selected` log stays empty (no `onSelectPaper` from
+  sync). Whether a paper is selected is read off the detail pane's header —
+  the paper's own title, against "Paper details" for the empty state — and
+  not off a `.cm-placeholder` in the pane's body: a selected paper with no
+  metrics carries a placeholder of its own, so the body-wide query the case
+  was first written with read a selected paper as an empty pane, which is
+  what made this case red from the day it was written (backlog B11).
+  `addFocusItems` selects its seed and reports nothing, and the control that
+  the suppression is scoped rather than a flag left on is a real gesture:
+  Escape on the canvas deselects and reports null exactly once.
 - `npm run check` is the gate.
 
 ## Manual walk-through in Zotero

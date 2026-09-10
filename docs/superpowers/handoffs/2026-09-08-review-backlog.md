@@ -378,6 +378,20 @@ Pointers: `applyLibrarySelection` in `src/services/graphViewService.ts`,
 `applyLibrarySelectionToInstance` in `src/services/windowService.ts`,
 `test/zotero/graphViewVisual.test.ts` "view 15".
 
+Settled 2026-09-10: the defect was in the case. A one-row selection does
+select — decision 4 of the design, and Stage 2's adopt rule only governs the
+`{ adopt: true }` apply a fresh render makes — and the pane does show the
+paper. What the case asked was "is there any `.cm-placeholder` in the detail
+body", and a selected paper with no metrics renders "No impact metrics for
+this paper yet." as a placeholder of its own, which is every paper the
+harness's corpus builds. The case reads the detail header now. Fixing it made
+its own tail run for the first time, and that failed too: it expected
+`addFocusItems` to report the selection to Zotero, on a spec sentence naming
+six commands Stage 2 retired. The survivor selects through
+`activateFocusState`, which suppresses by design, so the case asserts that and
+uses Escape on the canvas as the gesture that proves the suppression is
+scoped. No product code changed.
+
 ---
 
 ## B12. Folder colours are dealt by rank, so ticking a folder repaints the others
