@@ -1269,10 +1269,11 @@ export class CitationGraphRenderer {
     }
     const width = maxX - minX;
     const height = maxY - minY;
+    const finite = Number.isFinite(width) && Number.isFinite(height);
     return {
       width: Number.isFinite(width) ? width : 0,
       height: Number.isFinite(height) ? height : 0,
-      spread: Math.max(width, height, 1),
+      spread: finite ? Math.max(width, height, 1) : 1,
     };
   }
 

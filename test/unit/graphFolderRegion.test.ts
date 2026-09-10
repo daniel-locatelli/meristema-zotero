@@ -131,9 +131,12 @@ describe("folder regions", function () {
   it("gives the same contour for the same input, deterministically", function () {
     // This proves determinism, not zoom invariance: `folderRegionContours`
     // takes no viewport, so it cannot even be handed a zoom level to vary.
-    // Zoom invariance holds structurally, because the renderer transforms
-    // this same data-space contour for display rather than recomputing it
-    // per zoom level — that is not testable at this module's boundary.
+    // Zoom invariance holds structurally at or below the fit zoom, because the
+    // renderer transforms this same data-space contour for display rather
+    // than recomputing it per zoom level. Past the fit zoom the falloff
+    // radius tightens (`regionFalloffRadius`), and the contour genuinely
+    // changes with it — that half is asserted at the renderer's boundary, in
+    // `test/unit/citationGraphRendererRegions.test.ts`, not here.
     const points = [
       { x: 0, y: 0 },
       { x: 6, y: 0 },

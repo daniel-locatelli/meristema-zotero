@@ -279,8 +279,9 @@ recorded assignments to disagree with; the map fills as folders are selected.
   cannot fragment a folder), and a folder whose nodes sit at the extreme of the
   plot produces a **closed** contour, not one clipped by the grid's edge.
   (Amended by D6, 2026-09-10: this now reads "two zoom levels **at or below
-  the fit** produce the same contour", and a second case asserts that a zoom
-  past the fit produces a tighter one.)
+  the fit** produce the same contour", and a second case, at the renderer's
+  boundary in `test/unit/citationGraphRendererRegions.test.ts`, asserts that a
+  zoom past the fit produces a tighter one.)
 - A **palette validator** as a unit test over the ramp, the eight swatches and
   the six seed colours together, in both themes: lightness band, chroma floor,
   CVD-simulated separation and normal-vision separation. This is new. Nothing

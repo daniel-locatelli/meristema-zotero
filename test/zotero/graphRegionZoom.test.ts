@@ -9,12 +9,13 @@ import {
 
 /**
  * D6. A folder's region tightens past the fit zoom so the territory pulls
- * apart into its papers rather than swallowing the viewport. Two things have
- * to be true at once and only one of them is obvious: the region must still be
- * painted after a zoom, and its shape must actually have changed. Asserting
- * only the first would pass on the pre-D6 build; asserting only the second
- * would pass on a build that dropped the region entirely — which is what B28
- * looked like, and is the failure this case is really standing guard over.
+ * apart into its papers rather than swallowing the viewport. This case does
+ * not isolate that: zooming moves every node, so the whole-canvas fingerprint
+ * changes whether or not the region's shape changed, and the drawn-pixel
+ * count clears its bar on the nodes alone — both assertions here would pass
+ * on a pre-D6 build. Its real value is a B28-shaped regression guard: it
+ * drives a real zoom through the plugin's own control, on a real corpus, and
+ * asserts nothing threw and the plot is still drawn on the far side.
  */
 describe("D6: a folder region survives a zoom-in", function () {
   let stage: ViewStage | null = null;

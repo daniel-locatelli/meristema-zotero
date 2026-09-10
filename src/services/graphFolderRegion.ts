@@ -61,7 +61,10 @@ const DOMAIN_MARGIN = 1.5;
 /** Vertices closer than this share a stitching slot. */
 const WELD = 1e-6;
 /**
- * Two knots closer than this, in device pixels, are one knot. Marching-squares
+ * Two knots closer than this are one knot. The knot spacing being compared
+ * against it is `distance ** 0.5`, not the raw device-pixel distance, so this
+ * trips at a distance of about `1e-12` px, not `1e-6`. The square root is what
+ * keeps the untripped near-degenerate cases well conditioned: marching-squares
  * vertices bunch tightly at grid corners, so a knot difference genuinely does
  * reach zero and the Catmull-Rom denominators genuinely do divide by it.
  */
@@ -317,30 +320,6 @@ export function folderRegionContours(
 }
 
 /**
- * A region's contours as one `Path2D`, built from the canvas's own window.
- *
- * `Path2D` is a DOM constructor, and the plugin's bundle runs in a scope that
- * carries none: the live plugin threw "Path2D is not defined" the moment a
- * folder was drawn, `draw()` caught it and latched `canvasError`, and the plot
- * stayed on its flat panel fill — no nodes, no axes — for the rest of that
- * renderer's life (backlog B28). Every test scope has a `Path2D` on it, which
- * is exactly why the suite watched this happen and reported nothing. The
- * renderer already takes `ResizeObserver` from `canvas.ownerDocument
- * .defaultView`; this is the same rule, and the reason it is a function here
- * rather than a line there is that a fake window makes it testable.
- *
- * Null when the window has no `Path2D` at all, so the caller skips the region
- * rather than losing the frame the nodes are drawn in.
- *
- * The outline is a centripetal Catmull-Rom fit, one cubic Bézier per contour
- * segment, wrapping because the loops are closed. A polyline in data space
- * re-facets as you zoom in — its segments grow on screen with everything else
- * — while a curve does not, because the rasterizer flattens it in device
- * pixels. The contour it is fitted through is untouched: same points, same
- * topology, same `evenodd` fill, same dilation stroke (backlog D6).
- */
-
-/**
  * One segment's two cubic control points, centripetal Catmull-Rom → Bézier
  * (Barry–Goldman, α = 0.5).
  *
@@ -441,6 +420,29 @@ function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
   return ring;
 }
 
+/**
+ * A region's contours as one `Path2D`, built from the canvas's own window.
+ *
+ * `Path2D` is a DOM constructor, and the plugin's bundle runs in a scope that
+ * carries none: the live plugin threw "Path2D is not defined" the moment a
+ * folder was drawn, `draw()` caught it and latched `canvasError`, and the plot
+ * stayed on its flat panel fill — no nodes, no axes — for the rest of that
+ * renderer's life (backlog B28). Every test scope has a `Path2D` on it, which
+ * is exactly why the suite watched this happen and reported nothing. The
+ * renderer already takes `ResizeObserver` from `canvas.ownerDocument
+ * .defaultView`; this is the same rule, and the reason it is a function here
+ * rather than a line there is that a fake window makes it testable.
+ *
+ * Null when the window has no `Path2D` at all, so the caller skips the region
+ * rather than losing the frame the nodes are drawn in.
+ *
+ * The outline is a centripetal Catmull-Rom fit, one cubic Bézier per contour
+ * segment, wrapping because the loops are closed. A polyline in data space
+ * re-facets as you zoom in — its segments grow on screen with everything else
+ * — while a curve does not, because the rasterizer flattens it in device
+ * pixels. The contour it is fitted through is untouched: same points, same
+ * topology, same `evenodd` fill, same dilation stroke (backlog D6).
+ */
 export function regionPathFor(
   view: Window | null,
   loops: readonly (readonly RegionPoint[])[],
