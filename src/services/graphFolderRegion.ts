@@ -51,6 +51,90 @@ export interface FolderRegionOptions {
   threshold?: number;
 }
 
+/**
+ * A folder's papers, partitioned into the groups whose fields can reach each
+ * other: two papers join when they are closer than `2 * radius`.
+ *
+ * Past `2R` the supports are disjoint, so neither paper contributes anything
+ * to the other's field anywhere on the plot. The partition is therefore a
+ * decomposition and not an approximation: the union of the components'
+ * contours is the folder's contour exactly. `2R` is conservative on purpose —
+ * the exact isolation radius is `R(1 + sqrt(1 - t))`, about `1.707R` — and the
+ * slack is what guarantees a component's own grid can never omit a paper whose
+ * bump overlaps its domain.
+ *
+ * The neighbour search hashes into cells of side `2R`, so each paper compares
+ * itself against the nine cells around it rather than against the whole
+ * folder. A non-finite paper is hashed nowhere and joins nothing, which leaves
+ * it a singleton rather than poisoning a component with a `NaN`.
+ */
+export function regionComponents(
+  points: readonly RegionPoint[],
+  radius: number,
+): RegionPoint[][] {
+  if (!points.length) return [];
+  const reach = radius * 2;
+  if (!(reach > 0) || !Number.isFinite(reach)) {
+    return points.map((point) => [point]);
+  }
+  const finite = points.map(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+  const cellOf = (value: number): number => Math.floor(value / reach);
+  const buckets = new Map<string, number[]>();
+  points.forEach((point, index) => {
+    if (!finite[index]) return;
+    const key = `${cellOf(point.x)}:${cellOf(point.y)}`;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(index);
+    else buckets.set(key, [index]);
+  });
+
+  const parent = points.map((_, index) => index);
+  const find = (start: number): number => {
+    let root = start;
+    while (parent[root] !== root) root = parent[root];
+    let walk = start;
+    while (parent[walk] !== root) {
+      const next = parent[walk];
+      parent[walk] = root;
+      walk = next;
+    }
+    return root;
+  };
+  const join = (first: number, second: number): void => {
+    const rootFirst = find(first);
+    const rootSecond = find(second);
+    if (rootFirst !== rootSecond) parent[rootSecond] = rootFirst;
+  };
+
+  const reachSquared = reach * reach;
+  points.forEach((point, index) => {
+    if (!finite[index]) return;
+    const column = cellOf(point.x);
+    const row = cellOf(point.y);
+    for (let dc = -1; dc <= 1; dc += 1) {
+      for (let dr = -1; dr <= 1; dr += 1) {
+        for (const other of buckets.get(`${column + dc}:${row + dr}`) ?? []) {
+          if (other <= index) continue;
+          const dx = points[other].x - point.x;
+          const dy = points[other].y - point.y;
+          if (dx * dx + dy * dy < reachSquared) join(index, other);
+        }
+      }
+    }
+  });
+
+  const groups = new Map<number, RegionPoint[]>();
+  points.forEach((point, index) => {
+    const root = find(index);
+    const group = groups.get(root);
+    if (group) group.push(point);
+    else groups.set(root, [point]);
+  });
+  return [...groups.values()];
+}
+
 const DEFAULT_THRESHOLD = 0.5;
 /**
  * How far past the papers' bounding box the grid runs. The field has to reach

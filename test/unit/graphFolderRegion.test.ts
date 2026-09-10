@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   folderRegionContours,
+  regionComponents,
   regionFalloffRadius,
   regionFitScale,
   regionGridPitch,
@@ -546,6 +547,135 @@ describe("folder regions", function () {
       { radius: 100, pitch: 0.05 },
     );
     expect(contours.length).to.be.at.least(1);
+  });
+
+  it("splits papers more than 2R apart into separate components", function () {
+    const components = regionComponents(
+      [
+        { x: 0, y: 0 },
+        { x: 30, y: 0 },
+      ],
+      10,
+    );
+    expect(components).to.have.length(2);
+    expect(components[0]).to.deep.equal([{ x: 0, y: 0 }]);
+    expect(components[1]).to.deep.equal([{ x: 30, y: 0 }]);
+  });
+
+  it("keeps papers closer than 2R in one component", function () {
+    expect(
+      regionComponents(
+        [
+          { x: 0, y: 0 },
+          { x: 12, y: 0 },
+        ],
+        10,
+      ),
+    ).to.have.length(1);
+  });
+
+  /**
+   * The conservative boundary, pinned. The exact isolation radius is
+   * `R(1 + sqrt(1 - t))`, about `1.707R`; the spec takes `2R` instead so a
+   * grouped component's grid can never omit a neighbour whose support
+   * overlaps its domain. Anyone later tightening this to 1.707R has to change
+   * this case, which is the point.
+   */
+  it("groups at exactly the 2R boundary and splits just past it", function () {
+    expect(
+      regionComponents(
+        [
+          { x: 0, y: 0 },
+          { x: 19.999, y: 0 },
+        ],
+        10,
+      ),
+      "just inside 2R is one component",
+    ).to.have.length(1);
+    expect(
+      regionComponents(
+        [
+          { x: 0, y: 0 },
+          { x: 20, y: 0 },
+        ],
+        10,
+      ),
+      "exactly 2R is two components",
+    ).to.have.length(2);
+  });
+
+  it("chains papers into one component through their neighbours", function () {
+    // Ends 60 apart, so no single hop; every step is 15, well inside 2R.
+    const chain = [0, 15, 30, 45, 60].map((x) => ({ x, y: 0 }));
+    const components = regionComponents(chain, 10);
+    expect(components).to.have.length(1);
+    expect(components[0]).to.have.length(5);
+  });
+
+  /**
+   * 400 papers in twenty well-separated clusters. This exercises the spatial
+   * hash's neighbour lookup at a size where a naive all-pairs pass would be
+   * doing 160 000 comparisons — but it asserts the partition, not the clock:
+   * 400 points is small enough that even the quadratic version finishes
+   * instantly, so a timing assertion here would be flaky and prove nothing.
+   * What it does prove is that hashing into cells never loses or merges a
+   * component.
+   */
+  it("partitions four hundred papers into the clusters they form", function () {
+    const points: RegionPoint[] = [];
+    for (let cluster = 0; cluster < 20; cluster += 1) {
+      for (let member = 0; member < 20; member += 1) {
+        points.push({
+          x: cluster * 1000 + (member % 5) * 4,
+          y: Math.floor(member / 5) * 4,
+        });
+      }
+    }
+    const components = regionComponents(points, 10);
+    expect(components).to.have.length(20);
+    for (const component of components) {
+      expect(component).to.have.length(20);
+    }
+  });
+
+  it("never throws on degenerate partition input", function () {
+    expect(regionComponents([], 10)).to.deep.equal([]);
+    expect(regionComponents([{ x: 1, y: 1 }], 10)).to.deep.equal([
+      [{ x: 1, y: 1 }],
+    ]);
+    // Coincident papers are one component, not one each.
+    expect(
+      regionComponents(
+        [
+          { x: 2, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        10,
+      ),
+    ).to.have.length(1);
+    // A non-finite paper joins nothing, and takes nothing down with it.
+    const withNaN = regionComponents(
+      [
+        { x: 0, y: 0 },
+        { x: Number.NaN, y: 0 },
+        { x: 5, y: 0 },
+      ],
+      10,
+    );
+    expect(withNaN).to.have.length(2);
+    expect(withNaN[0]).to.have.length(2);
+    // A radius that is not a positive number leaves every paper on its own
+    // rather than dividing by it.
+    expect(regionComponents([{ x: 0, y: 0 }], 0)).to.have.length(1);
+    expect(
+      regionComponents(
+        [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+        ],
+        Number.NaN,
+      ),
+    ).to.have.length(2);
   });
 });
 
