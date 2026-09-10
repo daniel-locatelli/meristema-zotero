@@ -1187,6 +1187,54 @@ could be more disruptive than useful. Worth a brainstorm, not a patch.
 
 ---
 
+## F13. Show a paper's full title in the graph
+
+The label is ellipsised when the title is too long, and the user wants the
+option to read the whole thing on the plot.
+
+Not a one-line change: `graphLabelBudget.ts` exists because labels compete for
+space, and a full title is several times the width the budget assumes. The
+design question is which surface carries it — every label at full length (and
+what that does to the budget and to overlap), the hovered or selected paper
+only, or a wrapped label over two or three lines with a width cap. Decide that
+before touching the budget.
+
+Pointers: `src/services/graphLabelBudget.ts`, the renderer's `drawLabels`, and
+the Label control in the gear panel (`graphViewControls.ts`,
+`labelledLine("Label", labels)`), which is where an option would live.
+
+---
+
+## D6. The folder regions read as faceted polylines, and their offset does not follow the zoom
+
+Raised by the user on 2026-09-10, after B28 made the regions visible for the
+first time. Two complaints, and they are independent:
+
+- **Faceting.** The contour is drawn with `lineTo` between marching-squares
+  vertices, so a curve reads as a chamfered polygon. The grid is about 83
+  cells across the data extent (`pitch: spread * 0.012`), which sets how
+  coarse the facets are. `regionPathFor` in `graphFolderRegion.ts` is now the
+  single place a path is built, so a curve fit has one seam to live at.
+  NURBS specifically is the wrong tool: `Path2D` speaks lines, quadratic and
+  cubic Béziers and arcs, so a NURBS would be evaluated down to one of those
+  anyway, and the rational weights buy nothing without a conic to represent.
+- **Zoom behaviour.** Zoomed in, the region stays enormous and swallows the
+  viewport, so the reader cannot tell which papers make it. The user wants the
+  offset to hold its size on screen, the way a node's radius does, so that
+  zooming in separates the territory back into its members.
+
+The second reverses D3's explicit decision. The spec computes the field in
+**data space** precisely so the hull's topology is not a function of the zoom;
+the reviewer offered "document splitting-on-zoom as intended" and the spec
+called that indefensible, "B12's fault in another costume". The user is now
+asking for exactly that splitting, for a good reason the review did not weigh:
+at high zoom a data-space hull has its edge off-screen and stops telling the
+reader anything. Reopening it is legitimate, but it is a decision to take
+knowingly, and it costs the cache — a screen-space falloff means recomputing
+contours on every zoom step rather than never.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
