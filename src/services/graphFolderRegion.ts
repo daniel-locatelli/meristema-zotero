@@ -96,6 +96,12 @@ export function regionComponents(
 ): RegionPoint[][] {
   if (!points.length) return [];
   const reach = radius * 2;
+  // `!(reach > 0)` catches a zero or NaN radius, where no paper can reach
+  // another, so every paper is its own singleton. An infinite radius falls
+  // into this same branch and is treated the same way, which is not the
+  // matching semantic choice — infinite reach means one component, not every
+  // paper isolated — but it is unreachable in the product: `folderRegionContours`
+  // guards `Number.isFinite(radius)` before this is ever called.
   if (!(reach > 0) || !Number.isFinite(reach)) {
     return points.map((point) => [point]);
   }
@@ -170,12 +176,16 @@ const WELD = 1e-6;
 const RING_WELD = 1e-4;
 /**
  * A ring vertex within this many device pixels of the previously kept one is
- * dropped before the B-spline fit. Marching squares bunches vertices tightly
- * at grid corners; a uniform knot vector weights every vertex equally, so a
- * bunch like that tugs the curve locally even though it approximates rather
- * than interpolates. This is a near-duplicate weld, not decimation — it only
- * ever removes vertices a fit-worthy distance apart, never ones that are
- * merely close together along a smooth run.
+ * dropped before the B-spline fit. An earlier version of this docstring blamed
+ * this on smoothing — a uniform knot vector weighting a corner bunch too
+ * heavily — but `resampleRing` runs immediately after `ringOf` and subsumes
+ * that parameterisation concern entirely. What a near-duplicate weld still
+ * has to do, and what `resampleRing` cannot do for it, is keep a zero-length
+ * segment out of that resampler's arc-length sum and out of its never-upsample
+ * vertex cap — both of which a coincident pair of vertices would corrupt
+ * before the resampler ever runs. This is a near-duplicate weld, not
+ * decimation — it only ever removes vertices a fit-worthy distance apart,
+ * never ones that are merely close together along a smooth run.
  */
 const DEVICE_WELD = 1.5;
 
@@ -196,10 +206,16 @@ const RESAMPLE_PITCH_FACTOR = 1;
  * (8 bytes a cell) and applied to their **sum**. Exceeding it coarsens every
  * component by the same factor, so the shared lattice survives.
  *
- * It was raised twice chasing the offset, to 1 200 000; the decomposition took
- * the measured worst case across every bucket down to about 15 000 cells, so
- * with today's constants this cannot trigger. It stays as the guard that a
- * later change coarsens rather than allocating unboundedly on a wheel notch.
+ * It was raised twice chasing the offset, to 1 200 000; the decomposition
+ * measured at 21 000 cells for a 300-paper folder at a typical bucket, and at
+ * about 5 000 for the same folder at a different one — both comfortably under
+ * budget. That is not a ceiling on every case: the on-screen halo size is
+ * constant across buckets, so a single cluster spanning the whole layout has
+ * its cell count grow as the span-to-pitch ratio squared as the pitch shrinks
+ * with the zoom, and a dense chain spanning the whole plot at a deep bucket
+ * can approach or exceed this budget. That is not a defect — exceeding it
+ * coarsens every component by the same factor rather than allocating
+ * unboundedly, so the shared lattice survives a wheel notch that lands there.
  */
 const MAX_GRID_CELLS = 250_000;
 
@@ -504,21 +520,45 @@ export function folderRegionContours(
   if (!(pitch > 0) || !Number.isFinite(pitch)) return nothing;
 
   const margin = radius * DOMAIN_MARGIN;
+
+  // Clusters are all-finite by construction (a non-finite paper joins
+  // nothing, per `regionComponents`), so a non-finite outlier must not be
+  // allowed to move their shared origin — it would take every cluster's grid
+  // non-finite and silently drop every loop in the folder while the discs
+  // still drew. The origin is therefore derived from the finite papers only,
+  // and with none at all there is no origin to compute one from.
+  const finitePoints = points.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+  if (!finitePoints.length) return nothing;
+
   const components = regionComponents(points, radius);
   const discRadius = radius * Math.sqrt(Math.max(0, 1 - threshold));
   const discs: RegionDisc[] = [];
   const clusters: RegionPoint[][] = [];
   for (const component of components) {
     if (component.length === 1) {
-      discs.push({ centre: component[0], radius: discRadius });
+      const [point] = component;
+      // A singleton born of quarantine (see `regionComponents`) draws
+      // nothing rather than a disc with a non-finite centre.
+      if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+        discs.push({ centre: point, radius: discRadius });
+      }
     } else {
       clusters.push(component);
     }
   }
 
-  // The folder's own min corner, which anchors every component's grid.
-  const originX = Math.min(...points.map((point) => point.x)) - margin;
-  const originY = Math.min(...points.map((point) => point.y)) - margin;
+  // The folder's own min corner, which anchors every component's grid. A
+  // `reduce` rather than `Math.min(...array)`: the spread form throws
+  // `RangeError` past about 65 000 arguments, which under the totality
+  // mandate would blank the whole plot.
+  const originX =
+    finitePoints.reduce((min, point) => Math.min(min, point.x), Infinity) -
+    margin;
+  const originY =
+    finitePoints.reduce((min, point) => Math.min(min, point.y), Infinity) -
+    margin;
 
   // Coarsen rather than allocate: the budget is the *sum* across the folder's
   // components, and exceeding it coarsens every component by the same factor,
@@ -669,6 +709,10 @@ export function resampleRing(
   }
   if (!Number.isFinite(total) || total <= 0) return [...ring];
 
+  // `Math.min(ring.length, …)` is the never-upsample cap the docstring above
+  // describes; `Math.max(3, …)` is a separate floor, for a spacing coarser
+  // than the whole ring, that keeps a resample from collapsing below the
+  // three points a loop needs.
   const count = Math.min(ring.length, Math.max(3, Math.round(total / spacing)));
   const step = total / count;
   const resampled: RegionPoint[] = [];

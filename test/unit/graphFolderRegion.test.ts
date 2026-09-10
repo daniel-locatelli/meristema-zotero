@@ -796,6 +796,99 @@ describe("folder regions", function () {
     }
   });
 
+  /**
+   * The lattice origin is poisoned by the very papers the partition
+   * quarantines: `regionComponents` keeps a non-finite paper out of every
+   * component (it joins nothing), but the shared-lattice origin used to be
+   * computed from the whole, unfiltered folder. One non-finite paper made
+   * that origin non-finite, which made `componentLoops`' `startColumn`
+   * non-finite, which made every cluster's `columns` non-finite and every
+   * cluster's `return []` fire — dropping every loop in the folder while the
+   * lone-paper discs kept drawing.
+   */
+  it("keeps a cluster's loop unchanged by a NaN paper elsewhere in the folder", function () {
+    const cluster = [
+      { x: 0, y: 0 },
+      { x: 14, y: 3 },
+      { x: 7, y: 16 },
+    ];
+    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+    const withNaN = folderRegionContours(
+      [...cluster, { x: Number.NaN, y: Number.NaN }],
+      { radius: 10, pitch: 2 },
+    );
+    expect(alone.loops).to.have.length(1);
+    expect(withNaN.loops).to.have.length(1);
+    expect(withNaN.loops[0]).to.deep.equal(alone.loops[0]);
+  });
+
+  /**
+   * `{ x: 0, y: 0 }` happens to already sit at the minimum on both axes, so a
+   * NaN paper cannot be seen moving it. `-Infinity` actually would move the
+   * minimum were it not filtered out first — this is the case that
+   * distinguishes "the origin ignored the outlier" from "the outlier merely
+   * didn't matter".
+   */
+  it("keeps a cluster's loop unchanged by a -Infinity paper that would otherwise move the minimum", function () {
+    const cluster = [
+      { x: 0, y: 0 },
+      { x: 14, y: 3 },
+      { x: 7, y: 16 },
+    ];
+    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+    const withInfinity = folderRegionContours(
+      [...cluster, { x: Number.NEGATIVE_INFINITY, y: 0 }],
+      { radius: 10, pitch: 2 },
+    );
+    expect(alone.loops).to.have.length(1);
+    expect(withInfinity.loops).to.have.length(1);
+    expect(withInfinity.loops[0]).to.deep.equal(alone.loops[0]);
+  });
+
+  it("returns empty shapes for a folder whose papers are all non-finite", function () {
+    expect(() =>
+      folderRegionContours(
+        [
+          { x: Number.NaN, y: Number.NaN },
+          { x: Number.POSITIVE_INFINITY, y: 0 },
+        ],
+        OPTIONS,
+      ),
+    ).to.not.throw();
+    const shapes = folderRegionContours(
+      [
+        { x: Number.NaN, y: Number.NaN },
+        { x: Number.POSITIVE_INFINITY, y: 0 },
+      ],
+      OPTIONS,
+    );
+    expect(shapes).to.deep.equal({
+      radius: 0,
+      pitch: 0,
+      discs: [],
+      loops: [],
+    });
+  });
+
+  it("never gives a disc a non-finite centre", function () {
+    const shapes = folderRegionContours(
+      [
+        { x: 0, y: 0 },
+        { x: Number.NaN, y: Number.NaN },
+        { x: Number.NEGATIVE_INFINITY, y: 0 },
+        { x: 80, y: 0 },
+      ],
+      OPTIONS,
+    );
+    for (const disc of shapes.discs) {
+      expect(
+        Number.isFinite(disc.centre.x) && Number.isFinite(disc.centre.y),
+      ).to.equal(true);
+    }
+    // The two finite, mutually distant papers still come back as discs.
+    expect(shapes.discs).to.have.length(2);
+  });
+
   it("reports the radius and the pitch it built the shapes at", function () {
     const shapes = folderRegionContours(
       [
