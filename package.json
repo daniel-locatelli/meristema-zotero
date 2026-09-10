@@ -43,7 +43,7 @@
     "check": "npm run lint:check && npm run typecheck && npm run test:unit",
     "build": "npm run check && zotero-plugin build",
     "release": "npm run check && zotero-plugin release",
-    "test:unit": "node --import ./test/nodeResolve.mjs --test \"test/unit/**/*.test.ts\"",
+    "test:unit": "node --import ./test/nodeResolve.mjs --experimental-test-module-mocks --test \"test/unit/**/*.test.ts\"",
     "test": "zotero-plugin test --no-watch",
     "test:watch": "zotero-plugin test",
     "audit:runtime": "npm audit --omit=dev --audit-level=high"
