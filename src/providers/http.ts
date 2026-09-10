@@ -58,14 +58,37 @@ interface ProviderQueueState {
 }
 
 const providerQueues = new Map<CitationProviderID, ProviderQueueState>();
-// One bounded retry is enough for interactive updates. Multiple 30-second
-// retries used to block every request queued behind one unavailable provider.
-const RETRY_DELAYS_MS = [1500];
+// Exponential backoff for a 429 or 5xx that carries no Retry-After: four
+// attempts in all, delaying the provider by roughly 1s, 2s then 4s. Semantic
+// Scholar's key application asks applicants to commit to exactly this.
+const RETRY_DELAYS_MS = [1000, 2000, 4000];
 const REQUEST_TIMEOUT_MS = 15000;
-const MAX_RETRY_AFTER_MS = 15000;
+export const MAX_RETRY_AFTER_MS = 15000;
 const activeRequestCancellers = new Set<() => void>();
 const responseObservers = new Set<ProviderJSONResponseObserver>();
 let cancellationRequested = false;
+
+/**
+ * Delay before retry `attempt`, jittered upward by up to a quarter.
+ *
+ * The delay postpones the whole provider rather than the one request, which is
+ * the right level for a shared rate limit — so jitter may only ever lengthen
+ * it. Full jitter, which can shorten a wait, exists to de-correlate clients
+ * that would otherwise retry in lockstep; a per-provider queue already does
+ * that, and a shortened delay here would let every queued request resume
+ * before the backoff intended.
+ */
+export function backoffDelayMs(
+  attempt: number,
+  random: () => number = Math.random,
+): number {
+  const index = Math.min(
+    Math.max(0, Math.floor(attempt)),
+    RETRY_DELAYS_MS.length - 1,
+  );
+  const base = RETRY_DELAYS_MS[index];
+  return Math.min(MAX_RETRY_AFTER_MS, base * (1 + random() * 0.25));
+}
 
 export function registerProviderJSONResponseObserver(
   observer: ProviderJSONResponseObserver,
@@ -398,7 +421,7 @@ export async function requestJSON<T>(
         if (retryAfter !== null && retryAfter > MAX_RETRY_AFTER_MS) {
           return parseJSON<T>(provider, response);
         }
-        postponeProvider(provider, retryAfter ?? RETRY_DELAYS_MS[attempt]);
+        postponeProvider(provider, retryAfter ?? backoffDelayMs(attempt));
         continue;
       }
       const parsed = parseJSON<T>(provider, response);
@@ -414,7 +437,7 @@ export async function requestJSON<T>(
     } catch (error) {
       if (requestWasCancelled(options.signal)) return cancelledResult<T>();
       if (attempt < retryLimit) {
-        postponeProvider(provider, RETRY_DELAYS_MS[attempt]);
+        postponeProvider(provider, backoffDelayMs(attempt));
         continue;
       }
       return {
