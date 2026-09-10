@@ -1,8 +1,4 @@
 import type { CitationProviderID } from "../domain/citationTypes";
-import {
-  getOpenAlexAPIKey,
-  getSemanticScholarAPIKey,
-} from "./citationPreferences";
 
 export interface ProviderExecutionPolicy {
   batchSize: number;
@@ -18,10 +14,13 @@ const STATIC_POLICY: Record<CitationProviderID, ProviderExecutionPolicy> = {
     minimumStartDelayMs: 350,
     relationshipPageSize: 100,
   },
+  // Semantic Scholar grants 1 request per second, cumulative across all
+  // endpoints, keyed or keyless, and asks applicants to stay below it. A key
+  // buys the batch and page sizes and a private quota, never speed.
   "semantic-scholar": {
     batchSize: 500,
-    requestParallelism: 2,
-    minimumStartDelayMs: 150,
+    requestParallelism: 1,
+    minimumStartDelayMs: 1100,
     relationshipPageSize: 200,
   },
   opencitations: {
@@ -36,6 +35,10 @@ const STATIC_POLICY: Record<CitationProviderID, ProviderExecutionPolicy> = {
     minimumStartDelayMs: 400,
     relationshipPageSize: 250,
   },
+  // OpenAlex returns 429 above 100 requests per second at every
+  // authentication level, so ~8/s is an order of magnitude inside the rate.
+  // Its real limit is a daily budget — roughly 10,000 list-and-filter calls
+  // on a free key — which no per-second number can defend.
   openalex: {
     batchSize: 100,
     requestParallelism: 2,
@@ -47,26 +50,17 @@ const STATIC_POLICY: Record<CitationProviderID, ProviderExecutionPolicy> = {
 /**
  * Internal provider policy. These values are deliberately not user settings:
  * each API has different request, payload, and rate-limit characteristics.
+ *
+ * A stored API key does not appear here on purpose. It used to raise the rate
+ * for Semantic Scholar and OpenAlex, which was backlog B9: Semantic Scholar's
+ * authenticated plan is the same 1 request per second as its keyless one, and
+ * OpenAlex refuses every request without a key, so it has no keyless path to
+ * be slower than. Each entry of STATIC_POLICY is the rate its provider grants.
  */
 export function providerExecutionPolicy(
   provider: CitationProviderID,
 ): ProviderExecutionPolicy {
-  const base = STATIC_POLICY[provider];
-  if (provider === "semantic-scholar" && !getSemanticScholarAPIKey()) {
-    return {
-      ...base,
-      requestParallelism: 1,
-      minimumStartDelayMs: 1100,
-    };
-  }
-  if (provider === "openalex" && !getOpenAlexAPIKey()) {
-    return {
-      ...base,
-      requestParallelism: 1,
-      minimumStartDelayMs: 1100,
-    };
-  }
-  return base;
+  return STATIC_POLICY[provider];
 }
 
 export const LIBRARY_CORE_FALLBACK_PARALLELISM = 2;
