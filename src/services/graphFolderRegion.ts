@@ -192,14 +192,16 @@ const DEVICE_WELD = 1.5;
 const RESAMPLE_PITCH_FACTOR = 1;
 
 /**
- * A hard ceiling on the field grid, held as one `Float64Array` (8 bytes a
- * cell). With the falloff's 7.7x tightening floor (`1.12 ** 18`) and
- * `pitch = radius / 5`, the grid never exceeds roughly 961 steps across a
- * folder's bounding box, about 924 000 cells, so this cannot trigger in the
- * product. It is here so that a later change to the floor coarsens the pitch
- * instead of allocating unboundedly on a wheel notch.
+ * A hard ceiling on the field grids, held as one `Float64Array` per component
+ * (8 bytes a cell) and applied to their **sum**. Exceeding it coarsens every
+ * component by the same factor, so the shared lattice survives.
+ *
+ * It was raised twice chasing the offset, to 1 200 000; the decomposition took
+ * the measured worst case across every bucket down to about 15 000 cells, so
+ * with today's constants this cannot trigger. It stays as the guard that a
+ * later change coarsens rather than allocating unboundedly on a wheel notch.
  */
-const MAX_GRID_CELLS = 1_200_000;
+const MAX_GRID_CELLS = 250_000;
 
 function interpolate(
   first: RegionPoint,
@@ -799,7 +801,7 @@ export function regionPathFor(
 }
 
 /** Today's falloff, as a fraction of the plot's larger side. */
-const FALLOFF_FRACTION = 0.04;
+const FALLOFF_FRACTION = 0.03;
 /**
  * One zoom bucket. About 12%: small enough that the shape reads as following
  * the zoom rather than jumping, large enough that a slow zoom across the whole
@@ -807,17 +809,20 @@ const FALLOFF_FRACTION = 0.04;
  */
 const ZOOM_STEP = 1.12;
 /**
- * The tightening stops at roughly 8x past the fit (`1.12 ** 18 ≈ 7.7`).
+ * The tightening stops at 30 buckets, about 30x past the fit (`1.12 ** 30`).
  *
- * This floor is about work and memory, not looks. The grid grows
- * quadratically with the tightening and nothing else stops it: the viewport
- * scale clamps at 8 while the fit scale can sit well below 1, so a ratio in
- * the twenties is reachable on an ordinary graph. The honest cost is that
- * past 8x the halo starts growing on screen again.
+ * D6 floored this at 18, roughly 8x, as a concession to work and memory, and
+ * paid for it with the halo growing on screen again past 8x — the original
+ * complaint returning in the far corner of the zoom range. The decomposition
+ * inverted that cost curve: at high zoom nearly every paper is a singleton
+ * drawn as an arc with no grid at all, so the deepest zoom is now the cheapest
+ * case. The ceiling is set by the zoom range instead: the viewport scale
+ * clamps at 8 while `fitScale` can sit well below 1, so a ratio in the
+ * twenties is reachable on an ordinary graph.
  */
-const MAX_ZOOM_BUCKET = 18;
-/** `pitch = radius / 5`, which is `spread * 0.008` at bucket 0. */
-const PITCH_DIVISOR = 5;
+const MAX_ZOOM_BUCKET = 30;
+/** `pitch = radius / 3`, which is `spread * 0.01` at bucket 0. */
+const PITCH_DIVISOR = 3;
 
 /**
  * The scale at which the laid-out papers just fill the plot.
@@ -848,11 +853,11 @@ export function regionFitScale(
 }
 
 /**
- * How many 12% steps past the fit zoom the view is, clamped to `[0, 18]`.
+ * How many 12% steps past the fit zoom the view is, clamped to `[0, 30]`.
  *
  * Clamping at zero is what makes "at or below the fit is unchanged" exact:
  * every scale at or below the fit lands in bucket 0, and bucket 0's radius is
- * `spread * 0.04` to the last bit.
+ * `spread * 0.03` to the last bit.
  */
 export function regionZoomBucket(scale: number, fitScale: number): number {
   if (!(scale > 0) || !(fitScale > 0)) return 0;
@@ -889,7 +894,7 @@ export function regionFalloffRadius(
 /**
  * The grid pitch that goes with a falloff radius.
  *
- * Holding the literal `spread * 0.008` while the radius shrinks under-samples
+ * Holding the literal `spread * 0.01` while the radius shrinks under-samples
  * the field: at high zoom the falloff would be narrower than a cell and the
  * contour would break into rubble or vanish. A fixed ratio keeps the contour's
  * fidelity relative to the falloff constant at every zoom.

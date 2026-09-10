@@ -1123,21 +1123,19 @@ describe("region zoom rules", function () {
   const SPREAD = 1000;
 
   it("holds today's radius at and below the fit zoom", function () {
-    // Byte-identical to what D3 shipped, which is the whole point of the
-    // crossover sitting at the fit rather than at some pixel constant.
-    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(40);
+    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(30);
     expect(regionZoomBucket(0.5, 1)).to.equal(0);
     expect(regionZoomBucket(1, 1)).to.equal(0);
   });
 
   it("tightens in 12% steps past the fit zoom", function () {
     expect(regionZoomBucket(1.12, 1)).to.equal(1);
-    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(40 / 1.12, 1e-9);
+    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(30 / 1.12, 1e-9);
     expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
     expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
-      40 / 1.12 ** 4,
+      30 / 1.12 ** 4,
       1e-9,
     );
     // The fit zoom moves the crossover with it, rather than the crossover
@@ -1146,18 +1144,30 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(1.5, 3)).to.equal(0);
   });
 
-  it("stops tightening at the 8x floor", function () {
-    expect(regionZoomBucket(1.12 ** 18, 1)).to.equal(18);
-    expect(regionZoomBucket(1.12 ** 40, 1)).to.equal(18);
+  /**
+   * D6 floored the tightening at roughly 8x (`1.12 ** 18`) for work and
+   * memory, with the acknowledged cost that past 8x the halo starts growing on
+   * screen again — the original complaint returning in the far corner of the
+   * zoom range. The decomposition inverts that cost curve, so the floor moves
+   * out to where the zoom range actually ends: the viewport scale clamps at 8
+   * while `fitScale` can sit well below 1, so a ratio in the twenties is
+   * reachable on an ordinary graph, and `1.12 ** 30` is about 30.
+   */
+  it("stops tightening at the 30-bucket ceiling", function () {
+    expect(regionZoomBucket(1.12 ** 30, 1)).to.equal(30);
+    expect(regionZoomBucket(1.12 ** 60, 1)).to.equal(30);
     expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
-      40 / 1.12 ** 18,
+      30 / 1.12 ** 30,
       1e-9,
     );
   });
 
-  it("keeps the pitch a fifth of the radius, so bucket 0 is today's grid", function () {
-    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(8);
-    expect(regionGridPitch(40 / 1.12)).to.be.closeTo(8 / 1.12, 1e-9);
+  it("keeps the pitch a third of the radius", function () {
+    // The pitch's only job is contour accuracy now: the fit's control-point
+    // spacing is the resampler's, not the grid's, so a fifth was buying
+    // 0.14 px of fidelity under a curve that misses by 0.51 px.
+    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(10);
+    expect(regionGridPitch(30 / 1.12)).to.be.closeTo(10 / 1.12, 1e-9);
   });
 
   it("measures the fit against the tighter of the two axes", function () {
@@ -1173,9 +1183,9 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(1, 0)).to.equal(0);
     expect(regionZoomBucket(0, 1)).to.equal(0);
     expect(regionZoomBucket(Number.NaN, 1)).to.equal(0);
-    expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(18);
-    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(40);
+    expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(30);
     expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
     expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
   });

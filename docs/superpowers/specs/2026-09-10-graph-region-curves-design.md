@@ -343,6 +343,16 @@ alternative is an allocation cliff on a wheel notch. If the user finds that
 corner reachable in practice, the floor is the number to revisit — not the
 rule.
 
+**Superseded, 2026-09-10 (region shapes).** The cost argument above no longer
+holds. It floored the tightening at 8x because the grid grows quadratically
+with it and nothing else stopped it; decomposing a folder into components
+inverts that curve, because at high zoom nearly every paper is a singleton
+drawn as an exact arc with no grid at all — for a 300-paper folder at bucket
+18, 451 k cells become 21 k, or 5 k at the new constants. The floor moves to 30
+buckets, which covers the reachable zoom range, and the acknowledged cost of
+the old floor — the halo growing on screen again past 8x — goes with it. See
+`docs/superpowers/specs/2026-09-10-graph-region-shapes-design.md`.
+
 The field grid is worth holding as one flat `Float64Array` rather than an
 array of arrays at these sizes; that is an implementation note, not a
 requirement.
