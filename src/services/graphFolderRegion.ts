@@ -241,6 +241,12 @@ function cellSegments(
     (br >= threshold ? 2 : 0) +
     (bl >= threshold ? 1 : 0);
 
+  // An empty or a full cell crosses nothing, and these two codes dominate a
+  // sparse field: the four interpolators below are allocated on every cell
+  // and thrown away on most of them. Deciding before building them is the
+  // whole of this early return.
+  if (code === 0 || code === 15) return [];
+
   const top = (): RegionPoint =>
     interpolate(topLeft, topRight, tl, tr, threshold);
   const right = (): RegionPoint =>
