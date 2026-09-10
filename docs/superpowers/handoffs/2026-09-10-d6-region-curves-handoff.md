@@ -169,3 +169,30 @@ check` does not run the Zotero suite and will not catch it.
 `259cd17..364ccda` is five commits ahead of `origin/main`: the walk's
 findings, the two test commits, the B28 fix, and the D6 and F13 filings. Push
 via `gh-daniel-locatelli` once the user says so.
+
+## Prompt for the next session
+
+> Read `docs/superpowers/handoffs/2026-09-08-roadmap.md`, then
+> `docs/superpowers/handoffs/2026-09-10-d6-region-curves-handoff.md`, then
+> D6's entry in `docs/superpowers/handoffs/2026-09-08-review-backlog.md`.
+>
+> D6 is already brainstormed and its design is approved: the two decisions in
+> the handoff are settled, so do not re-brainstorm and do not reopen them.
+> Pick up at the step brainstorming stops at — write the spec to
+> `docs/superpowers/specs/2026-09-10-graph-region-curves-design.md`, covering
+> the Catmull-Rom → cubic Bézier fit inside `regionPathFor`, the
+> `regionFalloffRadius(spread, scale, fitScale)` rule, the quantised zoom
+> bucket on the contour cache key, and the reversal against D3's data-space
+> decision with the reason that justifies it. Read D3's spec
+> (`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md`) before
+> writing that section so the contradiction is named rather than left for a
+> later reader to find.
+>
+> Self-review the spec, then ask me to review it before you write the plan.
+> After I approve: `superpowers:writing-plans`, then subagent-driven execution
+> on a branch off `main`.
+>
+> Traps the handoff spells out and I do not want rediscovered: never kill my
+> Zotero without asking, `npm test` deletes the XPI so build it afterwards,
+> and `draw()` latches `canvasError` after one throw so any canvas error
+> blanks the plot permanently.
