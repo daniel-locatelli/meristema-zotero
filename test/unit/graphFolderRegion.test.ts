@@ -168,8 +168,10 @@ describe("folder regions", function () {
 
   /**
    * B28's case, kept: the constructor still comes from the handed-in window
-   * and not from a global. What changed is the command stream — three unique
-   * points is the minimum *curve* case now, not a triangle of `lineTo`s.
+   * and not from a global. What changed is the command stream — the curve is
+   * a uniform cubic B-spline now, so `moveTo` lands on the first segment's
+   * averaged `start`, not on a ring vertex, and each curve's end point is the
+   * next segment's averaged `start` in turn.
    */
   it("builds its path from the window it is handed, not from a global", function () {
     const { view, constructor } = recordingView();
@@ -197,24 +199,28 @@ describe("folder regions", function () {
       "bezierCurveTo",
       "closePath",
     ]);
-    expect(commands[0].args).to.deep.equal([0, 0]);
-    // Each curve ends on the next ring vertex, and the ring wraps home.
-    expect(commands[1].args.slice(4)).to.deep.equal([20, 0]);
-    expect(commands[2].args.slice(4)).to.deep.equal([20, 20]);
-    expect(commands[3].args.slice(4)).to.deep.equal([0, 0]);
+    // moveTo is the first segment's averaged start: (ring[2] + 4*ring[0] +
+    // ring[1]) / 6 on the projected ring [(0,0), (20,0), (20,20)].
+    expect(commands[0].args[0]).to.be.closeTo(20 / 3, 1e-9);
+    expect(commands[0].args[1]).to.be.closeTo(10 / 3, 1e-9);
+    // Each curve ends on the next segment's start, and the ring wraps home.
+    expect(commands[1].args[4]).to.be.closeTo(50 / 3, 1e-9);
+    expect(commands[1].args[5]).to.be.closeTo(10 / 3, 1e-9);
+    expect(commands[2].args[4]).to.be.closeTo(50 / 3, 1e-9);
+    expect(commands[2].args[5]).to.be.closeTo(40 / 3, 1e-9);
+    expect(commands[3].args[4]).to.be.closeTo(20 / 3, 1e-9);
+    expect(commands[3].args[5]).to.be.closeTo(10 / 3, 1e-9);
   });
 
   /**
-   * The sign test. A four-point square is the case where a swapped `m1`/`m2`
-   * or a dropped minus still emits four curves and still closes, so a command
-   * count proves nothing. Every control point must sit *outside* its chord,
-   * on the far side from the square's centre, or the fill dips inward at each
-   * corner instead of bulging out.
+   * The convex-hull test. A B-spline lies inside its control polygon, which
+   * inverts the old interpolating fit's premise: every emitted point (both
+   * control points and each segment's end) must sit within the square's
+   * bounding box, `[0,10] x [0,10]`, never bulging outward past a corner.
    *
-   * The numbers are exact for a unit-spaced square: with all four knot gaps
-   * equal, the tangent at each corner is the chord of its neighbours, and the
-   * control points land a third of the way along it. Hand-checked, not
-   * recorded from the implementation.
+   * The first segment's numbers are hand-checked, not recorded from the
+   * implementation: for ring [(0,0),(10,0),(10,10),(0,10)], segment 0's
+   * window is P0=(0,10), P1=(0,0), P2=(10,0), P3=(10,10).
    */
   it("bulges outward at a right-angle turn", function () {
     const { view } = recordingView();
@@ -231,26 +237,31 @@ describe("folder regions", function () {
       IDENTITY,
     );
     const commands = (path as unknown as RecordingPath).commands;
+    expect(commands[0].args[0]).to.be.closeTo(5 / 3, 1e-9);
+    expect(commands[0].args[1]).to.be.closeTo(5 / 3, 1e-9);
     const first = commands[1];
     expect(first.op).to.equal("bezierCurveTo");
-    // Segment (0,0) → (10,0). The square's centre is (5,5); both control
-    // points must sit at negative y, away from it.
-    expect(first.args[0]).to.be.closeTo(5 / 3, 1e-9);
-    expect(first.args[1]).to.be.closeTo(-5 / 3, 1e-9);
-    expect(first.args[2]).to.be.closeTo(10 - 5 / 3, 1e-9);
-    expect(first.args[3]).to.be.closeTo(-5 / 3, 1e-9);
-    // And every control point on every segment is outside the square.
+    expect(first.args[0]).to.be.closeTo(10 / 3, 1e-9);
+    expect(first.args[1]).to.be.closeTo(0, 1e-9);
+    expect(first.args[2]).to.be.closeTo(20 / 3, 1e-9);
+    expect(first.args[3]).to.be.closeTo(0, 1e-9);
+    expect(first.args[4]).to.be.closeTo(25 / 3, 1e-9);
+    expect(first.args[5]).to.be.closeTo(5 / 3, 1e-9);
+    // Every emitted point lies within the convex hull of the square.
     for (const command of commands) {
+      if (command.op === "moveTo") {
+        expect(command.args[0]).to.be.within(0, 10);
+        expect(command.args[1]).to.be.within(0, 10);
+        continue;
+      }
       if (command.op !== "bezierCurveTo") continue;
       for (const pair of [
         [command.args[0], command.args[1]],
         [command.args[2], command.args[3]],
+        [command.args[4], command.args[5]],
       ]) {
-        const outside =
-          pair[0] < 0 || pair[0] > 10 || pair[1] < 0 || pair[1] > 10;
-        expect(outside, `control point ${pair} is outside the square`).to.equal(
-          true,
-        );
+        expect(pair[0], `x of ${pair}`).to.be.within(0, 10);
+        expect(pair[1], `y of ${pair}`).to.be.within(0, 10);
       }
     }
   });
@@ -280,7 +291,10 @@ describe("folder regions", function () {
 
   /**
    * The minimum curve case, and the one that pins the wrap: for segment
-   * A → B the predecessor of A and the successor of B are both C.
+   * A → B the predecessor of A and the successor of B are both C, since the
+   * ring only has three vertices. That still shows up in the averaged
+   * `start`/`end` points, even though none of them equals a ring vertex
+   * outright: hand-checked below for ring [(0,0),(10,0),(5,9)].
    */
   it("wraps a three-vertex ring with C in both neighbour roles", function () {
     const path = regionPathFor(
@@ -296,9 +310,18 @@ describe("folder regions", function () {
     );
     const commands = (path as unknown as RecordingPath).commands;
     expect(commands.filter((c) => c.op === "bezierCurveTo")).to.have.length(3);
-    expect(commands[1].args.slice(4)).to.deep.equal([10, 0]);
-    expect(commands[2].args.slice(4)).to.deep.equal([5, 9]);
-    expect(commands[3].args.slice(4)).to.deep.equal([0, 0]);
+    // moveTo = segment 0's start = (C + 4*A + B) / 6.
+    expect(commands[0].args[0]).to.be.closeTo(2.5, 1e-9);
+    expect(commands[0].args[1]).to.be.closeTo(1.5, 1e-9);
+    // Segment 0 ends at (A + 4*B + C) / 6.
+    expect(commands[1].args[4]).to.be.closeTo(7.5, 1e-9);
+    expect(commands[1].args[5]).to.be.closeTo(1.5, 1e-9);
+    // Segment 1 ends at (B + 4*C + A) / 6.
+    expect(commands[2].args[4]).to.be.closeTo(5, 1e-9);
+    expect(commands[2].args[5]).to.be.closeTo(6, 1e-9);
+    // Segment 2 ends at (C + 4*A + B) / 6, wrapping back to the moveTo.
+    expect(commands[3].args[4]).to.be.closeTo(2.5, 1e-9);
+    expect(commands[3].args[5]).to.be.closeTo(1.5, 1e-9);
     for (const command of commands) {
       for (const value of command.args) {
         expect(Number.isFinite(value), `${command.op} got ${value}`).to.equal(
@@ -377,6 +400,80 @@ describe("folder regions", function () {
         );
       }
     }
+  });
+
+  /**
+   * The actual defect this change fixes: marching-squares vertices jitter a
+   * little to either side of the smooth path they approximate, and an
+   * interpolating fit reproduces that jitter exactly. An approximating fit
+   * should not — the curve should sit closer to the smooth path than the raw,
+   * jittered vertices do.
+   *
+   * Points sit on a circle of radius 100, with alternating vertices nudged
+   * ±2 radially — the small, sign-alternating perturbation grid crossings
+   * actually produce. Radial distance from the origin stands in for distance
+   * from the smooth path.
+   */
+  it("smooths grid jitter instead of reproducing it", function () {
+    const centre = { x: 0, y: 0 };
+    const radius = 100;
+    const jitter = 2;
+    const count = 24;
+    const ring: RegionPoint[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * 2 * Math.PI;
+      const r = radius + (i % 2 === 0 ? jitter : -jitter);
+      ring.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+    }
+    const rawDeviation = Math.max(
+      ...ring.map((point) =>
+        Math.abs(Math.hypot(point.x - centre.x, point.y - centre.y) - radius),
+      ),
+    );
+    expect(rawDeviation).to.be.closeTo(jitter, 1e-9);
+
+    const path = regionPathFor(recordingView().view, [ring], IDENTITY);
+    const commands = (path as unknown as RecordingPath).commands;
+
+    function cubicAt(
+      t: number,
+      p0: number[],
+      c1: number[],
+      c2: number[],
+      p3: number[],
+    ): RegionPoint {
+      const u = 1 - t;
+      const w0 = u * u * u;
+      const w1 = 3 * u * u * t;
+      const w2 = 3 * u * t * t;
+      const w3 = t * t * t;
+      return {
+        x: w0 * p0[0] + w1 * c1[0] + w2 * c2[0] + w3 * p3[0],
+        y: w0 * p0[1] + w1 * c1[1] + w2 * c2[1] + w3 * p3[1],
+      };
+    }
+
+    let current = commands[0].args;
+    let curveDeviation = 0;
+    for (const command of commands.slice(1)) {
+      if (command.op !== "bezierCurveTo") continue;
+      const c1 = command.args.slice(0, 2);
+      const c2 = command.args.slice(2, 4);
+      const end = command.args.slice(4, 6);
+      for (let step = 0; step <= 10; step += 1) {
+        const sample = cubicAt(step / 10, current, c1, c2, end);
+        const deviation = Math.abs(
+          Math.hypot(sample.x - centre.x, sample.y - centre.y) - radius,
+        );
+        curveDeviation = Math.max(curveDeviation, deviation);
+      }
+      current = end;
+    }
+
+    expect(
+      curveDeviation,
+      "the fitted curve should hug the smooth path more closely than the jittered vertices do",
+    ).to.be.lessThan(rawDeviation);
   });
 
   it("still draws a two-point loop with lineTo", function () {
