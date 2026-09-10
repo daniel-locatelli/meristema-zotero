@@ -156,6 +156,7 @@ import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { IconName } from "./uiIconService";
 import {
   applyGraphThemeToDocument,
+  categoricalSwatchAt,
   graphThemeFor,
   observeGraphScheme,
   resolveGraphScheme,
@@ -3347,10 +3348,10 @@ export function renderGraphView(
     swatches = ledger;
     return regions.map((collectionID) => ({
       collectionID,
-      color:
-        theme.categorical.swatches[
-          swatchIndexFor(ledger, String(collectionID)) ?? 0
-        ],
+      color: categoricalSwatchAt(
+        swatchIndexFor(ledger, String(collectionID)),
+        theme,
+      ),
       nodeKeys: new Set(
         model.nodes
           .filter(

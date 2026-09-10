@@ -20,7 +20,10 @@ export interface SwatchLedgerState {
    * Key to palette index, for every key currently holding one. If `poolSize`
    * shrinks between calls, a live key already holding an index outside
    * `[0, poolSize)` is carried forward unchanged rather than reassigned;
-   * validating pool bounds is the caller's job.
+   * validating pool bounds is the caller's job, and the caller that does it
+   * is the colour read — `categoricalSwatchAt` in `graphTheme.ts` paints an
+   * out-of-range index in the Other tone rather than letting canvas keep the
+   * previous draw's colour (B27).
    */
   assigned: Record<string, number>;
   /**
