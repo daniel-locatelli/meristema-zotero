@@ -922,68 +922,6 @@ describe("folder regions", function () {
     );
     expect((path as unknown as RecordingPath).commands).to.deep.equal([]);
   });
-});
-
-describe("region zoom rules", function () {
-  const SPREAD = 1000;
-
-  it("holds today's radius at and below the fit zoom", function () {
-    // Byte-identical to what D3 shipped, which is the whole point of the
-    // crossover sitting at the fit rather than at some pixel constant.
-    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(40);
-    expect(regionZoomBucket(0.5, 1)).to.equal(0);
-    expect(regionZoomBucket(1, 1)).to.equal(0);
-  });
-
-  it("tightens in 12% steps past the fit zoom", function () {
-    expect(regionZoomBucket(1.12, 1)).to.equal(1);
-    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(40 / 1.12, 1e-9);
-    expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
-    expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
-      40 / 1.12 ** 4,
-      1e-9,
-    );
-    // The fit zoom moves the crossover with it, rather than the crossover
-    // being a fixed scale.
-    expect(regionZoomBucket(2.24, 2)).to.equal(1);
-    expect(regionZoomBucket(1.5, 3)).to.equal(0);
-  });
-
-  it("stops tightening at the 8x floor", function () {
-    expect(regionZoomBucket(1.12 ** 18, 1)).to.equal(18);
-    expect(regionZoomBucket(1.12 ** 40, 1)).to.equal(18);
-    expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
-      40 / 1.12 ** 18,
-      1e-9,
-    );
-  });
-
-  it("keeps the pitch a fifth of the radius, so bucket 0 is today's grid", function () {
-    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(8);
-    expect(regionGridPitch(40 / 1.12)).to.be.closeTo(8 / 1.12, 1e-9);
-  });
-
-  it("measures the fit against the tighter of the two axes", function () {
-    expect(regionFitScale(800, 600, 400, 200)).to.equal(2);
-    expect(regionFitScale(800, 600, 200, 600)).to.equal(1);
-  });
-
-  it("falls back to bucket zero rather than NaN on degenerate input", function () {
-    // Same totality rule as the curve builder, on the other input. A `NaN`
-    // radius reaches the grid loop and the renderer draws nothing at all.
-    expect(regionFitScale(800, 600, 0, 0)).to.equal(0);
-    expect(regionFitScale(0, 0, 100, 100)).to.equal(0);
-    expect(regionZoomBucket(1, 0)).to.equal(0);
-    expect(regionZoomBucket(0, 1)).to.equal(0);
-    expect(regionZoomBucket(Number.NaN, 1)).to.equal(0);
-    expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(18);
-    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(40);
-    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(40);
-    expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
-    expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
-  });
 
   /**
    * The uneven ring these cases share: sixty vertices on a circle of radius
@@ -1178,5 +1116,67 @@ describe("region zoom rules", function () {
       ).to.not.throw();
       expect(Array.isArray(result)).to.equal(true);
     }
+  });
+});
+
+describe("region zoom rules", function () {
+  const SPREAD = 1000;
+
+  it("holds today's radius at and below the fit zoom", function () {
+    // Byte-identical to what D3 shipped, which is the whole point of the
+    // crossover sitting at the fit rather than at some pixel constant.
+    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(40);
+    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(40);
+    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(40);
+    expect(regionZoomBucket(0.5, 1)).to.equal(0);
+    expect(regionZoomBucket(1, 1)).to.equal(0);
+  });
+
+  it("tightens in 12% steps past the fit zoom", function () {
+    expect(regionZoomBucket(1.12, 1)).to.equal(1);
+    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(40 / 1.12, 1e-9);
+    expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
+    expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
+      40 / 1.12 ** 4,
+      1e-9,
+    );
+    // The fit zoom moves the crossover with it, rather than the crossover
+    // being a fixed scale.
+    expect(regionZoomBucket(2.24, 2)).to.equal(1);
+    expect(regionZoomBucket(1.5, 3)).to.equal(0);
+  });
+
+  it("stops tightening at the 8x floor", function () {
+    expect(regionZoomBucket(1.12 ** 18, 1)).to.equal(18);
+    expect(regionZoomBucket(1.12 ** 40, 1)).to.equal(18);
+    expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
+      40 / 1.12 ** 18,
+      1e-9,
+    );
+  });
+
+  it("keeps the pitch a fifth of the radius, so bucket 0 is today's grid", function () {
+    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(8);
+    expect(regionGridPitch(40 / 1.12)).to.be.closeTo(8 / 1.12, 1e-9);
+  });
+
+  it("measures the fit against the tighter of the two axes", function () {
+    expect(regionFitScale(800, 600, 400, 200)).to.equal(2);
+    expect(regionFitScale(800, 600, 200, 600)).to.equal(1);
+  });
+
+  it("falls back to bucket zero rather than NaN on degenerate input", function () {
+    // Same totality rule as the curve builder, on the other input. A `NaN`
+    // radius reaches the grid loop and the renderer draws nothing at all.
+    expect(regionFitScale(800, 600, 0, 0)).to.equal(0);
+    expect(regionFitScale(0, 0, 100, 100)).to.equal(0);
+    expect(regionZoomBucket(1, 0)).to.equal(0);
+    expect(regionZoomBucket(0, 1)).to.equal(0);
+    expect(regionZoomBucket(Number.NaN, 1)).to.equal(0);
+    expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(18);
+    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(40);
+    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(40);
+    expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
+    expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
   });
 });

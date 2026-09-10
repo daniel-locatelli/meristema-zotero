@@ -442,12 +442,18 @@ window carrying a recording `Path2D`):
 - Coincident vertices produce finite control points and no throw. There is no
   fallback to assert any more: the blending weights are literal thirds and
   sixths, so coincident control points are simply weighted like any others.
-- **Wobble resistance**, the property this fit exists for: a ring whose
-  vertices alternate by a small perpendicular jitter around a smooth path —
-  the grid-quantisation case — produces a curve that deviates from that path
-  by less than the raw vertices do. An interpolating fit cannot pass this,
-  which is what makes it the discriminating test rather than a restatement of
-  the construction.
+- **Radial jitter tolerance**: a ring whose vertices alternate by a small
+  perpendicular jitter around a smooth path — the grid-quantisation case —
+  produces a curve that deviates from that path by less than the raw
+  vertices do. An interpolating fit cannot pass this, so the case is worth
+  keeping. **Correction, 2026-09-10 (region shapes):** this is not the
+  wobble's cause, and not the discriminating case either. The same
+  measurement recorded at ~line 71 above found that removing this jitter
+  entirely barely moves curvature smoothness (0.0511 → 0.0514), while evening
+  the vertex spacing does (→ 0.0416) — the wobble is a parameterisation
+  artefact, not a jitter one. The discriminating case is the uneven-spacing
+  one, and it lives in the newer design,
+  `docs/superpowers/specs/2026-09-10-graph-region-shapes-design.md`.
 - **Totality on abuse**: a zero-area loop (every vertex identical), a
   single-point loop, a loop carrying a non-finite coordinate, and an empty
   loop list each return a path or `null` and **throw nothing**. This is the
