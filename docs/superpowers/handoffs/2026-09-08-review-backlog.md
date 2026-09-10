@@ -939,6 +939,166 @@ wherever `regionsForRenderer` resolves a region's colour the same way.
 
 ---
 
+## B28. Selecting a folder blanks the plot; a folder graph opens blank
+
+Found in the user's walk of D3's manual batch (2026-09-10), on the XPI built
+from `259cd17`. **The blocker: five of D3's eight checks cannot be walked
+until this is fixed** — regions opening, the toggle and the cap, the
+no-repaint rule, the four-seed colour check, and the zoom check.
+
+Symptom, two faces of one bug:
+
+- On a graph that is already drawn, clicking a folder's row body to select it
+  as a region **blanks the plot** — the nodes go. Unselecting the folder and
+  then "Fit graph to view" brings them back.
+- Opening a graph **from a folder** (right-click the folder › New … Graph)
+  shows **no nodes at all**, because such a graph opens with that folder
+  already in `regions`. A graph started from one or more items opens
+  normally, and the same recovery works: unselect the folder, fit to view.
+
+So the trigger is a non-empty `regions`, not the click.
+
+First hypothesis, untested: `drawRegions` throws, the frame aborts part-way,
+and the nodes — drawn after the regions — never run. That fits every
+observation, including why unselecting fixes it (`if (!this.regions.length)
+return;` is the method's first line, so an empty selection never enters the
+failing code) and why "Fit graph to view" alone does not. A non-terminating
+contour walk fits the same observations; the Error Console separates the two
+in one reproduction. Do not fix before reproducing — an exception and a hang
+want different fixes, and D3's own review already filed three latent region
+defects (B25, B26, B27) that could each produce a bad frame.
+
+Suspects, in the order worth instrumenting:
+
+- `citationGraphRenderer.ts` `drawRegions` (~line 1355): `dilation` from
+  `baseNodeRadius()`, the offscreen `regionLayer(plot.width, plot.height)`
+  sizing, `context.drawImage(this.regionLayerCanvas!, …)`, and
+  `region.color` — B27 says an out-of-range ledger index yields
+  `color: undefined` here.
+- `regionsFor()` and `graphFolderRegion.ts` `folderRegionContours`: a contour
+  walk that does not terminate on some arrangement of nodes.
+- `graphViewService.ts` `regionsForRenderer` (~line 3336) and
+  `refreshScopeRail`: whether the region handed over carries an empty
+  `nodeKeys` or an `undefined` colour at the moment of the first paint.
+
+Test: reproduce in Zotero with the Error Console open, then a unit test at
+whichever boundary the reproduction names — `folderRegionContours` if it is
+the contour walk, a renderer-level test if it is the draw.
+
+---
+
+## B29. Switching light → dark leaves the plot background light
+
+Found in the same walk, on D3's check 8. With a folder selected as a region,
+switching the Zotero theme from light back to dark repaints the rail but
+leaves the graph's own background light. The rail's region legend reads
+correctly in both themes, which is what check 8 asked; this is the surround.
+
+Whether the region selection is part of the trigger or only what the user
+happened to have on screen is unknown — reproduce with nothing selected
+before assuming it is region-specific. A theme swap has to reach the
+renderer's cached theme (`renderer.getTheme()`), the plot backdrop
+(`drawPlotBackdrop`) and the cached regions' colours, so a partial repaint is
+the likely shape.
+
+---
+
+## B30. A node whose paper is outside the open folder selects the wrong item in Zotero
+
+Found in the same walk, on the B11 check. Selecting a node whose paper is not
+in the collection Zotero currently has open still drives a Zotero selection —
+and lands on some other, available item. The user's words: "that is deceiving
+the user; if the item is not in the folder the Zotero selection should be
+cleared."
+
+The fix is what they say: when the selected paper is not present in the view
+Zotero is showing, clear the selection rather than settle for a neighbour.
+Silently selecting the nearest row is worse than selecting nothing, because
+nothing then says the graph and the list disagree.
+
+Pointers: `src/services/zoteroSelectionSync.ts`,
+`src/services/zoteroPaneSync.ts` (whatever resolves a paper key to a row, and
+what it does when the row is absent), `src/services/librarySelection.ts`.
+
+---
+
+## B31. The rail does not show subfolders clearly
+
+Found in the same walk: "the UI now doesn't reflect subfolders really well."
+
+`buildScopeRailModel` indents a row by four spaces per depth level
+(`INDENT.repeat(collection.depth)`) inside the label string, and nothing else
+marks the hierarchy — no rule, no disclosure triangle, no grouping. With a
+proportional font and a right-aligned count, four spaces is a weak signal,
+and a deep tree loses its shape entirely.
+
+Needs the user's specific complaint before it is designed: whether nesting is
+simply invisible, whether a subtree should collapse, whether the cascade
+(ticking a parent ticks its whole subtree) is illegible from the row, or
+whether a parent's count reads wrongly against its children's. Ask before
+building.
+
+Pointers: `src/services/graphScopeRailModel.ts` (`INDENT`, `depth`,
+`cascadeIDs`), `src/services/graphKeyRail.ts` (the row body,
+`cm-scope-row-label`).
+
+---
+
+## F10. Select nodes in the graph and have Zotero follow
+
+Selection is one-way today: a selection in Zotero's list reaches the graph,
+but a selection in the graph does not reach the list — and multiple nodes
+cannot be selected on the canvas at all.
+
+Wanted: multi-select on the plot (rubber band or shift-click) with the Zotero
+list following it, so the graph can be used to _build_ a selection rather
+than only to display one.
+
+One open question from the walk, worth settling in the same pass: a one-row
+library selection draws a white ring on the node, while a two- or three-row
+selection instead makes the selected nodes opaque and everything else
+transparent. The user asks whether the multi-row case should carry rings too.
+Two visual languages for one concept is the kind of thing D3 has just spent a
+branch removing.
+
+B30 is the same seam from the other side; the two should probably land
+together.
+
+---
+
+## F11. Clicking a Seeds row should select that seed, and selecting a seed node should light its row
+
+Today a Seeds row in the rail emphasises its seed on hover and that is all:
+clicking it does not select the seed, and selecting a seed's node on the plot
+does not mark its row. The user wants both directions.
+
+The rail already carries the machinery — `onEmphasise` with a `RailEmphasis`,
+and the folder rows already have a real selected state with `aria-pressed` —
+so this is mostly wiring a click and a reverse notification, not new
+interaction design.
+
+Pointers: `src/services/graphKeyRail.ts` (the seed row, `removeSeed`,
+`onEmphasise`), `src/services/graphViewService.ts` (`applyEmphasis`, the
+selection path).
+
+---
+
+## F12. Selecting a folder in Zotero should activate its region in the graph
+
+The user's analogy: item selection is two-way between Zotero and the graph,
+so the folder selection should be too — clicking a collection in Zotero's
+left pane would draw, or activate, that folder's region on the open graph.
+
+Design questions to settle first rather than guess at: whether it _adds_ to
+the region selection or _replaces_ it; whether it also ticks the folder into
+scope, as clicking the rail row does; whether it reaches every open graph or
+only the focused one; and what happens at the four-region cap. There is a
+real argument against it too — a graph is a recipe the reader composed, and
+repainting it every time they browse their library in the next pane over
+could be more disruptive than useful. Worth a brainstorm, not a patch.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
