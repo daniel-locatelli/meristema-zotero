@@ -45,95 +45,130 @@ stopped saying which papers made it, which is the one thing it exists to say.
 The user's ask: the offset should hold its size on screen, the way a node's
 radius does, so that zooming in pulls the territory apart into its members.
 
-## Decision 1: a centripetal Catmull-Rom → cubic Bézier fit
+## Decision 1: a uniform periodic cubic B-spline fit
 
 The contour itself is untouched — same field, same threshold, same marching
 squares, same stitching, same topology, same `evenodd` fill, same device-pixel
 dilation stroke. What changes is how `regionPathFor` turns a loop of vertices
-into a `Path2D`: **one `bezierCurveTo` per contour segment** instead of one
-`lineTo`, with control points derived from each vertex's two neighbours,
-wrapping around the ring because the loops are closed.
+into a `Path2D`: the ring's vertices become the **control points** of a
+uniform periodic cubic B-spline, converted exactly to **one cubic Bézier per
+ring vertex**, wrapping around the ring because the loops are closed.
+Consecutive segments share endpoints, so the whole ring is one continuous
+loop, same as before.
+
+The curve passes through **none** of the ring vertices, only near them — that
+is not a side effect to tolerate, it is why this fit was chosen. A first pass
+shipped an interpolating fit (centripetal Catmull-Rom, described below) that
+threads a curve exactly through every vertex. Marching-squares vertices sit at
+linearly-interpolated grid-edge crossings and jitter a little from one vertex
+to the next as the grid quantises the true crossing point; an interpolating
+fit is forced to reproduce that jitter exactly, and it read as visible wobble
+on the user's manual walk of D6 on 2026-09-10. An approximating fit is pulled
+toward the vertices instead of through them, so the sub-cell jitter averages
+out while the contour it is fitted to — same points, same topology — is
+untouched.
 
 A curve does not re-facet, because the rasterizer flattens it in **device**
 pixels: at any zoom the browser subdivides until the error is sub-pixel _on
 screen_. That is the whole reason a curve is the answer and a finer polyline
-is not.
+is not, and it holds for an approximating fit exactly as it did for an
+interpolating one.
 
 `regionPathFor` in `graphFolderRegion.ts` is the single place a region path is
 built — B28 made it so — which is why the fit has exactly one seam to live at.
 
-**NURBS is the wrong tool** and is rejected explicitly, because it was the
-user's opening suggestion and someone will suggest it again. `Path2D` speaks
-lines, quadratic and cubic Béziers and arcs. A NURBS would be evaluated down
-to one of those anyway, and the rational weights buy nothing when there is no
-conic to represent.
+**NURBS was rejected on the wrong grounds the first time, and the correction
+belongs here rather than being quietly dropped.** The rejection of the
+_representation_ was right and still stands: `Path2D` speaks lines, quadratic
+and cubic Béziers and arcs, not rational curves; a NURBS would be evaluated
+down to Béziers anyway, and the rational weights buy nothing when there is no
+conic to represent. But the user's opening suggestion was never about the
+representation — it was about **interpolating versus approximating** a set of
+points, which is exactly the axis the wobble turned out to live on, and on
+that axis the user was correct. The fit now shipping is the approximating
+one: a B-spline evaluated to the cubic Béziers `Path2D` already speaks.
 
-### Centripetal, and why that is not a detail to swap out
+### The convex-hull property, and why it replaces the centripetal argument
 
-Knot spacing is `distance ** 0.5` (α = 0.5), not uniform spacing and not
-chord-length. Marching-squares vertices **bunch tightly at grid corners** —
-two vertices a hair apart, then a long run across a cell. A uniform
-parameterisation over spacing like that overshoots badly and can loop the
-curve back through itself exactly there, which is a self-intersecting fill in
-the one place the contour is most detailed. Centripetal parameterisation is
-the standard result that guarantees no cusps and no self-intersection within a
-segment. Anyone tempted to simplify this to uniform Catmull-Rom should look at
-a region's corner at 8× first.
+The first, interpolating fit needed **centripetal parameterisation** (knot
+spacing `distance ** 0.5`, α = 0.5) specifically because marching-squares
+vertices bunch tightly at grid corners — two vertices a hair apart, then a
+long run across a cell — and a uniform knot spacing over spacing like that
+overshoots badly and can loop an interpolating curve back through itself
+exactly there, a self-intersecting fill in the one place the contour is most
+detailed.
 
-The construction, written out so it is not reinvented (Barry–Goldman, α = 0.5):
+A uniform B-spline has **no knot-spacing division at all** — every blending
+weight in `segmentControls` is a literal count of thirds and sixths, not a
+function of distance between points — so that failure mode has no seam to
+reopen through. What guarantees it instead is the **convex-hull property**: a
+B-spline segment lies entirely within the convex hull of its four control
+points, by construction, for any spacing of those points. Overshoot and
+self-intersection within a segment are not merely unlikely, they are
+impossible: the segment cannot leave the hull to loop back through itself.
+The concern that made centripetal parameterisation load-bearing the first time
+is still handled — it did not stop mattering, it moved to a stronger
+guarantee that comes for free with the fit.
 
-For a segment `P1 → P2` with neighbours `P0` and `P3`, with `t0 = 0` and
-`t(i+1) = t(i) + hypot(P(i+1) − P(i)) ** 0.5` — the **Euclidean** distance
-between consecutive points, raised to α, not a squared distance and not a
-per-axis delta:
+The construction, written out so it is not reinvented — this is what
+`segmentControls` in `graphFolderRegion.ts` computes:
+
+For a segment spanning ring vertices `p1 → p2` with neighbours `p0` and `p3`,
+the segment's on-curve `start`, its two control points, and its on-curve `end`
+are
 
 ```
-m1 = (t2 − t1) * ((P1 − P0)/(t1 − t0) − (P2 − P0)/(t2 − t0) + (P2 − P1)/(t2 − t1))
-m2 = (t2 − t1) * ((P2 − P1)/(t2 − t1) − (P3 − P1)/(t3 − t1) + (P3 − P2)/(t3 − t2))
-B1 = P1 + m1/3
-B2 = P2 − m2/3
+start    = (p0 + 4*p1 + p2) / 6
+control1 = (2*p1 + p2) / 3
+control2 = (p1 + 2*p2) / 3
+end      = (p1 + 4*p2 + p3) / 6
 ```
 
-and the segment is `bezierCurveTo(B1, B2, P2)`.
+and the segment is `bezierCurveTo(control1, control2, end)`, having already
+`moveTo`'d or landed on the previous segment's `end`, which equals this
+segment's `start` exactly.
 
 **The wrap reaches one step past each end of the segment, not one step past
-the ring.** For the segment from ring vertex `i` to `i + 1`, `P0` is vertex
-`i − 1` and `P3` is vertex `i + 2`, both taken modulo the ring length. The
+the ring.** For the segment from ring vertex `i` to `i + 1`, `p0` is vertex
+`i − 1` and `p3` is vertex `i + 2`, both taken modulo the ring length. The
 minimum case is a three-vertex ring `[A, B, C]`, where the segment `A → B`
-takes `P0 = C` (the predecessor of `A`) and `P3 = C` (the successor of `B`) —
+takes `p0 = C` (the predecessor of `A`) and `p3 = C` (the successor of `B`) —
 the same vertex in both roles. That is correct, not a symptom of an
 off-by-one, and it is the case a test should pin, because an implementation
 that wraps against the wrong length produces it by accident on longer rings
 too.
 
-### Three traps the implementation must handle
+### Two traps the implementation must handle
 
 **The loops arrive with a duplicated first point.** `stitch` ends every loop
 with a point whose weld key equals `loop[0]` — either the walk arrived back at
-the start, or line 218 force-closed it. Treating that array as a cyclic ring
-without dropping the duplicate gives a zero-length final segment, a knot
-spacing of `0 ** 0.5 = 0`, and a division by zero at the seam. Drop the
-trailing duplicate first, then treat the remainder as a ring.
+the start, or line 218 force-closed it. A uniform B-spline has no
+knot-spacing division to break on a zero-length final segment, but a
+duplicated point is still a duplicated control point, which is a bunch of one
+at the seam. Drop the trailing duplicate first, then treat the remainder as a
+ring.
 
-**Guard every knot difference, including the two-step ones.** Two
-welded-but-not-identical vertices can still put a near-zero denominator in the
-formula above. The adjacent differences `t1 − t0`, `t2 − t1` and `t3 − t2` are
-the obvious ones, but `t2 − t0` and `t3 − t1` need the same guard: each is a
-sum of two non-negative terms, so it vanishes exactly when both of its halves
-do — three coincident vertices, which a grid corner can produce.
+**Marching squares bunches vertices tightly at grid corners.** A uniform
+B-spline weights every vertex equally regardless of how close it sits to its
+neighbours, so a tight bunch — two vertices a hair apart, then a long run
+across a cell — tugs the curve locally even though the fit approximates
+rather than interpolates. This is not the self-intersection risk the
+interpolating fit carried; the convex-hull property already rules that out.
+It is a smoothness concern: a near-duplicate vertex is a control point that
+adds almost nothing but still gets a full vote. `graphFolderRegion.ts` welds
+ring vertices within `DEVICE_WELD` (1.5 device pixels) of the previously kept
+one before fitting — a near-duplicate weld, not decimation, since it only
+ever removes vertices that sit a fit-worthy distance apart, never ones that
+are merely close together along a smooth run.
 
-The fallback is **per control point, not per segment**: if the guard trips
-while computing `m1`, `B1` becomes the straight-line control point
-`P1 + (P2 − P1)/3` and `B2` is still computed normally from `m2`, and the
-other way round. That keeps one degenerate neighbour from flattening a segment
-whose other end is perfectly well defined. Epsilon is in device pixels
-(`1e-6`), which is what "fit after projection" below buys.
-
-A `NaN` here does not throw — the canvas silently
-drops the sub-path — but `draw()` latches `canvasError` after a single throw
-anywhere in the frame, so a region bug that _does_ throw blanks the plot
-permanently for that renderer's life. The curve builder must be total: no
-exceptions, no `NaN` reaching `bezierCurveTo`.
+Both traps are resolved before `segmentControls` ever runs, so the fit itself
+has no denominator that can vanish and nothing left to guard: a finite ring
+in guarantees a finite curve out. A `NaN` reaching `bezierCurveTo` would not
+throw — the canvas silently drops the sub-path — but `draw()` latches
+`canvasError` after a single throw anywhere in the frame, so a region bug
+that _does_ throw blanks the plot permanently for that renderer's life. The
+curve builder must be total: no exceptions, no `NaN` reaching
+`bezierCurveTo`.
 
 **Fit after projection, not before.** Project each loop point to screen first,
 then build the curve in device-pixel coordinates. The projection is a uniform
@@ -150,11 +185,16 @@ total.
 ## Decision 2: the falloff radius tightens past the fit zoom, and only past it
 
 A pure `regionFalloffRadius(spread, scale, fitScale)` replaces the literal
-`spread * 0.06`. The rule the user approved:
+`spread * 0.04`. The rule the user approved:
 
 ```
-min(spread * 0.06, spread * 0.06 * fitScale / scale)
+min(spread * 0.04, spread * 0.04 * fitScale / scale)
 ```
+
+(The user's manual walk on 2026-09-10 found the first-shipped fraction, 0.06,
+too large at every zoom bucket — right in direction, too loose in size — and
+chose 0.04, a third tighter. That scales the halo at every bucket at once; the
+tightening past the fit zoom described below is unchanged.)
 
 At or below the fit zoom the second term is the larger, so the radius is
 exactly today's value and the zoomed-out view the user called fine is
@@ -176,12 +216,12 @@ would invalidate it on every wheel notch. So the zoom enters through a
 ```
 ZOOM_STEP  = 1.12
 bucket(scale, fitScale) = clamp(round(log(scale / fitScale) / log(ZOOM_STEP)), 0, MAX_BUCKET)
-radius(spread, bucket)  = spread * 0.06 * ZOOM_STEP ** -bucket
+radius(spread, bucket)  = spread * 0.04 * ZOOM_STEP ** -bucket
 ```
 
 Clamping the bucket at zero is what makes "at or below the fit is unchanged"
 exact: every scale at or below the fit lands in bucket 0, and bucket 0's
-radius is `spread * 0.06` to the last bit.
+radius is `spread * 0.04` to the last bit.
 
 Deriving the radius **from the bucket** rather than from the raw scale is
 deliberate. If the radius came from the raw scale while the cache key came
@@ -208,8 +248,8 @@ the fit zoom itself moved.
 parked on a bucket boundary — a trackpad drifting by a percent either way —
 recomputes on every crossing. Stamping bounds the _field_ build at
 `O(nodes × ~100)`, but marching squares still walks every cell, and the cell
-count grows quadratically as the pitch tightens: about 6 900 cells at bucket 0
-and about 410 000 at the floor. So the flicker case is cheap where the reader
+count grows quadratically as the pitch tightens: about 15 600 cells at bucket 0
+and about 924 000 at the floor. So the flicker case is cheap where the reader
 spends their time and is at its most expensive exactly where the boundaries
 are closest together in screen terms. Adding a deadband is a change to the
 bucket function alone and does not touch anything else in this spec, so it is
@@ -253,12 +293,12 @@ all, where the plot is unreadable for reasons this spec does not touch.
 
 Two consequences fall out of a shrinking radius, and neither is optional.
 
-**Pitch follows radius.** Today `pitch = spread * 0.012` is exactly
+**Pitch follows radius.** Today `pitch = spread * 0.008` is exactly
 `radius / 5`. Holding the literal while the radius shrinks under-samples the
 field: at 8× the falloff would be narrower than a cell and the contour would
 break into rubble or vanish. `pitch = radius / 5` keeps the fidelity of the
 contour relative to the falloff constant, and at bucket 0 it is
-`spread * 0.012` exactly.
+`spread * 0.008` exactly.
 
 **The field build changes from per-cell to per-node stamping.** `fieldAt`
 evaluates every node against every cell — `O(cells × nodes)`. Cells scale as
@@ -276,10 +316,11 @@ current evaluator on a fixture.
 grid grows quadratically with the tightening and there is nothing to stop it
 otherwise, since the viewport scale clamps at 8 while `fitScale` can sit well
 below 1, so a ratio in the twenties is reachable on an ordinary graph. With
-this floor and `pitch = radius / 5`, the grid never exceeds roughly 640 steps
-across a folder's bounding box. A hard cell budget (500 000) stays in the code
-as a guard; with the floor in place it cannot trigger, and if a future change
-makes it trigger it coarsens the pitch rather than allocating unboundedly.
+this floor and `pitch = radius / 5`, the grid never exceeds roughly 961 steps
+across a folder's bounding box, about 924 000 cells. A hard cell budget
+(1 200 000), held as one `Float64Array`, stays in the code as a guard; with
+the floor in place it cannot trigger, and if a future change makes it trigger
+it coarsens the pitch rather than allocating unboundedly.
 
 The honest cost of the floor: past 8× beyond the fit, the halo starts growing
 on screen again, which is the original complaint returning in the far corner
@@ -341,7 +382,7 @@ attached, wherever they enter the story.
 ## What changes, file by file
 
 - **`src/services/graphFolderRegion.ts`** — `regionPathFor` gains the
-  centripetal Catmull-Rom → cubic Bézier fit; new pure exports
+  uniform periodic cubic B-spline fit; new pure exports
   `regionZoomBucket(scale, fitScale)`, `regionFalloffRadius(spread, scale,
 fitScale)` and `regionFitScale(plotWidth, plotHeight, extentWidth,
 extentHeight)`; `folderRegionContours` builds its field by stamping each
@@ -396,7 +437,7 @@ window carrying a recording `Path2D`):
 **Unit — the radius and the bucket**:
 
 - `regionFalloffRadius` below, at and above the fit: below and at give
-  `spread * 0.06` exactly; one bucket above gives `spread * 0.06 / 1.12`;
+  `spread * 0.04` exactly; one bucket above gives `spread * 0.04 / 1.12`;
   far above saturates at the 8× floor.
 - `regionZoomBucket` is 0 for every scale at or below the fit, rises in 12%
   steps, and clamps at `MAX_BUCKET`.

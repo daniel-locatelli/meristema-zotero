@@ -74,13 +74,14 @@ const RING_WELD = 1e-4;
 const DEVICE_WELD = 1.5;
 
 /**
- * A hard ceiling on the field grid. With the falloff's 8x tightening floor and
- * `pitch = radius / 5` the grid never exceeds roughly 640 steps across a
- * folder's bounding box, about 410 000 cells, so this cannot trigger in the
+ * A hard ceiling on the field grid, held as one `Float64Array` (8 bytes a
+ * cell). With the falloff's 7.7x tightening floor (`1.12 ** 18`) and
+ * `pitch = radius / 5`, the grid never exceeds roughly 961 steps across a
+ * folder's bounding box, about 924 000 cells, so this cannot trigger in the
  * product. It is here so that a later change to the floor coarsens the pitch
  * instead of allocating unboundedly on a wheel notch.
  */
-const MAX_GRID_CELLS = 500_000;
+const MAX_GRID_CELLS = 1_200_000;
 
 function interpolate(
   first: RegionPoint,
@@ -417,7 +418,7 @@ function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
  * Null when the window has no `Path2D` at all, so the caller skips the region
  * rather than losing the frame the nodes are drawn in.
  *
- * The outline is a uniform periodic cubic B-spline fit through the ring's
+ * The outline is a uniform periodic cubic B-spline fit to the ring's
  * vertices — one cubic Bézier per vertex, wrapping because the loops are
  * closed — not a curve through them. Marching-squares vertices sit at
  * linearly-interpolated grid-edge crossings and jitter within a cell from one
@@ -485,7 +486,7 @@ export function regionPathFor(
 }
 
 /** Today's falloff, as a fraction of the plot's larger side. */
-const FALLOFF_FRACTION = 0.06;
+const FALLOFF_FRACTION = 0.04;
 /**
  * One zoom bucket. About 12%: small enough that the shape reads as following
  * the zoom rather than jumping, large enough that a slow zoom across the whole
@@ -502,7 +503,7 @@ const ZOOM_STEP = 1.12;
  * past 8x the halo starts growing on screen again.
  */
 const MAX_ZOOM_BUCKET = 18;
-/** `pitch = radius / 5`, which is `spread * 0.012` at bucket 0. */
+/** `pitch = radius / 5`, which is `spread * 0.008` at bucket 0. */
 const PITCH_DIVISOR = 5;
 
 /**
@@ -538,7 +539,7 @@ export function regionFitScale(
  *
  * Clamping at zero is what makes "at or below the fit is unchanged" exact:
  * every scale at or below the fit lands in bucket 0, and bucket 0's radius is
- * `spread * 0.06` to the last bit.
+ * `spread * 0.04` to the last bit.
  */
 export function regionZoomBucket(scale: number, fitScale: number): number {
   if (!(scale > 0) || !(fitScale > 0)) return 0;
@@ -575,7 +576,7 @@ export function regionFalloffRadius(
 /**
  * The grid pitch that goes with a falloff radius.
  *
- * Holding the literal `spread * 0.012` while the radius shrinks under-samples
+ * Holding the literal `spread * 0.008` while the radius shrinks under-samples
  * the field: at high zoom the falloff would be narrower than a cell and the
  * contour would break into rubble or vanish. A fixed ratio keeps the contour's
  * fidelity relative to the falloff constant at every zoom.
