@@ -51,6 +51,28 @@ export interface FolderRegionOptions {
   threshold?: number;
 }
 
+/** A lone paper's contour: the exact circle `radius * sqrt(1 - threshold)`. */
+export interface RegionDisc {
+  centre: RegionPoint;
+  radius: number;
+}
+
+/**
+ * A folder's territory: a disc per isolated paper, a loop per cluster.
+ *
+ * `radius` and `pitch` are the values the shapes were actually built at, and
+ * they travel with the shapes rather than being passed alongside them, so the
+ * path builder cannot be handed one frame's pitch and another frame's loops.
+ */
+export interface FolderRegionShapes {
+  /** The falloff radius the shapes were built at, in data units. */
+  radius: number;
+  /** The lattice pitch they were built at, in data units. */
+  pitch: number;
+  discs: RegionDisc[];
+  loops: RegionPoint[][];
+}
+
 /**
  * A folder's papers, partitioned into the groups whose fields can reach each
  * other: two papers join when they are closer than `2 * radius`.
@@ -319,33 +341,54 @@ function stitch(
   return loops;
 }
 
-export function folderRegionContours(
-  points: readonly RegionPoint[],
-  options: FolderRegionOptions,
-): RegionPoint[][] {
-  if (!points.length) return [];
-  const radius = options.radius;
-  const pitch = options.pitch;
-  const threshold = options.threshold ?? DEFAULT_THRESHOLD;
-  if (!(radius > 0) || !(pitch > 0)) return [];
-
-  const margin = radius * DOMAIN_MARGIN;
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const minX = Math.min(...xs) - margin;
-  const maxX = Math.max(...xs) + margin;
-  const minY = Math.min(...ys) - margin;
-  const maxY = Math.max(...ys) + margin;
-
-  const width = maxX - minX;
-  const height = maxY - minY;
-  // Coarsen rather than allocate: see MAX_GRID_CELLS.
-  const cellPitch = Math.max(
-    pitch,
-    Math.sqrt((width * height) / MAX_GRID_CELLS),
+/**
+ * How many cells a component's own grid needs at a given pitch, including the
+ * margin the field needs to taper shut inside the grid.
+ */
+function componentCells(
+  component: readonly RegionPoint[],
+  cellPitch: number,
+  margin: number,
+): number {
+  const xs = component.map((point) => point.x);
+  const ys = component.map((point) => point.y);
+  const width = Math.max(...xs) - Math.min(...xs) + 2 * margin;
+  const height = Math.max(...ys) - Math.min(...ys) + 2 * margin;
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return 0;
+  return (
+    (Math.ceil(width / cellPitch) + 1) * (Math.ceil(height / cellPitch) + 1)
   );
-  const columns = Math.ceil(width / cellPitch) + 1;
-  const rows = Math.ceil(height / cellPitch) + 1;
+}
+
+/**
+ * One cluster's contour, sampled on the folder's shared lattice.
+ *
+ * The grid's origin is the folder's min corner stepped outward by whole cells
+ * — never the component's own min corner — so the cell corners a component
+ * sees are exactly the ones it would see on a single folder-wide grid. That is
+ * what makes the decomposition byte-identical rather than merely equivalent.
+ */
+function componentLoops(
+  component: readonly RegionPoint[],
+  originX: number,
+  originY: number,
+  cellPitch: number,
+  radius: number,
+  threshold: number,
+): RegionPoint[][] {
+  const margin = radius * DOMAIN_MARGIN;
+  const xs = component.map((point) => point.x);
+  const ys = component.map((point) => point.y);
+  const startColumn = Math.floor(
+    (Math.min(...xs) - margin - originX) / cellPitch,
+  );
+  const startRow = Math.floor((Math.min(...ys) - margin - originY) / cellPitch);
+  const minX = originX + startColumn * cellPitch;
+  const minY = originY + startRow * cellPitch;
+  const columns = Math.ceil((Math.max(...xs) + margin - minX) / cellPitch) + 1;
+  const rows = Math.ceil((Math.max(...ys) + margin - minY) / cellPitch) + 1;
+  if (!Number.isFinite(columns) || !Number.isFinite(rows)) return [];
+  if (columns < 2 || rows < 2) return [];
 
   // Each paper's bump has compact support, so the field is accumulated by
   // stamping every node into the cells inside its own footprint rather than
@@ -355,7 +398,7 @@ export function folderRegionContours(
   const values = new Float64Array(rows * columns);
   const squared = radius * radius;
   const reach = Math.ceil(radius / cellPitch);
-  for (const point of points) {
+  for (const point of component) {
     const centreColumn = Math.round((point.x - minX) / cellPitch);
     const centreRow = Math.round((point.y - minY) / cellPitch);
     const firstRow = Math.max(0, centreRow - reach);
@@ -403,6 +446,88 @@ export function folderRegionContours(
   }
 
   return stitch(segments);
+}
+
+/**
+ * A folder's territory as shapes: an exact circle for every paper no other
+ * paper can reach, and a marching-squares blob for every cluster.
+ *
+ * The papers are partitioned under "closer than 2R" (`regionComponents`),
+ * which is a decomposition and not an approximation — past 2R the supports are
+ * disjoint. A singleton's contour is then the circle
+ * `radius * sqrt(1 - threshold)`, derived here rather than written as a
+ * constant so that moving the threshold cannot silently break it, and it is
+ * right at every zoom for no work at all. Only clusters build a grid, which
+ * inverts the cost curve: zoomed in, nearly every paper is a singleton, so a
+ * large folder at maximum zoom is the *cheapest* case rather than the most
+ * expensive.
+ *
+ * Every component shares one lattice — the folder's pitch, anchored at the
+ * folder's min corner — so at a given radius and pitch every surviving loop is
+ * byte-identical to the one a single folder-wide grid produced.
+ */
+export function folderRegionContours(
+  points: readonly RegionPoint[],
+  options: FolderRegionOptions,
+): FolderRegionShapes {
+  const radius = options.radius;
+  const pitch = options.pitch;
+  const threshold = options.threshold ?? DEFAULT_THRESHOLD;
+  const nothing: FolderRegionShapes = {
+    radius: 0,
+    pitch: 0,
+    discs: [],
+    loops: [],
+  };
+  if (!points.length) return nothing;
+  if (!(radius > 0) || !Number.isFinite(radius)) return nothing;
+  if (!(pitch > 0) || !Number.isFinite(pitch)) return nothing;
+
+  const margin = radius * DOMAIN_MARGIN;
+  const components = regionComponents(points, radius);
+  const discRadius = radius * Math.sqrt(Math.max(0, 1 - threshold));
+  const discs: RegionDisc[] = [];
+  const clusters: RegionPoint[][] = [];
+  for (const component of components) {
+    if (component.length === 1) {
+      discs.push({ centre: component[0], radius: discRadius });
+    } else {
+      clusters.push(component);
+    }
+  }
+
+  // The folder's own min corner, which anchors every component's grid.
+  const originX = Math.min(...points.map((point) => point.x)) - margin;
+  const originY = Math.min(...points.map((point) => point.y)) - margin;
+
+  // Coarsen rather than allocate: the budget is the *sum* across the folder's
+  // components, and exceeding it coarsens every component by the same factor,
+  // so the shared lattice survives. Cells go as 1/pitch^2, so one scaling by
+  // sqrt(cells / budget) brings the total back inside it.
+  let cellPitch = pitch;
+  let cells = 0;
+  for (const cluster of clusters) {
+    cells += componentCells(cluster, cellPitch, margin);
+  }
+  if (cells > MAX_GRID_CELLS) {
+    cellPitch = pitch * Math.sqrt(cells / MAX_GRID_CELLS);
+  }
+
+  const loops: RegionPoint[][] = [];
+  for (const cluster of clusters) {
+    loops.push(
+      ...componentLoops(
+        cluster,
+        originX,
+        originY,
+        cellPitch,
+        radius,
+        threshold,
+      ),
+    );
+  }
+
+  return { radius, pitch: cellPitch, discs, loops };
 }
 
 /**
@@ -517,13 +642,28 @@ function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
  */
 export function regionPathFor(
   view: Window | null,
-  loops: readonly (readonly RegionPoint[])[],
+  shapes: FolderRegionShapes,
   project: (point: RegionPoint) => RegionPoint,
+  scale: number,
 ): Path2D | null {
   const constructor = (view as any)?.Path2D as typeof Path2D | undefined;
   if (!constructor) return null;
   const path = new constructor();
-  for (const loop of loops) {
+  for (const disc of shapes.discs) {
+    const centre = project(disc.centre);
+    const radius = disc.radius * scale;
+    if (!Number.isFinite(centre.x) || !Number.isFinite(centre.y)) continue;
+    if (!(radius > 0) || !Number.isFinite(radius)) continue;
+    // `arc()` joins the current subpath to the circle with a straight line
+    // when one is open, so every disc opens its own with a moveTo onto its
+    // rim. `evenodd` needs no winding help beyond that: a disc sitting inside
+    // a cluster's hole crosses the outer loop, the hole loop and itself — an
+    // odd count — so it fills.
+    path.moveTo(centre.x + radius, centre.y);
+    path.arc(centre.x, centre.y, radius, 0, Math.PI * 2);
+    path.closePath();
+  }
+  for (const loop of shapes.loops) {
     // Projected first, then fitted: the projection is a uniform similarity,
     // so the shape is the same either way, but fitting afterwards puts the
     // epsilons in device pixels, where "degenerate" means "sub-pixel".

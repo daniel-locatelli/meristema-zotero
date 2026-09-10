@@ -232,7 +232,10 @@ describe("CitationGraphRenderer regions", function () {
         },
       ]);
 
-      const loopsDrawn = (path: FakePath2D): number =>
+      // Each territory opens its own subpath: a cluster with a moveTo onto
+      // the fit's first on-curve point, a lone paper with a moveTo onto its
+      // circle's rim before the arc.
+      const territoriesDrawn = (path: FakePath2D): number =>
         path.commands.filter((command) => command.op === "moveTo").length;
 
       // 0.15 is the viewport's minimum scale, so it is below the fit zoom
@@ -240,8 +243,8 @@ describe("CitationGraphRenderer regions", function () {
       renderer.setViewTransform({ x: 0, y: 0, scale: 0.15 });
       const zoomedOut = lastRegionStroke(canvas.context).args[0] as FakePath2D;
       expect(
-        loopsDrawn(zoomedOut),
-        "at the fit zoom the close pair is one territory",
+        territoriesDrawn(zoomedOut),
+        "at the fit zoom the close pair is one territory and the far paper another",
       ).to.equal(2);
 
       // A pan: same scale, different origin. Every coordinate must be the old
@@ -254,7 +257,12 @@ describe("CitationGraphRenderer regions", function () {
       );
       panned.commands.forEach((command, index) => {
         command.args.forEach((value, position) => {
-          const shift = position % 2 === 0 ? 40 : -25;
+          // An arc carries (cx, cy, radius, startAngle, endAngle): only its
+          // first two arguments are coordinates. The radius and the angles
+          // are not points on the plot and a pan must leave them exactly
+          // where they were, which is what a shift of zero asserts.
+          const coordinate = command.op !== "arc" || position < 2;
+          const shift = !coordinate ? 0 : position % 2 === 0 ? 40 : -25;
           expect(
             value - shift,
             `command ${index} argument ${position} moved by more than the pan`,
@@ -267,7 +275,7 @@ describe("CitationGraphRenderer regions", function () {
       renderer.setViewTransform({ x: 0, y: 0, scale: 8 });
       const zoomedIn = lastRegionStroke(canvas.context).args[0] as FakePath2D;
       expect(
-        loopsDrawn(zoomedIn),
+        territoriesDrawn(zoomedIn),
         "zoomed in, the territory is three separate papers",
       ).to.equal(3);
     }

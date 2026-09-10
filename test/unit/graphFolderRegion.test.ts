@@ -8,19 +8,11 @@ import {
   regionGridPitch,
   regionPathFor,
   regionZoomBucket,
+  type FolderRegionShapes,
   type RegionPoint,
 } from "../../src/services/graphFolderRegion";
 
 const OPTIONS = { radius: 10, pitch: 2 };
-
-/** The contour's centroid, for asserting where a loop sits. */
-function centroid(contour: readonly RegionPoint[]): RegionPoint {
-  const sum = contour.reduce(
-    (acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }),
-    { x: 0, y: 0 },
-  );
-  return { x: sum.x / contour.length, y: sum.y / contour.length };
-}
 
 function extent(contour: readonly RegionPoint[]): number {
   const xs = contour.map((point) => point.x);
@@ -41,6 +33,9 @@ class RecordingPath {
   bezierCurveTo(...args: number[]): void {
     this.commands.push({ op: "bezierCurveTo", args });
   }
+  arc(...args: number[]): void {
+    this.commands.push({ op: "arc", args });
+  }
   closePath(): void {
     this.commands.push({ op: "closePath", args: [] });
   }
@@ -58,50 +53,63 @@ function recordingView(): {
 
 const IDENTITY = (point: RegionPoint): RegionPoint => point;
 
+/**
+ * A shapes object carrying nothing but loops, with `pitch: 0`.
+ *
+ * A zero pitch turns the arc-length resampler off (its spacing is
+ * `pitch * scale`, and a non-positive spacing returns the ring untouched), so
+ * these cases see the B-spline fit alone. That is what keeps every
+ * hand-checked control point below a statement about the fit rather than about
+ * the resampler that now feeds it.
+ */
+function fitOnly(loops: RegionPoint[][]): FolderRegionShapes {
+  return { radius: 10, pitch: 0, discs: [], loops };
+}
+
 describe("folder regions", function () {
   it("draws nothing for a folder with no papers", function () {
-    expect(folderRegionContours([], OPTIONS)).to.deep.equal([]);
+    expect(folderRegionContours([], OPTIONS)).to.deep.equal({
+      radius: 0,
+      pitch: 0,
+      discs: [],
+      loops: [],
+    });
   });
 
-  it("draws one closed loop around a single paper", function () {
-    const contours = folderRegionContours([{ x: 0, y: 0 }], OPTIONS);
-    expect(contours).to.have.length(1);
-    const loop = contours[0];
-    expect(loop.length).to.be.greaterThan(6);
-    // Closed: the last vertex meets the first.
-    expect(
-      Math.hypot(
-        loop[0].x - loop[loop.length - 1].x,
-        loop[0].y - loop[loop.length - 1].y,
-      ),
-    ).to.be.below(0.001);
-    // Roughly circular and centred on the paper.
-    const middle = centroid(loop);
-    expect(middle.x).to.be.closeTo(0, 1);
-    expect(middle.y).to.be.closeTo(0, 1);
+  it("draws an exact circle around a single paper", function () {
+    const shapes = folderRegionContours([{ x: 0, y: 0 }], OPTIONS);
+    expect(shapes.loops).to.have.length(0);
+    expect(shapes.discs).to.have.length(1);
+    expect(shapes.discs[0].centre).to.deep.equal({ x: 0, y: 0 });
+    // The field is `1 - d^2/R^2` and the threshold is 0.5, so the contour of
+    // a lone paper is the circle `R * sqrt(1 - t)` — an exact answer, and one
+    // no grid and no fit can improve on.
+    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
   });
 
   it("merges papers that sit close together into one loop", function () {
-    const contours = folderRegionContours(
+    const shapes = folderRegionContours(
       [
         { x: 0, y: 0 },
         { x: 6, y: 0 },
       ],
       OPTIONS,
     );
-    expect(contours).to.have.length(1);
-    expect(extent(contours[0])).to.be.greaterThan(14);
+    expect(shapes.discs).to.have.length(0);
+    expect(shapes.loops).to.have.length(1);
+    expect(extent(shapes.loops[0])).to.be.greaterThan(14);
   });
 
-  it("leaves distant papers as separate islands", function () {
-    const contours = folderRegionContours(
+  it("leaves distant papers as separate discs", function () {
+    const shapes = folderRegionContours(
       [
         { x: 0, y: 0 },
         { x: 80, y: 0 },
       ],
       OPTIONS,
     );
-    expect(contours).to.have.length(2);
+    expect(shapes.loops).to.have.length(0);
+    expect(shapes.discs).to.have.length(2);
   });
 
   it("draws a hole as its own loop when papers ring an empty middle", function () {
@@ -110,17 +118,24 @@ describe("folder regions", function () {
       const radians = (angle * Math.PI) / 180;
       ring.push({ x: Math.cos(radians) * 26, y: Math.sin(radians) * 26 });
     }
-    const contours = folderRegionContours(ring, { radius: 10, pitch: 2 });
+    const shapes = folderRegionContours(ring, { radius: 10, pitch: 2 });
     // An outer loop and an inner one: the ring's middle is below threshold.
-    expect(contours.length).to.be.at.least(2);
+    expect(shapes.loops.length).to.be.at.least(2);
   });
 
   it("closes a contour whose papers sit at the extreme of the plot", function () {
     // The grid must extend past the nodes' bounding box, or the loop is cut
-    // square at the edge instead of tapering shut.
-    const contours = folderRegionContours([{ x: 1000, y: -1000 }], OPTIONS);
-    expect(contours).to.have.length(1);
-    const loop = contours[0];
+    // square at the edge instead of tapering shut. Two papers, not one: a
+    // singleton is an exact circle and never touches the grid.
+    const shapes = folderRegionContours(
+      [
+        { x: 1000, y: -1000 },
+        { x: 1006, y: -1000 },
+      ],
+      OPTIONS,
+    );
+    expect(shapes.loops).to.have.length(1);
+    const loop = shapes.loops[0];
     expect(
       Math.hypot(
         loop[0].x - loop[loop.length - 1].x,
@@ -145,14 +160,14 @@ describe("folder regions", function () {
     const once = folderRegionContours(points, OPTIONS);
     const twice = folderRegionContours(points, OPTIONS);
     expect(twice).to.deep.equal(once);
-    expect(once).to.have.length(1);
+    expect(once.loops).to.have.length(1);
   });
 
   it("resolves a saddle without crossing itself", function () {
     // Two diagonal pairs make a cell whose corners alternate above and below
     // the threshold. The naive case table joins them wrongly and the loop
     // self-intersects; disambiguating by the cell's mean does not.
-    const contours = folderRegionContours(
+    const shapes = folderRegionContours(
       [
         { x: 0, y: 0 },
         { x: 18, y: 18 },
@@ -161,8 +176,8 @@ describe("folder regions", function () {
       ],
       { radius: 11, pitch: 1.5 },
     );
-    expect(contours.length).to.be.at.least(1);
-    for (const loop of contours) {
+    expect(shapes.loops.length).to.be.at.least(1);
+    for (const loop of shapes.loops) {
       expect(loop.length).to.be.greaterThan(6);
     }
   });
@@ -178,14 +193,15 @@ describe("folder regions", function () {
     const { view, constructor } = recordingView();
     const path = regionPathFor(
       view,
-      [
+      fitOnly([
         [
           { x: 0, y: 0 },
           { x: 2, y: 0 },
           { x: 2, y: 2 },
         ],
-      ],
+      ]),
       (point: RegionPoint) => ({ x: point.x * 10, y: point.y * 10 }),
+      1,
     );
 
     expect(
@@ -227,15 +243,16 @@ describe("folder regions", function () {
     const { view } = recordingView();
     const path = regionPathFor(
       view,
-      [
+      fitOnly([
         [
           { x: 0, y: 0 },
           { x: 10, y: 0 },
           { x: 10, y: 10 },
           { x: 0, y: 10 },
         ],
-      ],
+      ]),
       IDENTITY,
+      1,
     );
     const commands = (path as unknown as RecordingPath).commands;
     expect(commands[0].args[0]).to.be.closeTo(5 / 3, 1e-9);
@@ -279,11 +296,17 @@ describe("folder regions", function () {
       { x: 10, y: 10 },
       { x: 0, y: 10 },
     ];
-    const open = regionPathFor(recordingView().view, [ring], IDENTITY);
+    const open = regionPathFor(
+      recordingView().view,
+      fitOnly([ring]),
+      IDENTITY,
+      1,
+    );
     const closed = regionPathFor(
       recordingView().view,
-      [[...ring, { x: 0, y: 0 }]],
+      fitOnly([[...ring, { x: 0, y: 0 }]]),
       IDENTITY,
+      1,
     );
     expect((closed as unknown as RecordingPath).commands).to.deep.equal(
       (open as unknown as RecordingPath).commands,
@@ -300,14 +323,15 @@ describe("folder regions", function () {
   it("wraps a three-vertex ring with C in both neighbour roles", function () {
     const path = regionPathFor(
       recordingView().view,
-      [
+      fitOnly([
         [
           { x: 0, y: 0 },
           { x: 10, y: 0 },
           { x: 5, y: 9 },
         ],
-      ],
+      ]),
       IDENTITY,
+      1,
     );
     const commands = (path as unknown as RecordingPath).commands;
     expect(commands.filter((c) => c.op === "bezierCurveTo")).to.have.length(3);
@@ -351,7 +375,12 @@ describe("folder regions", function () {
         { x: 9, y: 9 },
       ],
     ];
-    const path = regionPathFor(recordingView().view, loops, IDENTITY);
+    const path = regionPathFor(
+      recordingView().view,
+      fitOnly(loops),
+      IDENTITY,
+      1,
+    );
     for (const command of (path as unknown as RecordingPath).commands) {
       for (const value of command.args) {
         expect(Number.isFinite(value), `${command.op} got ${value}`).to.equal(
@@ -383,16 +412,17 @@ describe("folder regions", function () {
     ];
     for (const loop of abuse) {
       expect(() =>
-        regionPathFor(recordingView().view, [loop], IDENTITY),
+        regionPathFor(recordingView().view, fitOnly([loop]), IDENTITY, 1),
       ).to.not.throw();
     }
     expect(() =>
-      regionPathFor(recordingView().view, [], IDENTITY),
+      regionPathFor(recordingView().view, fitOnly([]), IDENTITY, 1),
     ).to.not.throw();
     const path = regionPathFor(
       recordingView().view,
-      abuse,
+      fitOnly(abuse),
       IDENTITY,
+      1,
     ) as unknown as RecordingPath;
     for (const command of path.commands) {
       for (const value of command.args) {
@@ -433,7 +463,12 @@ describe("folder regions", function () {
     );
     expect(rawDeviation).to.be.closeTo(jitter, 1e-9);
 
-    const path = regionPathFor(recordingView().view, [ring], IDENTITY);
+    const path = regionPathFor(
+      recordingView().view,
+      fitOnly([ring]),
+      IDENTITY,
+      1,
+    );
     const commands = (path as unknown as RecordingPath).commands;
 
     function cubicAt(
@@ -480,13 +515,14 @@ describe("folder regions", function () {
   it("still draws a two-point loop with lineTo", function () {
     const path = regionPathFor(
       recordingView().view,
-      [
+      fitOnly([
         [
           { x: 0, y: 0 },
           { x: 4, y: 0 },
         ],
-      ],
+      ]),
       IDENTITY,
+      1,
     );
     expect(
       (path as unknown as RecordingPath).commands.map((c) => c.op),
@@ -497,8 +533,9 @@ describe("folder regions", function () {
     expect(
       regionPathFor(
         {} as unknown as Window,
-        [[{ x: 0, y: 0 }]],
+        fitOnly([[{ x: 0, y: 0 }]]),
         (p: RegionPoint) => p,
+        1,
       ),
     ).to.equal(null);
   });
@@ -512,7 +549,7 @@ describe("folder regions", function () {
    * plausible-looking shape.
    */
   it("sums the field to the same contour however it is accumulated", function () {
-    const contours = folderRegionContours(
+    const shapes = folderRegionContours(
       [
         { x: 0, y: 0 },
         { x: 14, y: 3 },
@@ -521,32 +558,37 @@ describe("folder regions", function () {
       ],
       { radius: 10, pitch: 2 },
     );
-    expect(contours).to.have.length(2);
-    const sums = contours.map((loop) => ({
-      length: loop.length,
-      x: loop.reduce((total, point) => total + point.x, 0),
-      y: loop.reduce((total, point) => total + point.y, 0),
-    }));
-    expect(sums[0].length).to.equal(68);
-    expect(sums[0].x).to.be.closeTo(475.8592418546, 1e-6);
-    expect(sums[0].y).to.be.closeTo(439.205775052, 1e-6);
-    expect(sums[1].length).to.equal(26);
-    expect(sums[1].x).to.be.closeTo(1040, 1e-6);
-    expect(sums[1].y).to.be.closeTo(1014, 1e-6);
+    expect(shapes.loops).to.have.length(1);
+    const loop = shapes.loops[0];
+    expect(loop.length).to.equal(68);
+    expect(loop.reduce((total, point) => total + point.x, 0)).to.be.closeTo(
+      475.8592418546,
+      1e-6,
+    );
+    expect(loop.reduce((total, point) => total + point.y, 0)).to.be.closeTo(
+      439.205775052,
+      1e-6,
+    );
+    // The fourth paper is 40-odd units from the nearest of the other three,
+    // well past 2R, so it leaves the loop list and comes back as an exact
+    // disc. Its old triple (26, 1040, 1014) was a grid's approximation of
+    // this circle.
+    expect(shapes.discs).to.have.length(1);
+    expect(shapes.discs[0].centre).to.deep.equal({ x: 40, y: 40 });
+    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
   });
 
   /** A pitch small enough to blow the cell budget is coarsened rather than
-   *  allocated. With the 8x tightening floor in place this cannot happen in
-   *  the product; it is a guard against a later change moving that floor. */
+   *  allocated. The fixture must be one *component*, since discs cost no
+   *  cells at all: a chain whose every hop is inside 2R but whose ends are
+   *  5000 apart. With the shipped constants this cannot happen in the
+   *  product; it is a guard against a later change moving them. */
   it("coarsens rather than allocating an unbounded grid", function () {
-    const contours = folderRegionContours(
-      [
-        { x: 0, y: 0 },
-        { x: 5000, y: 5000 },
-      ],
-      { radius: 100, pitch: 0.05 },
-    );
-    expect(contours.length).to.be.at.least(1);
+    const chain: RegionPoint[] = [];
+    for (let x = 0; x <= 5000; x += 150) chain.push({ x, y: 0 });
+    const shapes = folderRegionContours(chain, { radius: 100, pitch: 0.05 });
+    expect(shapes.loops.length).to.be.at.least(1);
+    expect(shapes.pitch).to.be.greaterThan(0.05);
   });
 
   it("splits papers more than 2R apart into separate components", function () {
@@ -676,6 +718,159 @@ describe("folder regions", function () {
         Number.NaN,
       ),
     ).to.have.length(2);
+  });
+
+  /**
+   * The shared lattice, asserted rather than assumed. Every component is
+   * sampled on the folder's own lattice — the folder's pitch, anchored at the
+   * folder's min corner — so a component sees exactly the cell corners it saw
+   * when the whole folder was one grid. At a given radius and pitch, every
+   * surviving loop is therefore byte-identical to the one that shipped.
+   *
+   * Anchoring each component at its own min corner instead would shift the
+   * sampling lattice per component and move every vertex slightly: a visible
+   * change nobody asked for, and one that would have forced the golden above
+   * to be re-recorded.
+   */
+  it("samples every component on one lattice, so a loop is unchanged by a distant paper", function () {
+    const cluster = [
+      { x: 0, y: 0 },
+      { x: 14, y: 3 },
+      { x: 7, y: 16 },
+    ];
+    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+    const withDistant = folderRegionContours([...cluster, { x: 40, y: 40 }], {
+      radius: 10,
+      pitch: 2,
+    });
+    expect(withDistant.loops[0]).to.deep.equal(alone.loops[0]);
+  });
+
+  it("reports the radius and the pitch it built the shapes at", function () {
+    const shapes = folderRegionContours(
+      [
+        { x: 0, y: 0 },
+        { x: 6, y: 0 },
+      ],
+      OPTIONS,
+    );
+    expect(shapes.radius).to.equal(10);
+    expect(shapes.pitch).to.equal(2);
+  });
+
+  it("returns shapes and throws nothing on degenerate folders", function () {
+    // `draw()` latches `canvasError` after one throw, so this asserts the
+    // absence of an exception rather than any shape.
+    const abuse: Array<[RegionPoint[], { radius: number; pitch: number }]> = [
+      [[], OPTIONS],
+      [[{ x: 0, y: 0 }], OPTIONS],
+      [
+        [
+          { x: 3, y: 3 },
+          { x: 3, y: 3 },
+        ],
+        OPTIONS,
+      ],
+      [[{ x: Number.NaN, y: 0 }], OPTIONS],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 1, y: Number.POSITIVE_INFINITY },
+        ],
+        OPTIONS,
+      ],
+      [[{ x: 0, y: 0 }], { radius: 0, pitch: 2 }],
+      [[{ x: 0, y: 0 }], { radius: 10, pitch: 0 }],
+      [[{ x: 0, y: 0 }], { radius: Number.NaN, pitch: Number.NaN }],
+    ];
+    for (const [points, options] of abuse) {
+      let shapes: FolderRegionShapes | null = null;
+      expect(() => {
+        shapes = folderRegionContours(points, options);
+      }, JSON.stringify(points)).to.not.throw();
+      expect(shapes).to.not.equal(null);
+      for (const loop of shapes!.loops) {
+        for (const point of loop) {
+          expect(Number.isFinite(point.x) && Number.isFinite(point.y)).to.equal(
+            true,
+          );
+        }
+      }
+    }
+  });
+
+  it("emits one arc per disc and no curve", function () {
+    const { view } = recordingView();
+    const path = regionPathFor(
+      view,
+      {
+        radius: 10,
+        pitch: 2,
+        discs: [{ centre: { x: 4, y: 5 }, radius: 7 }],
+        loops: [],
+      },
+      (point: RegionPoint) => ({ x: point.x * 3, y: point.y * 3 }),
+      3,
+    );
+    const commands = (path as unknown as RecordingPath).commands;
+    expect(commands.map((command) => command.op)).to.deep.equal([
+      "moveTo",
+      "arc",
+      "closePath",
+    ]);
+    // `arc()` continues the current subpath, so the disc opens its own with a
+    // moveTo onto the circle; without it a disc after a loop is joined to it
+    // by a straight line across the plot.
+    expect(commands[0].args).to.deep.equal([12 + 21, 15]);
+    expect(commands[1].args[0]).to.equal(12);
+    expect(commands[1].args[1]).to.equal(15);
+    expect(commands[1].args[2]).to.equal(21);
+    expect(commands.some((command) => command.op === "bezierCurveTo")).to.equal(
+      false,
+    );
+  });
+
+  it("draws discs and loops onto one path", function () {
+    const path = regionPathFor(
+      recordingView().view,
+      {
+        radius: 10,
+        pitch: 0,
+        discs: [{ centre: { x: 100, y: 0 }, radius: 5 }],
+        loops: [
+          [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        ],
+      },
+      IDENTITY,
+      1,
+    );
+    const ops = (path as unknown as RecordingPath).commands.map((c) => c.op);
+    expect(ops.filter((op) => op === "arc")).to.have.length(1);
+    expect(ops.filter((op) => op === "bezierCurveTo")).to.have.length(4);
+  });
+
+  it("skips a disc it cannot draw rather than emitting a NaN arc", function () {
+    const path = regionPathFor(
+      recordingView().view,
+      {
+        radius: 10,
+        pitch: 0,
+        discs: [
+          { centre: { x: Number.NaN, y: 0 }, radius: 5 },
+          { centre: { x: 0, y: 0 }, radius: 0 },
+          { centre: { x: 0, y: 0 }, radius: Number.POSITIVE_INFINITY },
+        ],
+        loops: [],
+      },
+      IDENTITY,
+      1,
+    );
+    expect((path as unknown as RecordingPath).commands).to.deep.equal([]);
   });
 });
 

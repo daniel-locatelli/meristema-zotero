@@ -54,6 +54,7 @@ import {
   regionGridPitch,
   regionPathFor,
   regionZoomBucket,
+  type FolderRegionShapes,
   type RegionPoint,
 } from "./graphFolderRegion";
 import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
@@ -243,7 +244,7 @@ export class CitationGraphRenderer {
    * `setRegions` call that adds or drops one folder must not force the
    * other three, still-selected folders to recompute (finding 4).
    */
-  private regionContours = new Map<number, RegionPoint[][]>();
+  private regionContours = new Map<number, FolderRegionShapes>();
   private regionSignatures = new Map<number, string>();
   /** The offscreen layer `drawRegions` composites a folder's fill and dilation into before it is blended onto the plot; sized to the plot rect and reused across regions and frames. */
   private regionLayerCanvas: HTMLCanvasElement | null = null;
@@ -1297,7 +1298,7 @@ export class CitationGraphRenderer {
   private regionsFor(
     plot: PlotRect,
     scale: number,
-  ): Map<number, RegionPoint[][]> {
+  ): Map<number, FolderRegionShapes> {
     const extent = this.dataExtent();
     const spread = extent.spread;
     const fitScale = regionFitScale(
@@ -1400,12 +1401,14 @@ export class CitationGraphRenderer {
     context.rect(plot.left, plot.top, plot.width, plot.height);
     context.clip();
     for (const region of this.regions) {
-      const loops = contours.get(region.collectionID) ?? [];
-      if (!loops.length) continue;
+      const shapes = contours.get(region.collectionID);
+      if (!shapes) continue;
+      if (!shapes.discs.length && !shapes.loops.length) continue;
       const path = regionPathFor(
         this.canvas.ownerDocument.defaultView,
-        loops,
+        shapes,
         (point) => this.projectToScreen(point),
+        this.transform.scale,
       );
       if (!path) continue;
 
