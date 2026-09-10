@@ -55,9 +55,9 @@
 git -C C:/repos/github/daniel-locatelli/meristema-zotero status --short --branch
 ```
 
-Expected: `## main...origin/main [ahead 5]` and no tracked modifications. An untracked `.claude/` is expected and fine.
+Expected: `## main...origin/main` with no ahead/behind marker, and no tracked modifications. An untracked `.claude/` is expected and fine.
 
-Three untracked docs are expected as well — this plan, D6's spec and `docs/superpowers/handoffs/2026-09-10-d6-plan-written-handoff.md` — plus one modification, a Log line already appended to `docs/superpowers/handoffs/2026-09-08-roadmap.md`. All four were written before the branch existed and are committed in Step 3.
+This plan, D6's spec and the session handoff are already committed and pushed on `main` (`0975565`), so the branch starts from a written design rather than carrying it in.
 
 - [ ] **Step 2: Create the branch**
 
@@ -65,20 +65,7 @@ Three untracked docs are expected as well — this plan, D6's spec and `docs/sup
 git checkout -b graph-region-curves
 ```
 
-Expected: `Switched to a new branch 'graph-region-curves'`
-
-- [ ] **Step 3: Commit the spec and the plan**
-
-They are the branch's first commit, so every later task's diff is code against a written design rather than the two arriving together at the end. The session handoff and the roadmap's Log line go with them, since they describe the same step.
-
-```bash
-git add docs/superpowers/specs/2026-09-10-graph-region-curves-design.md docs/superpowers/plans/2026-09-10-graph-region-curves.md docs/superpowers/handoffs/2026-09-10-d6-plan-written-handoff.md docs/superpowers/handoffs/2026-09-08-roadmap.md
-git commit -m "Specify and plan the folder regions' curves and zoom falloff"
-```
-
-Expected: four files changed. `.claude/` stays untracked — do not add it.
-
-Task 6 ticks D6 itself and appends the manual checks; this Log line only records that the design step finished.
+Expected: `Switched to a new branch 'graph-region-curves'`. Do not add `.claude/` to anything.
 
 ---
 

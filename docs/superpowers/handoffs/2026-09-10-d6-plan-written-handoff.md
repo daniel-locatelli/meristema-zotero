@@ -1,8 +1,8 @@
 # Handoff: D6's spec and plan are written and approved; execution has not started
 
-Date: 2026-09-10. Branch `main` at `df94fca`. No code was written. The tree
-carries an untracked `.claude/`, the three documents this session wrote, and
-one modification:
+Date: 2026-09-10. Branch `main` at `0975565`, **pushed**. Tree clean apart
+from an untracked `.claude/`. No product code was written this session; the
+commit is four documents:
 
 - `docs/superpowers/specs/2026-09-10-graph-region-curves-design.md` (new)
 - `docs/superpowers/plans/2026-09-10-graph-region-curves.md` (new)
@@ -10,13 +10,12 @@ one modification:
   file, new)
 - `docs/superpowers/handoffs/2026-09-08-roadmap.md` (one Log line appended)
 
-They are left uncommitted on purpose. The plan's **Task 0** creates the branch
-and commits all four as its first commit, so the branch opens with its design
-rather than having it arrive at the end. D6 itself is **not** ticked in the
-roadmap yet — Task 6 does that, with the manual checks.
+D6 itself is **not** ticked in the roadmap yet — the plan's Task 6 does that,
+with the manual checks.
 
-**Not pushed.** `259cd17..df94fca` is five commits ahead of `origin/main`,
-unchanged from the last handoff — no code was written this session.
+The previous handoff's "five commits ahead of `origin/main`" was already
+stale when it was written: `259cd17..df94fca` had been pushed. `main` and
+`origin/main` are level at `0975565`. Nothing is waiting to go out.
 
 XPI `.scaffold/build/meristema.xpi` built from `cb27278`, after the last
 `npm test` run. `npm run check`: green, 354 unit tests. `npm test`: 42 passed,
