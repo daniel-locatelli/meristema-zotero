@@ -180,6 +180,18 @@ const RING_WELD = 1e-4;
 const DEVICE_WELD = 1.5;
 
 /**
+ * The resampler's spacing, as a multiple of the projected lattice pitch.
+ *
+ * This is the smoothness knob, and it is the honest one: coarser is smoother
+ * and loses genuine detail. Turn this, not the falloff, if a build still reads
+ * wobbly. Deriving the spacing from the pitch rather than from a pixel
+ * constant is what stops the resampler ever *up*sampling — inserting points
+ * along straight chords adds no information but does add control points, which
+ * un-smooths the fit back toward the polyline it came from.
+ */
+const RESAMPLE_PITCH_FACTOR = 1;
+
+/**
  * A hard ceiling on the field grid, held as one `Float64Array` (8 bytes a
  * cell). With the falloff's 7.7x tightening floor (`1.12 ** 18`) and
  * `pitch = radius / 5`, the grid never exceeds roughly 961 steps across a
@@ -536,12 +548,13 @@ export function folderRegionContours(
  * on-curve `start`, its two control points, and its on-curve `end`.
  *
  * Approximating, not interpolating: the curve passes through none of
- * `p0..p3`, only near them, which is exactly what averages away the jitter
- * marching squares leaves at nearby grid crossings. A uniform B-spline needs
- * no parameterisation choice — every weight here is a literal count of
- * thirds and sixths, not a function of knot spacing — so there is no
- * denominator that can vanish and nothing to guard: a finite `p0..p3` in
- * guarantees a finite result out.
+ * `p0..p3`, only near them, which is what lets the curve ignore a control
+ * point's exact position while still following the ring — the smoothing that
+ * matters is the even spacing `resampleRing` gives it, not the approximation
+ * itself. A uniform B-spline needs no parameterisation choice — every weight
+ * here is a literal count of thirds and sixths, not a function of knot
+ * spacing — so there is no denominator that can vanish and nothing to guard:
+ * a finite `p0..p3` in guarantees a finite result out.
  *
  * `start` and `end` are two different points on the curve, not the same
  * point under two names: `end` for the span at vertex `i` equals `start` for
@@ -612,6 +625,69 @@ function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
 }
 
 /**
+ * A ring re-emitted at even arc length, which is what the approximating fit
+ * needs and what marching squares does not give it.
+ *
+ * A uniform B-spline gives every control point the same parameter interval, so
+ * unevenly spaced vertices make the curvature vary for reasons that have
+ * nothing to do with the shape — the wobble the reader sees. Evening the
+ * spacing is the measured fix: on the spec's fixture it improves smoothness by
+ * about a quarter on every measure, while removing grid quantisation jitter
+ * entirely improves it by nothing at all.
+ *
+ * Total, and deliberately so: this is where the divisions live, so that the
+ * fit downstream keeps no denominator that can vanish. A ring of fewer than
+ * three points, a ring of zero or non-finite total length, and a spacing that
+ * is not a positive finite number are all returned untouched rather than
+ * divided by. `draw()` latches `canvasError` after one throw.
+ *
+ * The count is capped at the ring's own, so this can only ever even the
+ * spacing out, never sharpen it.
+ */
+export function resampleRing(
+  ring: readonly RegionPoint[],
+  spacing: number,
+): RegionPoint[] {
+  if (ring.length < 3) return [...ring];
+  if (!(spacing > 0) || !Number.isFinite(spacing)) return [...ring];
+  const lengths: number[] = [];
+  let total = 0;
+  for (let index = 0; index < ring.length; index += 1) {
+    const from = ring[index];
+    const to = ring[(index + 1) % ring.length];
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    lengths.push(length);
+    total += length;
+  }
+  if (!Number.isFinite(total) || total <= 0) return [...ring];
+
+  const count = Math.min(ring.length, Math.max(3, Math.round(total / spacing)));
+  const step = total / count;
+  const resampled: RegionPoint[] = [];
+  let segment = 0;
+  let travelled = 0;
+  for (let index = 0; index < count; index += 1) {
+    const target = index * step;
+    while (
+      segment < lengths.length - 1 &&
+      travelled + lengths[segment] < target
+    ) {
+      travelled += lengths[segment];
+      segment += 1;
+    }
+    const from = ring[segment];
+    const to = ring[(segment + 1) % ring.length];
+    const fraction =
+      lengths[segment] > 0 ? (target - travelled) / lengths[segment] : 0;
+    resampled.push({
+      x: from.x + (to.x - from.x) * fraction,
+      y: from.y + (to.y - from.y) * fraction,
+    });
+  }
+  return resampled;
+}
+
+/**
  * A region's contours as one `Path2D`, built from the canvas's own window.
  *
  * `Path2D` is a DOM constructor, and the plugin's bundle runs in a scope that
@@ -628,17 +704,21 @@ function ringOf(loop: readonly RegionPoint[]): RegionPoint[] {
  * rather than losing the frame the nodes are drawn in.
  *
  * The outline is a uniform periodic cubic B-spline fit to the ring's
- * vertices — one cubic Bézier per vertex, wrapping because the loops are
- * closed — not a curve through them. Marching-squares vertices sit at
- * linearly-interpolated grid-edge crossings and jitter within a cell from one
- * vertex to the next; an interpolating fit (what shipped first) is forced to
- * reproduce that jitter, which reads as wobble. An approximating fit is
- * pulled toward the vertices instead of through them, so the jitter averages
- * out while the contour it is fitted through stays untouched: same points,
- * same topology, same `evenodd` fill, same dilation stroke (backlog D6). A
- * polyline in data space re-facets as you zoom in — its segments grow on
- * screen with everything else — while a curve does not, because the
- * rasterizer flattens it in device pixels.
+ * vertices — one cubic Bezier per vertex, wrapping because the loops are
+ * closed — not a curve through them, and the ring is resampled to even arc
+ * length first. An earlier version of this docstring blamed the wobble on
+ * grid jitter; that was measured and it is wrong. Newton-refining every
+ * vertex onto the exact level set, which removes quantisation jitter
+ * entirely, improves smoothness by nothing at all (curvature sd 0.0511 to
+ * 0.0514), while evening the spacing improves it by about a quarter
+ * (0.0416). The wobble is a parameterisation artefact: a uniform B-spline
+ * gives every control point the same parameter interval, so unevenly spaced
+ * marching-squares vertices make the curvature vary for reasons that are not
+ * about the shape. `resampleRing` is the fix; the approximating fit stays
+ * because it keeps no denominator that can vanish. A polyline in data space
+ * re-facets as you zoom in — its segments grow on screen with everything
+ * else — while a curve does not, because the rasterizer flattens it in
+ * device pixels.
  */
 export function regionPathFor(
   view: Window | null,
@@ -667,7 +747,10 @@ export function regionPathFor(
     // Projected first, then fitted: the projection is a uniform similarity,
     // so the shape is the same either way, but fitting afterwards puts the
     // epsilons in device pixels, where "degenerate" means "sub-pixel".
-    const ring = ringOf(loop.map(project));
+    const ring = resampleRing(
+      ringOf(loop.map(project)),
+      shapes.pitch * scale * RESAMPLE_PITCH_FACTOR,
+    );
     if (!ring.length) continue;
     if (ring.length < 3) {
       // No curve to fit through two points.

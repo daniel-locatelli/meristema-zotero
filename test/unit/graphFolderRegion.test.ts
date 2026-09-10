@@ -8,6 +8,7 @@ import {
   regionGridPitch,
   regionPathFor,
   regionZoomBucket,
+  resampleRing,
   type FolderRegionShapes,
   type RegionPoint,
 } from "../../src/services/graphFolderRegion";
@@ -982,5 +983,200 @@ describe("region zoom rules", function () {
     expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(40);
     expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
     expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
+  });
+
+  /**
+   * The uneven ring these cases share: sixty vertices on a circle of radius
+   * 100, with the angular gaps alternating 0.3x and 1.7x of even. No radial
+   * jitter at all — the vertices lie exactly on the circle — so anything the
+   * fitted curve does other than trace that circle is a parameterisation
+   * artefact and nothing else. That is the isolation the measurement in the
+   * spec made, reproduced as a fixture.
+   */
+  function unevenRing(): RegionPoint[] {
+    const ring: RegionPoint[] = [];
+    const base = (2 * Math.PI) / 60;
+    let angle = 0;
+    const push = (): void => {
+      ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
+    };
+    for (let pair = 0; pair < 30; pair += 1) {
+      push();
+      angle += base * 0.3;
+      push();
+      angle += base * 1.7;
+    }
+    return ring;
+  }
+
+  function spacingsOf(ring: readonly RegionPoint[]): number[] {
+    return ring.map((point, index) => {
+      const next = ring[(index + 1) % ring.length];
+      return Math.hypot(next.x - point.x, next.y - point.y);
+    });
+  }
+
+  /** How far the fitted curve wanders in and out, sampled along every span:
+   *  the radial spread of the curve, which is what "wobble" means here. */
+  function radialRange(shapes: FolderRegionShapes): number {
+    const path = regionPathFor(
+      recordingView().view,
+      shapes,
+      IDENTITY,
+      1,
+    ) as unknown as RecordingPath;
+    const radii: number[] = [];
+    let current = path.commands[0].args;
+    for (const command of path.commands.slice(1)) {
+      if (command.op !== "bezierCurveTo") continue;
+      const c1 = command.args.slice(0, 2);
+      const c2 = command.args.slice(2, 4);
+      const end = command.args.slice(4, 6);
+      for (let step = 0; step < 16; step += 1) {
+        const t = step / 16;
+        const u = 1 - t;
+        const x =
+          u * u * u * current[0] +
+          3 * u * u * t * c1[0] +
+          3 * u * t * t * c2[0] +
+          t * t * t * end[0];
+        const y =
+          u * u * u * current[1] +
+          3 * u * u * t * c1[1] +
+          3 * u * t * t * c2[1] +
+          t * t * t * end[1];
+        radii.push(Math.hypot(x, y));
+      }
+      current = end;
+    }
+    return Math.max(...radii) - Math.min(...radii);
+  }
+
+  /**
+   * The discriminating test, and the reason the resampler exists.
+   *
+   * D6's existing jitter case is *not* discriminating: the measurement in the
+   * spec showed the shipping fit already handles radial jitter and fails on
+   * uneven spacing. This one holds the vertices exactly on a circle and varies
+   * only their spacing, so the fit has nothing to smooth away and only the
+   * parameterisation can be at fault.
+   *
+   * Measured on this fixture: 0.3198 without the resampler, 0.1285 with it, a
+   * 2.5x improvement. The assertion asks for half, which leaves the margin
+   * the numbers deserve and still fails outright on today's code, where both
+   * sides are the same path.
+   */
+  it("evens the spacing so the fit stops wobbling", function () {
+    const ring = unevenRing();
+    const spacings = spacingsOf(ring);
+    expect(Math.max(...spacings) / Math.min(...spacings)).to.be.greaterThan(
+      5,
+      "the fixture must actually be unevenly spaced",
+    );
+
+    const withoutResampling = radialRange(fitOnly([ring]));
+    // The ring's perimeter is about 628, so a pitch of 10 asks for 63 points
+    // and the never-upsample rule caps it at the source's own 60: the same
+    // vertex count, evenly spaced.
+    const withResampling = radialRange({
+      radius: 10,
+      pitch: 10,
+      discs: [],
+      loops: [ring],
+    });
+
+    expect(
+      withResampling,
+      "resampling to even arc length should halve the curve's wobble",
+    ).to.be.lessThan(withoutResampling / 2);
+  });
+
+  it("resamples a ring to even spacing without adding vertices", function () {
+    const ring = unevenRing();
+    const even = resampleRing(ring, 10);
+    expect(even.length).to.equal(60);
+    const spacings = spacingsOf(even);
+    // Chords, not arcs: an interval that happens to straddle one of the
+    // source polyline's corners is a hair shorter than one that does not, so
+    // this is even to within a fraction of a percent rather than exactly.
+    expect(Math.max(...spacings) / Math.min(...spacings)).to.be.lessThan(1.02);
+  });
+
+  it("never sharpens a ring that is already at the pitch", function () {
+    // Upsampling inserts points along straight chords: no new information,
+    // but more control points, which un-smooths the fit back toward the
+    // polyline it came from. Tying the spacing to the pitch is what makes
+    // that impossible.
+    const ring: RegionPoint[] = [];
+    for (let index = 0; index < 40; index += 1) {
+      const angle = (index / 40) * 2 * Math.PI;
+      ring.push({ x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 });
+    }
+    expect(resampleRing(ring, 0.1).length).to.equal(40);
+    expect(resampleRing(ring, 1e-9).length).to.equal(40);
+  });
+
+  it("returns a ring and throws nothing on degenerate resampling input", function () {
+    const cases: Array<[RegionPoint[], number]> = [
+      [[], 10],
+      [[{ x: 1, y: 1 }], 10],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+        ],
+        10,
+      ],
+      [
+        [
+          { x: 2, y: 2 },
+          { x: 2, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        10,
+      ],
+      [
+        [
+          { x: Number.NaN, y: 0 },
+          { x: 0, y: 1 },
+          { x: 1, y: 1 },
+        ],
+        10,
+      ],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 9 },
+        ],
+        0,
+      ],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 9 },
+        ],
+        Number.NaN,
+      ],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 9 },
+        ],
+        Number.POSITIVE_INFINITY,
+      ],
+    ];
+    for (const [ring, spacing] of cases) {
+      let result: RegionPoint[] | null = null;
+      expect(
+        () => {
+          result = resampleRing(ring, spacing);
+        },
+        `${JSON.stringify(ring)} at ${spacing}`,
+      ).to.not.throw();
+      expect(Array.isArray(result)).to.equal(true);
+    }
   });
 });

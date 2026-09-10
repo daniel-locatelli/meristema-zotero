@@ -68,6 +68,20 @@ toward the vertices instead of through them, so the sub-cell jitter averages
 out while the contour it is fitted to — same points, same topology — is
 untouched.
 
+**Correction, 2026-09-10 (region shapes).** The cause named above is wrong, and
+it was measured rather than argued. On the same ring, fed to the same fit:
+removing grid quantisation jitter entirely by Newton-refining every vertex onto
+the exact level set changes the curvature standard deviation from 0.0511 to
+0.0514 — no improvement at all — while evening the vertex spacing takes it to
+0.0416. The wobble is a **parameterisation** artefact: a uniform B-spline gives
+every control point the same parameter interval, so unevenly spaced
+marching-squares vertices vary the curvature for reasons that are not about the
+shape. The fit itself is unchanged and stays for the reason it always had — it
+carries no denominator that can vanish, and `draw()` latches `canvasError`.
+What changed is that the ring is resampled to even arc length before it
+(`resampleRing`). See
+`docs/superpowers/specs/2026-09-10-graph-region-shapes-design.md`.
+
 A curve does not re-facet, because the rasterizer flattens it in **device**
 pixels: at any zoom the browser subdivides until the error is sub-pixel _on
 screen_. That is the whole reason a curve is the answer and a finer polyline
