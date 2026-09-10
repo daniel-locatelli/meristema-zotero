@@ -283,3 +283,38 @@ export function folderRegionContours(
 
   return stitch(segments);
 }
+
+/**
+ * A region's contours as one `Path2D`, built from the canvas's own window.
+ *
+ * `Path2D` is a DOM constructor, and the plugin's bundle runs in a scope that
+ * carries none: the live plugin threw "Path2D is not defined" the moment a
+ * folder was drawn, `draw()` caught it and latched `canvasError`, and the plot
+ * stayed on its flat panel fill — no nodes, no axes — for the rest of that
+ * renderer's life (backlog B28). Every test scope has a `Path2D` on it, which
+ * is exactly why the suite watched this happen and reported nothing. The
+ * renderer already takes `ResizeObserver` from `canvas.ownerDocument
+ * .defaultView`; this is the same rule, and the reason it is a function here
+ * rather than a line there is that a fake window makes it testable.
+ *
+ * Null when the window has no `Path2D` at all, so the caller skips the region
+ * rather than losing the frame the nodes are drawn in.
+ */
+export function regionPathFor(
+  view: Window | null,
+  loops: readonly (readonly RegionPoint[])[],
+  project: (point: RegionPoint) => RegionPoint,
+): Path2D | null {
+  const constructor = (view as any)?.Path2D as typeof Path2D | undefined;
+  if (!constructor) return null;
+  const path = new constructor();
+  for (const loop of loops) {
+    loop.forEach((point, index) => {
+      const screen = project(point);
+      if (index === 0) path.moveTo(screen.x, screen.y);
+      else path.lineTo(screen.x, screen.y);
+    });
+    path.closePath();
+  }
+  return path;
+}

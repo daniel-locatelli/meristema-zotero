@@ -98,7 +98,7 @@ class FakeCanvas {
   tabIndex = 0;
   context = new FakeContext2D();
   ownerDocument: {
-    defaultView: null;
+    defaultView: { Path2D: typeof FakePath2D } | null;
     createElement: (tag: string) => FakeCanvas;
   };
   private listeners = new Map<string, Array<(event: unknown) => void>>();
@@ -233,14 +233,20 @@ function lastRegionStrokeOf(
   throw new Error(`no region stroke recorded for ${color}`);
 }
 
-function withPath2DPolyfill<T>(run: () => T): T {
-  const original = (globalThis as { Path2D?: unknown }).Path2D;
-  (globalThis as { Path2D?: unknown }).Path2D = FakePath2D;
-  try {
-    return run();
-  } finally {
-    (globalThis as { Path2D?: unknown }).Path2D = original;
-  }
+/**
+ * The renderer builds a region's path from `canvas.ownerDocument.defaultView`,
+ * not from the global scope, because the plugin's bundle runs in a scope with
+ * no DOM constructors on it (backlog B28). This used to polyfill `globalThis`
+ * instead, which is precisely why these tests watched the live plugin throw
+ * "Path2D is not defined" and reported nothing: every test scope has a global
+ * `Path2D`, and the renderer was reading the one place a plugin never has one.
+ *
+ * The view is attached after construction so the constructor still takes the
+ * null-view path this double is built around — no `ResizeObserver`, no
+ * `requestAnimationFrame`, no initial fit.
+ */
+function attachView(canvas: FakeCanvas): void {
+  canvas.ownerDocument.defaultView = { Path2D: FakePath2D };
 }
 
 describe("CitationGraphRenderer regions", function () {
@@ -248,7 +254,7 @@ describe("CitationGraphRenderer regions", function () {
     "freezes a selected region's contour during a free-axis drag and " +
       "catches it up on pointer-up",
     function () {
-      withPath2DPolyfill(() => {
+      {
         const canvas = new FakeCanvas();
         const graphNode = node("n1", { collectionIDs: [1] });
         const renderer = new CitationGraphRenderer({
@@ -259,6 +265,7 @@ describe("CitationGraphRenderer regions", function () {
           onSelectionChange: () => undefined,
           onOpenNode: () => undefined,
         });
+        attachView(canvas);
 
         // Pin the node at a known point. The fake environment's transform
         // starts at the identity (scale 1, origin 0,0) and its device pixel
@@ -294,7 +301,7 @@ describe("CitationGraphRenderer regions", function () {
         // Pointer-up is the one point the region is allowed to catch up: it
         // must now reflect the node's final, dragged-to position.
         expect(afterDrag.commands).to.not.deep.equal(before.commands);
-      });
+      }
     },
   );
 
@@ -311,7 +318,7 @@ describe("CitationGraphRenderer regions", function () {
       // repair. What this does catch is a regression in the *other*
       // direction: a selective-invalidation scheme that accidentally drops
       // or miscolours the region it was not supposed to touch.
-      withPath2DPolyfill(() => {
+      {
         const canvas = new FakeCanvas();
         const kept = node("kept", { collectionIDs: [1] });
         const other = node("other", { collectionIDs: [2] });
@@ -323,6 +330,7 @@ describe("CitationGraphRenderer regions", function () {
           onSelectionChange: () => undefined,
           onOpenNode: () => undefined,
         });
+        attachView(canvas);
         renderer.setNodePositions(
           new Map([
             ["kept", { x: 20, y: 20 }],
@@ -354,12 +362,12 @@ describe("CitationGraphRenderer regions", function () {
         expect((keptStroke.args[0] as FakePath2D).commands).to.deep.equal(
           before.commands,
         );
-      });
+      }
     },
   );
 
   it("lets a seed's colour override the fill even under the default uniform metric", function () {
-    withPath2DPolyfill(() => {
+    {
       const canvas = new FakeCanvas();
       const graphNode = node("seedling");
       const renderer = new CitationGraphRenderer({
@@ -381,11 +389,11 @@ describe("CitationGraphRenderer regions", function () {
       // `nodeColorMetric` — a seed is its own colour whatever the metric —
       // so even "uniform" (the shipped default) must lose to it here.
       expect(fills[fills.length - 1].fillStyle).to.equal("#ff00aa");
-    });
+    }
   });
 
   it("omits the category line from a node's tooltip under the uniform metric", function () {
-    withPath2DPolyfill(() => {
+    {
       const canvas = new FakeCanvas();
       const graphNode = node("n1");
       const renderer = new CitationGraphRenderer({
@@ -410,7 +418,7 @@ describe("CitationGraphRenderer regions", function () {
       // every hover card. `nodeCategory` is used at all only for the four
       // categorical metrics, so its absence here is the fix.
       expect(title).to.not.include("No value");
-    });
+    }
   });
 });
 
@@ -431,7 +439,7 @@ describe("CitationGraphRenderer colour metric allowlist", function () {
       // allowlist over `METRIC_DEFINITIONS`, so an id it does not recognise
       // routes to the category-assignment path instead, which fails closed:
       // the node simply gets `theme.categorical.noValue`.
-      withPath2DPolyfill(() => {
+      {
         const canvas = new FakeCanvas();
         const graphNode = node("n1");
         const renderer = new CitationGraphRenderer({
@@ -446,6 +454,7 @@ describe("CitationGraphRenderer colour metric allowlist", function () {
           onSelectionChange: () => undefined,
           onOpenNode: () => undefined,
         });
+        attachView(canvas);
 
         expect(() =>
           renderer.setNodePositions(new Map([["n1", { x: 100, y: 100 }]])),
@@ -459,7 +468,7 @@ describe("CitationGraphRenderer colour metric allowlist", function () {
         expect(fills[fills.length - 1].fillStyle).to.equal(
           theme.categorical.noValue,
         );
-      });
+      }
     },
   );
 });

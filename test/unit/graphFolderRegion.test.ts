@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   folderRegionContours,
+  regionPathFor,
   type RegionPoint,
 } from "../../src/services/graphFolderRegion";
 
@@ -125,5 +126,61 @@ describe("folder regions", function () {
     for (const loop of contours) {
       expect(loop.length).to.be.greaterThan(6);
     }
+  });
+
+  /**
+   * B28. `Path2D` is a DOM constructor, and the plugin's bundle runs in a
+   * scope that has none on it — the live plugin threw "Path2D is not defined"
+   * the moment a region was drawn, while every test scope has one and saw
+   * nothing. The path is built from the canvas's own window instead, as
+   * `ResizeObserver` already is.
+   */
+  it("builds its path from the window it is handed, not from a global", function () {
+    const calls: string[] = [];
+    class FakePath {
+      moveTo(x: number, y: number): void {
+        calls.push(`moveTo(${x},${y})`);
+      }
+      lineTo(x: number, y: number): void {
+        calls.push(`lineTo(${x},${y})`);
+      }
+      closePath(): void {
+        calls.push("closePath");
+      }
+    }
+    const view = { Path2D: FakePath } as unknown as Window;
+
+    const path = regionPathFor(
+      view,
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 2, y: 2 },
+        ],
+      ],
+      (point: RegionPoint) => ({ x: point.x * 10, y: point.y * 10 }),
+    );
+
+    expect(
+      path,
+      "the path came from the window's constructor",
+    ).to.be.instanceOf(FakePath);
+    expect(calls).to.deep.equal([
+      "moveTo(0,0)",
+      "lineTo(20,0)",
+      "lineTo(20,20)",
+      "closePath",
+    ]);
+  });
+
+  it("returns null when the window has no Path2D at all", function () {
+    expect(
+      regionPathFor(
+        {} as unknown as Window,
+        [[{ x: 0, y: 0 }]],
+        (p: RegionPoint) => p,
+      ),
+    ).to.equal(null);
   });
 });

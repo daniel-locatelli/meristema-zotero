@@ -47,7 +47,11 @@ import {
   assignCategories,
   type CategoryAssignment,
 } from "./graphCategoryAssignment";
-import { folderRegionContours, type RegionPoint } from "./graphFolderRegion";
+import {
+  folderRegionContours,
+  regionPathFor,
+  type RegionPoint,
+} from "./graphFolderRegion";
 import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
 import {
   devicePixelScale,
@@ -1364,15 +1368,12 @@ export class CitationGraphRenderer {
     for (const region of this.regions) {
       const loops = contours.get(region.collectionID) ?? [];
       if (!loops.length) continue;
-      const path = new Path2D();
-      for (const loop of loops) {
-        loop.forEach((point, index) => {
-          const screen = this.projectToScreen(point);
-          if (index === 0) path.moveTo(screen.x, screen.y);
-          else path.lineTo(screen.x, screen.y);
-        });
-        path.closePath();
-      }
+      const path = regionPathFor(
+        this.canvas.ownerDocument.defaultView,
+        loops,
+        (point) => this.projectToScreen(point),
+      );
+      if (!path) continue;
 
       const layer = this.regionLayer(plot.width, plot.height);
       layer.clearRect(0, 0, plot.width, plot.height);

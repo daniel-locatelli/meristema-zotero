@@ -39,6 +39,24 @@ function command(element: Element): void {
   element.dispatchEvent(new win.Event("command", { bubbles: true }));
 }
 
+/** Whether the plot canvas has anything on it beyond one flat fill. */
+function paintedPixels(canvas: HTMLCanvasElement): number {
+  const context = canvas.getContext("2d")!;
+  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const first = [data[0], data[1], data[2]];
+  let different = 0;
+  for (let index = 0; index < data.length; index += 160) {
+    if (
+      data[index] !== first[0] ||
+      data[index + 1] !== first[1] ||
+      data[index + 2] !== first[2]
+    ) {
+      different += 1;
+    }
+  }
+  return different;
+}
+
 /**
  * Selecting a folder's row now draws it as a region on the plot (Task 8/9);
  * this walks that through the plugin's own chrome rather than the model, per
@@ -204,22 +222,7 @@ describe("The graph's folder regions", function () {
       return original.apply(Zotero, args);
     };
 
-    const painted = (): number => {
-      const context = canvas.getContext("2d")!;
-      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      const first = [data[0], data[1], data[2]];
-      let different = 0;
-      for (let index = 0; index < data.length; index += 160) {
-        if (
-          data[index] !== first[0] ||
-          data[index + 1] !== first[1] ||
-          data[index + 2] !== first[2]
-        ) {
-          different += 1;
-        }
-      }
-      return different;
-    };
+    const painted = (): number => paintedPixels(canvas);
 
     try {
       const before = painted();

@@ -939,7 +939,7 @@ wherever `regionsForRenderer` resolves a region's colour the same way.
 
 ---
 
-## B28. Selecting a folder blanks the plot; a folder graph opens blank
+## B28. Selecting a folder blanks the plot; a folder graph opens blank — FIXED
 
 Found in the user's walk of D3's manual batch (2026-09-10), on the XPI built
 from `259cd17`. **The blocker: five of D3's eight checks cannot be walked
@@ -965,6 +965,43 @@ So the trigger is a non-empty `regions`, not the click, and it does not matter
 whether the selection came from a click, from `initialCollectionIDs`, from a
 restored state or from the version 2 migration. Any one of those is a
 reproduction; the cheapest is a graph opened from a folder.
+
+### Fixed 2026-09-10. Root cause: `Path2D` off the wrong scope
+
+The user's Error Console said it outright: **"Path2D is not defined"**, with
+no axis frame and no tick numbers anywhere on the plot — which is the
+signature of a throw in `drawRegions`, since the draw order is backdrop →
+regions → edges → nodes → labels → axes and the catch runs after the panel
+fill.
+
+`Path2D` is a DOM constructor. The plugin's bundle runs in a scope that
+carries none, so `new Path2D()` in `drawRegions` threw the moment a folder
+had to be drawn. The renderer already knew this rule and follows it for
+`ResizeObserver` (`const view = this.canvas.ownerDocument.defaultView`, line
+~304); the region path was the one place that reached for a bare global.
+
+The path is now built by `regionPathFor(view, loops, project)` in
+`graphFolderRegion.ts`, from `canvas.ownerDocument.defaultView`, returning
+null — and skipping that region rather than losing the whole frame — when the
+window has no `Path2D`.
+
+**Why every test was green while the live plugin was blank**, which is the
+part worth carrying: `citationGraphRendererRegions.test.ts` polyfilled
+`Path2D` onto `globalThis`, and the Zotero suite's scopes have a global
+`Path2D` of their own. The tests were supplying the constructor in the one
+place a plugin never has one. The unit double now attaches it to the fake
+canvas's `defaultView` instead, and a unit test drives `regionPathFor` with a
+fake window, so a regression fails on the constructor's source rather than on
+a stroke that happens not to appear. A test that stood in for the plugin's
+real scope by deleting the global was tried and does **not** work: the test
+file's `globalThis` is not the bundle's scope, so the removal is invisible to
+the renderer.
+
+Two things were true and are worth keeping: `draw()` latches `canvasError`
+after one throw, so any future throw blanks the plot permanently and the only
+recovery is a new renderer — closing and reopening the graph tab, not "Fit".
+And the error is logged exactly once per renderer, so the Error Console is
+always the first place to look.
 
 ### What the 2026-09-10 investigation established
 
