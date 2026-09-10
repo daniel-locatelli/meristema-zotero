@@ -384,6 +384,13 @@ export function renderGraphView(
   let swatches: SwatchLedgerState = emptySwatchLedger();
   /** Which seed-palette index each seed key holds. */
   let seedSwatches: SwatchLedgerState = emptySwatchLedger();
+  /**
+   * Which categorical swatch each category key holds, as restored from the
+   * saved graph. The live copy is the renderer's: `applyState` hands this to
+   * it and `getState` reads it back, so this variable only matters while no
+   * renderer exists (B25).
+   */
+  let categorySwatches: SwatchLedgerState = emptySwatchLedger();
   /** Papers the reader removed one by one, by node key. */
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
@@ -4056,6 +4063,7 @@ export function renderGraphView(
       regions: [...regions],
       swatches,
       seedSwatches,
+      categorySwatches: renderer?.getCategorySwatchLedger() ?? categorySwatches,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
     };
@@ -4104,6 +4112,8 @@ export function renderGraphView(
       regions = [...state.regions];
       swatches = state.swatches;
       seedSwatches = state.seedSwatches;
+      categorySwatches = state.categorySwatches;
+      renderer?.setCategorySwatchLedger(categorySwatches);
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
         const paper = paperByKey.get(itemKey);

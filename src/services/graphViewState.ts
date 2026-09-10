@@ -75,17 +75,26 @@ export interface GraphViewState {
    * Which swatch each *collection ID* holds, stringified. Despite the name,
    * this never holds a category assignment: `graphViewService.ts` only ever
    * writes stringified collection IDs into it. The category ledger the spec
-   * describes (publication type, provider, ...) lives on the renderer's
-   * `categorySwatchLedger` instead and is never persisted — see B-category
-   * (docs/superpowers/handoffs/2026-09-08-review-backlog.md). If a category
-   * ledger is ever folded into this same field, its keys must be namespaced
-   * first: a collection ID and a category value can both be the string
-   * `"12"`, and an unnamespaced merge would let one silently clobber the
-   * other. Never dealt by rank; see B12.
+   * describes (publication type, provider, ...) is `categorySwatches`, a
+   * field of its own rather than a namespace inside this one: a collection
+   * ID and a category value can both be the string `"12"`, and an
+   * unnamespaced merge would let one silently clobber the other. Never
+   * dealt by rank; see B12.
    */
   swatches: SwatchLedgerState;
   /** Which seed-palette index each seed key holds. */
   seedSwatches: SwatchLedgerState;
+  /**
+   * Which categorical swatch each category key holds — a publication type,
+   * a provider, "Open access", "Retracted". Draws from the same pool as
+   * `swatches`, deliberately (a region is a large translucent hull and a
+   * category a small solid disc, so a shared swatch is never confusable),
+   * but is kept apart from it because the keys can collide. Persisted so a
+   * category that came and went in one session opens on the same swatch it
+   * had (B25); a version 3 record saved before the field existed parses to
+   * an empty ledger, which reallocates deterministically.
+   */
+  categorySwatches: SwatchLedgerState;
   camera: GraphViewTransform | null;
   /** The custom tab title, or null when the title is derived. */
   title: string | null;
@@ -120,6 +129,7 @@ export function emptyGraphViewState(): GraphViewState {
     regions: [],
     swatches: emptySwatchLedger(),
     seedSwatches: emptySwatchLedger(),
+    categorySwatches: emptySwatchLedger(),
     camera: null,
     title: null,
   };
@@ -468,6 +478,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     regions,
     swatches: parsedLedger(raw.swatches),
     seedSwatches: parsedLedger(raw.seedSwatches),
+    categorySwatches: parsedLedger(raw.categorySwatches),
     camera: parseCamera(raw.camera),
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : null,
   };

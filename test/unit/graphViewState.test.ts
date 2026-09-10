@@ -414,6 +414,33 @@ describe("version 3", function () {
     expect(parsed?.seedSwatches.assigned).to.deep.equal({});
   });
 
+  it("round-trips the category ledger with the graph", function () {
+    // The spec promises the category-to-swatch map is persisted like the seed
+    // and folder ledgers. It was not: the ledger lived on the renderer and
+    // died with it, so a category that came and went could land on a
+    // different swatch after a reopen with nothing in the library changed
+    // (B25).
+    const state: GraphViewState = {
+      ...emptyGraphViewState(),
+      categorySwatches: {
+        assigned: { article: 3, OpenAlex: 1 },
+        releasedOrder: [],
+      },
+    };
+    const parsed = parseGraphViewState(serializeGraphViewState(state));
+    expect(parsed?.categorySwatches.assigned).to.deep.equal({
+      article: 3,
+      OpenAlex: 1,
+    });
+  });
+
+  it("starts a version 3 graph saved without a category ledger on an empty one", function () {
+    const { categorySwatches: _dropped, ...saved } = emptyGraphViewState();
+    void _dropped;
+    const parsed = parseGraphViewState(JSON.stringify(saved));
+    expect(parsed?.categorySwatches.assigned).to.deep.equal({});
+  });
+
   it("degrades an array-shaped assigned ledger to an empty map", function () {
     // A hostile or corrupt record could carry `assigned` as an array. Left
     // unguarded, Object.entries would walk its indices as if they were
