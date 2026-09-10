@@ -138,7 +138,7 @@ off-by-one, and it is the case a test should pin, because an implementation
 that wraps against the wrong length produces it by accident on longer rings
 too.
 
-### Two traps the implementation must handle
+### Three traps the implementation must handle
 
 **The loops arrive with a duplicated first point.** `stitch` ends every loop
 with a point whose weld key equals `loop[0]` — either the walk arrived back at
@@ -161,7 +161,7 @@ one before fitting — a near-duplicate weld, not decimation, since it only
 ever removes vertices that sit a fit-worthy distance apart, never ones that
 are merely close together along a smooth run.
 
-Both traps are resolved before `segmentControls` ever runs, so the fit itself
+Both degeneracy traps are resolved before `segmentControls` ever runs, so the fit itself
 has no denominator that can vanish and nothing left to guard: a finite ring
 in guarantees a finite curve out. A `NaN` reaching `bezierCurveTo` would not
 throw — the canvas silently drops the sub-path — but `draw()` latches
@@ -173,10 +173,10 @@ curve builder must be total: no exceptions, no `NaN` reaching
 **Fit after projection, not before.** Project each loop point to screen first,
 then build the curve in device-pixel coordinates. The projection is a uniform
 similarity (translate plus one scale), so curve fitting commutes with it and
-the shape is identical either way — but doing it after means the epsilon
-guards above are in device pixels, where "degenerate" actually means
-"sub-pixel", rather than in data units where the right epsilon depends on the
-graph.
+the shape is identical either way — but doing it after means the weld
+threshold above is in device pixels, where "near-duplicate" actually means
+"sub-pixel", rather than in data units where the right threshold depends on
+the graph.
 
 A loop with fewer than three unique points keeps today's `lineTo` path. There
 is no curve to fit through two points, and the fallback keeps the builder
@@ -408,23 +408,32 @@ window carrying a recording `Path2D`):
 
 - A square loop emits one `bezierCurveTo` per unique vertex, a single
   `moveTo`, and a `closePath` — the ring wraps, so the count is the vertex
-  count, not the vertex count minus one.
+  count, not the vertex count minus one. The `moveTo` lands on the first
+  segment's `start`, which is an averaged point and not a ring vertex.
 - A loop arriving with its duplicated first point (what `stitch` actually
   produces) emits the same commands as the same ring without the duplicate: no
   zero-length segment at the seam.
-- No cusp at a right-angle turn: on a four-point square, every control point
-  is finite and non-degenerate, and **each segment's two control points lie
-  outside its chord, on the far side from the square's centre** — so the fill
-  bulges outward at every corner and no segment dips inward across the
-  diagonal. This is the assertion that a wrong sign or a swapped `m1`/`m2`
-  fails, and a "did it emit four curves" count does not.
+- The convex-hull property, on a four-point square: **every emitted point —
+  both control points and every segment's end point — lies within the hull of
+  the ring**, because each is a convex combination of ring vertices. The curve
+  sits inside its control polygon rather than bulging past it, which is the
+  approximating fit's signature and the inverse of what an interpolating one
+  does. Pinned alongside hand-checked exact values for the first segment, so a
+  swapped `control1`/`control2` or a `4` where a `2` belongs still fails — a
+  "did it emit four curves" count does not.
 - A three-vertex ring — the minimum curve case — emits three curves, and the
   segment `A → B` uses `C` as both `P0` and `P3`. This pins the wrap.
 - Two vertices a hair apart — the grid-corner bunching case — produce finite
   control points, no `NaN`, no throw.
-- Three coincident vertices, which make `t2 − t0` and `t3 − t1` vanish
-  together, produce finite control points and the straight-line fallback on
-  the affected side only.
+- Coincident vertices produce finite control points and no throw. There is no
+  fallback to assert any more: the blending weights are literal thirds and
+  sixths, so coincident control points are simply weighted like any others.
+- **Wobble resistance**, the property this fit exists for: a ring whose
+  vertices alternate by a small perpendicular jitter around a smooth path —
+  the grid-quantisation case — produces a curve that deviates from that path
+  by less than the raw vertices do. An interpolating fit cannot pass this,
+  which is what makes it the discriminating test rather than a restatement of
+  the construction.
 - **Totality on abuse**: a zero-area loop (every vertex identical), a
   single-point loop, a loop carrying a non-finite coordinate, and an empty
   loop list each return a path or `null` and **throw nothing**. This is the
