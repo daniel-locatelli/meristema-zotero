@@ -5,7 +5,6 @@ import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
 import {
   emptyGraphViewState,
   GRAPH_VIEW_STATE_VERSION,
-  MAX_GRAPH_REGIONS,
   markExternalSeedImported,
   parseGraphViewState,
   resolveGraphViewSeeds,
@@ -331,10 +330,13 @@ describe("version 3", function () {
     expect(parsed?.regions).to.deep.equal([7, 9]);
   });
 
-  it("caps the regions it will accept", function () {
-    const state = { ...emptyGraphViewState(), regions: [1, 2, 3, 4, 5, 6] };
+  it("accepts as many regions as the record holds (F14)", function () {
+    // The four-folder cap went on 2026-09-11: the reader can see a plot
+    // turn to mud and untick, but could not see a folder silently released.
+    const regions = Array.from({ length: 12 }, (_, i) => i + 1);
+    const state = { ...emptyGraphViewState(), regions };
     const parsed = parseGraphViewState(JSON.stringify(state));
-    expect(parsed?.regions).to.have.length(MAX_GRAPH_REGIONS);
+    expect(parsed?.regions).to.deep.equal(regions);
   });
 
   it("gives a version 2 folder graph its own folders as regions", function () {
@@ -360,14 +362,14 @@ describe("version 3", function () {
     expect(parsed?.regions).to.deep.equal([]);
   });
 
-  it("caps a version 2 migration at four folders", function () {
+  it("gives a version 2 migration every folder it scoped, in ID order", function () {
     const legacy = {
       ...emptyGraphViewState(),
       version: 2,
       collections: { base: "none", except: [5, 4, 3, 2, 1] },
     };
     const parsed = parseGraphViewState(JSON.stringify(legacy));
-    expect(parsed?.regions).to.deep.equal([1, 2, 3, 4]);
+    expect(parsed?.regions).to.deep.equal([1, 2, 3, 4, 5]);
   });
 
   it("gives a version 1 folder graph its own folders as regions", function () {

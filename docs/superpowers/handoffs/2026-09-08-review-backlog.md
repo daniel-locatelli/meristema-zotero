@@ -1383,6 +1383,16 @@ and the docstring that argues for the cap); the ledger's index range in
 folders" (`test/unit/graphViewState.test.ts`) and "releases the oldest when
 the cap is reached" (`test/unit/graphScopeRailModel.test.ts`).
 
+Resolved 2026-09-11. Cap removed everywhere; the three tests now assert the
+opposite. Asked whether the eight swatches should wrap, fold into Other, or
+cap at eight, the user said "We need to also have more colours then", so
+both themes carry twelve categorical swatches: the eight from D3 plus lime,
+sky, coral (maroon on light) and plum, found by a search over the sRGB cube
+against the validator's floors and every seed and state colour. Past twelve
+the existing `categoricalSwatchAt` guard paints the Other tone, so the
+legend question answers itself: no two folders share a hue; the thirteenth
+onward are all grey.
+
 ---
 
 ## B32. One deep purple region swatch does not read against the dark theme
@@ -1404,6 +1414,16 @@ eyeballed in.
 Pointers: `DARK_THEME.categorical` in `src/services/graphTheme.ts`; the
 palette validation recorded in D3's spec; `drawRegions` in the renderer for
 the fill alpha and stroke width the swatch is drawn at.
+
+Resolved 2026-09-11. Neither guess: shown all eight region swatches and the
+six seed discs on the dark paper, the user pointed at the fourth seed,
+`#442b87`. Its lightness is 25.9 against the paper's 13.6, a 12-point gap;
+every other data colour in both themes clears 23. The validator only banded
+lightness for categorical swatches, so a seed could sink to the paper. Now
+`graphPalette.test.ts` requires every seed and swatch to sit 20 lightness
+points from its theme's paper (that test went red on this seed alone), and
+the seed is `#6c448c`, the best indigo the search found that clears every
+floor against the seeds, swatches, ramp and state colours.
 
 ---
 

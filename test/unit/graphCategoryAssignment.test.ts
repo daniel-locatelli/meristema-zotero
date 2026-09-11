@@ -44,7 +44,7 @@ describe("Graph theme tokens", function () {
   it("resolves a complete token set for each scheme", function () {
     for (const theme of [LIGHT, DARK]) {
       expect(theme.ramp).to.have.lengthOf(5);
-      expect(theme.categorical.swatches).to.have.lengthOf(8);
+      expect(theme.categorical.swatches).to.have.lengthOf(12);
       for (const value of [
         ...theme.ramp,
         ...theme.categorical.swatches,

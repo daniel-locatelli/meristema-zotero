@@ -35,7 +35,6 @@ export type { GraphViewCollectionTicks };
 export const GRAPH_VIEW_STATE_VERSION = 3;
 
 /** At most this many folder regions are drawn at once. */
-export const MAX_GRAPH_REGIONS = 4;
 
 export type GraphViewSeed =
   /** A Zotero item, by key rather than ID: keys survive sync, IDs do not. */
@@ -66,9 +65,10 @@ export interface GraphViewState {
   /** Papers the reader removed one by one. */
   hiddenKeys: string[];
   /**
-   * The folders drawn as regions, oldest selection first. Capped at
-   * `MAX_GRAPH_REGIONS`: overlapping translucent hulls stop being readable
-   * past a handful, and the fifth selection releases the first.
+   * The folders drawn as regions, oldest selection first. Uncapped since
+   * 2026-09-11 (F14): overlapping translucent hulls do stop being readable
+   * past a handful, but the reader can see that and untick, whereas a folder
+   * silently released by a later selection was invisible.
    */
   regions: number[];
   /**
@@ -349,14 +349,14 @@ function normalizedRegions(raw: unknown): number[] {
   const ids = raw.filter(
     (id): id is number => Number.isInteger(id) && (id as number) > 0,
   );
-  return [...new Set(ids)].slice(0, MAX_GRAPH_REGIONS);
+  return [...new Set(ids)];
 }
 
 /**
  * A version 2 graph carried no regions, because folder membership was a node
  * fill and the colour metric defaulted to Collection. A graph made from
  * folders keeps showing those folders, now as regions; a whole-library graph
- * takes none, since picking four folders the reader never singled out would
+ * takes none, since picking folders the reader never singled out would
  * be noise dressed as continuity.
  *
  * The ticks are all there is to go on: `parseGraphViewState` holds a recipe
@@ -365,7 +365,7 @@ function normalizedRegions(raw: unknown): number[] {
  */
 function migratedRegions(ticks: GraphViewCollectionTicks): number[] {
   if (ticks.base !== "none") return [];
-  return [...ticks.except].sort((a, b) => a - b).slice(0, MAX_GRAPH_REGIONS);
+  return [...ticks.except].sort((a, b) => a - b);
 }
 
 /**

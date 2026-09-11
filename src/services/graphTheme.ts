@@ -9,7 +9,15 @@ import type { GraphColorScheme } from "../domain/graphTypes";
  * chosen: the swatches clear the lightness band, the chroma floor, and both the
  * simulated-CVD and normal-vision separation floors in each mode, and the ramp
  * is monotone in lightness so it reads as an ordering and survives greyscale.
- * Changing a value here means re-running that validation.
+ * Changing a value here means re-running that validation
+ * (`test/unit/graphPalette.test.ts`).
+ *
+ * The categorical list is twelve long since 2026-09-11 (F14, when the
+ * four-folder region cap went): the first eight are D3's, the last four —
+ * lime, sky, coral (maroon on the light paper) and plum — were searched for
+ * against the same floors plus a paper-lightness clearance, with light and
+ * dark keeping the same families in the same order. A thirteenth folder
+ * takes the Other tone (`categoricalSwatchAt`).
  */
 
 export interface GraphSurfaceTokens {
@@ -119,6 +127,10 @@ const LIGHT_THEME: GraphTheme = {
       "#a302a0",
       "#a44c00",
       "#07bcbd",
+      "#66c636",
+      "#36baf6",
+      "#8a423c",
+      "#8a5490",
     ],
     other: "#7e8a84",
     noValue: "#9aa5a0",
@@ -164,11 +176,15 @@ const DARK_THEME: GraphTheme = {
       "#ac00a9",
       "#a44c00",
       "#04a7a8",
+      "#66c636",
+      "#1eaee4",
+      "#fc4e42",
+      "#a82a78",
     ],
     other: "#7e8a84",
     noValue: "#9aa5a0",
   },
-  seeds: ["#ff0c9e", "#ffb582", "#8d23ee", "#442b87", "#e089c2", "#abb4fe"],
+  seeds: ["#ff0c9e", "#ffb582", "#8d23ee", "#6c448c", "#e089c2", "#abb4fe"],
   edges: {
     base: "rgba(154, 156, 147, .28)",
     outgoing: "#006bb8",

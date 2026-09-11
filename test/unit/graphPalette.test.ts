@@ -88,7 +88,9 @@ function minimumSeparation(
  * Measured from the shipped eight-swatch categorical palette (both themes) on
  * 2026-09-09, via a temporary reporter run against
  * `theme.categorical.swatches`, then rounded down to a round number. That
- * palette is the calibration; the new seed palette must clear the same bar.
+ * palette is the calibration; the new seed palette must clear the same bar,
+ * and so do the four swatches F14 added on 2026-09-11 (searched for against
+ * these floors, not chosen by eye).
  * Observed minima:
  *   - lightness: light 38.5-69.2, dark 40.6-62.1 → band [30, 80]
  *   - chroma: light min 39.5, dark min 36.2 → floor 30
@@ -103,6 +105,7 @@ const LIGHTNESS_BAND: [number, number] = [30, 80];
 const CHROMA_FLOOR = 30;
 const SEPARATION_FLOOR = 30;
 const CVD_SEPARATION_FLOOR = 5;
+const PAPER_LIGHTNESS_CLEARANCE = 20;
 const SCHEMES = ["light", "dark"] as const;
 
 function themes(): GraphTheme[] {
@@ -137,6 +140,25 @@ describe("the categorical swatches", function () {
           minimumSeparation(swatches, kind),
           `${theme.scheme} ${kind}`,
         ).to.be.at.least(CVD_SEPARATION_FLOOR);
+      }
+    }
+  });
+});
+
+describe("every data colour against its paper", function () {
+  // B32: a dark-theme seed, #442b87, sat 12 lightness points above the dark
+  // paper and read as a hole in the plot. Every other shipped colour in both
+  // themes sits at least 23 points from its paper; the floor is that,
+  // rounded down. Seeds and swatches alike are drawn as small discs, so
+  // lightness against the paper is what makes them legible.
+  it("keeps every seed and categorical swatch at least 20 lightness points from the paper", function () {
+    for (const theme of themes()) {
+      const paper = labOf(theme.surfaces.paper)[0];
+      for (const colour of [...theme.seeds, ...theme.categorical.swatches]) {
+        expect(
+          Math.abs(labOf(colour)[0] - paper),
+          `${theme.scheme} ${colour} vs paper`,
+        ).to.be.at.least(PAPER_LIGHTNESS_CLEARANCE);
       }
     }
   });

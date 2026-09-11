@@ -36,7 +36,6 @@ import {
 } from "../domain/workIdentity";
 import {
   emptyGraphViewState,
-  MAX_GRAPH_REGIONS,
   resolveGraphViewSeeds,
   seedFromNode,
   type GraphViewState,
@@ -383,10 +382,10 @@ export function renderGraphView(
   let includeExternal = true;
   /**
    * The folders drawn as regions on the plot. A folder graph opens showing
-   * its own folder, capped the same way any later selection is.
+   * its own folders, every one of them (F14: no cap).
    */
   let regions: number[] = options.initialCollectionIDs?.length
-    ? [...options.initialCollectionIDs].slice(0, MAX_GRAPH_REGIONS)
+    ? [...options.initialCollectionIDs]
     : [];
   /** Which swatch each region's folder holds. Never dealt by rank; see B12. */
   const swatches = createSwatchLedgerStore();
@@ -1169,7 +1168,7 @@ export function renderGraphView(
           // descendant that held its own region independently goes out of
           // scope too — filter against the whole cascade, not just the
           // clicked row's own ID, or that descendant's now-empty region
-          // would linger in `regions` and occupy one of the four slots.
+          // would linger in `regions` and draw an empty region.
           if (!ticked) {
             const droppedIDs = new Set(row.cascadeIDs);
             regions = regions.filter((id) => !droppedIDs.has(id));
@@ -1190,11 +1189,7 @@ export function renderGraphView(
         if (selected && row.state === "off") {
           this.toggleRow(row, true);
         }
-        regions = nextRegionSelection(
-          regions,
-          row.collectionID,
-          MAX_GRAPH_REGIONS,
-        );
+        regions = nextRegionSelection(regions, row.collectionID);
         ensureSwatchesFor();
         notifyStateChange();
         // refreshScopeRail() below already calls regionsForRenderer() and

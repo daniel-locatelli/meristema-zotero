@@ -94,25 +94,25 @@ export function seedRowLabel(paper: {
  * The regions after clicking one folder. Selection is a toggle and holds more
  * than one, because seeing two folders' territories at once — where they
  * overlap, which papers sit in neither — is the comparison a hull is best at.
- * Past the cap the oldest selection is released: overlapping translucent
- * hulls stop being readable past a handful.
+ * There is no cap (F14, 2026-09-11): a plot that turns to mud under many
+ * hulls is something the reader can see and untick, while a folder released
+ * silently by a later pick was not.
  */
 export function nextRegionSelection(
   current: readonly number[],
   collectionID: number,
-  cap: number,
 ): number[] {
   if (current.includes(collectionID)) {
     return current.filter((id) => id !== collectionID);
   }
-  return [...current, collectionID].slice(-cap);
+  return [...current, collectionID];
 }
 
 /**
  * The regions whose folder the library still has (backlog B23). A saved
  * graph's `regions` can name a collection deleted since it was saved; such
  * an ID gets no rail row, so no checkbox to untick it with, draws an empty
- * region and holds one of the `MAX_GRAPH_REGIONS` slots. It is dropped the
+ * region. It is dropped the
  * moment the library no longer has it, the way `toggleRow` drops an
  * unticked one, and the survivors keep their order.
  */
