@@ -109,3 +109,46 @@ export function allocateSwatches(
     releasedOrder: [],
   };
 }
+
+/**
+ * A ledger with its reads and its writes told apart (backlog B24).
+ *
+ * The graph's colour readers used to allocate as a side effect of reading:
+ * a key not yet in the ledger claimed a free index there and then, and the
+ * claim was written back to the outer variable before the reader returned.
+ * That was safe only while every reader ran on a path that reached
+ * `notifyStateChange` in the same tick, and the search box's `input`
+ * listener already did not. Here `peek` is a pure read — the ledger as it
+ * *would* stand with `keys` live, never kept — and `ensure` is the
+ * allocating half, to be called only from paths that persist afterwards.
+ * Because allocation is deterministic, a `peek` before an `ensure` and a
+ * `peek` after it agree, so nothing a read-only path painted moves when the
+ * allocation lands.
+ */
+export interface SwatchLedgerStore {
+  /** The ledger as persisted: what the saved graph carries. */
+  state(): SwatchLedgerState;
+  /** Replace the ledger with one a saved graph carried. */
+  restore(state: SwatchLedgerState): void;
+  /** Read-only: the ledger as it would stand with `keys` live. Never kept. */
+  peek(keys: readonly string[], poolSize: number): SwatchLedgerState;
+  /** Allocating: make `keys` the live keys and keep the result. */
+  ensure(keys: readonly string[], poolSize: number): SwatchLedgerState;
+}
+
+export function createSwatchLedgerStore(
+  initial: SwatchLedgerState = emptySwatchLedger(),
+): SwatchLedgerStore {
+  let current = initial;
+  return {
+    state: () => current,
+    restore: (state) => {
+      current = state;
+    },
+    peek: (keys, poolSize) => allocateSwatches(current, keys, poolSize),
+    ensure: (keys, poolSize) => {
+      current = allocateSwatches(current, keys, poolSize);
+      return current;
+    },
+  };
+}

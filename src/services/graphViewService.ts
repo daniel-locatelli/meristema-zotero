@@ -41,12 +41,7 @@ import {
   seedFromNode,
   type GraphViewState,
 } from "./graphViewState";
-import {
-  allocateSwatches,
-  emptySwatchLedger,
-  swatchIndexFor,
-  type SwatchLedgerState,
-} from "./graphSwatchLedger";
+import { createSwatchLedgerStore, swatchIndexFor } from "./graphSwatchLedger";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
 import { mergeRelatedWorkLists } from "./relationshipStoreService";
 import { externalWorkURL } from "./providerPresentation";
@@ -380,9 +375,9 @@ export function renderGraphView(
     ? [...options.initialCollectionIDs].slice(0, MAX_GRAPH_REGIONS)
     : [];
   /** Which swatch each region's folder holds. Never dealt by rank; see B12. */
-  let swatches: SwatchLedgerState = emptySwatchLedger();
+  const swatches = createSwatchLedgerStore();
   /** Which seed-palette index each seed key holds. */
-  let seedSwatches: SwatchLedgerState = emptySwatchLedger();
+  const seedSwatches = createSwatchLedgerStore();
   /** Papers the reader removed one by one, by node key. */
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
@@ -1163,6 +1158,7 @@ export function renderGraphView(
         } else {
           includeExternal = ticked;
         }
+        ensureSwatchesFor();
         applyFilters();
         notifyStateChange();
       },
@@ -1178,6 +1174,7 @@ export function renderGraphView(
           row.collectionID,
           MAX_GRAPH_REGIONS,
         );
+        ensureSwatchesFor();
         notifyStateChange();
         // refreshScopeRail() below already calls regionsForRenderer() and
         // hands the result to renderer.setRegions — a direct call here
@@ -1797,40 +1794,44 @@ export function renderGraphView(
   /**
    * Seeds hold a palette index for as long as they live, not a position.
    *
-   * Allocates as a side effect: any seed key not already in `seedSwatches`
-   * claims a free index here, and that claim is written back to the outer
-   * `seedSwatches` ledger before this returns.
-   *
-   * The docstring here used to claim every caller reaches `notifyStateChange`
-   * in the same tick, so an allocation always persists. That is already
-   * false: `applyFilters` → `refreshKeyRail` → `refreshScopeRail` →
-   * `scopeSeedRows` reaches this, and both the search box's `input` listener
-   * and (on some paths) the filter controller's `onChange` call `applyFilters`
-   * without `notifyStateChange` following in the same tick. In practice this
-   * is not a correctness bug: the allocation lands in the outer `seedSwatches`
-   * variable regardless, so a later state change (a tick, a seed add, closing
-   * the graph) still persists it, and if the tab closes first, a fresh ledger
-   * on the next load reallocates the same keys in the same order and lands on
-   * the same colours deterministically. What is actually true is: allocation
-   * can happen on a path that does not itself persist, and that is fine only
-   * because reallocation is deterministic, not because the invariant holds.
-   * The real fix — not done in this pass — is to split the allocating half
-   * (`ensureSwatchesFor`) out of this reader, called only from paths that do
-   * reach `notifyStateChange`, leaving a read-only `seedColorsFor` that never
-   * mutates `seedSwatches` for callers like a tooltip or an export preview.
+   * Read-only (B24): the colours come off the ledger as it would stand with
+   * these seeds live, and nothing is written back. The allocating half is
+   * `ensureSwatchesFor`, called from the paths that reach
+   * `notifyStateChange`; a reader on any other path — the search box's
+   * `input` listener through `applyFilters`, a tooltip, an export preview —
+   * sees the same colours because allocation is deterministic, and leaves
+   * the saved ledger exactly as it found it.
    */
   const seedColorsFor = (
     projection: GraphFocusProjection,
   ): Map<string, string> => {
     const theme = renderer?.getTheme() ?? graphThemeFor("light");
     const keys = projection.state.seedKeys;
-    const ledger = allocateSwatches(seedSwatches, keys, theme.seeds.length);
-    seedSwatches = ledger;
+    const ledger = seedSwatches.peek(keys, theme.seeds.length);
     return new Map(
       keys.map((key) => [
         key,
         seedColorAt(swatchIndexFor(ledger, key) ?? 0, theme),
       ]),
+    );
+  };
+
+  /**
+   * The allocating half of the two colour readers (B24): make the current
+   * regions and seeds the live keys of their ledgers and keep the result.
+   * Called only where `notifyStateChange` follows in the same tick, so every
+   * allocation — and every release — that lands in a ledger is persisted.
+   * Everything else reads through `peek` and mutates nothing.
+   */
+  const ensureSwatchesFor = (): void => {
+    const theme = renderer?.getTheme() ?? graphThemeFor("light");
+    swatches.ensure(
+      regions.map((id) => String(id)),
+      theme.categorical.swatches.length,
+    );
+    seedSwatches.ensure(
+      focusProjection?.state.seedKeys ?? [],
+      theme.seeds.length,
     );
   };
 
@@ -1875,6 +1876,7 @@ export function renderGraphView(
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
     renderer?.setSeedKeys(projection.seedKeys, false);
+    ensureSwatchesFor();
     renderer?.setSeedColors(seedColorsFor(projection), false);
     renderer?.setInLibraryReachedKeys(inLibraryReachedKeys(projection), false);
     applyFilters();
@@ -2354,6 +2356,7 @@ export function renderGraphView(
     renderer?.setSeedKeys(new Set(), false);
     renderer?.setSeedColors(new Map(), false);
     renderer?.setInLibraryReachedKeys(new Set(), false);
+    ensureSwatchesFor();
     updateFocusBar();
     applyFilters();
     notifyStateChange();
@@ -3315,26 +3318,12 @@ export function renderGraphView(
    * the folder's key through the ledger, so ticking or unticking one folder
    * can never repaint another's swatch (backlog B12).
    *
-   * Allocates as a side effect: a region ID not already in `swatches` claims
-   * a free index here, and that claim is written back to the outer
-   * `swatches` ledger before this returns.
-   *
-   * The docstring here used to claim every caller reaches `notifyStateChange`
-   * in the same tick, so an allocation always persists. That is already
-   * false: `refreshScopeRail` calls this on every `applyFilters`, and
-   * `applyFilters` runs from the search box's `input` listener with no
-   * `notifyStateChange` following in the same tick. This is not a
-   * correctness bug: the allocation lands in the outer `swatches` variable
-   * regardless, so a later state change still persists it, and a fresh
-   * ledger on the next load reallocates the same folder IDs in the same
-   * order and lands on the same colours deterministically. What is actually
-   * true is: allocation may happen on a non-persisting path, in which case
-   * the colour is reallocated deterministically on the next load — not that
-   * the invariant holds. The real fix — not done in this pass — is to split
-   * the allocating half (`ensureSwatchesFor`) out of this reader, called only
-   * from paths that do reach `notifyStateChange`, leaving a read-only
-   * `regionsForRenderer` that never mutates `swatches` for callers like a
-   * tooltip or an export preview.
+   * Read-only (B24): the colour comes off the ledger as it would stand with
+   * these regions live, and nothing is written back. `refreshScopeRail`
+   * calls this on every `applyFilters`, which the search box's `input`
+   * listener runs without `notifyStateChange` following; the allocating
+   * half is `ensureSwatchesFor`, on the paths that do persist. Allocation is
+   * deterministic, so a colour read here is the colour the ensure lands on.
    */
   regionsForRenderer = (): Array<{
     collectionID: number;
@@ -3342,12 +3331,10 @@ export function renderGraphView(
     nodeKeys: ReadonlySet<string>;
   }> => {
     const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    const ledger = allocateSwatches(
-      swatches,
+    const ledger = swatches.peek(
       regions.map((id) => String(id)),
       theme.categorical.swatches.length,
     );
-    swatches = ledger;
     return regions.map((collectionID) => ({
       collectionID,
       color:
@@ -4056,8 +4043,8 @@ export function renderGraphView(
       includeExternal,
       hiddenKeys: [...hiddenKeys],
       regions: [...regions],
-      swatches,
-      seedSwatches,
+      swatches: swatches.state(),
+      seedSwatches: seedSwatches.state(),
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
     };
@@ -4104,8 +4091,8 @@ export function renderGraphView(
       hiddenKeys.clear();
       for (const key of state.hiddenKeys) hiddenKeys.add(key);
       regions = [...state.regions];
-      swatches = state.swatches;
-      seedSwatches = state.seedSwatches;
+      swatches.restore(state.swatches);
+      seedSwatches.restore(state.seedSwatches);
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
         const paper = paperByKey.get(itemKey);

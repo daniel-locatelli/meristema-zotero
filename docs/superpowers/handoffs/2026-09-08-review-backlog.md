@@ -821,7 +821,7 @@ round-trip, `snapshot.collections`.
 
 ---
 
-## B24. `regionsForRenderer` and `seedColorsFor` allocate on read, and the invariant that read is safe is already false
+## B24. `regionsForRenderer` and `seedColorsFor` allocate on read, and the invariant that read is safe is already false — FIXED
 
 Found in the final whole-branch review of D3. Both readers are documented
 (their own docstrings, updated in the "Fix the region's fill, its cost, and
@@ -851,6 +851,26 @@ and `seedColorsFor` themselves read-only, never mutating `swatches` or
 Pointers: `src/services/graphViewService.ts`, `regionsForRenderer` (~line 3336) and `seedColorsFor` (~line 1819), both with the invariant's history in
 their docstrings; `notifyStateChange` (~line 4072); the search box's `input`
 listener that calls `applyFilters` without it.
+
+### Fixed 2026-09-11, branch `swatch-read-write-split`
+
+The split the docstrings named. `graphSwatchLedger.ts` gains a
+`SwatchLedgerStore` — `peek(keys, poolSize)` is `allocateSwatches` on the
+held ledger with nothing kept, `ensure` is the same call with the result
+kept, plus `state`/`restore` for the saved-graph round-trip. The service's
+`swatches` and `seedSwatches` are two such stores; `regionsForRenderer` and
+`seedColorsFor` peek and never write back, and one `ensureSwatchesFor` makes
+the current regions and seeds the live keys of both ledgers from the four
+paths that reach `notifyStateChange` in the same tick: `toggleRow`,
+`selectRow`, `applySeedProjection` and `clearSeeds`. `applyState` restores
+and does not ensure, since it does not always notify; because allocation is
+deterministic a peek before an ensure and after it agree, so nothing a
+read-only path painted moves when the allocation lands. `categorySwatches`
+(B25) is not routed through a store: that ledger is the renderer's, and the
+service only hands it across. Unit tests on the store: a read leaves the
+ledger unchanged, an ensure changes it, the two agree on every index, an
+ensure without a key releases its index, and a restored ledger reads
+through. `npm run check` green; not walked in Zotero.
 
 ---
 
