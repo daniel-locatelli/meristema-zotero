@@ -1658,6 +1658,17 @@ already has. The concave kink at the neck itself, in the narrow band of
 separations right after the merge, survives a dilation (offsetting a concave
 corner keeps it a corner) and would need a closing pass as well if it shows.
 
+**Deferred by the user, 2026-09-11.** Asked to keep the fill as it is and
+only round the inner curve, three rounding radii were rendered
+(`2026-09-11-b38-opening.png`: the contour opened — eroded then dilated —
+by a 4, 8 or 12 px disc, fill unchanged). The user: "No, nothing there
+looks better. Let's just skip this one. If it really bothers me I will
+tackle it in the future." So neither fix below nor the opening is wanted
+now; the look ships as it is. Do not reopen unless the user does. If they
+do, the implementation sketch for the opening was `ctx.filter =
+url(#…)` with two `feMorphology` steps on the offscreen layer, unverified
+in Zotero's Gecko.
+
 Two fixes, the user's decision:
 
 1. **Border on the dilated edge.** Same shape as today's fill, one edge. The
