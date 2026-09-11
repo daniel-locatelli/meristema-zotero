@@ -11,6 +11,7 @@ import {
 import {
   buildScopeRailModel,
   nextRegionSelection,
+  regionsStillInLibrary,
   seedRowLabel,
 } from "../../src/services/graphScopeRailModel";
 
@@ -250,5 +251,25 @@ describe("selecting folders for regions", function () {
 
   it("releases the oldest when the cap is reached", function () {
     expect(nextRegionSelection([1, 2, 3, 4], 5, 4)).to.deep.equal([2, 3, 4, 5]);
+  });
+});
+
+describe("regions whose folder was deleted", function () {
+  // B23: a saved graph's `regions` can name a collection the library no
+  // longer has. It got no row (so no checkbox to untick it with), drew an
+  // empty region and held one of the four slots until a fifth pick evicted
+  // it. It is dropped the moment the library no longer has it, the way an
+  // unticked folder is.
+  it("drops an ID the library no longer has", function () {
+    expect(regionsStillInLibrary([1, 99, 2], TREE)).to.deep.equal([1, 2]);
+  });
+
+  it("keeps the order of the ones that remain", function () {
+    expect(regionsStillInLibrary([2, 11, 1], TREE)).to.deep.equal([2, 11, 1]);
+  });
+
+  it("frees the slot the deleted folder held", function () {
+    const pruned = regionsStillInLibrary([1, 99, 2, 11], TREE);
+    expect(nextRegionSelection(pruned, 12, 4)).to.deep.equal([1, 2, 11, 12]);
   });
 });

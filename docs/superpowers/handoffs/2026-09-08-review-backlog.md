@@ -800,7 +800,7 @@ Pointers: `addon/content/icons/`, `ICON` in `src/services/menuService.ts`,
 
 ---
 
-## B23. A deleted collection's ID can linger in a graph's saved `regions`
+## B23. A deleted collection's ID can linger in a graph's saved `regions` — FIXED
 
 Found finishing D3's Task 10. `regions` holds collection IDs, and nothing
 prunes one whose collection has since been deleted from the library. The
@@ -818,6 +818,20 @@ gone, the same way `toggleRow` already drops one the moment it is unticked;
 Pointers: `regions` and `regionsForRenderer` in
 `src/services/graphViewService.ts`, `getState`/`applyState`'s `regions`
 round-trip, `snapshot.collections`.
+
+### Fixed 2026-09-11, branch `prune-deleted-regions`
+
+Dropped at restore, as the entry proposed. `regionsStillInLibrary(regions,
+collections)` in `graphScopeRailModel.ts` keeps the IDs whose collection the
+snapshot still lists, in their order, and `applyState` restores `regions`
+through it instead of copying `state.regions` whole. That is the one seam a
+deletion can come through: a view's snapshot never changes underneath it, so
+a deleted folder always arrives as a new snapshot and a fresh
+`applyState(getState())`, and a graph opened from a folder has its IDs checked
+by `openCollections` already. Once dropped, the ID is gone from the next
+`getState`, draws no region and holds no slot. Unit tests: the ID is dropped,
+the survivors keep their order, and the freed slot takes a fourth pick
+without evicting anyone. Not walked in Zotero.
 
 ---
 

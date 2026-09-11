@@ -108,6 +108,22 @@ export function nextRegionSelection(
   return [...current, collectionID].slice(-cap);
 }
 
+/**
+ * The regions whose folder the library still has (backlog B23). A saved
+ * graph's `regions` can name a collection deleted since it was saved; such
+ * an ID gets no rail row, so no checkbox to untick it with, draws an empty
+ * region and holds one of the `MAX_GRAPH_REGIONS` slots. It is dropped the
+ * moment the library no longer has it, the way `toggleRow` drops an
+ * unticked one, and the survivors keep their order.
+ */
+export function regionsStillInLibrary(
+  regions: readonly number[],
+  collections: readonly LibraryCollectionFilter[],
+): number[] {
+  const known = new Set(collections.map((entry) => entry.collectionID));
+  return regions.filter((id) => known.has(id));
+}
+
 function descendantsOf(collection: LibraryCollectionFilter): number[] {
   // `includedCollectionIDs` is the folder plus its subtree, as the snapshot
   // recorded it; a folder with no children lists only itself.

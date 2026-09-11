@@ -80,6 +80,7 @@ import {
 import {
   buildScopeRailModel,
   nextRegionSelection,
+  regionsStillInLibrary,
   seedRowLabel,
   type ScopeSeedRow,
 } from "./graphScopeRailModel";
@@ -4090,7 +4091,10 @@ export function renderGraphView(
       includeExternal = state.includeExternal;
       hiddenKeys.clear();
       for (const key of state.hiddenKeys) hiddenKeys.add(key);
-      regions = [...state.regions];
+      // A folder deleted since the graph was saved gets no rail row and so
+      // no way to untick it; it goes here, the moment the snapshot says the
+      // library no longer has it (B23).
+      regions = regionsStillInLibrary(state.regions, snapshot.collections);
       swatches.restore(state.swatches);
       seedSwatches.restore(state.seedSwatches);
       applyFilters();
