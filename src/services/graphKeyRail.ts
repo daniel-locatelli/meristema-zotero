@@ -425,6 +425,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     // ticked, which is what writes the same tick to the whole subtree.
     box.indeterminate = row.state === "mixed";
     box.title = `Show ${row.label} on the plot`;
+    // The input is clipped to a pixel, so the tooltip lives on the label
+    // around it, which is what the pointer reaches; a title on a label does
+    // not join the input's accessible name, so the screen reader is unchanged.
+    boxLabel.title = box.title;
     box.addEventListener("change", () =>
       options.onScope.toggleRow(row, box.checked),
     );
@@ -437,7 +441,9 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
     // Hovering a parent's square tints every descendant's row, so the reach
     // of the tick shows before the click. The rows are rebuilt on every
-    // render, so a tint never outlives the rows it was written to.
+    // render, so a tint never outlives the rows it was written to. After a
+    // click rebuilds the rows under a still pointer, the tint returns on the
+    // next pointer move, since no pointerenter fires until then.
     if (row.kind === "collection" && row.cascadeIDs.length > 1) {
       const collectionID = row.collectionID;
       const reach = (on: boolean): void => {

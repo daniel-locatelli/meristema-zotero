@@ -1186,8 +1186,9 @@
  * A folder row is indented one step per level of depth, and a guide runs
  * down each ancestor level inside that indent, so a child sits visibly under
  * its parent and a deep tree keeps its shape (B31). The guides are one
- * gradient, one line every step, clipped to the indent's width; they start
- * under the centre of a parent's square (3 px label padding + 6.5 px).
+ * gradient, one line every step, clipped to the indent's width; the 1 px
+ * line spans 9 to 10 px, so its centre is the square's: 3 px label padding
+ * + 6.5 px.
  */
 .cm-scope-row {
   --cm-step: 14px;
@@ -1237,7 +1238,6 @@
   overflow: hidden;
   clip-path: inset(50%);
   border: 0;
-  opacity: 0;
 }
 .cm-scope-square {
   box-sizing: border-box;
