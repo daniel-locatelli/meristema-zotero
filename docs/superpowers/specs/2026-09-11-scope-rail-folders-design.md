@@ -30,8 +30,9 @@ background.
 A row is indented by its depth, 14 px per level, as padding on the row
 rather than spaces in the label. A thin guide line (`--cm-border`) runs down
 each ancestor level, so a child sits visibly under its parent and a deep
-tree keeps its shape. The label loses its `white-space: pre`; the
-`INDENT` constant and the repeat go.
+tree keeps its shape. The label loses its `white-space: pre` and keeps its
+hidden overflow and ellipsis, so a deep label in a narrow rail is cut, not
+wrapped or spilled; the `INDENT` constant and the repeat go.
 
 No disclosure triangles and no folding: the tree is always fully open, as
 today.
@@ -62,8 +63,10 @@ row's `state` and `selected`, the way the row's border colour is today.
 A folder drawn as a region is a selected row in Zotero's own style: the row
 is filled with the accent (`--cm-accent`), the label and the count go
 white. Two or more regions all sit on the same blue and differ only by their
-squares; the square wears a 1 px white edge on a selected row so it separates
-from the fill. The paper background and the coloured border go.
+squares; the square wears a 1 px edge in the row's label ink (white) on a
+selected row so it separates from the fill. The label is white on the accent
+in both themes, so the edge reads wherever the label does. The paper
+background and the coloured border go.
 
 The user's words: "the selection should still select the whole container
 using a native Zotero select style". The Key's pressed entries use an 18 %
@@ -87,7 +90,9 @@ is what makes the cascade legible after the click. Before the click, hovering
 a parent's square tints its descendants' rows with a faint accent
 (`color-mix(in srgb, var(--cm-accent) 10%, transparent)`), so the reach of
 the tick shows first. The tint follows the pointer on the square only, not
-the row body, since the row body's hover is already the region emphasis.
+the row body, since the row body's hover is already the region emphasis. A
+selected row is not tinted: the selected fill wins, so white labels never
+sit on a lightened blue.
 
 ### Themes
 
@@ -112,6 +117,10 @@ edge. Each was shown as a direction (A, B, C on the canvas) and not chosen.
 - Zotero suite: `test/zotero/graphScopeRail.test.ts` already walks the tick
   cascade through the rail; it should still pass unchanged, since the
   handlers are the same.
+- Manual, appended to the roadmap's batch: a screen reader announces the
+  mixed parent as partly checked; a deep folder name in a narrow rail ends
+  in an ellipsis; a selected row's square and label both read on the dark
+  theme.
 
 ## Pointers
 
