@@ -131,6 +131,14 @@ export interface CitationGraphRendererOptions {
     clientX: number,
     clientY: number,
   ) => void;
+  /**
+   * Zotero's appearance changed and the renderer has already re-resolved its
+   * theme; the redraw follows this call. The owner hands back anything it
+   * coloured off the old theme — region and seed colours are strings it
+   * chose, not palette indices the renderer could re-read — with `draw`
+   * false, and the one redraw that follows carries all of it (B29).
+   */
+  onThemeChange?: (theme: GraphTheme) => void;
 }
 
 const WORLD_WIDTH = 1100;
@@ -211,6 +219,7 @@ export class CitationGraphRenderer {
     clientX: number,
     clientY: number,
   ) => void;
+  private readonly onThemeChange: (theme: GraphTheme) => void;
   private visibleKeys: Set<string>;
   /**
    * The keys the *filter* admits, before the search box narrows them further.
@@ -304,6 +313,7 @@ export class CitationGraphRenderer {
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
     this.onNodeContextMenu = options.onNodeContextMenu ?? (() => undefined);
+    this.onThemeChange = options.onThemeChange ?? (() => undefined);
     this.visibleKeys = new Set(this.model.nodes.map((node) => node.key));
     this.scopeKeys = new Set(this.visibleKeys);
 
@@ -796,7 +806,16 @@ export class CitationGraphRenderer {
     }
   };
 
+  /**
+   * The theme is resolved here and not left to `draw()` so that the owner is
+   * told with the new theme already in place, and what it hands back rides
+   * the same redraw. `draw()` resolving it again is a pref read and costs
+   * nothing.
+   */
   private readonly onSchemeChange = (): void => {
+    if (this.destroyed) return;
+    this.refreshTheme();
+    this.onThemeChange(this.theme);
     this.draw();
   };
 
@@ -1255,8 +1274,9 @@ export class CitationGraphRenderer {
   }
 
   /**
-   * The folders drawn behind the nodes, at most four at once — the caller
-   * enforces the cap, not this renderer.
+   * The folders drawn behind the nodes, each in the colour the caller chose.
+   * `draw` false leaves the repaint to a caller that has one coming, as
+   * `setSeedColors` does.
    */
   public setRegions(
     regions: ReadonlyArray<{
@@ -1264,13 +1284,14 @@ export class CitationGraphRenderer {
       color: string;
       nodeKeys: ReadonlySet<string>;
     }>,
+    draw = true,
   ): void {
     this.regions = regions;
     // No blanket cache clear: `regionsFor` below keys each folder's contour
     // on its own node-key set, so a folder whose keys did not change keeps
     // its cached contour even though `setRegions` runs on every keystroke in
     // the search box (finding 4).
-    this.draw();
+    if (draw) this.draw();
   }
 
   /**

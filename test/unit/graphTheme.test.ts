@@ -2,9 +2,11 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   categoricalSwatchAt,
+  GRAPH_APPEARANCE_PREF,
   graphThemeCustomProperties,
   graphThemeFor,
   inLibraryRingColor,
+  resolveGraphScheme,
   seedColorAt,
 } from "../../src/services/graphTheme";
 
@@ -87,5 +89,80 @@ describe("categorical swatch lookup", function () {
     expect(categoricalSwatchAt(-1, theme)).to.equal(theme.categorical.other);
     expect(categoricalSwatchAt(1.5, theme)).to.equal(theme.categorical.other);
     expect(categoricalSwatchAt(null, theme)).to.equal(theme.categorical.other);
+  });
+});
+
+/**
+ * A chrome window's `matchMedia`, answering per feature. `-moz-system-dark-theme`
+ * is the OS's own setting; `prefers-color-scheme` is what the chrome document
+ * shows, which follows the appearance pref only after a restyle Gecko does not
+ * run at the pref write (B29). An unknown feature comes back as `not all`.
+ */
+function fakeView(features: Record<string, boolean>): Window {
+  return {
+    matchMedia: (query: string) => {
+      const name = query.replace(/^\(|\)$/g, "").split(":")[0];
+      const known = Object.keys(features).some((feature) =>
+        name.startsWith(feature),
+      );
+      if (!known) return { media: "not all", matches: false };
+      if (name === "prefers-color-scheme") {
+        return { media: query, matches: features["prefers-color-scheme"] };
+      }
+      return { media: query, matches: features[name] };
+    },
+  } as unknown as Window;
+}
+
+describe("resolving the scheme", function () {
+  function withPref<T>(value: number | null, run: () => T): T {
+    const had = "Services" in globalThis;
+    const previous = (globalThis as any).Services;
+    (globalThis as any).Services =
+      value === null
+        ? undefined
+        : {
+            prefs: {
+              getIntPref: (name: string, fallback: number) =>
+                name === GRAPH_APPEARANCE_PREF ? value : fallback,
+            },
+          };
+    try {
+      return run();
+    } finally {
+      if (had) (globalThis as any).Services = previous;
+      else delete (globalThis as any).Services;
+    }
+  }
+
+  it("takes an explicit Dark or Light from the pref, whatever the OS says", function () {
+    const view = fakeView({
+      "-moz-system-dark-theme": true,
+      "prefers-color-scheme": true,
+    });
+    expect(withPref(1, () => resolveGraphScheme(view))).to.equal("light");
+    expect(withPref(0, () => resolveGraphScheme(view))).to.equal("dark");
+  });
+
+  it("follows the OS under Automatic, not the chrome query that lags the pref write", function () {
+    // Light → Automatic on a dark OS: at the write the chrome still reports
+    // light, and nothing fires when it catches up.
+    const view = fakeView({
+      "-moz-system-dark-theme": true,
+      "prefers-color-scheme": false,
+    });
+    expect(withPref(2, () => resolveGraphScheme(view))).to.equal("dark");
+    const lightOS = fakeView({
+      "-moz-system-dark-theme": false,
+      "prefers-color-scheme": true,
+    });
+    expect(withPref(2, () => resolveGraphScheme(lightOS))).to.equal("light");
+  });
+
+  it("falls back to the chrome query where the OS feature is unknown", function () {
+    const view = fakeView({ "prefers-color-scheme": true });
+    expect(withPref(2, () => resolveGraphScheme(view))).to.equal("dark");
+    expect(withPref(null, () => resolveGraphScheme(view))).to.equal("dark");
+    expect(resolveGraphScheme(null)).to.equal("light");
   });
 });

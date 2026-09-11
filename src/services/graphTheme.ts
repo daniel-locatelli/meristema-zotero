@@ -262,6 +262,14 @@ export function applyGraphThemeToDocument(
 export const GRAPH_APPEARANCE_PREF = "browser.theme.toolbar-theme";
 
 /**
+ * Gecko's chrome-only media feature for the OS's own dark setting, read
+ * straight from the widget layer. Unlike `prefers-color-scheme` it does not
+ * pass through the appearance override, so it neither lags the pref nor
+ * needs a restyle to be right.
+ */
+const SYSTEM_DARK_QUERY = "(-moz-system-dark-theme)";
+
+/**
  * Resolve the scheme from scratch, every time.
  *
  * Setting the appearance pref triggers no restyle of an open chrome document,
@@ -269,10 +277,23 @@ export const GRAPH_APPEARANCE_PREF = "browser.theme.toolbar-theme";
  * never fires `change` — see `test/zotero/colorScheme.test.ts`. Only a query
  * created after the change reports the truth, so this never caches one, and
  * callers re-run it rather than listening on a stored query.
+ *
+ * Under Automatic (pref 2) even a fresh `prefers-color-scheme` query is not
+ * enough: the pref observer runs synchronously at the write, and the chrome's
+ * answer catches up with the OS only some time later, with nothing firing
+ * when it does (B29, reproduced in `test/zotero/graphThemeFlip.test.ts`: at
+ * the write the chrome still said light, 1.5 s later it said dark). So
+ * Automatic asks the OS directly through `-moz-system-dark-theme`, which is
+ * already right at the write, and falls back to the chrome query only where
+ * Gecko does not know the feature.
  */
 export function resolveGraphScheme(view: Window | null): GraphColorScheme {
   const override = appearanceOverride();
   if (override) return override;
+  const system = view?.matchMedia?.(SYSTEM_DARK_QUERY);
+  if (system && system.media !== "not all") {
+    return system.matches ? "dark" : "light";
+  }
   return view?.matchMedia?.("(prefers-color-scheme: dark)")?.matches
     ? "dark"
     : "light";
@@ -299,13 +320,21 @@ export function observeGraphScheme(
   const observer = { observe: () => onChange() };
   services?.prefs?.addObserver?.(GRAPH_APPEARANCE_PREF, observer);
 
-  const query = view?.matchMedia?.("(prefers-color-scheme: dark)") ?? null;
+  // Both queries: the OS one is what `resolveGraphScheme` reads under
+  // Automatic, the chrome one is the fallback where Gecko lacks the feature.
+  const queries = [SYSTEM_DARK_QUERY, "(prefers-color-scheme: dark)"]
+    .map((query) => view?.matchMedia?.(query) ?? null)
+    .filter((query) => query !== null);
   const onMediaChange = (): void => onChange();
-  query?.addEventListener?.("change", onMediaChange);
+  for (const query of queries) {
+    query.addEventListener?.("change", onMediaChange);
+  }
 
   return () => {
     services?.prefs?.removeObserver?.(GRAPH_APPEARANCE_PREF, observer);
-    query?.removeEventListener?.("change", onMediaChange);
+    for (const query of queries) {
+      query.removeEventListener?.("change", onMediaChange);
+    }
   };
 }
 

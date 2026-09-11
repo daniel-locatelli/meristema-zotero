@@ -1162,7 +1162,52 @@ the contour walk, a renderer-level test if it is the draw.
 
 ---
 
-## B29. Switching light → dark leaves the plot background light
+## B29. Switching light → dark leaves the plot background light — FIXED
+
+### Resolved 2026-09-11: B28's latch, Automatic resolving too early, and colours never re-read
+
+Reproduced through the plugin's own menus on the 860701e build
+(`test/zotero/graphThemeFlip.test.ts`): a graph opened from Tools › Meristema
+› New Graph, the appearance pref flipped with nothing touching the graph, the
+plot's centre and corner pixels read back.
+
+**Light → Dark** (pref 1 → 0) repainted dark every run. The 2026-09-10
+sighting was on the 259cd17 build with a region selected — the state B28
+threw in. `draw()` latches `canvasError` on a throw and returns before
+painting while it is latched, so that flip's redraw never ran and the canvas
+kept the light frame it had. B28's fix removed the throw and with it that
+sighting.
+
+**Light → Automatic** (pref 1 → 2) on this dark OS left the plot light in two
+runs out of three. The probe sampled at the pref write and again 1.5 s
+later: at the write a _fresh_ `prefers-color-scheme` query in the chrome
+still reported light; 1.5 s later it reported dark; and nothing fires in
+between, since a held query never does (`colorScheme.test.ts`). The pref
+observer resolves synchronously at the write, so the plugin read light and
+stayed there until the next draw. Gecko's chrome-only
+`-moz-system-dark-theme` media feature reads the OS setting directly and
+reported dark throughout, even while the chrome was explicitly Light.
+`resolveGraphScheme` now asks it under Automatic and falls back to the chrome
+query only where the feature is unknown (`media === "not all"`);
+`observeGraphScheme` listens on both queries, so an OS change while Automatic
+still reaches the renderer. Zotero binds its Appearance radio straight to
+`browser.theme.toolbar-theme` (`preferences_general.xhtml`), so the pref
+observer is the right hook. The rail's repaint the user saw came through
+Zotero's own `--material-*` variables in `graph.css`, which follow Zotero's
+restyle regardless of what the plugin resolves — which is why the rail and
+the plot could disagree.
+
+What the probe could not see, the code did: `regionsForRenderer` and
+`seedColorsFor` read the renderer's cached theme when they push, and the
+flip pushed nothing, so regions and seed discs kept the light palette on the
+dark paper. The renderer now re-resolves its theme inside the pref observer
+and calls a new `onThemeChange(theme)` before the redraw; the view service
+re-pushes regions there through `refreshScopeRail` (which also repaints the
+rail's legend) and seed colours through `setSeedColors(…, false)`, and the
+one redraw that follows carries them. `setRegions` gained the `draw` flag
+`setSeedColors` already had. A unit case pins the contract: the callback
+runs with the theme already dark, and the redraw uses the colour handed back
+(`test/unit/citationGraphRendererThemeChange.test.ts`).
 
 Found in the same walk, on D3's check 8. With a folder selected as a region,
 switching the Zotero theme from light back to dark repaints the rail but

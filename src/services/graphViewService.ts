@@ -3303,6 +3303,16 @@ export function renderGraphView(
     },
     onBackgroundInteraction: appearance.close,
     onNodeContextMenu: openNodeMenu,
+    // Region and seed colours are strings chosen off the theme at the time
+    // they were pushed, so a flip re-reads them here; the redraw that follows
+    // the notice carries them (B29). `refreshScopeRail` also repaints the
+    // rail's region legend and the seed rows' marks off the new theme.
+    onThemeChange: () => {
+      refreshScopeRail();
+      if (focusProjection) {
+        renderer?.setSeedColors(seedColorsFor(focusProjection), false);
+      }
+    },
   });
   const scopeSeedRows = (): ScopeSeedRow[] => {
     const colors = focusProjection
