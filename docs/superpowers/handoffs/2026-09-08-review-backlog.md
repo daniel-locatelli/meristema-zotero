@@ -1614,6 +1614,60 @@ appended with B16's.
 
 ---
 
+## B38. The region's fill reaches past its border and bridges papers the border keeps apart
+
+Found walking B33's check on 2026-09-11, on the 59ebeac build. The check
+passed, with a remainder: "B33 still has the gravity effect creating
+peninsula-like blobs when it could simply be a circle for example. I noticed
+that the background has a bigger circumference than the border of the shape,
+could that have to do with this issue?" It does; they are one thing.
+
+`drawRegions` builds one path from the contour and uses it twice. The fill is
+composited on the offscreen layer as a wide round-joined stroke of the path
+(`lineWidth` = 2 × (node radius 7 + 5) device pixels) under a fill, then
+blended at 0.25 — the device-pixel dilation D3 introduced so the region
+clears the node discs at every zoom. The border is then stroked on the plot
+from the _same raw path_, at 1.6 px. So the fill's edge sits 12 px outside
+the border everywhere. At the fit zoom the squared kernel's lone-paper
+outline has radius `0.541 R` ≈ 16 px, so the fill reaches nearly twice as far
+out as the border — the bigger circumference the user saw. And the dilation
+is a Minkowski sum with a 12 px disc: two outlines whose gap is under 24 px
+get bridged in the fill while the border still draws two circles. That
+bridge is the peninsula. The kernel is not at fault; the border shows the
+shape the kernel actually makes.
+
+`2026-09-11-b38-dilation.png` (beside this file) renders two papers at 1.3,
+1.6, 2.0 and 2.5 R apart, three ways: as shipped; the border moved to the
+dilated edge; and the stroke dilation dropped with the field alone drawing
+the shape.
+
+Two fixes, the user's decision:
+
+1. **Border on the dilated edge.** Same shape as today's fill, one edge. The
+   bridging stays but becomes an honest neck drawn in both. Drawing only:
+   on the offscreen layer, stroke at `dilation + 2 × border` opaque, then
+   `destination-out` the inner stroke-plus-fill at alpha 0.75, leaving a
+   solid ring around a 0.25 interior; blend once.
+2. **No stroke dilation; the field alone.** Drop the wide stroke and floor
+   the halo radius on screen so a lone disc still clears its node
+   (`0.541 R_screen ≥ 12 px`, so `R_screen ≥ ~22 px`), in
+   `regionFalloffRadius`. A paper that reads as a circle is then a circle,
+   fill and border alike, and merging happens only where B33's tuned kernel
+   says so. Every region gets smaller than today's fill, so the lone-halo
+   size from B33 is retaken with the user. The recommendation, since B33's
+   point was to let the kernel decide the shape and the dilation is quietly
+   overriding it.
+
+Pointers: `drawRegions` and `regionLayer` in
+`src/services/citationGraphRenderer.ts` (the dilation, the two uses of the
+path, the docstring that explains the offscreen compositing);
+`regionFalloffRadius` and `FALLOFF_FRACTION` in
+`src/services/graphFolderRegion.ts`; the D3 spec's "dilated by a
+device-pixel amount" paragraph and the shapes spec's "same device-pixel
+dilation stroke as today", both of which the chosen fix amends.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
