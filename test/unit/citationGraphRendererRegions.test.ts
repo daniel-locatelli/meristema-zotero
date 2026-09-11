@@ -294,11 +294,12 @@ describe("CitationGraphRenderer regions", function () {
       // arithmetic the renderer itself uses, for the canvas's own plot rect
       // (800x600 device pixels, free axes on both sides: insets of 18 left,
       // 14 right leave a 768-wide plot; the extent's height is 0, so the
-      // plot's height cannot affect the fit) — times `Math.SQRT1_2` for the
-      // threshold-0.5 disc radius, times the transform's scale of 8.
+      // plot's height cannot affect the fit) — times `sqrt(1 - sqrt(0.5))`
+      // for the squared kernel's threshold-0.5 disc radius (B33), times the
+      // transform's scale of 8.
       const fitScale = regionFitScale(768, 568, 1000, 0);
       const dataSpaceRadius =
-        regionFalloffRadius(1000, 8, fitScale) * Math.SQRT1_2;
+        regionFalloffRadius(1000, 8, fitScale) * Math.sqrt(1 - Math.SQRT1_2);
       const arcs = zoomedIn.commands.filter((command) => command.op === "arc");
       expect(arcs.length).to.equal(3);
       for (const arc of arcs) {

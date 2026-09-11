@@ -51,7 +51,7 @@ export interface FolderRegionOptions {
   threshold?: number;
 }
 
-/** A lone paper's contour: the exact circle `radius * sqrt(1 - threshold)`. */
+/** A lone paper's contour: the exact circle `radius * sqrt(1 - sqrt(threshold))`. */
 export interface RegionDisc {
   centre: RegionPoint;
   radius: number;
@@ -81,9 +81,9 @@ export interface FolderRegionShapes {
  * to the other's field anywhere on the plot. The partition is therefore a
  * decomposition and not an approximation: the union of the components'
  * contours is the folder's contour exactly. `2R` is conservative on purpose —
- * the exact isolation radius is `R(1 + sqrt(1 - t))`, about `1.707R` — and the
- * slack is what guarantees a component's own grid can never omit a paper whose
- * bump overlaps its domain.
+ * the exact isolation radius is `R(1 + sqrt(1 - sqrt(t)))`, about `1.541R`
+ * under the squared kernel — and the slack is what guarantees a component's
+ * own grid can never omit a paper whose bump overlaps its domain.
  *
  * The neighbour search hashes into cells of side `2R`, so each paper compares
  * itself against the nine cells around it rather than against the whole
@@ -164,6 +164,18 @@ export function regionComponents(
 }
 
 const DEFAULT_THRESHOLD = 0.5;
+/**
+ * A lone paper's disc as a fraction of the support `R`: the radius where the
+ * squared kernel `(1 - d²/R²)²` crosses the default threshold.
+ */
+const LONE_DISC_FRACTION = Math.sqrt(1 - Math.sqrt(DEFAULT_THRESHOLD));
+/**
+ * How much wider the support is than the halo D6 tuned. That tuning was done
+ * under the old `1 - d²/R²` kernel, whose lone disc was `R/√2`; the squared
+ * kernel's is `0.541R`, so the support is widened by `0.707 / 0.541 ≈ 1.31`
+ * and a lone paper's disc keeps exactly the size the user settled on.
+ */
+const SUPPORT_PER_TUNED_HALO = Math.SQRT1_2 / LONE_DISC_FRACTION;
 /**
  * How far past the papers' bounding box the grid runs. The field has to reach
  * the threshold from both sides inside the grid, or the contour is clipped
@@ -425,6 +437,12 @@ function componentLoops(
   if (!Number.isFinite(columns) || !Number.isFinite(rows)) return [];
   if (columns < 2 || rows < 2) return [];
 
+  // Each paper's bump is `(1 - d²/R²)²` (B33): zero slope at its edge, so
+  // the summed field is C1 where one paper's support crosses another's halo
+  // and the contour necks smoothly instead of kinking. The old `1 - d²/R²`
+  // had slope `-2/R` at `d = R`, and two halos 1.7R apart summed past the
+  // threshold at their midpoint before they touched — a pointed islet.
+  //
   // Each paper's bump has compact support, so the field is accumulated by
   // stamping every node into the cells inside its own footprint rather than
   // evaluating every node against every cell. Same sum, different order:
@@ -447,7 +465,8 @@ function componentLoops(
         const dx = minX + column * cellPitch - point.x;
         const distance = dx * dx + dySquared;
         if (distance < squared) {
-          values[row * columns + column] += 1 - distance / squared;
+          const bump = 1 - distance / squared;
+          values[row * columns + column] += bump * bump;
         }
       }
     }
@@ -490,7 +509,7 @@ function componentLoops(
  * The papers are partitioned under "closer than 2R" (`regionComponents`),
  * which is a decomposition and not an approximation — past 2R the supports are
  * disjoint. A singleton's contour is then the circle
- * `radius * sqrt(1 - threshold)`, derived here rather than written as a
+ * `radius * sqrt(1 - sqrt(threshold))`, derived here rather than written as a
  * constant so that moving the threshold cannot silently break it, and it is
  * right at every zoom for no work at all. Only clusters build a grid, which
  * inverts the cost curve: zoomed in, nearly every paper is a singleton, so a
@@ -532,7 +551,8 @@ export function folderRegionContours(
   if (!finitePoints.length) return nothing;
 
   const components = regionComponents(points, radius);
-  const discRadius = radius * Math.sqrt(Math.max(0, 1 - threshold));
+  const discRadius =
+    radius * Math.sqrt(Math.max(0, 1 - Math.sqrt(Math.max(0, threshold))));
   const discs: RegionDisc[] = [];
   const clusters: RegionPoint[][] = [];
   for (const component of components) {
@@ -915,9 +935,10 @@ export function regionZoomBucket(scale: number, fitScale: number): number {
 }
 
 /**
- * The falloff radius in data units: today's constant at or below the fit
- * zoom, shrinking in inverse proportion to the zoom past it, which is the
- * same statement as the halo holding a constant size on screen.
+ * The support radius in data units: the tuned halo (`FALLOFF_FRACTION` of
+ * the spread, widened by `SUPPORT_PER_TUNED_HALO` for the squared kernel) at
+ * or below the fit zoom, shrinking in inverse proportion to the zoom past it,
+ * which is the same statement as the halo holding a constant size on screen.
  *
  * The radius comes from the *bucket*, not from the raw scale, and that is
  * deliberate. If the radius tracked the raw scale while the contour cache key
@@ -934,7 +955,10 @@ export function regionFalloffRadius(
 ): number {
   if (!(spread > 0) || !Number.isFinite(spread)) return 0;
   return (
-    spread * FALLOFF_FRACTION * ZOOM_STEP ** -regionZoomBucket(scale, fitScale)
+    spread *
+    FALLOFF_FRACTION *
+    SUPPORT_PER_TUNED_HALO *
+    ZOOM_STEP ** -regionZoomBucket(scale, fitScale)
   );
 }
 

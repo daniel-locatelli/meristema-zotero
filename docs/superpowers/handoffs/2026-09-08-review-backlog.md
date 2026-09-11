@@ -1460,6 +1460,15 @@ radius derivation, the `regionComponents` docstring; the golden in
 `test/unit/graphFolderRegion.test.ts`; both D6 specs' description of the
 field.
 
+Resolved 2026-09-11. The user chose the squared kernel `(1 − d²/R²)²` over
+the cubed one, from a rendered comparison at five separations: both are
+smooth, but keeping the lone disc at its tuned size needs a 1.31× wider
+support for the squared kernel against 1.56× for the cubed, so the squared
+one pulls neighbours less and costs less in the stamping and clustering
+passes. The widening lives in `regionFalloffRadius`; the disc radius is
+`R·√(1−√t)`; the `2R` decomposition is unchanged. One new test pins the
+complaint: two papers 1.7R apart give two loops and no islet.
+
 ---
 
 ## B34. Panning a 300+ paper folder at maximum zoom lags

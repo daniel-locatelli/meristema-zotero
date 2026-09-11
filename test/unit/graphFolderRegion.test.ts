@@ -14,6 +14,15 @@ import {
 } from "../../src/services/graphFolderRegion";
 
 const OPTIONS = { radius: 10, pitch: 2 };
+/** A lone paper's disc under the squared kernel: `R * sqrt(1 - sqrt(0.5))`. */
+const LONE_DISC = 10 * Math.sqrt(1 - Math.SQRT1_2);
+/**
+ * The three-paper cluster fixtures were laid out for the old kernel at
+ * radius 10. Under the squared kernel a lone disc is 0.541R rather than
+ * 0.707R, so the same cluster needs the same 1.3x wider support the renderer
+ * now passes (B33) to merge into one loop.
+ */
+const CLUSTER_OPTIONS = { radius: 13, pitch: 2 };
 
 function extent(contour: readonly RegionPoint[]): number {
   const xs = contour.map((point) => point.x);
@@ -82,10 +91,25 @@ describe("folder regions", function () {
     expect(shapes.loops).to.have.length(0);
     expect(shapes.discs).to.have.length(1);
     expect(shapes.discs[0].centre).to.deep.equal({ x: 0, y: 0 });
-    // The field is `1 - d^2/R^2` and the threshold is 0.5, so the contour of
-    // a lone paper is the circle `R * sqrt(1 - t)` — an exact answer, and one
-    // no grid and no fit can improve on.
-    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
+    // The field is `(1 - d^2/R^2)^2` (B33) and the threshold is 0.5, so the
+    // contour of a lone paper is the circle `R * sqrt(1 - sqrt(t))` — an
+    // exact answer, and one no grid and no fit can improve on.
+    expect(shapes.discs[0].radius).to.be.closeTo(LONE_DISC, 1e-12);
+  });
+
+  it("gives two papers 1.7R apart two loops and no island between them (B33)", function () {
+    // The old `1 - d^2/R^2` kernel summed to 0.555 at the midpoint of two
+    // papers 1.7R apart, so a third, pointed islet rose between halos that
+    // had not yet touched. The squared kernel sums to 0.154 there.
+    const shapes = folderRegionContours(
+      [
+        { x: 0, y: 0 },
+        { x: 17, y: 0 },
+      ],
+      { radius: 10, pitch: 0.5 },
+    );
+    expect(shapes.discs).to.have.length(0);
+    expect(shapes.loops).to.have.length(2);
   });
 
   it("merges papers that sit close together into one loop", function () {
@@ -557,17 +581,19 @@ describe("folder regions", function () {
         { x: 7, y: 16 },
         { x: 40, y: 40 },
       ],
-      { radius: 10, pitch: 2 },
+      CLUSTER_OPTIONS,
     );
     expect(shapes.loops).to.have.length(1);
     const loop = shapes.loops[0];
-    expect(loop.length).to.equal(68);
+    // The golden triple. Retaken on 2026-09-11 for the squared kernel (B33);
+    // under the old kernel at radius 10 it was (68, 475.859, 439.206).
+    expect(loop.length).to.equal(61);
     expect(loop.reduce((total, point) => total + point.x, 0)).to.be.closeTo(
-      475.8592418546,
+      413.5594537489,
       1e-6,
     );
     expect(loop.reduce((total, point) => total + point.y, 0)).to.be.closeTo(
-      439.205775052,
+      415.7542130899,
       1e-6,
     );
     // The fourth paper is 40-odd units from the nearest of the other three,
@@ -576,7 +602,10 @@ describe("folder regions", function () {
     // this circle.
     expect(shapes.discs).to.have.length(1);
     expect(shapes.discs[0].centre).to.deep.equal({ x: 40, y: 40 });
-    expect(shapes.discs[0].radius).to.be.closeTo(10 / Math.SQRT2, 1e-12);
+    expect(shapes.discs[0].radius).to.be.closeTo(
+      CLUSTER_OPTIONS.radius * Math.sqrt(1 - Math.SQRT1_2),
+      1e-12,
+    );
   });
 
   /** A pitch small enough to blow the cell budget is coarsened rather than
@@ -619,10 +648,10 @@ describe("folder regions", function () {
 
   /**
    * The conservative boundary, pinned. The exact isolation radius is
-   * `R(1 + sqrt(1 - t))`, about `1.707R`; the spec takes `2R` instead so a
-   * grouped component's grid can never omit a neighbour whose support
-   * overlaps its domain. Anyone later tightening this to 1.707R has to change
-   * this case, which is the point.
+   * `R(1 + sqrt(1 - sqrt(t)))`, about `1.541R` under the squared kernel; the
+   * spec takes `2R` instead so a grouped component's grid can never omit a
+   * neighbour whose support overlaps its domain. Anyone later tightening
+   * this has to change this case, which is the point.
    */
   it("groups at exactly the 2R boundary and splits just past it", function () {
     expect(
@@ -739,11 +768,11 @@ describe("folder regions", function () {
       { x: 14, y: 3 },
       { x: 7, y: 16 },
     ];
-    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
-    const withDistant = folderRegionContours([...cluster, { x: 40, y: 40 }], {
-      radius: 10,
-      pitch: 2,
-    });
+    const alone = folderRegionContours(cluster, CLUSTER_OPTIONS);
+    const withDistant = folderRegionContours(
+      [...cluster, { x: 40, y: 40 }],
+      CLUSTER_OPTIONS,
+    );
     expect(alone.loops).to.have.length(1);
     expect(withDistant.loops).to.have.length(1);
     expect(withDistant.loops[0]).to.deep.equal(alone.loops[0]);
@@ -768,7 +797,7 @@ describe("folder regions", function () {
       { x: 14, y: 3 },
       { x: 7, y: 16 },
     ];
-    const options = { radius: 10, pitch: 2 };
+    const options = CLUSTER_OPTIONS;
     const shapes = folderRegionContours(
       [...cluster, { x: -101, y: -101 }],
       options,
@@ -781,8 +810,8 @@ describe("folder regions", function () {
     expect(shapes.loops).to.have.length(1);
 
     // The folder's min corner is (-101, -101), so the lattice origin is
-    // margin = radius * 1.5 = 15 below that on each axis: (-116, -116).
-    const origin = -101 - 10 * 1.5;
+    // margin = radius * 1.5 = 19.5 below that on each axis: (-120.5, -120.5).
+    const origin = -101 - options.radius * 1.5;
     const pitch = shapes.pitch;
     const distanceFromInteger = (value: number): number =>
       Math.abs(value - Math.round(value));
@@ -812,10 +841,10 @@ describe("folder regions", function () {
       { x: 14, y: 3 },
       { x: 7, y: 16 },
     ];
-    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+    const alone = folderRegionContours(cluster, CLUSTER_OPTIONS);
     const withNaN = folderRegionContours(
       [...cluster, { x: Number.NaN, y: Number.NaN }],
-      { radius: 10, pitch: 2 },
+      CLUSTER_OPTIONS,
     );
     expect(alone.loops).to.have.length(1);
     expect(withNaN.loops).to.have.length(1);
@@ -835,10 +864,10 @@ describe("folder regions", function () {
       { x: 14, y: 3 },
       { x: 7, y: 16 },
     ];
-    const alone = folderRegionContours(cluster, { radius: 10, pitch: 2 });
+    const alone = folderRegionContours(cluster, CLUSTER_OPTIONS);
     const withInfinity = folderRegionContours(
       [...cluster, { x: Number.NEGATIVE_INFINITY, y: 0 }],
-      { radius: 10, pitch: 2 },
+      CLUSTER_OPTIONS,
     );
     expect(alone.loops).to.have.length(1);
     expect(withInfinity.loops).to.have.length(1);
@@ -1214,21 +1243,27 @@ describe("folder regions", function () {
 
 describe("region zoom rules", function () {
   const SPREAD = 1000;
+  // 2.5% of the spread is the tuned halo; the squared kernel widens the
+  // support by `0.707 / 0.541` so a lone disc keeps that size (B33).
+  const FIT_RADIUS = 25 * (Math.SQRT1_2 / Math.sqrt(1 - Math.SQRT1_2));
 
   it("holds today's radius at and below the fit zoom", function () {
-    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(25);
-    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(25);
-    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(25);
+    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(FIT_RADIUS);
+    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(FIT_RADIUS);
+    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(FIT_RADIUS);
     expect(regionZoomBucket(0.5, 1)).to.equal(0);
     expect(regionZoomBucket(1, 1)).to.equal(0);
   });
 
   it("tightens in 12% steps past the fit zoom", function () {
     expect(regionZoomBucket(1.12, 1)).to.equal(1);
-    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(25 / 1.12, 1e-9);
+    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(
+      FIT_RADIUS / 1.12,
+      1e-9,
+    );
     expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
     expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
-      25 / 1.12 ** 4,
+      FIT_RADIUS / 1.12 ** 4,
       1e-9,
     );
     // The fit zoom moves the crossover with it, rather than the crossover
@@ -1250,7 +1285,7 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(1.12 ** 30, 1)).to.equal(30);
     expect(regionZoomBucket(1.12 ** 60, 1)).to.equal(30);
     expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
-      25 / 1.12 ** 30,
+      FIT_RADIUS / 1.12 ** 30,
       1e-9,
     );
   });
@@ -1260,7 +1295,7 @@ describe("region zoom rules", function () {
     // spacing is the resampler's, not the grid's, so a fifth was buying
     // 0.14 px of fidelity under a curve that misses by 0.51 px.
     expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.be.closeTo(
-      25 / 3,
+      FIT_RADIUS / 3,
       1e-9,
     );
     expect(regionGridPitch(25 / 1.12)).to.be.closeTo(25 / 3 / 1.12, 1e-9);
@@ -1280,8 +1315,8 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(0, 1)).to.equal(0);
     expect(regionZoomBucket(Number.NaN, 1)).to.equal(0);
     expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(25);
-    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(25);
+    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(FIT_RADIUS);
+    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(FIT_RADIUS);
     expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
     expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
   });

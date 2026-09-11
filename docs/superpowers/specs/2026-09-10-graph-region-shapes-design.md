@@ -25,6 +25,18 @@ Everything below was measured against the exact level set, not eyeballed. The
 field is `1 − d²/R²` and the threshold is `0.5`, so a lone paper's contour is
 the circle of radius `R·√(1−t)` = `R/√2` — an exact answer to compare against.
 
+> **Kernel change, 2026-09-11 (B33).** The field is now `(1 − d²/R²)²`, whose
+> slope is zero at `d = R`, so the summed field is C1 where one paper's
+> support crosses another's halo and the neck between two halos is smooth
+> rather than kinked; the old kernel also summed past the threshold at the
+> midpoint of two papers 1.7R apart, raising a pointed islet before they
+> touched. Under the squared kernel a lone paper's circle is
+> `R·√(1−√t)` ≈ `0.541R`, the exact isolation radius is `R(1+√(1−√t))` ≈
+> `1.541R`, and `regionFalloffRadius` widens the support by `0.707/0.541` ≈
+> `1.31` so the lone disc keeps the size the user tuned. The `2R`
+> decomposition below is unchanged. Formulas in the rest of this document are
+> the ones the measurements were made under.
+
 **Raising `DEVICE_WELD` is not the lever**, which is the cheap check the
 handoff proposed and the first thing tried. On a lone paper, raising it from
 1.5 to 6 device pixels changes nothing at all: that ring has no bunched
