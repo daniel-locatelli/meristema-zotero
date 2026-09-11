@@ -1614,7 +1614,7 @@ appended with B16's.
 
 ---
 
-## B38. The region's fill reaches past its border and bridges papers the border keeps apart
+## B38. The border grows a tip toward a neighbouring paper before the two merge; the fill, rounded by its dilation, never does
 
 Found walking B33's check on 2026-09-11, on the 59ebeac build. The check
 passed, with a remainder: "B33 still has the gravity effect creating
@@ -1640,6 +1640,23 @@ shape the kernel actually makes.
 1.6, 2.0 and 2.5 R apart, three ways: as shipped; the border moved to the
 dilated edge; and the stroke dilation dropped with the field alone drawing
 the shape.
+
+**The user's correction, same day:** "That is not the issue that I am
+seeing. The problem is with the inner curve, it creates a tip on the circle
+in the direction of the neighbour node." The inner curve is the border, the
+raw contour. A level set of a summed field passes through a saddle when two
+lobes merge, and at that moment it has a corner: just before, each lobe
+sharpens into a tip pointing at the other; just after, a pinched neck. No
+kernel avoids this — B33's squared kernel only changed how blunt the tips
+are away from the merge — and the Catmull-Rom fit interpolates the vertices,
+so it keeps the tip. `2026-09-11-b38-tips.png` renders separations 1.55 R
+to 1.40 R: the tip is plain at 1.43 to 1.46 R in the border and absent from
+the fill, because a dilation by a 12 px disc caps every convex feature at a
+12 px radius. That is why the fill and the border disagree, and why the
+first fix below removes the tip: the border inherits the rounding the fill
+already has. The concave kink at the neck itself, in the narrow band of
+separations right after the merge, survives a dilation (offsetting a concave
+corner keeps it a corner) and would need a closing pass as well if it shows.
 
 Two fixes, the user's decision:
 
