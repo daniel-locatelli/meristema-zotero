@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
+  categoricalSwatchAt,
   graphThemeCustomProperties,
   graphThemeFor,
   inLibraryRingColor,
@@ -61,5 +62,30 @@ describe("the in-library ring", function () {
       const theme = graphThemeFor(scheme);
       expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
     }
+  });
+});
+
+describe("categorical swatch lookup", function () {
+  it("returns the swatch a valid index names", function () {
+    const theme = graphThemeFor("light");
+    expect(categoricalSwatchAt(0, theme)).to.equal(
+      theme.categorical.swatches[0],
+    );
+    expect(categoricalSwatchAt(7, theme)).to.equal(
+      theme.categorical.swatches[7],
+    );
+  });
+
+  it("falls back to the Other tone when the index is outside the pool", function () {
+    // A hand-edited saved state can hold an index past the palette, and a
+    // shrunk palette can strand a live key on one. `strokeStyle = undefined`
+    // is not a canvas error: the context keeps whatever colour the previous
+    // draw left behind, so the region borrows another region's colour with
+    // nothing in the console to say so (B27).
+    const theme = graphThemeFor("light");
+    expect(categoricalSwatchAt(99, theme)).to.equal(theme.categorical.other);
+    expect(categoricalSwatchAt(-1, theme)).to.equal(theme.categorical.other);
+    expect(categoricalSwatchAt(1.5, theme)).to.equal(theme.categorical.other);
+    expect(categoricalSwatchAt(null, theme)).to.equal(theme.categorical.other);
   });
 });

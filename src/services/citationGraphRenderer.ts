@@ -823,6 +823,28 @@ export class CitationGraphRenderer {
     return this.categories();
   }
 
+  /**
+   * The category ledger as it stands, for the saved graph: what the last
+   * assignment settled on, or, before any assignment has been built, the
+   * ledger a saved graph restored. Building the assignment is what
+   * allocates, so a caller that needs it current asks for the assignment
+   * first.
+   */
+  public getCategorySwatchLedger(): SwatchLedgerState {
+    return this.categorySwatchLedger;
+  }
+
+  /**
+   * Restore the category ledger a saved graph carried (B25), so a category
+   * takes the swatch it held rather than the lowest free one. Drops the
+   * cached assignment: its colours were read off the ledger this replaces.
+   */
+  public setCategorySwatchLedger(ledger: SwatchLedgerState): void {
+    this.categorySwatchLedger = ledger;
+    this.categoryAssignment = null;
+    this.categoryAssignmentKey = "";
+  }
+
   public getTheme(): GraphTheme {
     return this.theme;
   }

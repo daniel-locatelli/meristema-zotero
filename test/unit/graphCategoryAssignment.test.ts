@@ -220,3 +220,23 @@ describe("Category assignment", function () {
     );
   });
 });
+
+describe("assignCategories with an out-of-range ledger index", function () {
+  it("paints the Other tone rather than an undefined colour", function () {
+    // A ledger restored from a hand-edited saved state can name an index the
+    // palette does not have. `theme.categorical.swatches[99]` is undefined,
+    // and canvas silently keeps the previous draw's style for an undefined
+    // assignment, so the disc would wear whatever colour drew last (B27).
+    const ledger = { assigned: { article: 99 }, releasedOrder: [] };
+    const assignment = assignCategories(
+      nodesOfTypes(["article"]),
+      "publication-type",
+      LIGHT,
+      { ledger },
+    );
+    expect(assignment.entries[0].color).to.equal(LIGHT.categorical.other);
+    expect(assignment.colorFor(nodeOfType("article"))).to.equal(
+      LIGHT.categorical.other,
+    );
+  });
+});

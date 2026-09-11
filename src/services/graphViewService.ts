@@ -41,7 +41,12 @@ import {
   seedFromNode,
   type GraphViewState,
 } from "./graphViewState";
-import { createSwatchLedgerStore, swatchIndexFor } from "./graphSwatchLedger";
+import {
+  createSwatchLedgerStore,
+  emptySwatchLedger,
+  swatchIndexFor,
+  type SwatchLedgerState,
+} from "./graphSwatchLedger";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
 import { mergeRelatedWorkLists } from "./relationshipStoreService";
 import { externalWorkURL } from "./providerPresentation";
@@ -152,6 +157,7 @@ import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { IconName } from "./uiIconService";
 import {
   applyGraphThemeToDocument,
+  categoricalSwatchAt,
   graphThemeFor,
   observeGraphScheme,
   resolveGraphScheme,
@@ -379,6 +385,13 @@ export function renderGraphView(
   const swatches = createSwatchLedgerStore();
   /** Which seed-palette index each seed key holds. */
   const seedSwatches = createSwatchLedgerStore();
+  /**
+   * Which categorical swatch each category key holds, as restored from the
+   * saved graph. The live copy is the renderer's: `applyState` hands this to
+   * it and `getState` reads it back, so this variable only matters while no
+   * renderer exists (B25).
+   */
+  let categorySwatches: SwatchLedgerState = emptySwatchLedger();
   /** Papers the reader removed one by one, by node key. */
   const hiddenKeys = new Set<string>();
   /** What the last `applyFilters` decided, for the rail to print. */
@@ -3338,10 +3351,10 @@ export function renderGraphView(
     );
     return regions.map((collectionID) => ({
       collectionID,
-      color:
-        theme.categorical.swatches[
-          swatchIndexFor(ledger, String(collectionID)) ?? 0
-        ],
+      color: categoricalSwatchAt(
+        swatchIndexFor(ledger, String(collectionID)),
+        theme,
+      ),
       nodeKeys: new Set(
         model.nodes
           .filter(
@@ -4046,6 +4059,7 @@ export function renderGraphView(
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),
+      categorySwatches: renderer?.getCategorySwatchLedger() ?? categorySwatches,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
     };
@@ -4097,6 +4111,8 @@ export function renderGraphView(
       regions = regionsStillInLibrary(state.regions, snapshot.collections);
       swatches.restore(state.swatches);
       seedSwatches.restore(state.seedSwatches);
+      categorySwatches = state.categorySwatches;
+      renderer?.setCategorySwatchLedger(categorySwatches);
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
         const paper = paperByKey.get(itemKey);

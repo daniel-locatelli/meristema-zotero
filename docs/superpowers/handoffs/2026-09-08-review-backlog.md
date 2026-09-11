@@ -888,7 +888,7 @@ through. `npm run check` green; not walked in Zotero.
 
 ---
 
-## B25. The category assignment map the spec promises is not persisted; it lives on the renderer and dies with it
+## B25. The category assignment map the spec promises is not persisted; it lives on the renderer and dies with it — FIXED
 
 Found in the final whole-branch review of D3. The design spec
 (`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md`, lines
@@ -925,6 +925,22 @@ Pointers: `src/services/graphViewState.ts` (`GraphViewState.swatches`),
 `categories()`), `src/services/graphCategoryAssignment.ts`
 (`assignCategories`), the spec's persistence section.
 
+### Fixed 2026-09-11, branch `swatch-bounds-and-category-ledger`
+
+A second field, not a namespace: `GraphViewState.categorySwatches` sits
+beside `swatches` and `seedSwatches`, parsed by the same defensive
+`parsedLedger`, so a version 3 record saved before the field existed opens on
+an empty ledger and reallocates deterministically — no version bump. The
+renderer gained `getCategorySwatchLedger` and `setCategorySwatchLedger`; the
+setter drops the cached assignment, whose colours were read off the ledger it
+replaces. `applyState` hands the restored ledger to the renderer and
+`getState` reads it back, the way the seed ledger already travels. Unit
+tests cover the round-trip, the missing-field parse, and the renderer seam
+(a restored ledger decides the colours, the ledger is readable back, and a
+restore over a built assignment repaints). Not covered: a Zotero-suite walk
+of close-and-reopen; the wiring is two lines in `getState`/`applyState`, and
+the suite was not run this session so as to keep the XPI.
+
 ---
 
 ## B26. Region membership follows the visible node set, so the search box can reshape or empty a selected folder's hull — and that is the opposite of the rule just decided for swatches
@@ -955,7 +971,7 @@ search box's `input` listener and `applyFilters`.
 
 ---
 
-## B27. An out-of-range ledger index draws `strokeStyle = undefined`, and canvas silently keeps the previous region's colour
+## B27. An out-of-range ledger index draws `strokeStyle = undefined`, and canvas silently keeps the previous region's colour — FIXED
 
 Found in the final whole-branch review of D3. `swatchIndexFor` returns
 whatever integer `swatches.assigned` holds for a key, with no bound against
@@ -982,6 +998,16 @@ Pointers: `src/services/graphSwatchLedger.ts` (`swatchIndexFor`,
 `SwatchLedgerState.assigned`'s docstring), `src/services/
 graphCategoryAssignment.ts` (`color: theme.categorical.swatches[swatchIndexFor(...) ?? 0]`),
 wherever `regionsForRenderer` resolves a region's colour the same way.
+
+### Fixed 2026-09-11, branch `swatch-bounds-and-category-ledger`
+
+Clamped at the read, as the entry proposed: `categoricalSwatchAt(index,
+theme)` in `graphTheme.ts` returns the Other tone for a null, fractional,
+negative or past-the-end index, and both colour reads — the category disc in
+`assignCategories` and the region in `regionsForRenderer` — go through it.
+The seed palette already wrapped through `seedColorAt`, so it needed nothing.
+Unit tests: the helper's bounds, and `assignCategories` against a ledger
+holding `{ article: 99 }`, which painted `undefined` before the fix.
 
 ---
 

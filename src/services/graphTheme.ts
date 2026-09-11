@@ -299,6 +299,31 @@ export function observeGraphScheme(
  * the seed lives, so removing one seed never repaints the others — which is
  * what indexing by position did.
  */
+/**
+ * The categorical swatch an index names, or the Other tone when it names
+ * none. A ledger index is only ever checked against the pool at the moment a
+ * colour is read (see `SwatchLedgerState.assigned`): a hand-edited saved
+ * state can hold `99`, and a shrunk palette can strand a live key past its
+ * end. `strokeStyle = undefined` is not a canvas error — the context keeps
+ * whatever the previous draw set — so an unchecked index paints one region
+ * or disc in another's colour with nothing in the console to say so (B27).
+ */
+export function categoricalSwatchAt(
+  paletteIndex: number | null,
+  theme: GraphTheme,
+): string {
+  const swatches = theme.categorical.swatches;
+  if (
+    paletteIndex === null ||
+    !Number.isInteger(paletteIndex) ||
+    paletteIndex < 0 ||
+    paletteIndex >= swatches.length
+  ) {
+    return theme.categorical.other;
+  }
+  return swatches[paletteIndex];
+}
+
 export function seedColorAt(paletteIndex: number, theme: GraphTheme): string {
   const seeds = theme.seeds;
   const position =

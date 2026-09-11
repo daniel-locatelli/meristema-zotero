@@ -2,7 +2,11 @@ import type {
   CitationGraphNode,
   GraphNodeColorMetric,
 } from "../domain/graphTypes";
-import { GRAPH_ASSIGNED_CATEGORY_LIMIT, type GraphTheme } from "./graphTheme";
+import {
+  categoricalSwatchAt,
+  GRAPH_ASSIGNED_CATEGORY_LIMIT,
+  type GraphTheme,
+} from "./graphTheme";
 import {
   allocateSwatches,
   swatchIndexFor,
@@ -181,7 +185,7 @@ export function assignCategories(
 
   const entries: CategoryEntry[] = assigned.map((entry) => ({
     ...entry,
-    color: theme.categorical.swatches[swatchIndexFor(ledger, entry.key) ?? 0],
+    color: categoricalSwatchAt(swatchIndexFor(ledger, entry.key), theme),
   }));
 
   const colorByKey = new Map(entries.map((entry) => [entry.key, entry.color]));
