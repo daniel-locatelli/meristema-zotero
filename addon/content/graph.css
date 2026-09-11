@@ -1177,34 +1177,110 @@
 }
 .cm-scope-rows {
   display: grid;
-  gap: 1px;
   max-height: 40vh;
   margin-top: 8px;
   overflow: auto;
   overscroll-behavior: contain;
 }
+/*
+ * A folder row is indented one step per level of depth, and a guide runs
+ * down each ancestor level inside that indent, so a child sits visibly under
+ * its parent and a deep tree keeps its shape (B31). The guides are one
+ * gradient, one line every step, clipped to the indent's width; they start
+ * under the centre of a parent's square (3 px label padding + 6.5 px).
+ */
 .cm-scope-row {
+  --cm-step: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  border: 1.5px solid transparent;
+  padding-inline-start: calc(var(--cm-depth, 0) * var(--cm-step));
   border-radius: 3px;
   font-size: 12px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--cm-border) 0 1px,
+    transparent 1px var(--cm-step)
+  );
+  background-repeat: no-repeat;
+  background-position: 9px 0;
+  background-size: calc(var(--cm-depth, 0) * var(--cm-step)) 100%;
 }
-/* The box stops being the whole row, so it grows to stay comfortably hit. */
-.cm-scope-check {
-  width: 15px;
-  height: 15px;
+/* Hovering a parent's square shows the reach of its tick; a selected row is
+   never tinted, since white labels must not sit on a lightened blue. */
+.cm-scope-row-reach:not(.cm-scope-row-selected) {
+  background-color: color-mix(in srgb, var(--cm-accent) 10%, transparent);
+}
+/* Zotero's own selected-row style: the row fills with the accent and the
+   text goes white. Two regions differ only by their squares. */
+.cm-scope-row-selected {
+  background-color: var(--cm-accent);
+  background-image: none;
+  color: white;
 }
 .cm-scope-check-label {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 3px;
+  cursor: pointer;
 }
+/* The native checkbox stays for the keyboard, the screen reader and the
+   change handler; the square beside it is its face. */
 .meristema-root .cm-scope-check {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+  opacity: 0;
+}
+.cm-scope-square {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
-  margin: 0;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid color-mix(in srgb, CanvasText 45%, transparent);
+  border-radius: 3px;
+  background: transparent;
+}
+.cm-scope-square-on {
+  border-color: var(--cm-accent);
+  background: var(--cm-accent);
+}
+.cm-scope-square-mixed {
+  border-color: transparent;
+  background: color-mix(in srgb, CanvasText 45%, Canvas);
+}
+.cm-scope-square-region {
+  border-color: var(--cm-row-color, var(--cm-accent));
+  background: var(--cm-row-color, var(--cm-accent));
+}
+/* No tick glyph in any state: the only mark is the mixed parent's dash. */
+.cm-scope-square-dash::after {
+  content: "";
+  width: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: white;
+}
+/* On the selected fill the square wears a 1 px edge in the label ink, so a
+   swatch close to the accent still separates from the row. */
+.cm-scope-row-selected .cm-scope-square {
+  border: 1px solid currentColor;
+}
+.meristema-root .cm-scope-check:focus-visible + .cm-scope-square {
+  outline: 2px solid var(--cm-accent);
+  outline-offset: 1px;
+}
+.cm-scope-row-selected .cm-scope-check:focus-visible + .cm-scope-square {
+  outline-color: currentColor;
 }
 .cm-scope-row-body {
   display: flex;
@@ -1224,23 +1300,25 @@
   background: color-mix(in srgb, CanvasText 8%, transparent);
   border-radius: 4px;
 }
-.cm-scope-row-selected {
-  border-color: var(--cm-row-color, var(--cm-ink-muted));
-  background: var(--cm-surface-paper);
+.cm-scope-row-selected .cm-scope-row-body:hover {
+  background: color-mix(in srgb, white 12%, transparent);
 }
 .cm-scope-row-label {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* The indent is leading spaces in the label, so it must survive. */
-  white-space: pre;
+  /* A deep name in a narrow rail is cut, not wrapped. */
+  white-space: nowrap;
 }
 .cm-scope-row-count {
   flex: 0 0 auto;
   color: var(--cm-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+.cm-scope-row-selected .cm-scope-row-count {
+  color: inherit;
 }
 .cm-scope-hidden {
   margin: 8px 0 0;
