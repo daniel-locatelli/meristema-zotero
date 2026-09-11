@@ -27,27 +27,6 @@ const registeredMenuIDs: string[] = [];
 const ICON = `chrome://${config.addonRef}/content/icons/network.svg`;
 const OPEN_IN_DYNAMIC_ATTR = "data-meristema-open-view";
 
-// Menu labels do not convey what the two intents cost: showing papers only
-// draws connections already in the library, while exploring fetches
-// references and citing works from the providers. Tooltips cannot be used for
-// this — Gecko does not render them over an open menupopup — so the hint goes
-// in acceltext, the only secondary text a menuitem will draw.
-const MENU_HINTS: Record<string, string> = {
-  "collection-new-graph-command": "library only",
-  "new-graph-view-command": "library only",
-  "open-focus-view-new-tab-command": "fetches online",
-};
-
-function menuHint(l10nID: string): string | undefined {
-  return MENU_HINTS[l10nID.replace(`${config.addonRef}-`, "")];
-}
-
-function applyHint(context: any, hint: string): void {
-  const element = safeContextValue(context, "menuElem") as
-    HTMLElement | undefined;
-  element?.setAttribute("acceltext", hint);
-}
-
 type MainWindow = _ZoteroTypes.MainWindow;
 type MenuData = Record<string, unknown>;
 
@@ -163,18 +142,10 @@ function commandItem(
   run: (context: any) => Promise<void> | void,
   l10nArgs?: Record<string, unknown>,
 ): MenuData {
-  const hint = menuHint(l10nID);
   return {
     menuType: "menuitem",
     l10nID,
     ...(l10nArgs ? { l10nArgs: JSON.stringify(l10nArgs) } : {}),
-    ...(hint
-      ? {
-          onShowing: (_event: Event, context: any) => {
-            applyHint(context, hint);
-          },
-        }
-      : {}),
     onCommand: (_event: Event, context: any) => {
       void Promise.resolve(run(context)).catch(report);
     },
@@ -195,7 +166,6 @@ function contextCommandItem(
   run: (context: any) => Promise<void> | void,
   onShown?: (context: any) => void,
 ): MenuData {
-  const hint = menuHint(l10nID);
   return {
     menuType: "menuitem",
     l10nID,
@@ -205,7 +175,6 @@ function contextCommandItem(
       context.setVisible(available);
       context.setEnabled(available);
       if (!available) return;
-      if (hint) applyHint(context, hint);
       onShown?.(context);
     },
     onCommand: (_event: Event, context: any) => {

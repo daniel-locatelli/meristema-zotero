@@ -45,12 +45,13 @@ refresh-command =
 
 
 # $count is how many items were selected. The new graph seeds from them and
-# fetches their references and citing papers.
+# fetches their references and citing papers, so the label says "seeds"
+# rather than "items" (B35).
 open-focus-view-new-tab-command =
     .label =
         { $count ->
-            [1] New Graph from item
-           *[other] New Graph from { $count } items
+            [1] New Graph with 1 seed
+           *[other] New Graph with { $count } seeds
         }
 
 new-graph-view-command =

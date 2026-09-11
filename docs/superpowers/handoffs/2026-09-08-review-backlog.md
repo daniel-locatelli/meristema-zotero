@@ -1490,6 +1490,13 @@ it to say that the items become seeds. Ask for the wording before changing
 it — Stage 2 decided this label deliberately (B4) and F5/F6 touch the same
 menu.
 
+Resolved 2026-09-11. The user chose "New Graph with 1 seed" / "New Graph
+with N seeds", and dropped all hints rather than keep "library only" on the
+collection entries alone, so the acceltext plumbing left `menuService.ts`.
+Open question the user raised while choosing: whether a seedless "New Graph
+with N items" (B4's dropped "Show in new Graph") should return beside it, or
+whether graphs should open empty and take seeds from inside. Not decided.
+
 ---
 
 ## B36. "Uncaught (in promise) undefined" in the Error Console
