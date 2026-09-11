@@ -675,9 +675,10 @@ describe("Graph view, as the product builds it", function () {
       panel.hidden,
       "and a pointer outside it closes it, without pressing its button again",
     ).to.equal(true);
-
+    // The File menu shares the popup class and, since B21, comes first in the
+    // bar; name the Export popup by what it is not.
     const exportMenu = active.root.querySelector(
-      ".cm-export-menu",
+      ".cm-export-menu:not(.cm-graph-menu)",
     ) as HTMLElement;
     const exportButton = exportMenu.parentElement!.querySelector(
       "button",
