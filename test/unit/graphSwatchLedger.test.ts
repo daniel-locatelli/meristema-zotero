@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   allocateSwatches,
+  createSwatchLedgerStore,
   emptySwatchLedger,
   swatchIndexFor,
 } from "../../src/services/graphSwatchLedger";
@@ -73,5 +74,49 @@ describe("the swatch ledger", function () {
     const snapshot = JSON.stringify(first);
     allocateSwatches(first, ["a", "b", "c"], 8);
     expect(JSON.stringify(first)).to.equal(snapshot);
+  });
+});
+
+describe("the swatch ledger store", function () {
+  // B24: the graph's readers (`regionsForRenderer`, `seedColorsFor`) used to
+  // allocate as a side effect of reading, on paths that never persist. The
+  // store splits the two: `peek` is a pure read, `ensure` is the allocating
+  // half, called only from paths that reach `notifyStateChange`.
+  it("does not change the ledger when a colour is only read", function () {
+    const store = createSwatchLedgerStore();
+    const peeked = store.peek(["a", "b"], 8);
+    expect(swatchIndexFor(peeked, "a")).to.equal(0);
+    expect(swatchIndexFor(peeked, "b")).to.equal(1);
+    expect(store.state().assigned).to.deep.equal({});
+  });
+
+  it("changes the ledger when a colour is ensured", function () {
+    const store = createSwatchLedgerStore();
+    store.ensure(["a", "b"], 8);
+    expect(store.state().assigned).to.deep.equal({ a: 0, b: 1 });
+  });
+
+  it("reads the same index a read-only path would have been given", function () {
+    // Reallocation is deterministic, so a read before the ensure and a read
+    // after it agree; nothing the reader painted moves once persisted.
+    const store = createSwatchLedgerStore();
+    const before = store.peek(["b", "a"], 8);
+    store.ensure(["b", "a"], 8);
+    expect(store.peek(["b", "a"], 8).assigned).to.deep.equal(before.assigned);
+  });
+
+  it("releases a key's index when it is ensured without that key", function () {
+    const store = createSwatchLedgerStore();
+    store.ensure(["a", "b"], 8);
+    store.ensure(["b"], 8);
+    expect(store.state().assigned).to.deep.equal({ b: 1 });
+  });
+
+  it("restores a saved ledger and reads through it", function () {
+    const store = createSwatchLedgerStore();
+    store.restore({ assigned: { phd: 3 }, releasedOrder: [] });
+    expect(swatchIndexFor(store.peek(["phd", "new"], 8), "phd")).to.equal(3);
+    expect(swatchIndexFor(store.peek(["phd", "new"], 8), "new")).to.equal(0);
+    expect(store.state().assigned).to.deep.equal({ phd: 3 });
   });
 });
