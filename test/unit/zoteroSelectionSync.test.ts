@@ -17,6 +17,14 @@ class FakeTree implements ItemsTreeLike {
   selectCalls: { ids: number[]; noRecurse: boolean }[] = [];
   /** What the next `selectItems` resolves with; null makes it reject. */
   nextSelectResult: number | null = 1;
+  /** How often the binding cleared the tree's selection. */
+  clearCalls = 0;
+  selection = {
+    clearSelection: (): void => {
+      this.clearCalls += 1;
+      this.selected = [];
+    },
+  };
   onSelect = {
     addListener: (listener: () => void): void => {
       this.listeners.add(listener);
@@ -118,21 +126,31 @@ describe("Zotero selection sync", function () {
     expect(tree.selectCalls).to.deep.equal([]);
   });
 
-  it("changes nothing when no row was listed, and publishes only what the tree fires", async function () {
+  it("clears the list when no row was listed, and publishes only what the tree fires", async function () {
     const tree = new FakeTree();
     const d = deps(tree);
     const binding = bindZoteroSelection(host, d);
     const seen: number[][] = [];
     binding.subscribe((selection) => seen.push(selection.itemIDs));
 
+    // B30: the list showed a folder, the graph selected a paper outside it.
+    // Zotero's tree finds no row and leaves its selection where it was, so
+    // the binding clears it: a list that disagrees with the graph in
+    // silence is worse than an empty one.
+    tree.fire([9]);
     tree.nextSelectResult = 0;
     binding.selectListed([5]);
     await flush();
+    expect(tree.clearCalls, "a zero-row select clears the list").to.equal(1);
     expect(
       binding.current().itemIDs,
-      "a zero-row select moves nothing",
+      "and takes the empty list as current",
     ).to.deep.equal([]);
-    expect(seen, "and publishes nothing on its own").to.deep.equal([]);
+    expect(seen, "without publishing the clear").to.deep.equal([[9]]);
+    // Zotero echoes the clear through onSelect; it is already current, so
+    // it reaches no graph and the clicked node stays selected.
+    tree.fire([]);
+    expect(seen, "nor its echo").to.deep.equal([[9]]);
 
     tree.nextSelectResult = null;
     binding.selectListed([6]);
@@ -141,12 +159,13 @@ describe("Zotero selection sync", function () {
       binding.current().itemIDs,
       "a rejected select moves nothing",
     ).to.deep.equal([]);
-    expect(seen).to.deep.equal([]);
+    expect(tree.clearCalls, "and clears nothing either").to.equal(1);
+    expect(seen).to.deep.equal([[9]]);
     expect(d.messages.some((m) => m.includes("tree gone"))).to.equal(true);
 
     // Only the tree's own event moves the binding.
     tree.fire([6]);
-    expect(seen).to.deep.equal([[6]]);
+    expect(seen).to.deep.equal([[9], [6]]);
   });
 
   it("keeps publishing past a subscriber that throws", function () {
