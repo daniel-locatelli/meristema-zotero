@@ -794,11 +794,14 @@ export function renderGraphView(
     exploreSection.appendChild(row);
   }
 
+  // File first: the menu that owns the document leads the bar, as it does in
+  // any application, and the actions on the document follow it (B21). The
+  // search box stays at the far right as the bar's one elastic item.
   toolbar.append(
+    graphWrap,
     graphFilter.root,
     similarButton,
     exportWrap,
-    graphWrap,
     refreshButton,
   );
   plotToolbar.append(toolbar, toolbarStatus, searchWrap);

@@ -49,6 +49,13 @@
     color-mix(in srgb, CanvasText 5%, transparent)
   );
   --cm-accent: var(--accent-blue, #2563eb);
+  /*
+   * Text links in the rail ("+ Add seed", "Show all"). The accent is a fill
+   * and selection tint first, and Zotero's dark accent-blue is set for that
+   * job, not for 11px text on a #303030 ground, where it fell below
+   * readable contrast (B13). Dark gets its own link ink below.
+   */
+  --cm-link: var(--cm-accent);
   --cm-icon-color: #3f4650;
   color-scheme: light dark;
   box-sizing: border-box;
@@ -629,6 +636,9 @@
   grid-template-columns: 1fr auto;
   gap: 8px;
   min-width: 0;
+  /* A button centres its text; every other menu entry is left-aligned (B16). */
+  text-align: start;
+  justify-items: start;
 }
 .cm-graph-menu-name {
   overflow: hidden;
@@ -703,6 +713,7 @@
  * when the user changes the theme.
  */
 .meristema-root[data-cm-scheme="dark"] {
+  --cm-link: #8fb8ff;
   --cm-icon-color: #f2f2f2;
   --cm-sidepane: var(--material-sidepane, #303030);
   --cm-toolbar: var(--material-toolbar, #272727);
@@ -1099,7 +1110,7 @@
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--cm-accent);
+  color: var(--cm-link);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -1127,15 +1138,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/*
+ * The × is styled as a glyph, not as a button with a shape behind it: the
+ * hover disc used to render as an off-centre ellipse, because the host's own
+ * button rules give the element a height the 20px box here never won (B14).
+ * So hover changes the ink and the weight of the × and paints nothing.
+ */
 .meristema-root .cm-scope-seed-remove {
   appearance: none;
   flex: 0 0 auto;
   min-width: 20px;
   width: 20px;
-  height: 20px;
+  min-height: 0;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
   color: var(--cm-muted);
@@ -1143,9 +1160,11 @@
   line-height: 1;
   cursor: pointer;
 }
-.meristema-root .cm-scope-seed-remove:hover {
-  background: color-mix(in srgb, CanvasText 12%, transparent);
+.meristema-root .cm-scope-seed-remove:hover,
+.meristema-root .cm-scope-seed-remove:focus-visible {
+  background: transparent;
   color: CanvasText;
+  font-weight: 700;
 }
 .cm-scope-rows {
   display: grid;

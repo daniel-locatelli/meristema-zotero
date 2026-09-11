@@ -59,13 +59,14 @@ new-graph-view-command =
 open-existing-view-command =
     .label = { $name }
 
-# $graph is the whole graph name, e.g. "PhD Graph", so a folder already named
-# like a graph does not read "New PhD Graph Graph". $count is how many folders
+# One folder gets a flat label: it used to read "New { $graph }" with the
+# folder's name inside, which put the name of the folder before the word Graph
+# and read as a title rather than an action (B19). $count is how many folders
 # were selected; several are named by count rather than listed.
 collection-new-graph-command =
     .label =
         { $count ->
-            [1] New { $graph }
+            [1] Create a new graph
            *[other] New Graph from { $count } Folders
         }
 
