@@ -286,7 +286,14 @@ export interface GraphViewOptions {
    * item, or null on a deselect or an external node. Not fired for
    * selections `applyLibrarySelection` makes.
    */
-  onGraphSelection?: (itemID: number | null) => void;
+  /**
+   * A user's click selected `node` in the graph, or deselected (`node`
+   * null). `itemID` is the node's Zotero item, null for an external paper.
+   */
+  onGraphSelection?: (
+    itemID: number | null,
+    node: CitationGraphNode | null,
+  ) => void;
   initialFocusItemIDs?: readonly number[] | null;
   initialCollectionIDs?: readonly number[];
   /** Applied after the initial request, so a request wins where both speak. */
@@ -3281,6 +3288,7 @@ export function renderGraphView(
     }
     options.onGraphSelection?.(
       node && node.kind !== "external" ? node.itemID : null,
+      node,
     );
   };
 

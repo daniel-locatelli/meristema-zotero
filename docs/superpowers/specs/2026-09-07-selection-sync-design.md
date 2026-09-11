@@ -184,15 +184,17 @@ Behaviour:
   that option through; nothing else passes it, so the live fan-out and the
   pending-selection apply on tab switch keep the syncing semantics, where an
   empty set clears.
-- `onGraphSelection(itemID)` calls `selectListed([itemID])` on the window's
-  existing binding, looked up in the map. It never creates one: with no graph
-  open in the window there is nothing to have clicked. A null (graph
-  deselected, or an external node) calls nothing: deselecting in the graph
-  does not clear Zotero's list. A paper the list has no row for — outside the
-  folder Zotero has open — does clear it (B30): `selectItems` returns 0 and
-  would otherwise leave the list on whatever it showed before, with nothing
-  to say the graph and the list disagree. The binding takes the empty set as
-  current before Zotero echoes the clear, so no graph follows it.
+- `onGraphSelection(itemID, node)` calls `selectListed([itemID])` on the
+  window's existing binding, looked up in the map. It never creates one: with
+  no graph open in the window there is nothing to have clicked. A null item
+  with a null node (graph deselected) calls nothing: deselecting in the graph
+  does not clear Zotero's list. A null item with a node — an external paper,
+  one the library does not hold — calls `clearListed()`, and a paper the list
+  has no row for — outside the folder Zotero has open — clears the same way
+  (B30): `selectItems` returns 0 and would otherwise leave the list on
+  whatever it showed before, with nothing to say the graph and the list
+  disagree. Both clears take the empty set as current before Zotero echoes
+  them, so no graph follows them.
 - `selectPaper` (double-click, Show in Zotero) is unchanged.
 
 ### View: `src/services/graphViewService.ts`
@@ -209,7 +211,7 @@ Behaviour:
   `handleGraphSelection` always updates the overview; when the flag is false
   it also clears `libraryEmphasisKeys`, applies emphasis, and calls
   `onGraphSelection` with the node's item ID for a local node and null
-  otherwise. Only a user gesture may reach Zotero, so every path that selects
+  otherwise, and with the node itself (null on deselection). Only a user gesture may reach Zotero, so every path that selects
   a node on the view's own behalf runs inside the helper: applying a library
   selection, `applyState` (opening a saved graph, restoring a tab, a
   background refresh), `activateFocusState`'s seed selection,

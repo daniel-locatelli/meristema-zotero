@@ -168,6 +168,30 @@ describe("Zotero selection sync", function () {
     expect(seen).to.deep.equal([[9], [6]]);
   });
 
+  it("clearListed empties the list without publishing, and is a no-op on an empty one", function () {
+    // B30, the other half: a click on a node the library does not hold at
+    // all never reaches selectItems, so the graph asks for the clear itself.
+    const tree = new FakeTree();
+    const d = deps(tree);
+    const binding = bindZoteroSelection(host, d);
+    const seen: number[][] = [];
+    binding.subscribe((selection) => seen.push(selection.itemIDs));
+
+    tree.fire([9]);
+    binding.clearListed();
+    expect(tree.clearCalls, "the list is cleared").to.equal(1);
+    expect(binding.current().itemIDs, "the empty set is current").to.deep.equal(
+      [],
+    );
+    expect(seen, "and the clear is not published").to.deep.equal([[9]]);
+    tree.fire([]);
+    expect(seen, "nor its echo").to.deep.equal([[9]]);
+
+    binding.clearListed();
+    expect(tree.clearCalls, "an empty list is not cleared again").to.equal(1);
+    expect(tree.selectCalls, "and nothing was ever selected").to.deep.equal([]);
+  });
+
   it("keeps publishing past a subscriber that throws", function () {
     const tree = new FakeTree();
     const d = deps(tree);

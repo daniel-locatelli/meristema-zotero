@@ -59,6 +59,12 @@ export interface ZoteroSelectionBinding {
    * whatever it had (B30); that clear is not published.
    */
   selectListed(itemIDs: readonly number[]): void;
+  /**
+   * Empties the list without publishing the clear, for a graph selection no
+   * row can stand for: a paper the library does not hold (B30). A list that
+   * is already empty is left alone.
+   */
+  clearListed(): void;
   /** Listeners receive a copy. Returns the unsubscribe function. */
   subscribe(listener: (selection: LibrarySelection) => void): () => void;
   /** Removes the tree listener and drops every subscriber. */
@@ -163,10 +169,25 @@ export function bindZoteroSelection(
 
   attach();
 
+  /** `current` goes empty first, so the tree's echo of the clear is a no-op. */
+  const clearTree = (target: ItemsTreeLike): void => {
+    current = [];
+    try {
+      target.selection.clearSelection();
+    } catch (error) {
+      deps.debug(`Meristema: clearing the item list failed: ${String(error)}`);
+    }
+  };
+
   return {
     current() {
       attach();
       return { itemIDs: [...current] };
+    },
+    clearListed() {
+      const target = attach();
+      if (!target || !current.length) return;
+      clearTree(target);
     },
     selectListed(itemIDs) {
       const target = attach();
@@ -187,8 +208,7 @@ export function bindZoteroSelection(
       selecting
         .then((count) => {
           if (count !== 0 || disposed || tree !== target) return;
-          current = [];
-          target.selection.clearSelection();
+          clearTree(target);
         })
         .catch((error: unknown) => {
           deps.debug(

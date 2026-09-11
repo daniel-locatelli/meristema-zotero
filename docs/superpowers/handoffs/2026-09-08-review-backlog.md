@@ -448,6 +448,21 @@ user's call: style the × itself rather than putting a shape behind it.
 Pointers: `.cm-scope-seed-remove` in `addon/content/graph.css`, built in
 `src/services/graphKeyRail.ts`.
 
+### Reopened and fixed again 2026-09-11, on main
+
+On the merged build the user saw "the whole container background behind the
+× gets dark. So instead of an ellipse, now we have a rectangle" — the ×
+button's own box. Measured in the test Zotero with a real pointer on the ×:
+`background-color` was a dark accent tint, `height` 28px. The tint is
+paperDetail.css's `.meristema-root button:hover:not(:disabled)`, at
+specificity (0,3,1); graph.css's `.meristema-root .cm-scope-seed-remove:hover`
+is (0,3,0) and lost to it, so its `background: transparent` never applied.
+The 28px is Zotero's own `button` height, unopposed once the first fix
+dropped the explicit height. The × rules now name the tag and match the
+hover rule's pseudo-classes, so they sit at (0,3,1) in the later sheet and
+win; the box is 20×20 again, still painting nothing. No unit test can see a
+cascade; the manual check is re-appended.
+
 ---
 
 ## B15. Adding a seed from the search panel takes two clicks
@@ -1202,6 +1217,21 @@ it had to lower Zotero's locked pane overlay first, which the roadmap's
 "Zotero suite" section now explains. Spec passage on `onGraphSelection`
 updated. Manual check appended to the roadmap's batch.
 
+### Reopened and fixed again 2026-09-11, on main
+
+The user walked the merged build and the list still did not clear. Asked
+which node: one the library does not hold at all, an online-fetched paper.
+That path never reached `selectItems` — the view reported null for an
+external node, and the window service took null as "deselected" and did
+nothing, as the spec said it should. The rule the user gave covers it:
+not in the folder means the list clears. `onGraphSelection` now carries the
+node beside the item ID, so the window service can tell an external click
+(clear) from a deselection (nothing); the binding gains `clearListed()`,
+which empties the list the way the zero-row path does — `current` emptied
+first so the echo reaches no graph — and leaves an already empty list
+alone. Unit test on the binding, watched red. The spec passage says the
+same. Manual check re-appended: click an online-fetched node.
+
 ---
 
 ## B31. The rail does not show subfolders clearly
@@ -1483,6 +1513,23 @@ zoom, pan and theme swap — and whether the plugin's own windows were open.
 Pointers: any `.then()` without a rejection handler, and any `reject()` or
 `throw undefined` path in `src/`; the savedGraphMenu note in the roadmap's
 Zotero suite section.
+
+---
+
+## B37. The File popup opens leftward, under the rail
+
+Found on the 2026-09-11 walk of the merged build, on B16's check: "I can't
+see the list because now the File is to the left and the container opens
+behind the left sidebar. It needs to open to the right." `.cm-export-menu`
+anchors every popup at `right: 0` of its wrapper, which was right for Export
+at the bar's right end; B21 put File first, so its 240px popup ran off the
+bar's left edge and under Zotero's pane. B16's own alignment is unverified
+until this is.
+
+Fixed the same day, on main: `.cm-graph-menu` sets `left: 0; right: auto`,
+so the File popup hangs from its button's left edge and opens rightward.
+Export keeps its right anchor. One line of CSS; the manual check is
+appended with B16's.
 
 ---
 

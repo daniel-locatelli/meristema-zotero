@@ -609,6 +609,10 @@
   border-color: transparent;
 }
 .cm-graph-menu {
+  /* File leads the bar (B21), so its popup hangs from the wrapper's left
+   * edge and opens rightward; anchored right it ran under the rail (B37). */
+  right: auto;
+  left: 0;
   min-width: 240px;
 }
 .cm-graph-menu-heading {
@@ -1142,14 +1146,18 @@
  * The × is styled as a glyph, not as a button with a shape behind it: the
  * hover disc used to render as an off-centre ellipse, because the host's own
  * button rules give the element a height the 20px box here never won (B14).
- * So hover changes the ink and the weight of the × and paints nothing.
+ * So hover changes the ink and the weight of the × and paints nothing. The
+ * selectors carry the tag: paperDetail.css tints every hovered button in the
+ * root at (0,3,1), and a class-only rule at (0,3,0) lost to it, which is what
+ * painted the dark box the user saw after the first fix.
  */
-.meristema-root .cm-scope-seed-remove {
+.meristema-root button.cm-scope-seed-remove {
   appearance: none;
   flex: 0 0 auto;
   min-width: 20px;
   width: 20px;
   min-height: 0;
+  height: 20px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -1160,9 +1168,10 @@
   line-height: 1;
   cursor: pointer;
 }
-.meristema-root .cm-scope-seed-remove:hover,
-.meristema-root .cm-scope-seed-remove:focus-visible {
+.meristema-root button.cm-scope-seed-remove:hover:not(:disabled),
+.meristema-root button.cm-scope-seed-remove:focus-visible {
   background: transparent;
+  border-color: transparent;
   color: CanvasText;
   font-weight: 700;
 }

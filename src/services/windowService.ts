@@ -728,7 +728,8 @@ function renderDetachedWindow(
       openBestAttachment(host, itemID).catch((error) =>
         reportAsyncError("Meristema: opening the attachment failed", error),
       ),
-    onGraphSelection: (itemID) => reportGraphSelection(host, itemID),
+    onGraphSelection: (itemID, node) =>
+      reportGraphSelection(host, itemID, node !== null),
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
@@ -1045,15 +1046,21 @@ function disposeSelectionBinding(win: _ZoteroTypes.MainWindow): void {
 
 /**
  * A click in the graph selects the row in Zotero's list, if it is listed.
- * It never creates a binding: with no graph open in the window there is
- * nothing to click.
+ * A node the library does not hold clears the list instead, for the reason
+ * the binding gives for an unlisted paper (B30): a list still showing some
+ * other paper would say the two agree. Deselecting in the graph moves
+ * nothing. It never creates a binding: with no graph open in the window
+ * there is nothing to click.
  */
 function reportGraphSelection(
   win: _ZoteroTypes.MainWindow,
   itemID: number | null,
+  selected: boolean,
 ): void {
-  if (itemID === null) return;
-  selectionBindingByWindow.get(win)?.selectListed([itemID]);
+  const binding = selectionBindingByWindow.get(win);
+  if (!binding) return;
+  if (itemID !== null) binding.selectListed([itemID]);
+  else if (selected) binding.clearListed();
 }
 
 /**
@@ -1212,7 +1219,8 @@ function renderTab(
         openBestAttachment(win, itemID).catch((error) =>
           reportAsyncError("Meristema: opening the attachment failed", error),
         ),
-      onGraphSelection: (itemID) => reportGraphSelection(win, itemID),
+      onGraphSelection: (itemID, node) =>
+        reportGraphSelection(win, itemID, node !== null),
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
