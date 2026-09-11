@@ -26,7 +26,7 @@ export interface ScopeSeedRow {
 export interface ScopeCollectionRow {
   kind: "collection";
   collectionID: number;
-  /** Indented by depth, the way the filter popover's list was. */
+  /** The folder's own name; the rail indents the row by `depth`. */
   label: string;
   depth: number;
   /** That folder's own papers currently in the graph. */
@@ -75,8 +75,31 @@ export interface ScopeRailInput {
   regionColors: ReadonlyMap<number, string>;
 }
 
+export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
+
+export interface ScopeSquare {
+  fill: ScopeSquareFill;
+  /** The white dash of a partly shown parent. */
+  dash: boolean;
+}
+
+/**
+ * What the square in front of a row shows (B31). The square is the native
+ * checkbox's face: empty when the folder is off, the accent when it is shown,
+ * grey with a dash when its descendants disagree. A folder drawn as a region
+ * takes its swatch instead of the accent, because the row behind it is
+ * already on the selected fill and the square is what tells two regions
+ * apart; the dash survives on it, since the swatch says nothing about the
+ * subtree.
+ */
+export function scopeSquare(row: ScopeRow): ScopeSquare {
+  const dash = row.state === "mixed";
+  if (row.selected && row.color) return { fill: "region", dash };
+  if (dash) return { fill: "mixed", dash };
+  return { fill: row.state === "on" ? "on" : "off", dash: false };
+}
+
 const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
-const INDENT = "    ";
 
 /** The label a Seeds row carries: `Author (year)`, ellipsised by the rail. */
 export function seedRowLabel(paper: {
@@ -139,7 +162,7 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
     return {
       kind: "collection",
       collectionID: collection.collectionID,
-      label: `${INDENT.repeat(Math.max(0, collection.depth))}${collection.name}`,
+      label: collection.name,
       depth: collection.depth,
       count: input.scope.countByCollection.get(collection.collectionID) ?? 0,
       state: collectionTickState(

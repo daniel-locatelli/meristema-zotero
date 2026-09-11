@@ -13,6 +13,7 @@ import {
   nextRegionSelection,
   regionsStillInLibrary,
   seedRowLabel,
+  scopeSquare,
 } from "../../src/services/graphScopeRailModel";
 
 function collection(
@@ -79,7 +80,7 @@ describe("buildScopeRailModel", function () {
     expect(model.hiddenLine).to.equal(null);
   });
 
-  it("indents the tree, keeps its order, and closes it with the two rows", function () {
+  it("keeps the tree's order with plain labels, and closes it with the two rows", function () {
     const model = buildScopeRailModel({
       collections: TREE,
       ticks: allCollectionsTicked(),
@@ -90,14 +91,18 @@ describe("buildScopeRailModel", function () {
       regions: [],
       regionColors: new Map(),
     });
+    // The indent is the row's padding now (B31), not spaces in the label.
     expect(model.rows.map((row) => row.label)).to.deep.equal([
       "PhD",
-      "    Reading",
-      "    Drafts",
+      "Reading",
+      "Drafts",
       "Teaching",
       "Unfiled",
       "Not in Zotero",
     ]);
+    expect(
+      model.rows.map((row) => (row.kind === "collection" ? row.depth : null)),
+    ).to.deep.equal([0, 1, 1, 0, null, null]);
     const last = model.rows.at(-1);
     expect(last?.kind).to.equal("external");
     expect(last?.state).to.equal("off");
@@ -271,5 +276,64 @@ describe("regions whose folder was deleted", function () {
   it("frees the slot the deleted folder held", function () {
     const pruned = regionsStillInLibrary([1, 99, 2, 11], TREE);
     expect(nextRegionSelection(pruned, 12)).to.deep.equal([1, 2, 11, 12]);
+  });
+});
+
+describe("scopeSquare", function () {
+  // The square is the checkbox's face (B31): its fill is the row's state,
+  // and a region's swatch wins over the accent because the row is already
+  // on the selected fill and the square is what tells two regions apart.
+  function rows(regions: number[], untick: number[] = []) {
+    return buildScopeRailModel({
+      collections: TREE,
+      ticks: setCollectionTicks(allCollectionsTicked(), untick, false),
+      includeUnfiled: true,
+      includeExternal: false,
+      seeds: [],
+      scope: emptyScope(),
+      regions,
+      regionColors: new Map(regions.map((id) => [id, "#abcdef"])),
+    }).rows;
+  }
+
+  it("is empty for an unticked folder", function () {
+    expect(scopeSquare(rows([], [2])[3])).to.deep.equal({
+      fill: "off",
+      dash: false,
+    });
+  });
+
+  it("is the accent for a ticked folder", function () {
+    expect(scopeSquare(rows([])[3])).to.deep.equal({
+      fill: "on",
+      dash: false,
+    });
+  });
+
+  it("is grey with a dash for a mixed parent", function () {
+    expect(scopeSquare(rows([], [11])[0])).to.deep.equal({
+      fill: "mixed",
+      dash: true,
+    });
+  });
+
+  it("takes the region swatch for a selected folder", function () {
+    expect(scopeSquare(rows([2])[3])).to.deep.equal({
+      fill: "region",
+      dash: false,
+    });
+  });
+
+  it("keeps the dash on a selected parent that is partly shown", function () {
+    expect(scopeSquare(rows([1], [11])[0])).to.deep.equal({
+      fill: "region",
+      dash: true,
+    });
+  });
+
+  it("only ever shows empty or the accent for Unfiled and Not in Zotero", function () {
+    const model = rows([]);
+    expect(scopeSquare(model[4])).to.deep.equal({ fill: "on", dash: false });
+    expect(scopeSquare(model[5])).to.deep.equal({ fill: "off", dash: false });
   });
 });
