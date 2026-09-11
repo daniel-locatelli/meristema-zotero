@@ -1235,6 +1235,163 @@ contours on every zoom step rather than never.
 
 ---
 
+## F14. Remove the four-folder region cap
+
+Found walking D3's second check on 2026-09-11. The cap works as designed —
+the fifth selection releases the first — and the user finds it wrong: "It
+works, but it may be frustrating for the user. I think we should eliminate
+the limit of only 4 folders and let the user add as many as he/she wishes."
+
+D3 chose the cap because overlapping translucent hulls stop being readable
+past a handful. That reasoning stands, but it is the reader's call, not the
+plugin's: a fifth region that turns the plot into mud is something they can
+see and undo, while a folder that silently vanishes when they select another
+is not. Removing the cap is the user's decision; what remains to decide is
+whether the categorical palette's eight swatches wrap, and how the legend
+reads once two folders share a colour.
+
+Pointers: `MAX_GRAPH_REGIONS` in `src/services/graphViewState.ts` (the
+constant, the parser's cap and the version 2 migration's cap);
+`nextRegionSelection` in `src/services/graphScopeRailModel.ts` (`slice(-cap)`
+and the docstring that argues for the cap); the ledger's index range in
+`src/services/graphSwatchLedger.ts` and B27's out-of-range guard; tests
+"caps the regions it will accept", "caps a version 2 migration at four
+folders" (`test/unit/graphViewState.test.ts`) and "releases the oldest when
+the cap is reached" (`test/unit/graphScopeRailModel.test.ts`).
+
+---
+
+## B32. One deep purple region swatch does not read against the dark theme
+
+Found walking D3's third check on 2026-09-11. The check itself passes —
+ticking folders repaints nothing else — but "there is one deep purple that
+don't contrast well with the dark background."
+
+The dark theme's categorical list in `src/services/graphTheme.ts` has two
+purples: `#9c72fe` (second) and `#ac00a9` (sixth). The sixth is the deep one
+and the likely culprit: a region is a translucent fill plus a stroke, and a
+dark saturated stroke over `#232320` has little luminance contrast. The seed
+palette's `#442b87` is darker still, but seeds are discs, not regions, and the
+complaint came from the folder walk. Confirm which with the user before
+re-deriving: D3 validated the categorical list against the ramp and against
+dichromacies, so a replacement has to be re-run through the same checks, not
+eyeballed in.
+
+Pointers: `DARK_THEME.categorical` in `src/services/graphTheme.ts`; the
+palette validation recorded in D3's spec; `drawRegions` in the renderer for
+the fill alpha and stroke width the swatch is drawn at.
+
+---
+
+## B33. A territory bulges toward a neighbour before the two merge
+
+Found walking D6's first shapes check on 2026-09-11. The curve itself is
+right — "it is getting good" — but "the shape starts to deform as if there
+was some gravity BEFORE they merge. This creates a pointy shape when it should
+just be a nice metaball."
+
+This is the kernel, not the fit. Each paper stamps `1 - d² / R²` into the
+field (`folderRegionContours`, the inner loop of the stamping pass) and the
+contour is the 0.5 level of the sum. That kernel has a hard edge: its slope
+at `d = R` is `-2 / R`, not zero, so the summed field is only C0 where one
+paper's support boundary crosses another's halo. The level set kinks there,
+and the kink is the point the user sees. Two halos closer than `2R` also add
+inside the overlap before their 0.5 circles touch (they touch at about
+`1.41R`), which is the "gravity". A C1 or C2 kernel — Wyvill's
+`(1 - d² / R²)³`, or the squared form — has zero slope at its edge, so the
+blend is smooth and confined to the neck; the bulge shrinks but does not
+vanish, because that is what a metaball is. The user's picture ("just a nice
+metaball") is closer to a smooth kernel than to what ships.
+
+Changing the kernel moves three things together, so it is one change and one
+golden: the lone-paper disc radius (`radius * sqrt(1 - threshold)` today; a
+cubed kernel gives `radius * sqrt(1 - threshold^(1/3))`), the exact isolation
+radius the `2R` decomposition quotes (`R(1 + sqrt(1 - t))`), and the contour
+golden's triple. The decomposition itself survives — every candidate kernel
+has the same support `R`.
+
+Pointers: `src/services/graphFolderRegion.ts` — the stamping loop
+(`values[...] += 1 - distance / squared`), `DEFAULT_THRESHOLD`, the disc
+radius derivation, the `regionComponents` docstring; the golden in
+`test/unit/graphFolderRegion.test.ts`; both D6 specs' description of the
+field.
+
+---
+
+## B34. Panning a 300+ paper folder at maximum zoom lags
+
+Found walking D6's last check on 2026-09-11: "It has a delay to it. We can
+try to optimize the render later." The user filed it for later, so it is
+not urgent.
+
+The roadmap's check already named the suspect, and the walk did not
+contradict it: at maximum zoom the contour is cheap (a 300-paper folder is
+about 5 k cells after the shapes round) and a pan recomputes nothing, so the
+lag is the draw path. `drawRegions` rebuilds every folder's `Path2D` from
+scratch on every frame, discs and Bézier loops alike, including shapes that
+sit entirely off-screen — and maximum zoom is exactly where a folder is many
+small loops. Measure before touching: a `performance.now()` bracket around
+`drawRegions` and around the whole `draw()` says whether it is the path
+build, the fill, or something else on the frame.
+
+Two cheap candidates once measured: cache the `Path2D` per folder per
+(bucket, transform) and translate on pan rather than rebuild, or cull shapes
+whose data-space bounding box misses the viewport before emitting them.
+
+Pointers: `drawRegions` and `draw()` in the renderer
+(`src/services/citationGraphRenderer.ts` / `graphRendererScene.ts`);
+`regionPathFor` in `src/services/graphFolderRegion.ts`; the contour cache
+keyed on the zoom bucket.
+
+---
+
+## B35. "New Graph from N items — fetches online" misleads
+
+Found on 2026-09-11, outside the batch. Right-clicking selected papers offers
+"New Graph from N items" with the hint "fetches online" beside it. The user:
+"I think this is misleading, because it actually opens all the items as
+seeds, and not simply open them. Also, the extra text can be removed
+'fetches online'."
+
+Two parts. The hint is `MENU_HINTS["open-focus-view-new-tab-command"]` in
+`src/services/menuService.ts`, drawn through `acceltext` because Gecko does
+not render tooltips over an open menupopup; the comment there explains it
+was meant to say what the intent costs (library-only versus provider
+fetches). The user wants it gone, which is a one-line deletion — and if the
+collection entries keep "library only" while the item entry loses its hint,
+the asymmetry should be a decision, not an accident. The label lives in
+`addon/locale/en-US/mainWindow.ftl` under `open-focus-view-new-tab-command`
+("New Graph from item" / "New Graph from { $count } items"); the user wants
+it to say that the items become seeds. Ask for the wording before changing
+it — Stage 2 decided this label deliberately (B4) and F5/F6 touch the same
+menu.
+
+---
+
+## B36. "Uncaught (in promise) undefined" in the Error Console
+
+Seen on 2026-09-11 while walking D6's console check. The console was
+otherwise quiet of the plugin: every other line is Zotero's own locale,
+devtools and reader noise, plus one warning that is ours and harmless (a
+sectioned `h1` with no font-size, from the visually-hidden "Graph" heading
+`graphViewService.ts` builds — `text(document, "h1", "Graph",
+"cm-visually-hidden")`).
+
+The one line that is not attributable is `Uncaught (in promise) undefined`,
+with no file or stack. It appeared once, between two blocks of locale noise,
+and nothing on screen went wrong. It is worth an entry because it is the
+second sighting of a rejection whose value is `undefined`: the intermittent
+`savedGraphMenu.test.ts` failure printed its error as "undefined" too.
+Nothing says they are the same; nothing says they are not. Next time it
+appears, note what was just done — the walk's steps were folder selection,
+zoom, pan and theme swap — and whether the plugin's own windows were open.
+
+Pointers: any `.then()` without a rejection handler, and any `reject()` or
+`throw undefined` path in `src/`; the savedGraphMenu note in the roadmap's
+Zotero suite section.
+
+---
+
 ## Answers the user asked for
 
 - Step 6 ("rename the tab; the Open list shows the new name") meant
@@ -1244,6 +1401,12 @@ contours on every zoom step rather than never.
   `restoreState` tab hook (`installGraphTabHooks`); the graph is also
   re-rendered by `refreshGraphInstance` after library updates. The user
   reports it works.
+- Tools › Plugins › the plugin card's ⋯ menu lists "Remove" above "Manage"
+  (2026-09-11); the user finds the order counter-intuitive. That menu is
+  Zotero's own add-on manager, inherited from Firefox's `about:addons`, and
+  nothing in the plugin builds or orders it — `addon/manifest.json` declares
+  only name, icons and version range. Not ours to fix; it would be an
+  upstream Zotero request.
 
 ## Working rules (unchanged)
 
