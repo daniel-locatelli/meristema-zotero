@@ -188,7 +188,11 @@ Behaviour:
   existing binding, looked up in the map. It never creates one: with no graph
   open in the window there is nothing to have clicked. A null (graph
   deselected, or an external node) calls nothing: deselecting in the graph
-  does not clear Zotero's list.
+  does not clear Zotero's list. A paper the list has no row for — outside the
+  folder Zotero has open — does clear it (B30): `selectItems` returns 0 and
+  would otherwise leave the list on whatever it showed before, with nothing
+  to say the graph and the list disagree. The binding takes the empty set as
+  current before Zotero echoes the clear, so no graph follows it.
 - `selectPaper` (double-click, Show in Zotero) is unchanged.
 
 ### View: `src/services/graphViewService.ts`

@@ -1091,7 +1091,7 @@ the likely shape.
 
 ---
 
-## B30. A node whose paper is outside the open folder selects the wrong item in Zotero
+## B30. A node whose paper is outside the open folder selects the wrong item in Zotero — FIXED
 
 Found in the same walk, on the B11 check. Selecting a node whose paper is not
 in the collection Zotero currently has open still drives a Zotero selection —
@@ -1107,6 +1107,28 @@ nothing then says the graph and the list disagree.
 Pointers: `src/services/zoteroSelectionSync.ts`,
 `src/services/zoteroPaneSync.ts` (whatever resolves a paper key to a row, and
 what it does when the row is absent), `src/services/librarySelection.ts`.
+
+### Fixed 2026-09-11, branch `clear-zotero-selection-when-absent`
+
+Reproduced on the plugin's own path before anything changed, with a spy on
+the boundary: the graph reports the clicked node's item ID, `selectListed`
+hands exactly that ID to `itemsView.selectItems(ids, true)`, and Zotero
+10.0.2 finds no row for it, logs "not selecting", returns 0 and leaves the
+list where it was. So neither side picks a substitute; the "wrong item" is
+the one the list had before the click. The fix is the one the entry names:
+a count of 0 now clears the list. `selectListed` sets the binding's current
+set to empty and then calls the tree's `selection.clearSelection()`, in that
+order, so the `onSelect` echo of the clear is already current, is not
+published, and reaches no graph — an echoed empty selection would otherwise
+have deselected the node just clicked through `applyLibrarySelection`. A
+null report (graph deselected) still calls nothing. Unit test on the
+binding: a zero-row select clears once, takes the empty set as current, and
+publishes neither the clear nor its echo; a rejected select clears nothing.
+Zotero-suite case `graphSelectionOutsideFolder.test.ts`, watched red then
+green, drives Tools › Meristema › New Graph and a real pointer on the node;
+it had to lower Zotero's locked pane overlay first, which the roadmap's
+"Zotero suite" section now explains. Spec passage on `onGraphSelection`
+updated. Manual check appended to the roadmap's batch.
 
 ---
 

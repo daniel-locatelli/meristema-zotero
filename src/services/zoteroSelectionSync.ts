@@ -14,6 +14,13 @@
  * a view applying a synced selection does not report it back, so nothing
  * loops. Everything Zotero is asked for happens inside a try, so a failure
  * here is a debug line and no sync, never a broken item list.
+ *
+ * One selection is not followed: a paper the list has no row for. Zotero's
+ * `selectItems` returns 0 for it and leaves the list where it was, so the
+ * graph would say one paper and the list another with nothing to say they
+ * disagree (backlog B30). The binding clears the list instead, and takes the
+ * empty set as current before Zotero echoes it, so the clear reaches no
+ * graph: the one that was clicked keeps its node, its siblings keep theirs.
  */
 
 export interface LibrarySelection {
@@ -29,6 +36,8 @@ export interface ItemsTreeLike {
   };
   getSelectedItems(asIDs: true): number[];
   selectItems(ids: number[], noRecurse: boolean): Promise<number>;
+  /** The tree's own selection object; `clearSelection` empties the list. */
+  selection: { clearSelection(): void };
 }
 
 /** Injectable so the binding is unit tested without Zotero. */
@@ -44,7 +53,11 @@ export interface ZoteroSelectionBinding {
    * set. Returns a copy.
    */
   current(): LibrarySelection;
-  /** Tree-level select of listed rows only: no jump, no focus, no tab switch. */
+  /**
+   * Tree-level select of listed rows only: no jump, no focus, no tab switch.
+   * When none of the rows is listed, the list is cleared rather than left on
+   * whatever it had (B30); that clear is not published.
+   */
   selectListed(itemIDs: readonly number[]): void;
   /** Listeners receive a copy. Returns the unsubscribe function. */
   subscribe(listener: (selection: LibrarySelection) => void): () => void;
@@ -168,10 +181,20 @@ export function bindZoteroSelection(
         return;
       }
       // Not awaited: the tree fires `onSelect` when it has selected, and that
-      // is what moves `current` and reaches the graphs.
-      selecting.catch((error: unknown) => {
-        deps.debug(`Meristema: selecting listed rows failed: ${String(error)}`);
-      });
+      // is what moves `current` and reaches the graphs. A count of zero means
+      // no row was listed and the list still shows what it showed before; it
+      // is cleared, with `current` set first so the echo is a no-op.
+      selecting
+        .then((count) => {
+          if (count !== 0 || disposed || tree !== target) return;
+          current = [];
+          target.selection.clearSelection();
+        })
+        .catch((error: unknown) => {
+          deps.debug(
+            `Meristema: selecting listed rows failed: ${String(error)}`,
+          );
+        });
     },
     subscribe(listener) {
       listeners.add(listener);
