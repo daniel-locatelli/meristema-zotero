@@ -42,13 +42,13 @@ today.
 The native checkbox is replaced on screen by a 13 px square with a 3 px
 radius. Its fill is the state:
 
-| Folder is                          | Square                                        |
-| ---------------------------------- | --------------------------------------------- |
-| off                                | empty, 1.5 px outline at 45 % ink             |
-| shown                              | filled in the accent blue (`--cm-accent`)     |
-| drawn as a region                  | filled in the folder's region swatch          |
-| partly shown (a mixed parent)      | grey fill (45 % ink over paper), a white dash |
-| region and partly shown            | region swatch fill, the white dash            |
+| Folder is                     | Square                                        |
+| ----------------------------- | --------------------------------------------- |
+| off                           | empty, 1.5 px outline at 45 % ink             |
+| shown                         | filled in the accent blue (`--cm-accent`)     |
+| drawn as a region             | filled in the folder's region swatch          |
+| partly shown (a mixed parent) | grey fill (45 % ink over paper), a white dash |
+| region and partly shown       | region swatch fill, the white dash            |
 
 No tick glyph is drawn in any state. Unfiled and Not in Zotero use the same
 square and only ever show empty or blue, since neither can be a region.
