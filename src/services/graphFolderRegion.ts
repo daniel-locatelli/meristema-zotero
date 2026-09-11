@@ -844,8 +844,11 @@ export function regionPathFor(
   return path;
 }
 
-/** Today's falloff, as a fraction of the plot's larger side. */
-const FALLOFF_FRACTION = 0.03;
+/**
+ * Today's falloff, as a fraction of the plot's larger side. Tuned on builds, not
+ * arithmetic: 0.06 → 0.04 → 0.03 → 0.025, each step the user's call after a walk.
+ */
+const FALLOFF_FRACTION = 0.025;
 /**
  * One zoom bucket. About 12%: small enough that the shape reads as following
  * the zoom rather than jumping, large enough that a slow zoom across the whole

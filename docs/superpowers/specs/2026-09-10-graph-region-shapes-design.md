@@ -206,6 +206,11 @@ resampler they are separate.
   bias means part of the perceived tightening at 0.04 already came free, and
   drawing lone papers as exact circles gives about half a pixel of that back.
   It is now a number the grid gets no vote on, so moving it again is cheap.
+  Moved again on 2026-09-11, after the user walked this build: 0.03 → 0.025,
+  "make it 0.005 smaller". The cost table below was computed at 0.03; at
+  0.025 every cell count scales by (0.03 / 0.025)² ≈ 1.44, so the measured
+  worst case is about 22 000 cells, still an order of magnitude under the
+  budget.
 - **`MAX_GRID_CELLS` 1 200 000 → 250 000.** It was raised twice chasing this;
   the measured worst case across every bucket is now about 15 000 cells. The
   budget applies to the **sum** across a folder's components, and on exceeding
@@ -308,7 +313,7 @@ expensive.
 - A window without `Path2D` still returns `null` (B28's guarantee, unchanged).
 
 **Unit — the knobs**: `regionGridPitch` is `radius / 3`;
-`regionFalloffRadius` at bucket 0 is `spread * 0.03`; `regionZoomBucket` clamps
+`regionFalloffRadius` at bucket 0 is `spread * 0.025`; `regionZoomBucket` clamps
 at 30. D3's zoom-invariance test and D6's bucket tests are updated to the new
 constants, not deleted.
 
@@ -336,7 +341,8 @@ the plugin's menus and canvas, since the test add-on is a second copy of `src`.
   outline is a curve with no wobble and no facets.
 - Zoom in until papers separate: a lone paper's halo is a clean circle at every
   zoom, and the territory pulls apart into those circles smoothly.
-- The offset at `0.03` is right, or says which way to move.
+- The offset at `0.03` is right, or says which way to move. Walked 2026-09-11:
+  smaller, by 0.005; now `0.025`.
 - Park the zoom part-way into a tighten and jiggle it by a percent either way —
   D6's deadband check, still unwalked, and now cheaper to fail well.
 - The Error Console stays quiet throughout. `draw()` latches `canvasError`, so

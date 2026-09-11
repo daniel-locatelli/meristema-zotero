@@ -1216,19 +1216,19 @@ describe("region zoom rules", function () {
   const SPREAD = 1000;
 
   it("holds today's radius at and below the fit zoom", function () {
-    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, 1, 1)).to.equal(25);
+    expect(regionFalloffRadius(SPREAD, 0.5, 1)).to.equal(25);
+    expect(regionFalloffRadius(SPREAD, 0.15, 1)).to.equal(25);
     expect(regionZoomBucket(0.5, 1)).to.equal(0);
     expect(regionZoomBucket(1, 1)).to.equal(0);
   });
 
   it("tightens in 12% steps past the fit zoom", function () {
     expect(regionZoomBucket(1.12, 1)).to.equal(1);
-    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(30 / 1.12, 1e-9);
+    expect(regionFalloffRadius(SPREAD, 1.12, 1)).to.be.closeTo(25 / 1.12, 1e-9);
     expect(regionZoomBucket(1.12 ** 4, 1)).to.equal(4);
     expect(regionFalloffRadius(SPREAD, 1.12 ** 4, 1)).to.be.closeTo(
-      30 / 1.12 ** 4,
+      25 / 1.12 ** 4,
       1e-9,
     );
     // The fit zoom moves the crossover with it, rather than the crossover
@@ -1250,7 +1250,7 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(1.12 ** 30, 1)).to.equal(30);
     expect(regionZoomBucket(1.12 ** 60, 1)).to.equal(30);
     expect(regionFalloffRadius(SPREAD, 1e6, 1)).to.be.closeTo(
-      30 / 1.12 ** 30,
+      25 / 1.12 ** 30,
       1e-9,
     );
   });
@@ -1259,8 +1259,11 @@ describe("region zoom rules", function () {
     // The pitch's only job is contour accuracy now: the fit's control-point
     // spacing is the resampler's, not the grid's, so a fifth was buying
     // 0.14 px of fidelity under a curve that misses by 0.51 px.
-    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.equal(10);
-    expect(regionGridPitch(30 / 1.12)).to.be.closeTo(10 / 1.12, 1e-9);
+    expect(regionGridPitch(regionFalloffRadius(SPREAD, 1, 1))).to.be.closeTo(
+      25 / 3,
+      1e-9,
+    );
+    expect(regionGridPitch(25 / 1.12)).to.be.closeTo(25 / 3 / 1.12, 1e-9);
   });
 
   it("measures the fit against the tighter of the two axes", function () {
@@ -1277,8 +1280,8 @@ describe("region zoom rules", function () {
     expect(regionZoomBucket(0, 1)).to.equal(0);
     expect(regionZoomBucket(Number.NaN, 1)).to.equal(0);
     expect(regionZoomBucket(Number.POSITIVE_INFINITY, 1)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(30);
-    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(30);
+    expect(regionFalloffRadius(SPREAD, 1, 0)).to.equal(25);
+    expect(regionFalloffRadius(SPREAD, Number.NaN, 1)).to.equal(25);
     expect(regionFalloffRadius(0, 1, 1)).to.equal(0);
     expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
   });
