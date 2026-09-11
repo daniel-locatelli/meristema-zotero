@@ -19,10 +19,11 @@
 import { element, text } from "./graphViewControls";
 import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
-import type {
-  ScopeRailModel,
-  ScopeRow,
-  ScopeSeedRow,
+import {
+  scopeSquare,
+  type ScopeRailModel,
+  type ScopeRow,
+  type ScopeSeedRow,
 } from "./graphScopeRailModel";
 
 /**
@@ -395,13 +396,19 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   function scopeRowElement(row: ScopeRow): HTMLElement {
     const wrapper = element(document, "div", "cm-scope-row");
+    // The indent is the row's padding, one step per level, and the guides
+    // are drawn in that padding by CSS; the label itself stays plain (B31).
+    const depth = row.kind === "collection" ? row.depth : 0;
+    wrapper.style.setProperty("--cm-depth", String(depth));
     if (row.selected) {
       wrapper.classList.add("cm-scope-row-selected");
       if (row.color) wrapper.style.setProperty("--cm-row-color", row.color);
     }
 
-    // The box keeps its own label so the checkbox still has a hit area of its
-    // own and a name for a screen reader; the row's body is now a button.
+    // The native checkbox stays, visually hidden, so the keyboard, a screen
+    // reader and the `change` handler are unchanged; the square beside it is
+    // its face, and the label wraps both so a click on the square is a click
+    // on the box.
     const boxLabel = element(document, "label", "cm-scope-check-label");
     const box = element(
       document,
@@ -409,7 +416,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       "cm-scope-check",
     ) as HTMLInputElement;
     box.type = "checkbox";
-    box.checked = row.state !== "off";
+    // A mixed row reads unchecked (with indeterminate set below) so a native
+    // click — which toggles from the box's current `checked`, not from the
+    // three-way row state — always commits to ticked, the cascade the
+    // comment above promises rather than clearing the parent's own tick.
+    box.checked = row.state === "on";
     // A parent whose descendants disagree draws mixed; clicking it commits to
     // ticked, which is what writes the same tick to the whole subtree.
     box.indeterminate = row.state === "mixed";
@@ -417,7 +428,32 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     box.addEventListener("change", () =>
       options.onScope.toggleRow(row, box.checked),
     );
-    boxLabel.appendChild(box);
+    const square = element(document, "span", "cm-scope-square");
+    square.setAttribute("aria-hidden", "true");
+    const face = scopeSquare(row);
+    square.classList.add(`cm-scope-square-${face.fill}`);
+    if (face.dash) square.classList.add("cm-scope-square-dash");
+    boxLabel.append(box, square);
+
+    // Hovering a parent's square tints every descendant's row, so the reach
+    // of the tick shows before the click. The rows are rebuilt on every
+    // render, so a tint never outlives the rows it was written to.
+    if (row.kind === "collection" && row.cascadeIDs.length > 1) {
+      const collectionID = row.collectionID;
+      const reach = (on: boolean): void => {
+        const rows = wrapper.parentElement;
+        if (!rows) return;
+        for (const id of row.cascadeIDs) {
+          if (id === collectionID) continue;
+          rows
+            .querySelector(`[data-collection-id="${id}"]`)
+            ?.closest(".cm-scope-row")
+            ?.classList.toggle("cm-scope-row-reach", on);
+        }
+      };
+      boxLabel.addEventListener("pointerenter", () => reach(true));
+      boxLabel.addEventListener("pointerleave", () => reach(false));
+    }
 
     const body = element(
       document,
