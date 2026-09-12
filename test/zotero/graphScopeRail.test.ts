@@ -172,6 +172,37 @@ describe("The graph's Scope rail", function () {
         .map((button) => button.textContent?.trim())
         .join(", ")}]`;
     };
+    // B43 evidence: does the right-click reach the canvas, and with which
+    // coordinates? A capture spy on the document and one on the canvas say.
+    const seen: string[] = [];
+    const spyDoc = (event: Event): void => {
+      const mouse = event as MouseEvent;
+      seen.push(`doc@${mouse.clientX},${mouse.clientY}`);
+    };
+    const spyCanvas = (event: Event): void => {
+      const mouse = event as MouseEvent;
+      seen.push(
+        `canvas@${mouse.clientX},${mouse.clientY} target=${
+          (event.target as Element | null)?.tagName
+        } same=${event.target === canvas}`,
+      );
+    };
+    win.document.addEventListener("contextmenu", spyDoc, true);
+    canvas.addEventListener("contextmenu", spyCanvas, true);
+    const rehover = (x: number, y: number, paper: string): boolean => {
+      // Leave the canvas, which clears the renderer's hover, then come back
+      // to the same point: does the hover find the same paper again?
+      canvas.dispatchEvent(
+        new win.PointerEvent("pointerleave", { bubbles: true }),
+      );
+      const cleared = canvas.title === "";
+      move(x, y);
+      return cleared && canvas.title === paper;
+    };
+    const finish = (): void => {
+      win.document.removeEventListener("contextmenu", spyDoc, true);
+      canvas.removeEventListener("contextmenu", spyCanvas, true);
+    };
     const started = Date.now();
     const deadline = started + 20_000;
     let passes = 0;
@@ -190,19 +221,30 @@ describe("The graph's Scope rail", function () {
             clientX: x,
             clientY: y,
           });
+          seen.length = 0;
           canvas.dispatchEvent(rightClick);
           // The renderer prevents the default only when its hit test found a
           // node, so this says whether the right-click and the hover agreed.
+          const state = menuState();
           clicks.push(
-            `${paper.split("\n")[0]} @${Math.round(x - box.left)},${Math.round(
-              y - box.top,
-            )} pass ${passes}: hit=${rightClick.defaultPrevented} ${menuState()}` +
-              ` title-after=${canvas.title === paper}`,
+            `${paper.split("\n")[0]} @${x},${y} (box ${Math.round(
+              box.left,
+            )},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(
+              box.height,
+            )}) pass ${passes}: hit=${rightClick.defaultPrevented} ${state}` +
+              ` title-after=${canvas.title === paper}` +
+              ` seen=[${seen.join("; ") || "nothing"}]` +
+              (state === "menu hidden"
+                ? ` rehover=${rehover(x, y, paper)}`
+                : ""),
           );
           const entry = nodeMenuItems().find(
             (button) => button.textContent?.trim() === label,
           );
-          if (entry) return entry;
+          if (entry) {
+            finish();
+            return entry;
+          }
           closeNodeMenu();
         }
       }
@@ -211,6 +253,7 @@ describe("The graph's Scope rail", function () {
       // moved under it by the next pass.
       await delay(500);
     }
+    finish();
     expect.fail(
       `no node menu entry reading ${label}; ${tried.size} paper(s) offered ` +
         `${[...tried].join(" | ") || "nothing"}` +
