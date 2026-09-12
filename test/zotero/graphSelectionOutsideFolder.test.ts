@@ -199,22 +199,26 @@ describe("Selecting a node whose paper is outside the open folder", function () 
     // gallery, and the gallery lies over the plot. A real pointer would land
     // on it rather than on a node, so it is sent away the way a reader sends
     // it away — the gallery's own "Start blank".
-    const gallery = await waitFor(
-      () => graphRoot().querySelector(".cm-view-gallery") as HTMLElement | null,
-      15_000,
-    );
-    expect(gallery, "D4's view gallery").to.exist;
-    await waitFor(() => !gallery!.hidden, 15_000);
-    const blank = (
-      Array.from(gallery!.querySelectorAll("button")) as HTMLButtonElement[]
-    ).find((button) => button.textContent?.trim() === "Start blank");
-    expect(blank, "the gallery's Start blank button").to.exist;
-    blank!.click();
-    const dismissed = await waitFor(() => gallery!.hidden, 10_000);
-    expect(
-      dismissed,
-      "the gallery is down before the plot is clicked",
-    ).to.equal(true);
+    const gallery = await waitFor(() => {
+      const section = graphRoot().querySelector(
+        ".cm-view-gallery",
+      ) as HTMLElement | null;
+      return section && !section.hidden ? section : null;
+    }, 15_000);
+    // Only when it is up: this suite is about the selection, not about which
+    // graphs are greeted by a gallery.
+    if (gallery) {
+      const blank = (
+        Array.from(gallery.querySelectorAll("button")) as HTMLButtonElement[]
+      ).find((button) => button.textContent?.trim() === "Start blank");
+      expect(blank, "the gallery's Start blank button").to.exist;
+      blank!.click();
+      const dismissed = await waitFor(() => gallery.hidden, 10_000);
+      expect(
+        dismissed,
+        "the gallery is down before the plot is clicked",
+      ).to.equal(true);
+    }
 
     const fit = await waitFor(
       () =>

@@ -235,12 +235,24 @@ describe("Graph views (D4)", function () {
     expect(chipButton, "the View chip is rendered").to.exist;
   });
 
+  /*
+   * Every step runs, whatever the state the cases left. A failed case can
+   * leave the tab closing and its root gone, and a hook that threw there
+   * would strand the fixture collection, its items, a saved graph row and a
+   * set `graphViews` preference — which the next suite's graph would then be
+   * built on. The first error is kept and rethrown once the cleanup is done,
+   * so a real failure still surfaces.
+   */
   after(async function () {
     this.timeout(30_000);
+    let failure: unknown = null;
+    const record = (error: unknown): void => {
+      if (failure === null) failure = error;
+    };
     // The gear's Label select writes the graph appearance preference, so the
-    // suite hands it back the way it found it.
-    if (tabID) {
-      const select = graphRoot().querySelector(
+    // suite hands it back the way it found it — if the graph is still there.
+    try {
+      const select = tabContent(tabID)?.querySelector(
         '.cm-appearance-panel select[data-role="labels"]',
       ) as HTMLSelectElement | null;
       if (select && select.value !== "author-year") {
@@ -248,10 +260,16 @@ describe("Graph views (D4)", function () {
         fire(select, "change");
         await delay(100);
       }
+    } catch (error) {
+      record(error);
     }
-    if (openedTabID) win.Zotero_Tabs.close(openedTabID);
-    if (tabID) win.Zotero_Tabs.close(tabID);
-    await delay(300);
+    try {
+      if (openedTabID) win.Zotero_Tabs.close(openedTabID);
+      if (tabID) win.Zotero_Tabs.close(tabID);
+      await delay(300);
+    } catch (error) {
+      record(error);
+    }
     if (v3GraphID !== null) await deleteSavedGraph(v3GraphID);
     Zotero.Prefs.clear(`${config.prefsPrefix}.graphViews`, true);
     Zotero.Prefs.clear(
@@ -264,6 +282,7 @@ describe("Graph views (D4)", function () {
       const collection = Zotero.Collections.get(collectionID) as any;
       if (collection) await collection.eraseTx();
     }
+    if (failure !== null) throw failure;
   });
 
   it("shows the gallery for a graph that never chose, and hides it on Start blank", async function () {
@@ -302,7 +321,13 @@ describe("Graph views (D4)", function () {
     ) as HTMLButtonElement;
     expect(gear, "the gear button").to.exist;
     gear.click();
-    await delay(50);
+    const panelOpen = await waitFor(() => {
+      const panel = graphRoot().querySelector(
+        ".cm-appearance-panel",
+      ) as HTMLElement | null;
+      return panel && !panel.hidden ? panel : null;
+    }, 5_000);
+    expect(panelOpen, "the gear's panel opened").to.exist;
     const labels = labelSelect();
     expect(labels.value, "Overview's own label mode").to.equal("author-year");
     labels.value = "none";
@@ -335,6 +360,9 @@ describe("Graph views (D4)", function () {
     ).to.equal("true");
     expect(normalize(row.textContent)).to.contain("Arrives with citation hops");
     row.click();
+    // A fixed window on purpose: nothing is meant to happen, so there is no
+    // state to wait for. The menu-still-open assertion below carries it — a
+    // row that had been taken would have closed the menu on its way out.
     await delay(200);
     expect(chipName(), `chip text was "${chipText()}"`).to.equal(before);
     expect(
