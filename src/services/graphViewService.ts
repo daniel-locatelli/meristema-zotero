@@ -39,6 +39,7 @@ import {
   stableExternalWorkIdentity,
 } from "../domain/workIdentity";
 import {
+  defaultHopEnabled,
   emptyGraphViewState,
   resolveGraphViewSeeds,
   seedFromNode,
@@ -51,7 +52,7 @@ import {
   type SwatchLedgerState,
 } from "./graphSwatchLedger";
 import { getMissingPaperRecommendations } from "./missingPaperRecommendationService";
-import { mergeRelatedWorkLists } from "./relationshipStoreService";
+import { getStoredRelationshipSummary } from "./relationshipStoreService";
 import { externalWorkURL } from "./providerPresentation";
 import {
   getRelationshipViewSnapshot,
@@ -92,6 +93,7 @@ import {
   nextRegionSelection,
   regionsStillInLibrary,
   seedRowLabel,
+  type ScopeHopsInput,
   type ScopeSeedRow,
 } from "./graphScopeRailModel";
 import {
@@ -112,6 +114,7 @@ import {
   tutorialChips,
   tutorialFootnote,
   type GraphViewDefinition,
+  type GraphViewLiveHops,
   type ViewFolder,
 } from "./graphViews";
 import {
@@ -199,22 +202,26 @@ import {
 } from "./graphTheme";
 import {
   additiveGraphModel,
-  buildGraphFocusProjection,
-  reachedKeysOf,
+  buildLocalWorkIndexes,
   externalWorkToFocusNode,
+  localNodeForWork,
   synchronizeExternalFocusNode,
-  type GraphFocusDirection,
-  type GraphFocusLocality,
-  type GraphFocusProjection,
   type GraphFocusState,
+  type LocalWorkIndexes,
 } from "./graphFocusService";
 import {
-  focusProjectionCacheKey,
-  getCachedFocusProjection,
-  getFocusRelationshipFragment,
-  invalidateFocusRelationshipFragment,
-  setCachedFocusProjection,
-  setFocusRelationshipFragment,
+  buildGraphHopModel,
+  clampHopDepth,
+  hopByKey,
+  reachedFromSeed,
+  type GraphHopModel,
+  type HopDirection,
+  type HopNeighbourhood,
+} from "./graphHopModel";
+import {
+  getHopFragment,
+  invalidateHopFragment,
+  setHopFragment,
 } from "./focusGraphCacheService";
 import {
   getGraphAppearance,
@@ -383,12 +390,8 @@ export function renderGraphView(
     statistics: { ...libraryModel.statistics },
   };
   let libraryGraphIndex = sharedGraphSnapshot.index;
-  let libraryGraphRevision = sharedGraphSnapshot.signature;
-  let libraryGraphRevisionCounter = 0;
   const markLibraryGraphChanged = (invalidateShared = true): void => {
     libraryGraphIndex = createCitationGraphIndex(libraryModel);
-    libraryGraphRevisionCounter += 1;
-    libraryGraphRevision = `${sharedGraphSnapshot.signature}:local:${libraryGraphRevisionCounter}`;
     if (invalidateShared) invalidateCitationGraphSnapshot(snapshot.libraryID);
   };
   const paperByKey = localPaperByKey(snapshot);
@@ -482,7 +485,7 @@ export function renderGraphView(
     rowActions: (work) => {
       const focusNode = focusNodeForWork(work);
       const actions: RowAction[] = [];
-      if (focusProjection && !focusProjection.seedKeys.has(focusNode.key)) {
+      if (hopModel && !hopModel.seedKeys.has(focusNode.key)) {
         actions.push({
           label: "Add as seed",
           title:
@@ -518,12 +521,11 @@ export function renderGraphView(
       notifyRelationshipMutation(event);
     },
   };
-  let focusProjection: GraphFocusProjection | null = null;
+  let hopModel: GraphHopModel | null = null;
+  let hopDirection: HopDirection = "cited-by";
+  let hopDepth = 1;
+  let hopEnabled: boolean[] = defaultHopEnabled();
   const focusSeedRegistry = new Map<string, CitationGraphNode>();
-  const focusRelationships = new Map<
-    string,
-    { references: ExternalWork[]; citedBy: ExternalWork[] }
-  >();
   const focusRefreshInFlight = new Map<string, Promise<void>>();
   const focusRefreshTimers = new Map<string, number>();
   const focusRefreshQueue = new SerializedTaskQueue();
@@ -902,49 +904,6 @@ export function renderGraphView(
   focusSeedPopover.append(focusSeedSearchWrap, focusSeedResults);
   focusSeedMenu.appendChild(focusSeedPopover);
 
-  const focusDirection = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["both", "References + cited by"],
-    ["references", "References"],
-    ["cited-by", "Cited by"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusDirection.appendChild(option);
-  }
-  const focusLocality = element(document, "select", "cm-select");
-  for (const [value, label] of [
-    ["all", "All known papers"],
-    ["local", "In Zotero only"],
-  ] as const) {
-    const option = element(document, "option");
-    option.value = value;
-    option.textContent = label;
-    focusLocality.appendChild(option);
-  }
-  // Direction and scope are settings of the graph, so they live with the
-  // graph display settings behind the Key rail's gear, as that panel's first
-  // section. They mean nothing without a seed, so the section is hidden
-  // while the graph is seedless. Ranking and the per-seed limit are gone:
-  // every neighbour a seed has is shown.
-  const exploreSection = element(
-    document,
-    "fieldset",
-    "cm-appearance-section cm-explore-section",
-  );
-  exploreSection.hidden = true;
-  exploreSection.style.display = "none";
-  exploreSection.appendChild(text(document, "legend", "Explore"));
-  for (const [label, control] of [
-    ["Direction", focusDirection],
-    ["Scope", focusLocality],
-  ] as const) {
-    const row = element(document, "label", "cm-appearance-row");
-    row.append(text(document, "span", label), control);
-    exploreSection.appendChild(row);
-  }
-
   // File first: the menu that owns the document leads the bar, as it does in
   // any application, and the actions on the document follow it (B21). The
   // search box stays at the far right as the bar's one elastic item.
@@ -959,13 +918,11 @@ export function renderGraphView(
   plotToolbar.append(toolbar, toolbarStatus, searchWrap);
 
   // The rail's "+ Add seed" link stays on every path so the view keeps one
-  // shape: it is how the first seed is added, so it is always live. The
-  // Explore section behind the gear has nothing to set until there is a seed,
-  // so it is hidden rather than disabled.
+  // shape: it is how the first seed is added, so it is always live. Direction
+  // and depth live in the rail's Citation hops block now, so the gear has
+  // nothing seed-dependent left to show or hide.
   const setSeeded = (seeded: boolean): void => {
     root.dataset.seeded = seeded ? "true" : "false";
-    exploreSection.hidden = !seeded;
-    exploreSection.style.display = seeded ? "" : "none";
     refreshButton.title = seeded
       ? "Refresh references and citing papers for the current Explore seeds."
       : "Refresh metadata and citation counts for the currently visible papers.";
@@ -1081,12 +1038,12 @@ export function renderGraphView(
 
     const check = (): void => {
       cameraFrame = 0;
-      if (cleaned || !focusProjection || generation !== focusFitGeneration) {
+      if (cleaned || !hopModel || generation !== focusFitGeneration) {
         return;
       }
       renderer?.resizeViewport();
       const rect = renderer?.getCanvas().getBoundingClientRect();
-      const nodeCount = focusProjection.nodes.length;
+      const nodeCount = hopModel.nodes.length;
       const ready = Boolean(rect && rect.width >= 240 && rect.height >= 180);
       const stable =
         ready &&
@@ -1120,7 +1077,7 @@ export function renderGraphView(
       : (setTimeout(check, 0) as unknown as number);
   };
   const fitCurrentGraph = (): void => {
-    if (focusProjection) renderer?.fitVisibleNodes();
+    if (hopModel) renderer?.fitVisibleNodes();
     else renderer?.fitView();
   };
   let sourceMetricsRefreshActive = false;
@@ -1164,15 +1121,14 @@ export function renderGraphView(
       refreshViewChip();
     },
     (layout) => {
-      if (focusProjection) setFocusGraphAppearance(layout);
+      if (hopModel) setFocusGraphAppearance(layout);
       else setGraphAppearance(layout);
     },
     () =>
-      focusProjection
+      hopModel
         ? resetFocusGraphAppearance(getGraphAppearance())
         : resetGraphAppearance(),
   );
-  appearance.panel.prepend(exploreSection);
   currentLayout = appearance.getLayout();
   /*
    * Both of these panels used to close only by pressing their own button
@@ -1272,9 +1228,9 @@ export function renderGraphView(
       );
     }
     if (emphasis.kind === "seed") {
-      const reached =
-        focusProjection?.reachedBySeed.get(emphasis.seedKey) ??
-        new Set<string>();
+      const reached = hopModel
+        ? reachedFromSeed(hopModel, emphasis.seedKey)
+        : new Set<string>();
       return new Set([emphasis.seedKey, ...reached]);
     }
     const collectionID = emphasis.collectionID;
@@ -1284,6 +1240,14 @@ export function renderGraphView(
         .map((node) => node.key),
     );
   };
+  // Task 12's runner reassigns both. Until it lands, Fetch hop N just opens
+  // the hop and the existing seed path fills it; there is no fill to control.
+  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  let fetchHop = (hop: number): void => {
+    setHopDepth(hop);
+  };
+  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  let fillControl = (_action: "stop" | "resume" | "more"): void => undefined;
   const keyRail = createKeyRail({
     document,
     onEmphasise: (emphasis: RailEmphasis | null) => {
@@ -1347,6 +1311,10 @@ export function renderGraphView(
         applyFilters();
         notifyStateChange();
       },
+      setHopDirection: (direction) => setHopDirection(direction),
+      fetchHop: (hop) => fetchHop(hop),
+      toggleHop: (hop, on) => setHopEnabled(hop, on),
+      fillControl: (action) => fillControl(action),
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -1486,7 +1454,7 @@ export function renderGraphView(
     // A seeded view fetches its own neighbours, so an empty projection there
     // is a transient loading state rather than a misunderstanding worth
     // explaining.
-    if (focusProjection || visibleCount > 1) {
+    if (hopModel || visibleCount > 1) {
       emptyState.hidden = true;
       return;
     }
@@ -1523,12 +1491,8 @@ export function renderGraphView(
     refreshViewChip();
   };
 
-  const focusStateFromControls = (seedKeys: string[]): GraphFocusState => ({
+  const seedState = (seedKeys: string[]): GraphFocusState => ({
     seedKeys: [...new Set(seedKeys)],
-    direction: focusDirection.value as GraphFocusDirection,
-    locality: focusLocality.value as GraphFocusLocality,
-    ranking: "relevance",
-    maxPerDirection: Number.POSITIVE_INFINITY,
   });
 
   const resolveFocusSeed = (
@@ -1557,58 +1521,6 @@ export function renderGraphView(
       edges: [...libraryModel.edges],
       statistics: { ...libraryModel.statistics },
     };
-  };
-
-  const cacheFocusRelationships = (
-    seedKey: string,
-    relationships: { references: ExternalWork[]; citedBy: ExternalWork[] },
-  ): void => {
-    setFocusRelationshipFragment(snapshot.libraryID, seedKey, relationships);
-  };
-
-  const ensureFocusRelationships = (
-    seed: CitationGraphNode,
-  ): { references: ExternalWork[]; citedBy: ExternalWork[] } => {
-    const existing = focusRelationships.get(seed.key);
-    if (existing) return existing;
-    const shared = getFocusRelationshipFragment(snapshot.libraryID, seed.key);
-    if (shared) {
-      focusRelationships.set(seed.key, shared);
-      return shared;
-    }
-    const graph = seedRelationshipGraph(seed);
-    const cachedReferences = getRelationshipViewSnapshot(
-      graph,
-      seed,
-      "references",
-      snapshot.libraryID,
-      FOCUS_RELATIONSHIP_CACHE_LIMIT,
-      { queueBackgroundHydration: false },
-    ).works;
-    const embeddedReferences = (
-      seed.externalWork?.references?.length
-        ? seed.externalWork.references
-        : seed.references
-    ) as ExternalWork[];
-    const relationships = {
-      // Some providers include references in the paper summary itself. Use
-      // those immediately instead of waiting for a second endpoint request.
-      references: mergeRelatedWorkLists(
-        cachedReferences,
-        embeddedReferences,
-      ) as ExternalWork[],
-      citedBy: getRelationshipViewSnapshot(
-        graph,
-        seed,
-        "cited-by",
-        snapshot.libraryID,
-        FOCUS_RELATIONSHIP_CACHE_LIMIT,
-        { queueBackgroundHydration: false },
-      ).works,
-    };
-    focusRelationships.set(seed.key, relationships);
-    cacheFocusRelationships(seed.key, relationships);
-    return relationships;
   };
 
   const externalWorkForFocusSeed = (seed: CitationGraphNode): ExternalWork => {
@@ -1666,15 +1578,9 @@ export function renderGraphView(
 
     focusSeedRegistry.set(seed.key, seed);
     if (refreshable) {
-      const relationships = focusRelationships.get(seed.key);
-      const embedded = seed.externalWork?.references ?? [];
-      if (relationships && embedded.length) {
-        relationships.references = mergeRelatedWorkLists(
-          relationships.references,
-          embedded,
-        ) as ExternalWork[];
-        cacheFocusRelationships(seed.key, relationships);
-      }
+      // A promoted identity reads a different store key, so the memo of this
+      // paper's lists is stale; the walk re-reads it on the rebuild.
+      invalidateHopFragment(snapshot.libraryID, seed.key);
       scheduleFocusRebuild();
     }
     return refreshable;
@@ -1728,7 +1634,7 @@ export function renderGraphView(
     const scrollTop = focusSeedResults.scrollTop;
     clear(focusSeedResults);
     seedNodeBySeedRowID.clear();
-    const seeds = focusProjection?.seeds ?? [];
+    const seeds = hopModel?.seeds ?? [];
     for (const seed of seeds) seedNodeBySeedRowID.set(seedPaperID(seed), seed);
     const list = seedPopoverList({
       query: focusSeedSearch.value,
@@ -1815,14 +1721,10 @@ export function renderGraphView(
   };
 
   const updateFocusBar = (): void => {
-    // The Seeds heading in the rail carries the count now.
-    if (!focusProjection) {
-      if (!focusSeedPopover.hidden) renderFocusSeedResults();
-      return;
-    }
+    // The Seeds heading in the rail carries the count, and direction and
+    // depth are the rail's Citation hops block; the open seed popover is the
+    // only thing left here that a seed change has to redraw.
     if (!focusSeedPopover.hidden) renderFocusSeedResults();
-    focusDirection.value = focusProjection.state.direction;
-    focusLocality.value = focusProjection.state.locality;
   };
 
   // Anchors a popover to its button's right edge when the start-anchored box
@@ -1963,11 +1865,9 @@ export function renderGraphView(
    * sees the same colours because allocation is deterministic, and leaves
    * the saved ledger exactly as it found it.
    */
-  const seedColorsFor = (
-    projection: GraphFocusProjection,
-  ): Map<string, string> => {
+  const seedColorsFor = (projection: GraphHopModel): Map<string, string> => {
     const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    const keys = projection.state.seedKeys;
+    const keys = projection.seeds.map((seed) => seed.key);
     const ledger = seedSwatches.peek(keys, theme.seeds.length);
     return new Map(
       keys.map((key) => [
@@ -1991,7 +1891,7 @@ export function renderGraphView(
       theme.categorical.swatches.length,
     );
     seedSwatches.ensure(
-      focusProjection?.state.seedKeys ?? [],
+      hopModel?.seeds.map((seed) => seed.key) ?? [],
       theme.seeds.length,
     );
   };
@@ -2001,6 +1901,23 @@ export function renderGraphView(
    * ledger's allocator and the appearance controller they close over, and
    * are assigned to the bindings the toolbar's callbacks already hold.
    */
+  /** The live hop state a view is compared against and captured from. */
+  const liveHops = (): GraphViewLiveHops => ({
+    direction: hopDirection,
+    depth: hopDepth,
+    enabled: hopEnabled,
+  });
+  /** The save panel's Explore row: the direction and depth it will save. */
+  const capturedExplore = (
+    existing: GraphViewDefinition | null,
+  ): string | null => {
+    const explore = existing
+      ? existing.explore
+      : { direction: hopDirection, hops: hopDepth };
+    if (!explore) return null;
+    const word = explore.direction === "references" ? "references" : "citers";
+    return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}`;
+  };
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
   const activeView = (): GraphViewDefinition | null => {
@@ -2032,6 +1949,7 @@ export function renderGraphView(
       regions,
       filters: graphFilter.state(),
       folders: viewFolders(),
+      hops: liveHops(),
     });
     viewsMenu.setLabel(active.name, edited);
     viewsMenu.setActive(active.id);
@@ -2051,6 +1969,7 @@ export function renderGraphView(
       layout: appearance.getLayout(),
       filters: graphFilter.state(),
       folders: viewFolders(),
+      hops: liveHops(),
     });
     // Appearance goes through the gear's own controller, so its selects, the
     // instance's live layout and the preference all move together.
@@ -2130,6 +2049,7 @@ export function renderGraphView(
         regions: regionsAtOpen,
         filters,
         folders,
+        hops: liveHops(),
       });
     };
     const capturedRegionCount = existing
@@ -2147,6 +2067,7 @@ export function renderGraphView(
       captures: {
         regions: capturedRegionCount,
         filters: existing ? existing.filters !== null : true,
+        explore: capturedExplore(existing),
       },
       existing,
       nameTaken: (name) => nameTaken(name, existing),
@@ -2181,6 +2102,7 @@ export function renderGraphView(
           layout,
           filters,
           folders,
+          hops: liveHops(),
         });
         const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
           .categorical.swatches.length;
@@ -2242,54 +2164,78 @@ ${error instanceof Error ? error.message : String(error)}`,
     applyGraphView(imported);
   };
 
-  /** Reached papers the library already holds; they wear the thin ring. */
-  const inLibraryReachedKeys = (
-    projection: GraphFocusProjection,
-  ): Set<string> => {
-    const local = new Set(
-      libraryModel.nodes
-        .filter((node) => node.kind !== "external")
-        .map((node) => node.key),
-    );
-    return new Set(
-      [...reachedKeysOf(projection)].filter((key) => local.has(key)),
+  /**
+   * A paper's stored list in one direction, as hop neighbours: the library's
+   * own node where the work matches one, otherwise an external node built
+   * from the work. Library citations already in the graph count as
+   * neighbours too, as they did for a seed. Memoised per paper and direction
+   * in the fragment cache, invalidated when that paper publishes.
+   */
+  let localWorkIndexes: LocalWorkIndexes | null = null;
+  const refreshLocalWorkIndexes = (): void => {
+    localWorkIndexes = buildLocalWorkIndexes(
+      [...focusSeedRegistry.values()],
+      libraryGraphIndex,
     );
   };
-
-  const applySeedProjection = (
-    projection: GraphFocusProjection,
-    projectionOptions: { fit?: boolean } = {},
-  ): void => {
-    setSeeded(true);
-    focusProjection = projection;
-    // The projection is an addition, not a replacement: the library graph
-    // stays, and the seeds' external neighbours are merged into it. Unticking
-    // a folder can then never remove a paper a seed brought in, and adding a
-    // seed can never remove anything at all.
-    const merged = additiveGraphModel(libraryModel, projection);
-    model.nodes.splice(0, model.nodes.length, ...merged.nodes);
-    model.edges.splice(0, model.edges.length, ...merged.edges);
-    model.statistics.nodes = merged.nodes.length;
-    model.statistics.edges = merged.edges.length;
-    model.statistics.resolvedNodes = merged.nodes.filter(
-      (node) => node.citationCount !== null || node.referenceCount !== null,
-    ).length;
-    model.statistics.isolatedNodes = merged.nodes.filter(
-      (node) =>
-        !merged.edges.some(
-          (edge) => edge.source === node.key || edge.target === node.key,
-        ),
-    ).length;
-    rebuildGraphFilterDescriptors();
-    renderer?.syncModel({ draw: false });
-    renderer?.setSeedKeys(projection.seedKeys, false);
-    ensureSwatchesFor();
-    renderer?.setSeedColors(seedColorsFor(projection), false);
-    renderer?.setInLibraryReachedKeys(inLibraryReachedKeys(projection), false);
-    applyFilters();
-    if (projectionOptions.fit) scheduleFocusFit();
-    updateFocusBar();
-    notifyStateChange();
+  const hopSubject = (key: string): CitationGraphNode | null =>
+    focusSeedRegistry.get(key) ??
+    libraryGraphIndex.nodeByKey.get(key) ??
+    model.nodes.find((node) => node.key === key) ??
+    null;
+  const hopNeighbourhood = (
+    key: string,
+    direction: HopDirection,
+  ): HopNeighbourhood => {
+    const subject = hopSubject(key);
+    if (!subject) return { expanded: false, neighbours: [] };
+    let fragment = getHopFragment(snapshot.libraryID, key, direction);
+    if (!fragment) {
+      const stored = getStoredRelationshipSummary(subject, direction);
+      const works = getRelationshipViewSnapshot(
+        seedRelationshipGraph(subject),
+        subject,
+        direction,
+        snapshot.libraryID,
+        FOCUS_RELATIONSHIP_CACHE_LIMIT,
+        { queueBackgroundHydration: false },
+      ).works;
+      fragment = { expanded: stored !== null, works };
+      setHopFragment(snapshot.libraryID, key, direction, fragment);
+    }
+    const indexes =
+      localWorkIndexes ?? buildLocalWorkIndexes([], libraryGraphIndex);
+    const neighbours = new Map<
+      string,
+      { node: CitationGraphNode; provenance: string }
+    >();
+    const relations =
+      direction === "references"
+        ? (libraryGraphIndex.outgoingEdgesByKey.get(subject.key) ?? [])
+        : (libraryGraphIndex.incomingEdgesByKey.get(subject.key) ?? []);
+    for (const relation of relations) {
+      const other =
+        direction === "references" ? relation.target : relation.source;
+      const node = libraryGraphIndex.nodeByKey.get(other);
+      if (node)
+        neighbours.set(node.key, { node, provenance: relation.provenance });
+    }
+    for (const work of fragment.works) {
+      const local = localNodeForWork(work, indexes);
+      const node =
+        local ??
+        externalWorkToFocusNode(
+          work,
+          direction === "references" ? "reference" : "cited-by",
+        );
+      if (!neighbours.has(node.key)) {
+        neighbours.set(node.key, { node, provenance: work.provider });
+      }
+    }
+    return {
+      expanded: fragment.expanded,
+      neighbours: [...neighbours.values()],
+    };
   };
 
   const seedsForState = (state: GraphFocusState): CitationGraphNode[] =>
@@ -2304,49 +2250,90 @@ ${error instanceof Error ? error.message : String(error)}`,
       .filter((node): node is CitationGraphNode => Boolean(node))
       .map(resolveFocusSeed);
 
-  const projectionForState = (
-    state: GraphFocusState,
-  ): GraphFocusProjection | null => {
+  const hopModelForSeeds = (state: GraphFocusState): GraphHopModel | null => {
     const seeds = seedsForState(state);
-    for (const seed of seeds) ensureFocusRelationships(seed);
-    const normalizedState = {
-      ...state,
-      seedKeys: seeds.map((seed) => seed.key),
-    };
-    const cacheKey = focusProjectionCacheKey(
-      snapshot.libraryID,
-      libraryGraphRevision,
-      normalizedState,
+    refreshLocalWorkIndexes();
+    const seedKeys = new Set(seeds.map((seed) => seed.key));
+    const seedEdges = libraryModel.edges.filter(
+      (edge) => seedKeys.has(edge.source) && seedKeys.has(edge.target),
     );
-    const cached = getCachedFocusProjection(cacheKey);
-    if (cached) return cached;
-    const projection = buildGraphFocusProjection({
-      graph: libraryModel,
-      index: libraryGraphIndex,
-      state: normalizedState,
+    return buildGraphHopModel({
       seeds,
-      relationships: focusRelationships,
+      direction: hopDirection,
+      depth: hopDepth,
+      neighbours: hopNeighbourhood,
+      seedEdges,
     });
-    if (projection) setCachedFocusProjection(cacheKey, projection);
-    return projection;
+  };
+
+  /** Hop papers the library already holds; they wear the thin ring. */
+  const inLibraryHopKeys = (next: GraphHopModel): Set<string> =>
+    new Set(
+      [...next.entries.keys()].filter(
+        (key) =>
+          !next.seedKeys.has(key) && libraryGraphIndex.nodeByKey.has(key),
+      ),
+    );
+
+  const applyHopModel = (
+    next: GraphHopModel,
+    projectionOptions: { fit?: boolean } = {},
+  ): void => {
+    setSeeded(true);
+    hopModel = next;
+    // An addition, not a replacement: the library graph stays and the hop
+    // papers merge into it, so adding a seed never removes anything and
+    // unticking a folder never removes a paper a hop brought in.
+    const merged = additiveGraphModel(libraryModel, next);
+    model.nodes.splice(0, model.nodes.length, ...merged.nodes);
+    model.edges.splice(0, model.edges.length, ...merged.edges);
+    model.statistics.nodes = merged.nodes.length;
+    model.statistics.edges = merged.edges.length;
+    model.statistics.resolvedNodes = merged.nodes.filter(
+      (node) => node.citationCount !== null || node.referenceCount !== null,
+    ).length;
+    // One pass over the edges, not one search per node: a hop-2 graph is
+    // thousands of nodes and the old filter-with-some was quadratic.
+    const linked = new Set<string>();
+    for (const edge of merged.edges) {
+      linked.add(edge.source);
+      linked.add(edge.target);
+    }
+    model.statistics.isolatedNodes = merged.nodes.filter(
+      (node) => !linked.has(node.key),
+    ).length;
+    rebuildGraphFilterDescriptors();
+    renderer?.syncModel({ draw: false });
+    renderer?.setSeedKeys(next.seedKeys, false);
+    ensureSwatchesFor();
+    renderer?.setSeedColors(seedColorsFor(next), false);
+    renderer?.setInLibraryReachedKeys(inLibraryHopKeys(next), false);
+    // The hop map, not a node field: the merge above kept the library's own
+    // node objects, which carry no hop.
+    renderer?.setHops(hopByKey(next), false);
+    appearance.setColourOptionAvailable("citation-hop", true);
+    applyFilters();
+    if (projectionOptions.fit) scheduleFocusFit();
+    updateFocusBar();
+    notifyStateChange();
   };
 
   const rebuildCurrentFocus = (options: { fit?: boolean } = {}): boolean => {
-    if (!focusProjection) return false;
+    if (!hopModel) return false;
     if (!viewActive) {
       inactiveRelationshipDirty = true;
       return true;
     }
-    const projection = projectionForState(
-      focusStateFromControls(focusProjection.state.seedKeys),
+    const projection = hopModelForSeeds(
+      seedState(hopModel.seeds.map((seed) => seed.key)),
     );
     if (!projection) return false;
-    applySeedProjection(projection, options);
+    applyHopModel(projection, options);
     return true;
   };
 
   const scheduleFocusRebuild = (): void => {
-    if (!focusProjection || focusRebuildFrame) return;
+    if (!hopModel || focusRebuildFrame) return;
     if (!viewActive) {
       inactiveRelationshipDirty = true;
       return;
@@ -2365,11 +2352,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     state: GraphFocusState,
     options: { fit?: boolean; selectKey?: string } = {},
   ): boolean => {
-    const projection = projectionForState(state);
+    const projection = hopModelForSeeds(state);
     if (!projection) return false;
-    focusDirection.value = projection.state.direction;
-    focusLocality.value = projection.state.locality;
-    applySeedProjection(projection, { fit: options.fit });
+    applyHopModel(projection, { fit: options.fit });
     const selectedKey = options.selectKey ?? projection.seeds[0].key;
     if (visibleKeys.has(selectedKey)) {
       // The seed the projection lands on is the view's own choice, not a
@@ -2381,7 +2366,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const updateFocusRefreshState = (): void => {
     focusLoadActive = focusRefreshCount > 0;
-    if (!focusProjection) return;
+    if (!hopModel) return;
     refreshButton.disabled = focusLoadActive;
     refreshButton.title = focusLoadActive
       ? `Updating connections for ${focusRefreshCount} seed${focusRefreshCount === 1 ? "" : "s"}…`
@@ -2483,28 +2468,15 @@ ${error instanceof Error ? error.message : String(error)}`,
                       seed.citationCount = resolution.reportedCount;
                     }
                   }
-                  const relationships = ensureFocusRelationships(seed);
-                  const published = getRelationshipViewSnapshot(
-                    seedRelationshipGraph(seed),
-                    seed,
-                    direction,
-                    snapshot.libraryID,
-                    FOCUS_RELATIONSHIP_CACHE_LIMIT,
-                    { queueBackgroundHydration: false },
-                  ).works;
-                  if (direction === "references") {
-                    relationships.references = published;
-                  } else {
-                    relationships.citedBy = published;
-                  }
-                  cacheFocusRelationships(seed.key, relationships);
+                  // The store has the new list; the memo of it has not.
+                  invalidateHopFragment(snapshot.libraryID, seed.key);
                   scheduleFocusRebuild();
                 },
                 onMetadataHydrated: () => {
                   if (
                     cleaned ||
                     epoch !== focusRefreshEpoch ||
-                    !focusProjection?.seedKeys.has(seed.key)
+                    !hopModel?.seedKeys.has(seed.key)
                   ) {
                     return;
                   }
@@ -2513,21 +2485,8 @@ ${error instanceof Error ? error.message : String(error)}`,
               },
             );
             if (cleaned || epoch !== focusRefreshEpoch) return;
-            const relationships = ensureFocusRelationships(seed);
-            const refreshed = getRelationshipViewSnapshot(
-              seedRelationshipGraph(seed),
-              seed,
-              direction,
-              snapshot.libraryID,
-              FOCUS_RELATIONSHIP_CACHE_LIMIT,
-              { queueBackgroundHydration: false },
-            ).works;
-            if (direction === "references") {
-              relationships.references = refreshed;
-            } else {
-              relationships.citedBy = refreshed;
-            }
-            cacheFocusRelationships(seed.key, relationships);
+            invalidateHopFragment(snapshot.libraryID, seed.key);
+            scheduleFocusRebuild();
           } catch (error) {
             Zotero.logError(
               error instanceof Error ? error : new Error(String(error)),
@@ -2570,8 +2529,8 @@ ${error instanceof Error ? error.message : String(error)}`,
         refreshFocusSeedConnections(seed, forceRefresh, epoch, mode),
       ),
     ).then(() => {
-      if (cleaned || epoch !== focusRefreshEpoch || !focusProjection) return;
-      if (uniqueSeeds.some((seed) => focusProjection?.seedKeys.has(seed.key))) {
+      if (cleaned || epoch !== focusRefreshEpoch || !hopModel) return;
+      if (uniqueSeeds.some((seed) => hopModel?.seedKeys.has(seed.key))) {
         rebuildCurrentFocus();
       }
     });
@@ -2593,7 +2552,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       if (
         cleaned ||
         epoch !== focusRefreshEpoch ||
-        !focusProjection?.seedKeys.has(seed.key)
+        !hopModel?.seedKeys.has(seed.key)
       ) {
         focusPostRefreshFitSeeds.delete(seed.key);
         // `restoredCamera` stays armed here; the next fit consumes it.
@@ -2605,7 +2564,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       }).finally(() => {
         if (cleaned || epoch !== focusRefreshEpoch) return;
         focusPostRefreshFitSeeds.delete(seed.key);
-        if (!focusPostRefreshFitSeeds.size && focusProjection) {
+        if (!focusPostRefreshFitSeeds.size && hopModel) {
           // The initial seed-only fit is useful for immediate feedback, but
           // once all newly introduced seeds have published their relationship
           // membership the complete node cloud must be fitted exactly once.
@@ -2635,10 +2594,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     );
     hiddenKeys.clear();
     for (const key of purged) hiddenKeys.add(key);
-    const enteringFromLibrary = !focusProjection;
+    const enteringFromLibrary = !hopModel;
     if (!enteringFromLibrary) resetFocusRefreshTracking();
-    const state =
-      options.state ?? focusStateFromControls(seeds.map((seed) => seed.key));
+    const state = options.state ?? seedState(seeds.map((seed) => seed.key));
     const normalizedState = {
       ...state,
       seedKeys: state.seedKeys.length
@@ -2670,10 +2628,10 @@ ${error instanceof Error ? error.message : String(error)}`,
       ).values(),
     ];
     if (!seeds.length) return false;
-    if (!focusProjection) return enterFocusSeeds(seeds);
+    if (!hopModel) return enterFocusSeeds(seeds);
 
     const missingSeeds = seeds.filter(
-      (seed) => !focusProjection?.seedKeys.has(seed.key),
+      (seed) => !hopModel?.seedKeys.has(seed.key),
     );
     if (!missingSeeds.length) return true;
 
@@ -2684,10 +2642,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     hiddenKeys.clear();
     for (const key of purged) hiddenKeys.add(key);
 
-    for (const seed of missingSeeds) ensureFocusRelationships(seed);
-    const state = focusStateFromControls([
+    const state = seedState([
       ...new Set([
-        ...focusProjection.state.seedKeys,
+        ...hopModel.seeds.map((seed) => seed.key),
         ...missingSeeds.map((seed) => seed.key),
       ]),
     ]);
@@ -2709,20 +2666,20 @@ ${error instanceof Error ? error.message : String(error)}`,
     addFocusSeeds([candidate]);
 
   removeFocusSeed = (key: string): void => {
-    if (!focusProjection || !focusProjection.seedKeys.has(key)) return;
-    const remaining = focusProjection.state.seedKeys.filter(
-      (seedKey) => seedKey !== key,
-    );
+    if (!hopModel || !hopModel.seedKeys.has(key)) return;
+    const remaining = hopModel.seeds
+      .map((seed) => seed.key)
+      .filter((seedKey) => seedKey !== key);
     if (!remaining.length) {
       clearSeeds();
       return;
     }
-    activateFocusState(focusStateFromControls(remaining), { fit: true });
+    activateFocusState(seedState(remaining), { fit: true });
   };
 
   /** A paper the reader does not need. Seeds cannot be hidden. */
   const hideFromGraph = (key: string): void => {
-    if (focusProjection?.seedKeys.has(key)) return;
+    if (hopModel?.seedKeys.has(key)) return;
     if (hiddenKeys.has(key)) return;
     hiddenKeys.add(key);
     applyFilters();
@@ -2736,7 +2693,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     libraryModel.edges.splice(0, libraryModel.edges.length, ...next.edges);
     Object.assign(libraryModel.statistics, next.statistics);
     markLibraryGraphChanged(false);
-    if (focusProjection) {
+    if (hopModel) {
       rebuildCurrentFocus();
       return;
     }
@@ -2750,9 +2707,8 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const clearSeeds = (): void => {
     resetFocusRefreshTracking();
-    focusProjection = null;
+    hopModel = null;
     setSeeded(false);
-    focusRelationships.clear();
     focusSeedRegistry.clear();
     restoredCamera = null;
     model.nodes.splice(0, model.nodes.length, ...libraryModel.nodes);
@@ -2763,6 +2719,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     renderer?.setSeedKeys(new Set(), false);
     renderer?.setSeedColors(new Map(), false);
     renderer?.setInLibraryReachedKeys(new Set(), false);
+    renderer?.setHops(new Map(), false);
+    appearance.setColourOptionAvailable("citation-hop", false);
     ensureSwatchesFor();
     updateFocusBar();
     applyFilters();
@@ -2851,30 +2809,12 @@ ${error instanceof Error ? error.message : String(error)}`,
     const relatedKey = localRelatedKey ?? externalRelatedNode?.key ?? null;
     let shouldRebuildFocus = false;
 
-    if (focusProjection && !focusLoadActive) {
-      for (const seed of focusProjection.seeds) {
+    if (hopModel && !focusLoadActive) {
+      for (const seed of hopModel.seeds) {
         if (seed.itemKey !== event.subjectItemKey) continue;
-        const relationships = ensureFocusRelationships(seed);
-        const list =
-          event.direction === "references"
-            ? relationships.references
-            : relationships.citedBy;
-        const identity = relationshipWorkKey(event.work);
-        if (event.ignored) {
-          const filtered = list.filter(
-            (candidate) => relationshipWorkKey(candidate) !== identity,
-          );
-          if (event.direction === "references") {
-            relationships.references = filtered;
-          } else {
-            relationships.citedBy = filtered;
-          }
-        } else if (
-          !list.some((candidate) => relationshipWorkKey(candidate) === identity)
-        ) {
-          list.push(event.work);
-        }
-        cacheFocusRelationships(seed.key, relationships);
+        // The mutation is in the store; the walk re-reads this paper's list
+        // through the fragment cache rather than being patched here.
+        invalidateHopFragment(snapshot.libraryID, seed.key);
         shouldRebuildFocus = true;
       }
     }
@@ -3012,7 +2952,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (relationshipGraphRefreshTimer || cleaned) return;
     const run = (): void => {
       relationshipGraphRefreshTimer = 0;
-      if (cleaned || focusProjection) return;
+      if (cleaned || hopModel) return;
       renderer?.setLayout(renderer.getLayout());
       updateSummary();
     };
@@ -3026,11 +2966,14 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): void => {
     if (event.phase === "membership-published") {
       invalidateCitationGraphSnapshot(event.libraryID);
-    } else if (event.phase === "metadata-published") {
-      invalidateFocusRelationshipFragment(
-        event.libraryID,
-        event.subjectItemKey,
-      );
+    }
+    // Either phase changes what this paper's stored list reads as, so the
+    // memo of it goes on both (spec, "The hop model").
+    if (
+      event.phase === "membership-published" ||
+      event.phase === "metadata-published"
+    ) {
+      invalidateHopFragment(event.libraryID, event.subjectItemKey);
     }
     const affected = nodesForRelationshipPublication(event);
     if (!affected.length) return;
@@ -3042,22 +2985,10 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (!subject) return;
 
     if (event.phase === "membership-published") {
-      if (focusProjection?.seedKeys.has(subject.key)) {
-        const relationships = ensureFocusRelationships(subject);
-        const published = getRelationshipViewSnapshot(
-          seedRelationshipGraph(subject),
-          subject,
-          event.direction,
-          snapshot.libraryID,
-          FOCUS_RELATIONSHIP_CACHE_LIMIT,
-          { queueBackgroundHydration: false },
-        ).works;
-        if (event.direction === "references") {
-          relationships.references = published;
-        } else {
-          relationships.citedBy = published;
-        }
-        cacheFocusRelationships(subject.key, relationships);
+      // Any paper the walk reached, not only a seed: the walk reads a hop
+      // paper's list too, so its landing changes the graph the same way.
+      if (hopModel?.entries.has(subject.key)) {
+        invalidateHopFragment(snapshot.libraryID, subject.key);
         scheduleFocusRebuild();
       } else {
         scheduleRelationshipGraphRefresh();
@@ -3265,31 +3196,18 @@ ${error instanceof Error ? error.message : String(error)}`,
           },
         });
         if (signal.cancelled) return;
-        // An update to a seed's relationships changes what the Explore
-        // projection is built from, so the cached fragment is replaced and the
-        // current view rebuilt before the list redraws.
-        if (focusProjection?.seedKeys.has(node.key)) {
-          const works = getRelationshipViewSnapshot(
-            model,
-            node,
-            direction,
-            snapshot.libraryID,
-            RELATIONSHIP_VIEW_LIMIT,
-          ).works;
-          const relationships = ensureFocusRelationships(node);
-          if (direction === "references") {
-            relationships.references = works;
-          } else {
-            relationships.citedBy = works;
-          }
-          cacheFocusRelationships(node.key, relationships);
+        // An update to this paper's relationships changes what the hop walk
+        // is built from, so the memo of its list is dropped and the current
+        // graph rebuilt before the list redraws.
+        if (hopModel?.entries.has(node.key)) {
+          invalidateHopFragment(snapshot.libraryID, node.key);
           rebuildCurrentFocus();
         }
       },
       onManualChange: (changes) => {
         if (!changes.length) return;
         invalidateCitationGraphSnapshot(snapshot.libraryID);
-        invalidateFocusRelationshipFragment(snapshot.libraryID, node.key);
+        invalidateHopFragment(snapshot.libraryID, node.key);
         replaceLibraryGraph(buildCitationGraph(snapshot));
         renderer?.setLayout(renderer.getLayout());
         updateSummary();
@@ -3318,7 +3236,7 @@ ${error instanceof Error ? error.message : String(error)}`,
    * an external work, seeded graph or not.
    */
   const seedToggleButton = (node: CitationGraphNode): HTMLButtonElement => {
-    const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
+    const isSeed = Boolean(hopModel?.seedKeys.has(node.key));
     const toggle = element(document, "button", "cm-secondary-button");
     toggle.type = "button";
     toggle.textContent = isSeed ? "Remove seed" : "Add as seed";
@@ -3330,7 +3248,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         removeFocusSeed(node.key);
         // Removing the last seed exits Explore, and that path restores the
         // library selection and re-renders the pane itself a frame later.
-        if (focusProjection) renderOverview(node);
+        if (hopModel) renderOverview(node);
         return;
       }
       if (addFocusSeed(node)) renderOverview(node);
@@ -3465,23 +3383,8 @@ ${error instanceof Error ? error.message : String(error)}`,
           }
         })()
           .then(() => {
-            const relationships = ensureFocusRelationships(node);
-            relationships.references = getRelationshipViewSnapshot(
-              seedRelationshipGraph(node),
-              node,
-              "references",
-              snapshot.libraryID,
-              RELATIONSHIP_VIEW_LIMIT,
-            ).works;
-            relationships.citedBy = getRelationshipViewSnapshot(
-              seedRelationshipGraph(node),
-              node,
-              "cited-by",
-              snapshot.libraryID,
-              RELATIONSHIP_VIEW_LIMIT,
-            ).works;
-            cacheFocusRelationships(node.key, relationships);
-            if (focusProjection?.seedKeys.has(node.key)) rebuildCurrentFocus();
+            invalidateHopFragment(snapshot.libraryID, node.key);
+            if (hopModel?.entries.has(node.key)) rebuildCurrentFocus();
             if (!cleaned) renderOverview(node);
           })
           .catch((error: unknown) => {
@@ -3592,7 +3495,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): void => {
     closeFocusSeedPopover();
     nodeMenuTarget = node;
-    const isSeed = Boolean(focusProjection?.seedKeys.has(node.key));
+    const isSeed = Boolean(hopModel?.seedKeys.has(node.key));
     nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
     nodeMenuRemove.hidden = isSeed;
     applyOpenEntry(node);
@@ -3631,7 +3534,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     const node = nodeMenuTarget;
     closeNodeMenu(true);
     if (!node) return;
-    if (focusProjection?.seedKeys.has(node.key)) removeFocusSeed(node.key);
+    if (hopModel?.seedKeys.has(node.key)) removeFocusSeed(node.key);
     else addFocusSeed(node);
   });
   nodeMenuRemove.addEventListener("click", () => {
@@ -3700,16 +3603,16 @@ ${error instanceof Error ? error.message : String(error)}`,
     // rail's region legend and the seed rows' marks off the new theme.
     onThemeChange: () => {
       refreshScopeRail();
-      if (focusProjection) {
-        renderer?.setSeedColors(seedColorsFor(focusProjection), false);
+      if (hopModel) {
+        renderer?.setSeedColors(seedColorsFor(hopModel), false);
       }
     },
   });
   const scopeSeedRows = (): ScopeSeedRow[] => {
-    const colors = focusProjection
-      ? seedColorsFor(focusProjection)
+    const colors = hopModel
+      ? seedColorsFor(hopModel)
       : new Map<string, string>();
-    return (focusProjection?.state.seedKeys ?? []).map((key) => {
+    return (hopModel?.seeds.map((seed) => seed.key) ?? []).map((key) => {
       const node =
         focusSeedRegistry.get(key) ??
         model.nodes.find((candidate) => candidate.key === key) ??
@@ -3771,6 +3674,34 @@ ${error instanceof Error ? error.message : String(error)}`,
     }));
   };
 
+  const scopeHopsInput = (): ScopeHopsInput => {
+    const colouring = renderer?.getLayout().nodeColorMetric === "citation-hop";
+    const assignment = colouring ? renderer?.getCategoryAssignment() : null;
+    return {
+      direction: hopDirection,
+      depth: hopDepth,
+      enabled: hopEnabled,
+      shownByHop: lastScope?.shownByHop ?? [],
+      availableByHop: lastScope?.availableByHop ?? [],
+      reportedByHop: hopReportedByHop(),
+      colours: assignment
+        ? Array.from(
+            { length: hopDepth + 1 },
+            (_, hop) =>
+              assignment.entries.find((entry) => entry.key === `hop:${hop}`)
+                ?.color ?? null,
+          )
+        : null,
+      fill: hopFillState(),
+    };
+  };
+  // Both are the runner's (Task 12), which reassigns them; until then the
+  // rail prints no reported totals and no progress line.
+  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  let hopReportedByHop = (): (number | null)[] => [];
+  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  let hopFillState = (): ScopeHopsInput["fill"] => null;
+
   refreshScopeRail = (): void => {
     if (!lastScope) return;
     const drawnRegions = regionsForRenderer();
@@ -3787,6 +3718,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         regionColors: new Map(
           drawnRegions.map((region) => [region.collectionID, region.color]),
         ),
+        hops: hopModel ? scopeHopsInput() : null,
       }),
     );
   };
@@ -3810,8 +3742,8 @@ ${error instanceof Error ? error.message : String(error)}`,
         edgeCount: active.getVisibleEdgeCount(),
         states: {
           selectedKey: selectedNode?.key ?? null,
-          seedKeys: focusProjection
-            ? new Set(focusProjection.state.seedKeys)
+          seedKeys: hopModel
+            ? new Set(hopModel.seeds.map((seed) => seed.key))
             : new Set<string>(),
           searchMatches: searchMatchKeys,
           visibleKeys:
@@ -3843,10 +3775,12 @@ ${error instanceof Error ? error.message : String(error)}`,
         collectionIDs: node.collectionIDs,
         inLibrary: node.kind !== "external",
       })),
-      seedKeys: focusProjection?.seedKeys ?? new Set<string>(),
-      reachedKeys: focusProjection
-        ? reachedKeysOf(focusProjection)
-        : new Set<string>(),
+      seedKeys: hopModel?.seedKeys ?? new Set<string>(),
+      hops: {
+        entries: hopModel?.entries ?? new Map(),
+        depth: hopDepth,
+        enabled: hopEnabled,
+      },
       ticks: collectionTicks,
       includeUnfiled,
       includeExternal,
@@ -3890,14 +3824,28 @@ ${error instanceof Error ? error.message : String(error)}`,
     refreshKeyRail();
     maybeShowGallery();
   };
+  const setHopDirection = (direction: HopDirection): void => {
+    if (direction === hopDirection) return;
+    hopDirection = direction;
+    if (hopModel) rebuildCurrentFocus();
+    notifyStateChange();
+  };
+  const setHopDepth = (depth: number): void => {
+    const next = clampHopDepth(depth);
+    if (next === hopDepth) return;
+    hopDepth = next;
+    if (hopModel) rebuildCurrentFocus();
+    notifyStateChange();
+  };
+  const setHopEnabled = (hop: number, enabled: boolean): void => {
+    if (hop <= 0 || hop > hopDepth) return;
+    hopEnabled = hopEnabled.map((value, index) =>
+      index === hop ? enabled : value,
+    );
+    applyFilters();
+    notifyStateChange();
+  };
   search.addEventListener("input", applyFilters);
-  for (const control of [focusDirection, focusLocality]) {
-    control.addEventListener("change", () => {
-      if (!focusProjection) return;
-      scheduleFocusRebuild();
-      notifyStateChange();
-    });
-  }
   similarButton.addEventListener("click", () => {
     if (similarButton.disabled) return;
     const visibleNodes = model.nodes.filter((node) =>
@@ -4188,8 +4136,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   });
   refreshButton.addEventListener("click", () => {
     if (refreshButton.disabled) return;
-    if (focusProjection) {
-      void loadFocusConnections(focusProjection.seeds, {
+    if (hopModel) {
+      void loadFocusConnections(hopModel.seeds, {
         forceRefresh: true,
         mode: "manual",
       }).catch((error: unknown) => {
@@ -4425,26 +4373,11 @@ ${error instanceof Error ? error.message : String(error)}`,
   const reconcileInactiveView = (): void => {
     if (!inactiveRelationshipDirty || cleaned) return;
     inactiveRelationshipDirty = false;
-    if (focusProjection) {
-      for (const seed of focusProjection.seeds) {
-        const relationships = ensureFocusRelationships(seed);
-        relationships.references = getRelationshipViewSnapshot(
-          seedRelationshipGraph(seed),
-          seed,
-          "references",
-          snapshot.libraryID,
-          FOCUS_RELATIONSHIP_CACHE_LIMIT,
-          { queueBackgroundHydration: false },
-        ).works;
-        relationships.citedBy = getRelationshipViewSnapshot(
-          seedRelationshipGraph(seed),
-          seed,
-          "cited-by",
-          snapshot.libraryID,
-          FOCUS_RELATIONSHIP_CACHE_LIMIT,
-          { queueBackgroundHydration: false },
-        ).works;
-        cacheFocusRelationships(seed.key, relationships);
+    if (hopModel) {
+      // Whatever landed while the tab was away is in the store; the walk
+      // re-reads every seed's list on the rebuild below.
+      for (const seed of hopModel.seeds) {
+        invalidateHopFragment(snapshot.libraryID, seed.key);
       }
       rebuildCurrentFocus();
     } else {
@@ -4469,8 +4402,9 @@ ${error instanceof Error ? error.message : String(error)}`,
   };
 
   const getState = (): GraphViewState => {
-    const seeds = focusProjection
-      ? focusProjection.state.seedKeys
+    const seeds = hopModel
+      ? hopModel.seeds
+          .map((seed) => seed.key)
           .map((key) => focusSeedRegistry.get(key) ?? null)
           .filter((node): node is CitationGraphNode => node !== null)
           .map(seedFromNode)
@@ -4484,9 +4418,10 @@ ${error instanceof Error ? error.message : String(error)}`,
     return {
       ...emptyGraphViewState(),
       seeds,
-      explore: {
-        direction: focusDirection.value as GraphFocusDirection,
-        locality: focusLocality.value as GraphFocusLocality,
+      hops: {
+        direction: hopDirection,
+        depth: hopDepth,
+        enabled: [...hopEnabled],
       },
       filters,
       collections: collectionTicks,
@@ -4528,9 +4463,17 @@ ${error instanceof Error ? error.message : String(error)}`,
     // Opening a saved graph, or restoring a tab, selects a seed of its own
     // accord; Zotero's list must not follow that.
     const result = withoutSelectionReport(() => {
-      focusDirection.value = state.explore.direction;
-      focusLocality.value = state.explore.locality;
-      if (focusProjection) clearSeeds();
+      hopDirection = state.hops.direction;
+      hopDepth = state.hops.depth;
+      hopEnabled = [...state.hops.enabled];
+      if (state.migratedFromBothDirections) {
+        // A saved graph fetched both directions until Stage 3; say once
+        // what it shows now, through the path B42's read-only notice uses.
+        setStatus("Directions are now one at a time; showing Citers", {
+          sticky: true,
+        });
+      }
+      if (hopModel) clearSeeds();
       graphFilter.setState({ ...state.filters, collectionIDs: [] });
       // A version 1 recipe named the folders it was scoped to and drew each
       // one's whole subtree, so its ticks are expanded once here — and only
@@ -4696,7 +4639,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       if (!known.length || known.length !== collectionIDs.length) {
         return "not-found";
       }
-      if (focusProjection) clearSeeds();
+      if (hopModel) clearSeeds();
       collectionTicks = onlyCollectionsTicked([
         ...collectionScopeIDs(known, snapshot.collections),
       ]);
@@ -4735,8 +4678,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       if (request) {
         // The request already shaped the graph; the state fills in what the
         // request does not name, and a request never names filters.
-        focusDirection.value = options.initialState.explore.direction;
-        focusLocality.value = options.initialState.explore.locality;
+        hopDirection = options.initialState.hops.direction;
+        hopDepth = options.initialState.hops.depth;
+        hopEnabled = [...options.initialState.hops.enabled];
         // The graph's folders live in the ticks the request already set; the
         // filter controller no longer scopes the graph by folder.
         graphFilter.setState({
@@ -4745,7 +4689,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         });
         activeViewRef = options.initialState.view;
         invalidateActiveView();
-        if (focusProjection) scheduleFocusRebuild();
+        if (hopModel) scheduleFocusRebuild();
       } else {
         applyState(options.initialState);
       }

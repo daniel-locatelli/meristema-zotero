@@ -265,8 +265,8 @@ describe("Graph view, as the product builds it", function () {
 
     // Seeds left the toolbar for the rail. A seedless graph still has to be
     // able to take its first seed, so the rail's "+ Add seed" stays live;
-    // this bar carries nothing about seeds at all. Direction and scope wait
-    // behind the gear, and only appear once there is a seed to explore from.
+    // this bar carries nothing about seeds at all. Direction and depth live
+    // in the rail's Citation hops block; the gear's Explore section is gone.
     expect(
       active.root.querySelector(
         'button[aria-controls="meristema-focus-seed-popover"]',
@@ -290,17 +290,10 @@ describe("Graph view, as the product builds it", function () {
       ),
       "the toolbar has no Explore button",
     ).to.equal(null);
-    const explore = active.root.querySelector(
-      ".cm-appearance-panel .cm-explore-section",
-    ) as HTMLElement;
-    expect(explore, "the gear panel has the Explore section").to.not.equal(
-      null,
-    );
-    expect(explore.hidden, "hidden while seedless").to.equal(true);
     expect(
-      explore.querySelectorAll("select").length,
-      "with direction and scope only",
-    ).to.equal(2);
+      active.root.querySelector(".cm-explore-section"),
+      "the gear panel's Explore section is gone with the projection",
+    ).to.equal(null);
     expect(
       active.root.querySelector(".cm-add-node-wrap"),
       "Add Node is gone",
@@ -1316,19 +1309,15 @@ describe("Graph view, as the product builds it", function () {
     expect(controller.addFocusItems([a.itemID, b.itemID])).to.equal("selected");
     await settle(first.window, 6);
 
-    const direction = first.root.querySelector(
-      ".cm-explore-section select",
-    ) as HTMLSelectElement;
-    direction.value = "references";
-    direction.dispatchEvent(new (first.window as any).Event("change"));
-    await settle(first.window, 6);
-
     const state = controller.getState();
     expect(state.seeds, "both seeds, by key, in order").to.deep.equal([
       { kind: "item", itemKey: a.itemKey },
       { kind: "item", itemKey: b.itemKey },
     ]);
-    expect(state.explore.direction).to.equal("references");
+    expect(
+      state.hops.direction,
+      `the hop direction a seeded graph starts on: ${state.hops.direction}`,
+    ).to.equal("cited-by");
     expect(state.camera, "the camera is read on demand").to.not.equal(null);
     first.close();
 
@@ -1344,7 +1333,7 @@ describe("Graph view, as the product builds it", function () {
     const rebuilt = getGraphViewController(second.mount)!;
     const restored = rebuilt.getState();
     expect(restored.seeds).to.deep.equal(state.seeds);
-    expect(restored.explore).to.deep.equal(state.explore);
+    expect(restored.hops).to.deep.equal(state.hops);
     expect(restored.filters.excludeRetracted).to.equal(true);
     expect(
       second.root.querySelector(".cm-scope-seeds-heading")?.textContent?.trim(),

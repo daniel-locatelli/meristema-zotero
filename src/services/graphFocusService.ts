@@ -3,7 +3,6 @@ import type {
   CitationGraphEdge,
   CitationGraphFocusRole,
   CitationGraphIndex,
-  CitationGraphModel,
   CitationGraphNode,
 } from "../domain/graphTypes";
 import {
@@ -15,54 +14,11 @@ import {
   relationshipStableAliases,
   stableExternalWorkIdentity,
 } from "../domain/workIdentity";
-import { assignFocusCitationSequence } from "./citationSequenceService";
 
-export type GraphFocusDirection = "both" | "references" | "cited-by";
-export type GraphFocusLocality = "all" | "local";
-export type GraphFocusRanking =
-  "relevance" | "most-cited" | "most-recent" | "local-first";
-
+/** The seed set. Direction and depth live on the hop state now. */
 export interface GraphFocusState {
   /** Ordered seed keys. The first entry is the primary seed used for labels. */
   seedKeys: string[];
-  direction: GraphFocusDirection;
-  locality: GraphFocusLocality;
-  ranking: GraphFocusRanking;
-  /** Maximum neighbours selected for each seed in each enabled direction. */
-  maxPerDirection: number;
-}
-
-export interface GraphFocusSeedRelationships {
-  references: RelatedWorkMetadata[];
-  citedBy: RelatedWorkMetadata[];
-}
-
-export interface GraphFocusInput {
-  graph: CitationGraphModel;
-  /** Optional graph-ready indexes shared by Meristema and Focus View. */
-  index?: CitationGraphIndex;
-  state: GraphFocusState;
-  /** Seed nodes may be local or temporary external nodes. */
-  seeds: CitationGraphNode[];
-  /** Relationship membership is kept per seed so multi-seed unions are reproducible. */
-  relationships: ReadonlyMap<string, GraphFocusSeedRelationships>;
-}
-
-export interface GraphFocusProjection {
-  state: GraphFocusState;
-  seeds: CitationGraphNode[];
-  /**
-   * The papers the seeds reached, as nodes. No longer the graph: the view
-   * merges these into the library model rather than swapping the model for
-   * them, so adding a seed only ever adds papers.
-   */
-  nodes: CitationGraphNode[];
-  edges: CitationGraphEdge[];
-  seedKeys: Set<string>;
-  externalKeys: Set<string>;
-  /** Which papers each seed reached, keyed by seed node key. */
-  reachedBySeed: Map<string, Set<string>>;
-  hidden: { references: number; citedBy: number };
 }
 
 function finite(value: unknown): number | null {
@@ -210,7 +166,8 @@ export function synchronizeExternalFocusNode(
   return Boolean(stableIdentity);
 }
 
-function localIndexes(
+/** The library's nodes by key and alias, for matching a stored work to one. */
+export function buildLocalWorkIndexes(
   nodes: CitationGraphNode[],
   graphIndex?: CitationGraphIndex,
 ) {
@@ -236,9 +193,12 @@ function localIndexes(
   return { byKey, byAlias };
 }
 
-function localNodeForWork(
+export type LocalWorkIndexes = ReturnType<typeof buildLocalWorkIndexes>;
+
+/** The library's own node for a stored work, when exactly one matches it. */
+export function localNodeForWork(
   work: RelatedWorkMetadata,
-  indexes: ReturnType<typeof localIndexes>,
+  indexes: LocalWorkIndexes,
 ): CitationGraphNode | null {
   const explicit = work.inLibraryItemKey ?? work.zoteroItemKey;
   if (explicit) {
@@ -262,377 +222,9 @@ function localNodeForWork(
   return matching.length === 1 ? matching[0] : null;
 }
 
-interface RankedNode {
-  node: CitationGraphNode;
-  work: RelatedWorkMetadata | null;
-  local: boolean;
-}
-
-interface AggregatedNode extends RankedNode {
-  seedKeys: Set<string>;
-  provenances: Set<string>;
-}
-
-function compareRanked(
-  left: AggregatedNode,
-  right: AggregatedNode,
-  ranking: GraphFocusRanking,
-): number {
-  const connectionOrder = right.seedKeys.size - left.seedKeys.size;
-  const localOrder = Number(right.local) - Number(left.local);
-  if (ranking === "local-first") {
-    return localOrder || connectionOrder || compareImpact(left, right);
-  }
-  const leftCites = left.node.citationCount ?? -1;
-  const rightCites = right.node.citationCount ?? -1;
-  const leftYear = left.node.year ?? -Infinity;
-  const rightYear = right.node.year ?? -Infinity;
-  if (ranking === "most-recent") {
-    return rightYear - leftYear || connectionOrder || rightCites - leftCites;
-  }
-  if (ranking === "most-cited") {
-    return rightCites - leftCites || connectionOrder || rightYear - leftYear;
-  }
-  // In multi-seed mode shared neighbours are the strongest relevance signal.
-  return connectionOrder || compareImpact(left, right) || localOrder;
-}
-
-function compareImpact(left: RankedNode, right: RankedNode): number {
-  const currentYear = new Date().getFullYear();
-  const score = (entry: RankedNode): number => {
-    const cites = Math.log1p(Math.max(0, entry.node.citationCount ?? 0));
-    const recency =
-      entry.node.year === null
-        ? 0
-        : Math.max(0, 1 - (currentYear - entry.node.year) / 40);
-    return cites * 0.65 + recency * 0.35;
-  };
-  return score(right) - score(left);
-}
-
-function mergeRole(
-  current: CitationGraphFocusRole | null | undefined,
-  incoming: Exclude<CitationGraphFocusRole, "seed" | "both">,
-): CitationGraphFocusRole {
-  if (!current || current === incoming) return incoming;
-  if (current === "seed") return current;
-  return "both";
-}
-
-function edge(
-  source: string,
-  target: string,
-  provenance: string,
-): CitationGraphEdge {
-  return {
-    key: `${source}>${target}:focus`,
-    source,
-    target,
-    provenance,
-    manual: false,
-  };
-}
-
-function directionEntries(
-  seed: CitationGraphNode,
-  graph: CitationGraphModel,
-  graphIndex: CitationGraphIndex | undefined,
-  works: RelatedWorkMetadata[],
-  direction: "references" | "cited-by",
-  indexes: ReturnType<typeof localIndexes>,
-): RankedNode[] {
-  const localKeys = new Set<string>();
-  if (graphIndex) {
-    const relations =
-      direction === "references"
-        ? (graphIndex.outgoingEdgesByKey.get(seed.key) ?? [])
-        : (graphIndex.incomingEdgesByKey.get(seed.key) ?? []);
-    for (const relation of relations) {
-      localKeys.add(
-        direction === "references" ? relation.target : relation.source,
-      );
-    }
-  } else {
-    for (const relation of graph.edges) {
-      if (direction === "references" && relation.source === seed.key) {
-        localKeys.add(relation.target);
-      } else if (direction === "cited-by" && relation.target === seed.key) {
-        localKeys.add(relation.source);
-      }
-    }
-  }
-  const result = new Map<string, RankedNode>();
-  for (const key of localKeys) {
-    const node =
-      graphIndex?.nodeByKey.get(key) ??
-      graph.nodes.find((candidate) => candidate.key === key);
-    if (node) result.set(node.key, { node, work: null, local: true });
-  }
-  for (const work of works) {
-    const local = localNodeForWork(work, indexes);
-    const node =
-      local ??
-      externalWorkToFocusNode(
-        work,
-        direction === "references" ? "reference" : "cited-by",
-      );
-    const existing = result.get(node.key);
-    if (!existing || (!existing.work && work)) {
-      result.set(node.key, { node, work, local: Boolean(local) });
-    }
-  }
-  result.delete(seed.key);
-  return [...result.values()];
-}
-
-function cloneSeedNode(node: CitationGraphNode): CitationGraphNode {
-  return {
-    ...node,
-    kind: node.kind ?? "local",
-    focusRole: "seed",
-    authors: [...node.authors],
-    tags: [...node.tags],
-    collectionIDs: [...node.collectionIDs],
-    references: [...node.references],
-    externalWork: node.externalWork
-      ? { ...node.externalWork, authors: [...node.externalWork.authors] }
-      : null,
-  };
-}
-
-function aggregateDirection(
-  seeds: CitationGraphNode[],
-  graph: CitationGraphModel,
-  graphIndex: CitationGraphIndex | undefined,
-  relationships: ReadonlyMap<string, GraphFocusSeedRelationships>,
-  direction: "references" | "cited-by",
-  indexes: ReturnType<typeof localIndexes>,
-): Map<string, AggregatedNode> {
-  const aggregate = new Map<string, AggregatedNode>();
-  for (const seed of seeds) {
-    const works =
-      direction === "references"
-        ? (relationships.get(seed.key)?.references ?? [])
-        : (relationships.get(seed.key)?.citedBy ?? []);
-    for (const entry of directionEntries(
-      seed,
-      graph,
-      graphIndex,
-      works,
-      direction,
-      indexes,
-    )) {
-      const current = aggregate.get(entry.node.key);
-      if (current) {
-        current.seedKeys.add(seed.key);
-        if (entry.work?.provider) current.provenances.add(entry.work.provider);
-        if (!current.work && entry.work) current.work = entry.work;
-        current.local ||= entry.local;
-      } else {
-        aggregate.set(entry.node.key, {
-          ...entry,
-          seedKeys: new Set([seed.key]),
-          provenances: new Set(
-            entry.work?.provider ? [entry.work.provider] : ["focus"],
-          ),
-        });
-      }
-    }
-  }
-  return aggregate;
-}
-
-export function buildGraphFocusProjection(
-  input: GraphFocusInput,
-): GraphFocusProjection | null {
-  const { graph, state } = input;
-  const requestedKeys = [...new Set(state.seedKeys.filter(Boolean))];
-  const suppliedByKey = new Map(input.seeds.map((seed) => [seed.key, seed]));
-  const graphByKey =
-    input.index?.nodeByKey ??
-    new Map(graph.nodes.map((node) => [node.key, node]));
-  const seeds = requestedKeys
-    .map((key) => suppliedByKey.get(key) ?? graphByKey.get(key) ?? null)
-    .filter((seed): seed is CitationGraphNode => Boolean(seed))
-    .map(cloneSeedNode);
-  if (!seeds.length) return null;
-
-  const seedKeys = new Set(seeds.map((seed) => seed.key));
-  const indexes = localIndexes(
-    input.index
-      ? seeds
-      : [...graph.nodes.filter((node) => node.kind !== "external"), ...seeds],
-    input.index,
-  );
-  const includeReferences = state.direction !== "cited-by";
-  const includeCitedBy = state.direction !== "references";
-  const refs = includeReferences
-    ? aggregateDirection(
-        seeds,
-        graph,
-        input.index,
-        input.relationships,
-        "references",
-        indexes,
-      )
-    : new Map<string, AggregatedNode>();
-  const cites = includeCitedBy
-    ? aggregateDirection(
-        seeds,
-        graph,
-        input.index,
-        input.relationships,
-        "cited-by",
-        indexes,
-      )
-    : new Map<string, AggregatedNode>();
-
-  const filterSeedCandidates = (entries: Map<string, AggregatedNode>) => {
-    for (const key of seedKeys) entries.delete(key);
-  };
-  filterSeedCandidates(refs);
-  filterSeedCandidates(cites);
-
-  const filterLocal = (entry: AggregatedNode): boolean =>
-    state.locality === "all" || entry.local;
-
-  const selectPerSeed = (
-    entries: Map<string, AggregatedNode>,
-  ): { selected: AggregatedNode[]; hidden: number } => {
-    const selected = new Map<string, AggregatedNode>();
-    let hidden = 0;
-    for (const seed of seeds) {
-      const ranked = [...entries.values()]
-        .filter((entry) => filterLocal(entry) && entry.seedKeys.has(seed.key))
-        .sort((a, b) => compareRanked(a, b, state.ranking));
-      const selectedForSeed = ranked.slice(0, state.maxPerDirection);
-      hidden += Math.max(0, ranked.length - selectedForSeed.length);
-      for (const entry of selectedForSeed) {
-        const current = selected.get(entry.node.key);
-        if (current) {
-          current.seedKeys.add(seed.key);
-          for (const provenance of entry.provenances) {
-            current.provenances.add(provenance);
-          }
-          current.local ||= entry.local;
-          if (!current.work && entry.work) current.work = entry.work;
-          continue;
-        }
-        selected.set(entry.node.key, {
-          ...entry,
-          seedKeys: new Set([seed.key]),
-          provenances: new Set(entry.provenances),
-        });
-      }
-    }
-    return { selected: [...selected.values()], hidden };
-  };
-
-  const selectedReferenceResult = selectPerSeed(refs);
-  const selectedCitedByResult = selectPerSeed(cites);
-  const selectedRefs = selectedReferenceResult.selected;
-  const selectedCites = selectedCitedByResult.selected;
-
-  const nodes = new Map<string, CitationGraphNode>();
-  for (const seed of seeds) nodes.set(seed.key, seed);
-  const edges = new Map<string, CitationGraphEdge>();
-  const reachedBySeed = new Map<string, Set<string>>();
-  for (const seed of seeds) reachedBySeed.set(seed.key, new Set<string>());
-
-  // Preserve direct seed-to-seed relations already known in the library graph.
-  if (input.index) {
-    for (const source of seedKeys) {
-      for (const relation of input.index.outgoingEdgesByKey.get(source) ?? []) {
-        if (seedKeys.has(relation.target)) {
-          edges.set(`${relation.source}>${relation.target}`, { ...relation });
-        }
-      }
-    }
-  } else {
-    for (const relation of graph.edges) {
-      if (seedKeys.has(relation.source) && seedKeys.has(relation.target)) {
-        edges.set(`${relation.source}>${relation.target}`, { ...relation });
-      }
-    }
-  }
-  // External seeds may not exist in the library graph. Detect their mutual
-  // citation links from each seed's cached relationship membership as well.
-  for (const seed of seeds) {
-    const membership = input.relationships.get(seed.key);
-    for (const work of membership?.references ?? []) {
-      const target = localNodeForWork(work, indexes);
-      if (target && seedKeys.has(target.key) && target.key !== seed.key) {
-        const relation = edge(seed.key, target.key, work.provider);
-        edges.set(`${relation.source}>${relation.target}`, relation);
-      }
-    }
-    for (const work of membership?.citedBy ?? []) {
-      const source = localNodeForWork(work, indexes);
-      if (source && seedKeys.has(source.key) && source.key !== seed.key) {
-        const relation = edge(source.key, seed.key, work.provider);
-        edges.set(`${relation.source}>${relation.target}`, relation);
-      }
-    }
-  }
-
-  const add = (entry: AggregatedNode, role: "reference" | "cited-by"): void => {
-    const existing = nodes.get(entry.node.key);
-    const focusRole = mergeRole(existing?.focusRole, role);
-    const node = existing
-      ? { ...existing, focusRole }
-      : { ...entry.node, kind: entry.node.kind ?? "local", focusRole };
-    nodes.set(node.key, node);
-    for (const seedKey of entry.seedKeys) {
-      reachedBySeed.get(seedKey)?.add(node.key);
-      const relation =
-        role === "reference"
-          ? edge(seedKey, node.key, [...entry.provenances][0] ?? "focus")
-          : edge(node.key, seedKey, [...entry.provenances][0] ?? "focus");
-      edges.set(`${relation.source}>${relation.target}`, relation);
-    }
-  };
-  for (const entry of selectedRefs) add(entry, "reference");
-  for (const entry of selectedCites) add(entry, "cited-by");
-
-  const projectedSeeds = seeds.map((seed) => nodes.get(seed.key) ?? seed);
-  const projectedNodes = [...nodes.values()];
-  const projectedEdges = [...edges.values()];
-  assignFocusCitationSequence(
-    projectedNodes,
-    projectedEdges,
-    projectedSeeds[0].key,
-  );
-  return {
-    state: { ...state, seedKeys: [...seedKeys] },
-    seeds: projectedSeeds,
-    nodes: projectedNodes,
-    edges: projectedEdges,
-    seedKeys,
-    externalKeys: new Set(
-      [...nodes.values()]
-        .filter((node) => node.kind === "external")
-        .map((node) => node.key),
-    ),
-    reachedBySeed,
-    hidden: {
-      references: selectedReferenceResult.hidden,
-      citedBy: selectedCitedByResult.hidden,
-    },
-  };
-}
-
-/** Every paper some seed reached. Rule 1 of the scope order reads this. */
-export function reachedKeysOf(projection: GraphFocusProjection): Set<string> {
-  const keys = new Set<string>();
-  for (const reached of projection.reachedBySeed.values()) {
-    for (const key of reached) keys.add(key);
-  }
-  return keys;
-}
-
 /**
  * The library graph plus what the seeds brought in. The library's own node
- * always wins: the projection's copy carries a focus role and a cloned
+ * always wins: the hop model's copy carries a focus role and a cloned
  * identity, and the graph is already drawing the original.
  */
 export function additiveGraphModel(
@@ -640,7 +232,10 @@ export function additiveGraphModel(
     nodes: readonly CitationGraphNode[];
     edges: readonly CitationGraphEdge[];
   },
-  projection: GraphFocusProjection | null,
+  projection: {
+    nodes: readonly CitationGraphNode[];
+    edges: readonly CitationGraphEdge[];
+  } | null,
 ): { nodes: CitationGraphNode[]; edges: CitationGraphEdge[] } {
   const nodes = [...base.nodes];
   const edges = [...base.edges];

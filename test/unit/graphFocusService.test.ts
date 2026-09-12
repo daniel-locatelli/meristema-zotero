@@ -4,11 +4,7 @@ import type {
   CitationGraphEdge,
   CitationGraphNode,
 } from "../../src/domain/graphTypes";
-import {
-  additiveGraphModel,
-  reachedKeysOf,
-  type GraphFocusProjection,
-} from "../../src/services/graphFocusService";
+import { additiveGraphModel } from "../../src/services/graphFocusService";
 
 function node(key: string, kind: "local" | "external"): CitationGraphNode {
   return {
@@ -73,34 +69,19 @@ function edge(key: string, source: string, target: string): CitationGraphEdge {
   return { key, source, target, provenance: "test", manual: false };
 }
 
-function projection(): GraphFocusProjection {
+/** What the hop model hands `additiveGraphModel`: just nodes and edges. */
+function projection(): {
+  nodes: CitationGraphNode[];
+  edges: CitationGraphEdge[];
+} {
   return {
-    state: {
-      seedKeys: ["s"],
-      direction: "both",
-      locality: "all",
-      ranking: "relevance",
-      maxPerDirection: 50,
-    },
-    seeds: [node("s", "local")],
     nodes: [node("s", "local"), node("lib", "local"), node("ext", "external")],
     edges: [edge("s>lib", "s", "lib"), edge("ext>s", "ext", "s")],
-    seedKeys: new Set(["s"]),
-    externalKeys: new Set(["ext"]),
-    reachedBySeed: new Map([["s", new Set(["lib", "ext"])]]),
-    hidden: { references: 0, citedBy: 0 },
   };
 }
 
 describe("seed reach", function () {
-  it("unions what every seed reached", function () {
-    expect([...reachedKeysOf(projection())].sort()).to.deep.equal([
-      "ext",
-      "lib",
-    ]);
-  });
-
-  it("adds the projection to the library graph instead of replacing it", function () {
+  it("adds the hop model to the library graph instead of replacing it", function () {
     const base = {
       nodes: [node("lib", "local"), node("other", "local")],
       edges: [edge("lib>other", "lib", "other")],
@@ -119,10 +100,10 @@ describe("seed reach", function () {
     ]);
   });
 
-  it("keeps the library's own node when the projection has one too", function () {
+  it("keeps the library's own node when the hop model has one too", function () {
     const base = { nodes: [node("lib", "local")], edges: [] };
     const merged = additiveGraphModel(base, projection());
-    // The library node is the one the graph already draws; the projection's
+    // The library node is the one the graph already draws; the hop model's
     // copy carries a focus role and would reset it.
     expect(merged.nodes.filter((entry) => entry.key === "lib")).to.have.length(
       1,
@@ -130,7 +111,7 @@ describe("seed reach", function () {
     expect(merged.nodes[0]).to.equal(base.nodes[0]);
   });
 
-  it("returns the library graph unchanged with no projection", function () {
+  it("returns the library graph unchanged with no hop model", function () {
     const base = { nodes: [node("lib", "local")], edges: [] };
     const merged = additiveGraphModel(base, null);
     expect(merged.nodes).to.deep.equal(base.nodes);
