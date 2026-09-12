@@ -180,6 +180,32 @@ describe("saved graph store", function () {
       ...emptyGraphViewState(),
       title: "Corrupt",
     });
+    expect(loaded?.readOnly, "an unparseable state is read-only").to.equal(
+      true,
+    );
+  });
+
+  it("marks a state from a newer version read-only, and a current one not", async function () {
+    // B42: an older build reading a row a newer one wrote must not open a
+    // blank graph and autosave over the recipe.
+    const { store, db } = await openStore();
+    const newer = await store.create(1, "Newer", seededState("AAAA0001"));
+    db.prepare("UPDATE saved_graphs_v1 SET state = ? WHERE id = ?").run(
+      JSON.stringify({ ...emptyGraphViewState(), version: 99 }),
+      newer.id,
+    );
+    const loadedNewer = await store.load(newer.id);
+    expect(loadedNewer?.readOnly).to.equal(true);
+    expect(loadedNewer?.state).to.deep.equal({
+      ...emptyGraphViewState(),
+      title: "Newer",
+    });
+    const current = await store.create(1, "Current", seededState("AAAA0002"));
+    const loadedCurrent = await store.load(current.id);
+    expect(loadedCurrent?.readOnly).to.equal(false);
+    expect(loadedCurrent?.state.seeds).to.deep.equal([
+      { kind: "item", itemKey: "AAAA0002" },
+    ]);
   });
 
   it("rejects and rolls back if valueQueryAsync returns false for last_insert_rowid", async function () {

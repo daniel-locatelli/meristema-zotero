@@ -284,8 +284,11 @@ export interface GraphViewController {
    * key. The seed turns local now when the view's library lists the item.
    */
   markExternalSeedImported(identityKey: string, itemKey: string): void;
-  /** Shows a short message in the toolbar for a moment; null clears it. */
-  setStatus(message: string | null): void;
+  /**
+   * Shows a short message in the toolbar for a moment; null clears it. A
+   * sticky one stays until the next message or a null.
+   */
+  setStatus(message: string | null, options?: { sticky?: boolean }): void;
   setActive(active: boolean): void;
 }
 
@@ -3945,7 +3948,10 @@ ${error instanceof Error ? error.message : String(error)}`,
     });
   });
   let statusTimer = 0;
-  const setStatus = (message: string | null): void => {
+  const setStatus = (
+    message: string | null,
+    options: { sticky?: boolean } = {},
+  ): void => {
     if (cleaned) return;
     const view = document.defaultView;
     if (statusTimer) {
@@ -3955,7 +3961,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
     toolbarStatus.textContent = message ?? "";
     toolbarStatus.hidden = !message;
-    if (!message) return;
+    if (!message || options.sticky) return;
     const hide = (): void => {
       statusTimer = 0;
       toolbarStatus.hidden = true;

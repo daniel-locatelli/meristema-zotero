@@ -12,11 +12,13 @@ import {
   createSavedGraph,
   deleteSavedGraph,
 } from "../../src/services/savedGraphService";
+import { SAVED_GRAPH_READ_ONLY_STATUS } from "../../src/services/windowService";
 import { delay } from "./visualHarness";
 
 const COLLECTION_NAME = "D4 views";
 const SAVED_VIEW_NAME = "D4 suite view";
 const V3_GRAPH_NAME = "D4 v3 graph";
+const NEWER_GRAPH_NAME = "B42 newer graph";
 const IMPORTED_VIEW_NAME = "D4 imported";
 
 function shown(popup: Element): Promise<void> {
@@ -77,6 +79,7 @@ describe("Graph views (D4)", function () {
   let collectionID: number | null = null;
   let fixtureIDs: number[] = [];
   let v3GraphID: number | null = null;
+  let newerGraphID: number | null = null;
   /** What the injected file picker answers; the import case writes it. */
   let importPath: string | null = null;
 
@@ -188,6 +191,48 @@ describe("Graph views (D4)", function () {
     return select as HTMLSelectElement;
   }
 
+  /**
+   * Opens a saved graph from this suite's graph's own File menu, which gives
+   * it a tab of its own, and hands back that tab's id.
+   */
+  async function openSavedGraphFromFileMenu(name: string): Promise<string> {
+    const before = new Set(graphTabs().map((tab) => tab.id));
+    const fileButton = (): HTMLButtonElement => {
+      const found = (
+        Array.from(
+          graphRoot().querySelectorAll(".cm-toolbar-button"),
+        ) as HTMLButtonElement[]
+      ).find((candidate) => normalize(candidate.textContent).includes("File"));
+      expect(found, "the toolbar's File button").to.exist;
+      return found as HTMLButtonElement;
+    };
+    fileButton().click();
+    const entry = await waitFor(() => {
+      const menu = graphRoot().querySelector(
+        ".cm-graph-menu",
+      ) as HTMLElement | null;
+      if (!menu || menu.hidden) {
+        fileButton().click();
+        return null;
+      }
+      return (
+        Array.from(
+          menu.querySelectorAll(
+            '.cm-graph-menu-list button[data-action="open"]',
+          ),
+        ) as HTMLButtonElement[]
+      ).find((candidate) => normalize(candidate.textContent).includes(name));
+    }, 15_000);
+    expect(entry, `File › Open did not list ${name}`).to.exist;
+    entry!.click();
+    const opened = await waitFor(
+      () => graphTabs().find((tab) => !before.has(tab.id)),
+      20_000,
+    );
+    expect(opened, "the reopened graph's tab").to.exist;
+    return opened!.id as string;
+  }
+
   before(async function () {
     this.timeout(60_000);
     win = Zotero.getMainWindows()[0];
@@ -291,6 +336,7 @@ describe("Graph views (D4)", function () {
     }
     importPath = null;
     if (v3GraphID !== null) await deleteSavedGraph(v3GraphID);
+    if (newerGraphID !== null) await deleteSavedGraph(newerGraphID);
     Zotero.Prefs.clear(`${config.prefsPrefix}.graphViews`, true);
     Zotero.Prefs.clear(
       `${config.prefsPrefix}.graphViewTutorialsDismissed`,
@@ -461,44 +507,7 @@ describe("Graph views (D4)", function () {
       summary.id,
     ]);
 
-    // Opened from the graph's own File menu, which gives it a tab of its own.
-    const before = new Set(graphTabs().map((tab) => tab.id));
-    const fileButton = (): HTMLButtonElement => {
-      const found = (
-        Array.from(
-          graphRoot().querySelectorAll(".cm-toolbar-button"),
-        ) as HTMLButtonElement[]
-      ).find((candidate) => normalize(candidate.textContent).includes("File"));
-      expect(found, "the toolbar's File button").to.exist;
-      return found as HTMLButtonElement;
-    };
-    fileButton().click();
-    const entry = await waitFor(() => {
-      const menu = graphRoot().querySelector(
-        ".cm-graph-menu",
-      ) as HTMLElement | null;
-      if (!menu || menu.hidden) {
-        fileButton().click();
-        return null;
-      }
-      return (
-        Array.from(
-          menu.querySelectorAll(
-            '.cm-graph-menu-list button[data-action="open"]',
-          ),
-        ) as HTMLButtonElement[]
-      ).find((candidate) =>
-        normalize(candidate.textContent).includes(V3_GRAPH_NAME),
-      );
-    }, 15_000);
-    expect(entry, `File › Open did not list ${V3_GRAPH_NAME}`).to.exist;
-    entry!.click();
-    const opened = await waitFor(
-      () => graphTabs().find((tab) => !before.has(tab.id)),
-      20_000,
-    );
-    expect(opened, "the reopened graph's tab").to.exist;
-    openedTabID = opened!.id;
+    openedTabID = await openSavedGraphFromFileMenu(V3_GRAPH_NAME);
     const reopened = await waitFor(() => {
       const section = tabContent(openedTabID)?.querySelector(
         ".cm-view-gallery",
@@ -515,6 +524,81 @@ describe("Graph views (D4)", function () {
     win.Zotero_Tabs.close(openedTabID);
     openedTabID = null;
     await delay(300);
+    win.Zotero_Tabs.select(tabID);
+  });
+
+  it("opens a graph saved by a newer version read-only and writes nothing back", async function () {
+    this.timeout(60_000);
+    // B42: a row this build cannot parse. The store writes the current
+    // version, so the row is overwritten raw, as a newer build would leave it.
+    const summary = await createSavedGraph(
+      Zotero.Libraries.userLibraryID,
+      NEWER_GRAPH_NAME,
+      emptyGraphViewState(),
+    );
+    newerGraphID = summary.id;
+    const raw = JSON.stringify({
+      ...emptyGraphViewState(),
+      version: 99,
+      fromTheFuture: true,
+    });
+    const db = getPluginDatabase();
+    expect(db, "the plugin database is open").to.exist;
+    const rowState = async (): Promise<string> => {
+      const rows = (await db!.queryAsync(
+        "SELECT state FROM saved_graphs_v1 WHERE id = ?",
+        [summary.id],
+      )) as Array<{ state: string }>;
+      return String(rows[0]?.state ?? "");
+    };
+    await db!.queryAsync("UPDATE saved_graphs_v1 SET state = ? WHERE id = ?", [
+      raw,
+      summary.id,
+    ]);
+
+    openedTabID = await openSavedGraphFromFileMenu(NEWER_GRAPH_NAME);
+    const status = await waitFor(() => {
+      const element = tabContent(openedTabID)?.querySelector(
+        ".cm-toolbar-status",
+      ) as HTMLElement | null;
+      return element && !element.hidden ? element : null;
+    }, 25_000);
+    expect(status, "the toolbar status of the read-only graph").to.exist;
+    expect(normalize(status!.textContent)).to.equal(
+      SAVED_GRAPH_READ_ONLY_STATUS,
+    );
+
+    // A state change that would autosave on a bound graph: the gallery
+    // greets a graph with no view, and choosing Start blank sets one.
+    const reopenedGallery = await waitFor(() => {
+      const section = tabContent(openedTabID)?.querySelector(
+        ".cm-view-gallery",
+      ) as HTMLElement | null;
+      return section && !section.hidden ? section : null;
+    }, 25_000);
+    expect(reopenedGallery, "the gallery greets the read-only graph").to.exist;
+    buttonReading(reopenedGallery!, "Start blank").click();
+    await waitFor(() => reopenedGallery!.hidden, 5_000);
+    expect(reopenedGallery!.hidden, "Start blank took").to.equal(true);
+    // Autosave debounces for half a second; give it three times that.
+    await delay(1500);
+    expect(await rowState(), "the row still holds the newer state").to.equal(
+      raw,
+    );
+    expect(
+      normalize(
+        tabContent(openedTabID)?.querySelector(".cm-toolbar-status")
+          ?.textContent,
+      ),
+      "the notice stays up after the change",
+    ).to.equal(SAVED_GRAPH_READ_ONLY_STATUS);
+
+    win.Zotero_Tabs.close(openedTabID);
+    openedTabID = null;
+    await delay(600);
+    expect(await rowState(), "closing the tab wrote nothing either").to.equal(
+      raw,
+    );
     win.Zotero_Tabs.select(tabID);
   });
 

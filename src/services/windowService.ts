@@ -53,6 +53,9 @@ const CONTEXT_HANDLER_MARKER = "__meristemaContextHandlerInstalled";
 const LIBRARY_FILTER_MARKER = "meristemaLibraryFilterInstalled";
 const DETACHED_WINDOW_URL = `chrome://${config.addonRef}/content/graphWindow.xhtml`;
 const AUTOSAVE_DELAY_MS = 500;
+/** The toolbar status of a graph opened from a row this build cannot read (B42). */
+export const SAVED_GRAPH_READ_ONLY_STATUS =
+  "This graph was saved by a newer version of Meristema, so it is read-only here; Save as… keeps changes.";
 /** Writes in flight, so shutdown can wait for them before the database closes. */
 const savedGraphWrites = new Set<Promise<void>>();
 /** One selection binding per main window, alive while any graph is open in it. */
@@ -83,6 +86,12 @@ interface GraphInstanceState {
   discardViewState: boolean;
   /** The saved graph this view is a document of, or null while it is scratch. */
   savedGraphID: number | null;
+  /**
+   * Opened from a row whose state this build cannot read (B42). The view is
+   * scratch — `savedGraphID` stays null so nothing is written back — and the
+   * toolbar says so until Save as… gives the graph a row of its own.
+   */
+  savedGraphReadOnly: boolean;
   /**
    * The recipe last written to that row, camera stripped, so an echo of the
    * same state (the view reports on open) is not a change to write.
@@ -142,6 +151,7 @@ function createGraphInstance(
     viewState: null,
     discardViewState: false,
     savedGraphID: null,
+    savedGraphReadOnly: false,
     savedGraphSerialized: null,
     autosaveTimer: null,
     pendingLibrarySelection: null,
@@ -484,7 +494,23 @@ function adoptSavedGraph(
   instance.customTitle = true;
   instance.viewState = { ...state, title: name };
   instance.savedGraphSerialized = comparableState(instance.viewState);
+  if (instance.savedGraphReadOnly) {
+    // The graph has a row of its own now, so the read-only notice is over.
+    instance.savedGraphReadOnly = false;
+    liveController(win, instance)?.setStatus(null);
+  }
   syncInstanceTitle(win, instance);
+}
+
+/** Puts the read-only notice on a freshly rendered view that needs one. */
+function announceReadOnly(
+  instance: GraphInstanceState,
+  container: HTMLElement,
+): void {
+  if (!instance.savedGraphReadOnly) return;
+  getGraphViewController(container)?.setStatus(SAVED_GRAPH_READ_ONLY_STATUS, {
+    sticky: true,
+  });
 }
 
 /** Back to scratch: the tab keeps its name and its graph, the row is left alone. */
@@ -765,6 +791,7 @@ function renderDetachedWindow(
     selectionBinding(host).current().itemIDs,
     { adopt: true },
   );
+  announceReadOnly(instance, mount);
   installGraphLibraryFilter(
     popup.document,
     mount,
@@ -1260,6 +1287,7 @@ function renderTab(
     getGraphViewController(container)?.setActive(
       tabs(win).selectedID === instance.tabID,
     );
+    announceReadOnly(instance, container);
     installGraphLibraryFilter(
       win.document,
       container,
@@ -1350,7 +1378,13 @@ interface OpenGraphOptions {
    * title, its recipe the initial state, and the instance autosaves to it.
    * Only meaningful with `newInstance`.
    */
-  savedGraph?: { id: number; name: string; state: GraphViewState };
+  savedGraph?: {
+    id: number;
+    name: string;
+    state: GraphViewState;
+    /** The row's state did not parse; open it as scratch and say so (B42). */
+    readOnly?: boolean;
+  };
 }
 
 function requestedInstance(
@@ -1421,12 +1455,18 @@ export async function openGraphWindow(
     instance = createGraphInstance(win, targetLibraryID, options.titleBase);
   }
   if (options.savedGraph && options.newInstance) {
-    const { id, name, state } = options.savedGraph;
-    instance.savedGraphID = id;
+    const { id, name, state, readOnly } = options.savedGraph;
     instance.title = name;
     instance.customTitle = true;
     instance.viewState = { ...state, title: name };
-    instance.savedGraphSerialized = comparableState(instance.viewState);
+    if (readOnly) {
+      // Not bound to the row: an autosave would replace a recipe this build
+      // could not read with the blank one it shows instead.
+      instance.savedGraphReadOnly = true;
+    } else {
+      instance.savedGraphID = id;
+      instance.savedGraphSerialized = comparableState(instance.viewState);
+    }
   }
   const previousLibraryID = instance.libraryID;
   if (previousLibraryID !== null && previousLibraryID !== targetLibraryID) {
@@ -1536,7 +1576,12 @@ export async function openSavedGraph(
   if (!loaded) return "deleted";
   await openGraphWindow(win, loaded.summary.libraryID, {
     newInstance: true,
-    savedGraph: { id, name: loaded.summary.name, state: loaded.state },
+    savedGraph: {
+      id,
+      name: loaded.summary.name,
+      state: loaded.state,
+      readOnly: loaded.readOnly,
+    },
   });
   return "opened";
 }

@@ -22,6 +22,12 @@ export interface SavedGraphSummary {
 export interface SavedGraph {
   summary: SavedGraphSummary;
   state: GraphViewState;
+  /**
+   * The row's state did not parse — written by a newer build, or damaged —
+   * so `state` is a blank stand-in. A graph opened from it must not write
+   * back (B42): the recipe the row holds is the one the user wants kept.
+   */
+  readOnly: boolean;
 }
 
 /** What the store needs from `Zotero.DBConnection`; unit tests hand in a fake. */
@@ -121,6 +127,7 @@ export function createSavedGraphStore(
       return {
         summary,
         state: state ?? { ...emptyGraphViewState(), title: summary.name },
+        readOnly: state === null,
       };
     },
 
