@@ -111,7 +111,9 @@ always visible" and the folder rule:
 4. At least one parent is visible.
 5. Admitted by folder ticks (library papers) — unchanged from Stage 2. A hop
    paper is admitted by rule 4 the way a reached paper was admitted by seed
-   reach, beside the folder rule rather than under it.
+   reach, beside the folder rule rather than under it. A library paper no hop
+   reaches has no hop entry: rules 2 to 4 do not apply to it and it is
+   admitted or not by the folder rule alone, exactly as today.
 6. External papers only while Not in Zotero is ticked; hidden keys; the Filter
    popover's facets — unchanged.
 
