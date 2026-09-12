@@ -52,17 +52,21 @@ describe("the in-library ring", function () {
     expect(inLibraryRingColor("", theme)).to.equal(theme.states.inLibraryRing);
   });
 
-  it("publishes the ring token to CSS", function () {
-    const properties = graphThemeCustomProperties(graphThemeFor("light"));
-    expect(properties.map(([name]) => name)).to.include(
-      "--cm-state-in-library-ring",
-    );
-  });
-
   it("falls back to a neutral, never to a ramp stop", function () {
     for (const scheme of ["light", "dark"] as const) {
       const theme = graphThemeFor(scheme);
       expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
+    }
+  });
+});
+
+describe("the custom properties graph.css reads", function () {
+  it("publishes the panel surface and nothing the stylesheet does not read", function () {
+    for (const scheme of ["light", "dark"] as const) {
+      const theme = graphThemeFor(scheme);
+      expect(graphThemeCustomProperties(theme), scheme).to.deep.equal([
+        ["--cm-surface-panel", theme.surfaces.panel],
+      ]);
     }
   });
 });

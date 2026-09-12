@@ -207,40 +207,14 @@ export function graphThemeFor(scheme: GraphColorScheme): GraphTheme {
 
 /**
  * The custom properties `graph.css` reads, so the chrome and the canvas can
- * never disagree about a colour.
+ * never disagree about a colour. Only the panel surface today: the canvas
+ * takes every other colour from the theme object, so nothing else is
+ * published (B39, B40). Add a token here the day a stylesheet rule reads it.
  */
 export function graphThemeCustomProperties(
   theme: GraphTheme,
 ): ReadonlyArray<readonly [string, string]> {
-  const properties: Array<readonly [string, string]> = [
-    ["--cm-surface-panel", theme.surfaces.panel],
-    ["--cm-surface-hairline", theme.surfaces.hairline],
-    ["--cm-surface-grid", theme.surfaces.grid],
-    ["--cm-ink-primary", theme.inks.primary],
-    ["--cm-ink-emphasis", theme.inks.emphasis],
-    ["--cm-category-other", theme.categorical.other],
-    ["--cm-category-no-value", theme.categorical.noValue],
-    ["--cm-edge-base", theme.edges.base],
-    ["--cm-edge-outgoing", theme.edges.outgoing],
-    ["--cm-edge-incoming", theme.edges.incoming],
-    ["--cm-edge-dimmed", theme.edges.dimmed],
-    ["--cm-state-selected", theme.states.selected],
-    ["--cm-state-seed", theme.states.seed],
-    ["--cm-state-in-library-ring", theme.states.inLibraryRing],
-    ["--cm-state-search-match", theme.states.searchMatch],
-    ["--cm-state-retracted", theme.states.retracted],
-    ["--cm-state-uniform-fill", theme.states.uniformFill],
-  ];
-  theme.ramp.forEach((stop, index) => {
-    properties.push([`--cm-ramp-${index}`, stop]);
-  });
-  theme.categorical.swatches.forEach((swatch, index) => {
-    properties.push([`--cm-category-${index}`, swatch]);
-  });
-  theme.seeds.forEach((seed, index) => {
-    properties.push([`--cm-seed-${index}`, seed]);
-  });
-  return properties;
+  return [["--cm-surface-panel", theme.surfaces.panel]];
 }
 
 export function applyGraphThemeToDocument(

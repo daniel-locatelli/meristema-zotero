@@ -1,9 +1,9 @@
 /*
- * The --cm-surface-*, --cm-ink-*, --cm-ramp-*, --cm-category-*, --cm-edge-* and
- * --cm-state-* custom properties are written onto this element at runtime from
+ * --cm-surface-panel is written onto this element at runtime from
  * src/services/graphTheme.ts, so the chrome and the canvas draw the same
- * colours. Everything below is the quiet, Zotero-native chrome, which stays on
- * system colours on purpose.
+ * panel colour; it is the only theme token the stylesheet reads, and the
+ * emitter publishes nothing more. Everything below is the quiet,
+ * Zotero-native chrome, which stays on system colours on purpose.
  */
 .meristema-root {
   /*
