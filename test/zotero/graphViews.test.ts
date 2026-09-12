@@ -183,6 +183,20 @@ describe("Graph views (D4)", function () {
     }, 10_000);
   }
 
+  /** The chip menu's Import view JSON… action, clicked. */
+  async function clickImport(): Promise<void> {
+    await openChipMenu();
+    const action = (
+      Array.from(
+        graphRoot().querySelectorAll(".cm-view-action"),
+      ) as HTMLButtonElement[]
+    ).find(
+      (candidate) => normalize(candidate.textContent) === "Import view JSON…",
+    );
+    expect(action, "the Import view JSON… action").to.exist;
+    action!.click();
+  }
+
   function labelSelect(): HTMLSelectElement {
     const select = graphRoot().querySelector(
       '.cm-appearance-panel select[data-role="labels"]',
@@ -628,19 +642,6 @@ describe("Graph views (D4)", function () {
     );
     await IOUtils.writeUTF8(importPath, wire);
 
-    const clickImport = async (): Promise<void> => {
-      await openChipMenu();
-      const action = (
-        Array.from(
-          graphRoot().querySelectorAll(".cm-view-action"),
-        ) as HTMLButtonElement[]
-      ).find(
-        (candidate) => normalize(candidate.textContent) === "Import view JSON…",
-      );
-      expect(action, "the Import view JSON… action").to.exist;
-      action!.click();
-    };
-
     await clickImport();
     await waitFor(() => chipText().includes(IMPORTED_VIEW_NAME), 20_000);
     expect(chipText(), `chip text was "${chipText()}"`).to.contain(
@@ -683,5 +684,51 @@ describe("Graph views (D4)", function () {
       chipText(),
       `chip text was "${chipText()}"; the preference held ${stored}`,
     ).to.contain(IMPORTED_VIEW_NAME);
+  });
+
+  it("refuses a file that is not a view with an alert, and imports nothing", async function () {
+    this.timeout(30_000);
+    importPath = PathUtils.join(
+      Zotero.getTempDirectory().path,
+      "meristema-d4-not-a-view.json",
+    );
+    await IOUtils.writeUTF8(importPath, JSON.stringify({ hello: "world" }));
+    const before = String(
+      Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
+    );
+    // Services.prompt is an XPCOM service whose methods cannot be replaced;
+    // the property on Services can be. The import runs asynchronously after
+    // the click, so the stub stays until the alert has been seen.
+    const alerts: string[] = [];
+    const original = Object.getOwnPropertyDescriptor(Services, "prompt");
+    Object.defineProperty(Services, "prompt", {
+      value: {
+        ...Services.prompt,
+        alert: (_win: unknown, title: string, text: string): void => {
+          alerts.push(`${title}: ${text}`);
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+    try {
+      await clickImport();
+      await waitFor(() => alerts.length > 0, 10_000);
+    } finally {
+      if (original) Object.defineProperty(Services, "prompt", original);
+      else delete (Services as any).prompt;
+    }
+    expect(alerts, "one alert").to.have.length(1);
+    expect(alerts[0]).to.contain(
+      "Import view: This file is not a Meristema view",
+    );
+    expect(alerts[0]).to.contain('the field "');
+    expect(
+      String(
+        Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
+      ),
+      "no view was added",
+    ).to.equal(before);
+    await closeChipMenu();
   });
 });
