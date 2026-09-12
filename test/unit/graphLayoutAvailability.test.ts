@@ -60,4 +60,22 @@ describe("normaliseLayoutFor", function () {
     const once = normaliseLayoutFor(nodes, layout);
     expect(normaliseLayoutFor(nodes, once)).to.deep.equal(once);
   });
+
+  it("falls back a categorical colour with no matching node data to Uniform, and keeps it when a node carries the field", function () {
+    const withoutProvider = [node({ citationCount: 10, provider: null })];
+    expect(
+      normaliseLayoutFor(withoutProvider, {
+        ...layout,
+        nodeColorMetric: "provider",
+      }).nodeColorMetric,
+    ).to.equal("uniform");
+
+    const withProvider = [node({ citationCount: 10, provider: "openalex" })];
+    expect(
+      normaliseLayoutFor(withProvider, {
+        ...layout,
+        nodeColorMetric: "provider",
+      }).nodeColorMetric,
+    ).to.equal("provider");
+  });
 });

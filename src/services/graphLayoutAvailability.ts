@@ -27,15 +27,41 @@ export function metricHasData(
   });
 }
 
-function firstAvailable<T extends string>(
+/**
+ * Whether the gear would offer this colour option: "uniform" always is, each
+ * categorical value (publication type, provider, open access, retraction)
+ * needs at least one node carrying that field (mirrored verbatim from the
+ * gear's `categoricalDefinitions` in graphViewControls.ts so the two cannot
+ * drift), and any other value is a metric checked by `metricHasData`.
+ */
+export function colourOptionHasData(
   nodes: readonly CitationGraphNode[],
+  colour: GraphNodeColorMetric,
+): boolean {
+  switch (colour) {
+    case "uniform":
+      return true;
+    case "publication-type":
+      return nodes.some((node) => Boolean(node.publicationType));
+    case "provider":
+      return nodes.some((node) => Boolean(node.provider));
+    case "open-access":
+      return nodes.some(
+        (node) => node.isOpenAccess !== null || Boolean(node.openAccessStatus),
+      );
+    case "retraction":
+      return nodes.some((node) => node.isRetracted !== null);
+    default:
+      return metricHasData(nodes, colour);
+  }
+}
+
+function firstAvailable<T extends string>(
   requested: T,
   fallback: T,
-  passthrough: (value: T) => boolean,
+  isAvailable: (value: T) => boolean,
 ): T {
-  if (passthrough(requested)) return requested;
-  if (metricHasData(nodes, requested as MetricID)) return requested;
-  return fallback;
+  return isAvailable(requested) ? requested : fallback;
 }
 
 /**
@@ -51,16 +77,14 @@ export function normaliseLayoutFor(
   layout: GraphLayoutOptions,
 ): GraphLayoutOptions {
   const xMetric = firstAvailable<GraphAxisMetric>(
-    nodes,
     layout.xMetric,
     "free",
-    (v) => v === "free",
+    (v) => v === "free" || metricHasData(nodes, v),
   );
   const yMetric = firstAvailable<GraphAxisMetric>(
-    nodes,
     layout.yMetric,
     "free",
-    (v) => v === "free",
+    (v) => v === "free" || metricHasData(nodes, v),
   );
   const scaleFor = (
     metric: GraphAxisMetric,
@@ -77,21 +101,14 @@ export function normaliseLayoutFor(
     yMetric,
     yScale: scaleFor(yMetric, layout.yScale),
     nodeSizeMetric: firstAvailable<GraphNodeSizeMetric>(
-      nodes,
       layout.nodeSizeMetric,
       "uniform",
-      (v) => v === "uniform",
+      (v) => v === "uniform" || metricHasData(nodes, v),
     ),
     nodeColorMetric: firstAvailable<GraphNodeColorMetric>(
-      nodes,
       layout.nodeColorMetric,
       "uniform",
-      (v) =>
-        v === "uniform" ||
-        v === "publication-type" ||
-        v === "provider" ||
-        v === "open-access" ||
-        v === "retraction",
+      (v) => colourOptionHasData(nodes, v),
     ),
     nodeLabelMode: layout.nodeLabelMode,
   };

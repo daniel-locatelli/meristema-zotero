@@ -13,7 +13,7 @@ import type {
 } from "../domain/graphTypes";
 import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
 import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
-import { metricHasData } from "./graphLayoutAvailability";
+import { colourOptionHasData, metricHasData } from "./graphLayoutAvailability";
 import { clamp } from "./graphMetricScale";
 import {
   axisMetricDefinitions,
@@ -414,28 +414,26 @@ export function createAxesAppearance(
       label: "Publication type",
       description:
         "Colour nodes by the publication type reported by the provider.",
-      available: nodes.some((node) => Boolean(node.publicationType)),
+      available: colourOptionHasData(nodes, "publication-type"),
     },
     {
       value: "provider",
       label: "Provider",
       description:
         "Colour nodes by the scholarly-data provider used for the item.",
-      available: nodes.some((node) => Boolean(node.provider)),
+      available: colourOptionHasData(nodes, "provider"),
     },
     {
       value: "open-access",
       label: "Open Access",
       description: "Distinguish works with known open-access status.",
-      available: nodes.some(
-        (node) => node.isOpenAccess !== null || Boolean(node.openAccessStatus),
-      ),
+      available: colourOptionHasData(nodes, "open-access"),
     },
     {
       value: "retraction",
       label: "Retraction",
       description: "Distinguish works with known retraction status.",
-      available: nodes.some((node) => node.isRetracted !== null),
+      available: colourOptionHasData(nodes, "retraction"),
     },
   ];
   for (const definition of categoricalDefinitions) {
