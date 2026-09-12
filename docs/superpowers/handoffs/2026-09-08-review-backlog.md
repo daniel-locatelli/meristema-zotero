@@ -635,6 +635,9 @@ changed about the detail pane's Advanced section:
   half only: open the section, keep every row. If the dashes still read as noise
   once F9 lands, revisit it then, with the rows that are still empty as the
   evidence.
+  **Done 2026-09-12:** the disclosure opens by default and keeps its twisty
+  (`details.open = true` in `advancedMetrics`); the Zotero suite's detail-pane
+  case asserts it.
 
 Pointers: `advancedMetrics` and `createOverviewMetrics` in
 `src/services/paperDetailView.ts`; `METRIC_DEFINITIONS` and

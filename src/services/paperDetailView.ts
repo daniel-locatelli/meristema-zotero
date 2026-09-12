@@ -291,6 +291,11 @@ function advancedMetrics(
   node: CitationGraphNode,
 ): HTMLElement {
   const details = element(document, "details", "cm-advanced-details");
+  // Open by default (B22): nothing in it is editable, so there is nothing to
+  // protect the reader from, and a closed disclosure only hides what the
+  // plugin knows. Every row stays, dashes included: a dash says the plugin
+  // looked and found nothing (F8), and F9 is what fills it.
+  details.open = true;
   details.appendChild(text(document, "summary", "Advanced"));
   const rows = element(document, "dl", "cm-metric-list");
   const append = (label: string, value: string, description: string): void => {

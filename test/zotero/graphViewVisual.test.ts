@@ -1090,6 +1090,12 @@ describe("Graph view, as the product builds it", function () {
       advanced,
       "and the rest of the registry is behind Advanced",
     ).to.not.equal(null);
+    expect(
+      (advanced!.parentElement as HTMLDetailsElement).open,
+      "Advanced opens by default (B22): nothing in it is editable, so " +
+        "there is nothing to protect the reader from, and a collapsed " +
+        "section hides what the plugin knows",
+    ).to.equal(true);
 
     /*
      * Two actions, and no more. "Show in Zotero" repeated the double-click on

@@ -328,6 +328,8 @@
  * Zotero draws this as a `collapsible-section` head: a full-width row with a
  * twisty, set in the same uppercase the left rail gives COLOR, SIZE and LINKS,
  * so it reads as the control it is rather than as one more line of the list.
+ * The section opens by default (B22); the twisty is there to fold it away,
+ * not to reveal it.
  */
 .cm-advanced-details {
   margin: 0;
