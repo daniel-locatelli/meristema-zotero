@@ -103,20 +103,41 @@ const ICON_PATHS: Record<IconName, string[]> = {
   settings: [
     "M22.2 9.9L22.2 14.1L19.7 14.3L19.1 15.8L20.7 17.7L17.7 20.7L15.8 19.1L14.3 19.7L14.1 22.2L9.9 22.2L9.7 19.7L8.2 19.1L6.3 20.7L3.3 17.7L4.9 15.8L4.3 14.3L1.8 14.1L1.8 9.9L4.3 9.7L4.9 8.2L3.3 6.3L6.3 3.3L8.2 4.9L9.7 4.3L9.9 1.8L14.1 1.8L14.3 4.3L15.8 4.9L17.7 3.3L20.7 6.3L19.1 8.2L19.7 9.7ZM15.4 12.0L15.2 13.1L14.8 14.0L14.0 14.8L13.1 15.2L12.0 15.4L10.9 15.2L10.0 14.8L9.2 14.0L8.8 13.1L8.6 12.0L8.8 10.9L9.2 10.0L10.0 9.2L10.9 8.8L12.0 8.6L13.1 8.8L14.0 9.2L14.8 10.0L15.2 10.9Z",
   ],
-  // D4: drawn in Task 5
-  view: [],
-  // D4: drawn in Task 5
-  "view-overview": [],
-  // D4: drawn in Task 5
-  "view-cornerstones": [],
-  // D4: drawn in Task 5
-  "view-reading-plan": [],
-  // D4: drawn in Task 5
-  "view-who-cites-whom": [],
-  // D4: drawn in Task 5
-  "view-folder-map": [],
-  // D4: drawn in Task 5
-  "view-user": [],
+  // D4. The chip: a framed viewfinder.
+  view: [
+    "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1 2v10h14V7H5Z",
+  ],
+  // Overview: three discs rising to the right, an axis under them.
+  "view-overview": [
+    "M4 19h16v1.5H4V19Z",
+    "M6.5 15.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6-3a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm6-4a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+  ],
+  // Cornerstones: one large disc with two hops fanning out.
+  "view-cornerstones": [
+    "M6 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z",
+    "M8 9.5l6-2 .5 1.4-6 2-.5-1.4Zm0 1l6 3-.6 1.3-6-3 .6-1.3Z",
+    "M16 9a1.7 1.7 0 1 0 0-3.4A1.7 1.7 0 0 0 16 9Zm0 8a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Zm4-4a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z",
+  ],
+  // Reading plan: a diamond (unread) beside a disc (read).
+  "view-reading-plan": [
+    "M8 4l5 8-5 8-5-8 5-8Zm0 3.2L5.2 12 8 16.8 10.8 12 8 7.2Z",
+    "M17 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
+  ],
+  // Who cites whom: two seeds joined through a bridge paper.
+  "view-who-cites-whom": [
+    "M5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm14 0a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+    "M12 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+    "M6 8.5l5.3 6.6-1.2 1L4.8 9.5l1.2-1Zm12 0l1.2 1-5.3 6.6-1.2-1L18 8.5Z",
+  ],
+  // Folder map: two overlapping rounded regions.
+  "view-folder-map": [
+    "M9 5a5 5 0 1 0 0 10A5 5 0 0 0 9 5Zm0 1.6a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8Z",
+    "M15 9a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 1.6a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8Z",
+  ],
+  // A saved view: a bookmark.
+  "view-user": [
+    "M7 3h10a1 1 0 0 1 1 1v17l-6-4-6 4V4a1 1 0 0 1 1-1Zm1 2v12.3l4-2.7 4 2.7V5H8Z",
+  ],
 };
 
 /**
