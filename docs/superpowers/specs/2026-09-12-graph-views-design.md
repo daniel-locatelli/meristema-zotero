@@ -36,12 +36,12 @@ up with and no way to get back to it.
 
 ## Decisions taken in the brainstorm (2026-09-12)
 
-| question | decision |
-| --- | --- |
+| question                                                                         | decision                                                                                   |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Three of the five views depend on Stage 3, Stage 4 and the unbuilt reading state | **All five ship now.** The three that cannot apply are greyed with an "Arrives with…" note |
-| Board 3a puts the chip in the first toolbar slot; B21 decided File leads | **After File, before Filter.** B21 stands |
-| Gallery cards carry live thumbnails on the boards | **A static drawn icon per view**, reused in the dropdown |
-| A view is a patch, a mode, or graph-only storage | **A patch applied once** (approach A below) |
+| Board 3a puts the chip in the first toolbar slot; B21 decided File leads         | **After File, before Filter.** B21 stands                                                  |
+| Gallery cards carry live thumbnails on the boards                                | **A static drawn icon per view**, reused in the dropdown                                   |
+| A view is a patch, a mode, or graph-only storage                                 | **A patch applied once** (approach A below)                                                |
 
 ## Approaches considered
 
@@ -67,17 +67,18 @@ Plain data, serialisable, in `src/services/graphViews.ts`:
 
 ```ts
 interface GraphViewDefinition {
-  id: string;            // "overview", or "user:<uuid>" for a saved view
+  id: string; // "overview", or "user:<uuid>" for a saved view
   name: string;
-  summary: string;       // one line, shown under the name in the dropdown
-  paragraph: string;     // the tutorial card, in the reader's terms
-  icon: GraphViewIcon;   // a drawn glyph name, see uiIconService
-  appearance: GraphLayoutOptions;            // all seven fields, always
-  regions: string[] | "ticked" | null;       // folder names, every ticked folder, or leave alone
-  filters: GraphViewFilters | null;          // PaperListFilterState minus collectionIDs and relation
-  explore: null;         // reserved: { hops, floor, sharedCiters } from Stage 3/4
-  requires: "none" | "seed" | "two-seeds";   // display only today: the dropdown's muted note
-  availability: "ready" | { needs: "citation-hops" | "shared-citers" | "reading-state" };
+  summary: string; // one line, shown under the name in the dropdown
+  paragraph: string; // the tutorial card, in the reader's terms
+  icon: GraphViewIcon; // a drawn glyph name, see uiIconService
+  appearance: GraphLayoutOptions; // all seven fields, always
+  regions: string[] | "ticked" | null; // folder names, every ticked folder, or leave alone
+  filters: GraphViewFilters | null; // PaperListFilterState minus collectionIDs and relation
+  explore: null; // reserved: { hops, floor, sharedCiters } from Stage 3/4
+  requires: "none" | "seed" | "two-seeds"; // display only today: the dropdown's muted note
+  availability:
+    "ready" | { needs: "citation-hops" | "shared-citers" | "reading-state" };
 }
 ```
 
@@ -124,13 +125,13 @@ seed and the design does not list it.
 
 ### The five shipped views
 
-| id | name | summary | appearance | regions | filters | requires | availability |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `overview` | Overview | Year × citations, uniform fill. Where things are. | x year linear, y citations linear, size citations, colour uniform, labels author-year | null | null | none | ready |
-| `cornerstones` | Cornerstones | Seeds, 2 citation hops, floor ≥ 5, colour citations. What the field rests on. | x year, y citations, size citations, colour citations, labels author-year | null | null | seed | needs citation-hops |
-| `reading-plan` | Reading plan | Unread frontier, shape = read state. What to read next. | x year, y citations, size citations, colour citations, labels author-year | null | null | none | needs reading-state |
-| `who-cites-whom` | Who cites whom | Shared citers graded, 1 hop. Bridges between your seeds. | x year, y citations, size citations, colour uniform, labels author-year | null | null | two-seeds | needs shared-citers |
-| `folder-map` | Folder map | Free layout, folder regions. How your collections overlap. | x free, y free, size references, colour uniform, labels author-year | `"ticked"` | null | none | ready |
+| id               | name           | summary                                                                       | appearance                                                                            | regions    | filters | requires  | availability        |
+| ---------------- | -------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------- | ------- | --------- | ------------------- |
+| `overview`       | Overview       | Year × citations, uniform fill. Where things are.                             | x year linear, y citations linear, size citations, colour uniform, labels author-year | null       | null    | none      | ready               |
+| `cornerstones`   | Cornerstones   | Seeds, 2 citation hops, floor ≥ 5, colour citations. What the field rests on. | x year, y citations, size citations, colour citations, labels author-year             | null       | null    | seed      | needs citation-hops |
+| `reading-plan`   | Reading plan   | Unread frontier, shape = read state. What to read next.                       | x year, y citations, size citations, colour citations, labels author-year             | null       | null    | none      | needs reading-state |
+| `who-cites-whom` | Who cites whom | Shared citers graded, 1 hop. Bridges between your seeds.                      | x year, y citations, size citations, colour uniform, labels author-year               | null       | null    | two-seeds | needs shared-citers |
+| `folder-map`     | Folder map     | Free layout, folder regions. How your collections overlap.                    | x free, y free, size references, colour uniform, labels author-year                   | `"ticked"` | null    | none      | ready               |
 
 Summaries are the board 3a one-liners. Paragraphs: Reading plan's is on board
 3a and is carried verbatim; the other four are drafted in the plan and marked
@@ -200,9 +201,15 @@ preference.
   "meristemaView": 1,
   "name": "Thesis ch. 2 figure",
   "paragraph": "Year × references, uniform, gridshells region only.",
-  "appearance": { "xMetric": "year", "xScale": "linear", "yMetric": "references",
-                  "yScale": "linear", "nodeSizeMetric": "citations",
-                  "nodeColorMetric": "uniform", "nodeLabelMode": "author-year" },
+  "appearance": {
+    "xMetric": "year",
+    "xScale": "linear",
+    "yMetric": "references",
+    "yScale": "linear",
+    "nodeSizeMetric": "citations",
+    "nodeColorMetric": "uniform",
+    "nodeLabelMode": "author-year"
+  },
   "regions": ["Gridshells"],
   "filters": null,
   "explore": null

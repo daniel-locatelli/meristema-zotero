@@ -24,24 +24,24 @@ Spec: `docs/superpowers/specs/2026-09-12-graph-views-design.md`. Read it once be
 
 ## File structure
 
-| File | Responsibility |
-| --- | --- |
-| `src/services/graphViewState.ts` (modify) | Version 4: the `view` field; the parser keeps version 3 regions |
-| `src/services/graphLayoutAvailability.ts` (create) | `metricHasData` (moved out of the controls) and `normaliseLayoutFor`: which metrics this graph can show |
-| `src/services/graphViewControls.ts` (modify) | Imports `metricHasData` from the new file; nothing else |
-| `src/services/graphViews.ts` (create) | The view type, the five shipped views, region resolution, apply, "(edited)", the wire codec, the availability line, tutorial chips. Pure. |
-| `src/services/graphViewsStore.ts` (create) | The two profile preferences: saved views, dismissed tutorials |
-| `src/services/graphViewsMenu.ts` (create) | DOM for the chip + dropdown, the tutorial card, the gallery, the save panel. Takes callbacks; no graph state. |
-| `src/services/graphViewService.ts` (modify) | Wires the menu into the toolbar, applies a view, plumbs `view` through `getState`/`applyState` |
-| `src/services/exportService.ts` (modify) | `chooseOpenPath` beside `chooseSavePath` |
-| `src/services/uiIconService.ts` (modify) | Six icon names: `view`, `view-overview`, `view-cornerstones`, `view-reading-plan`, `view-who-cites-whom`, `view-folder-map`, `view-user` |
-| `addon/content/graph.css` (modify) | Chip, dropdown rows, card, gallery, save panel |
-| `test/unit/graphViewState.test.ts` (modify) | Version 3 keeps regions; version 4 round-trips `view` |
-| `test/unit/graphLayoutAvailability.test.ts` (create) | Normalisation reproduces the gear's substitutions |
-| `test/unit/graphViews.test.ts` (create) | Everything pure in `graphViews.ts` |
-| `test/unit/graphViewsStore.test.ts` (create) | Preferences parse-or-empty |
-| `test/zotero/graphViews.test.ts` (create) | Chip, gallery, save, greyed row, reopen |
-| `docs/superpowers/handoffs/2026-09-08-roadmap.md` (modify) | Tick D4, manual batch, Log |
+| File                                                       | Responsibility                                                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/graphViewState.ts` (modify)                  | Version 4: the `view` field; the parser keeps version 3 regions                                                                           |
+| `src/services/graphLayoutAvailability.ts` (create)         | `metricHasData` (moved out of the controls) and `normaliseLayoutFor`: which metrics this graph can show                                   |
+| `src/services/graphViewControls.ts` (modify)               | Imports `metricHasData` from the new file; nothing else                                                                                   |
+| `src/services/graphViews.ts` (create)                      | The view type, the five shipped views, region resolution, apply, "(edited)", the wire codec, the availability line, tutorial chips. Pure. |
+| `src/services/graphViewsStore.ts` (create)                 | The two profile preferences: saved views, dismissed tutorials                                                                             |
+| `src/services/graphViewsMenu.ts` (create)                  | DOM for the chip + dropdown, the tutorial card, the gallery, the save panel. Takes callbacks; no graph state.                             |
+| `src/services/graphViewService.ts` (modify)                | Wires the menu into the toolbar, applies a view, plumbs `view` through `getState`/`applyState`                                            |
+| `src/services/exportService.ts` (modify)                   | `chooseOpenPath` beside `chooseSavePath`                                                                                                  |
+| `src/services/uiIconService.ts` (modify)                   | Six icon names: `view`, `view-overview`, `view-cornerstones`, `view-reading-plan`, `view-who-cites-whom`, `view-folder-map`, `view-user`  |
+| `addon/content/graph.css` (modify)                         | Chip, dropdown rows, card, gallery, save panel                                                                                            |
+| `test/unit/graphViewState.test.ts` (modify)                | Version 3 keeps regions; version 4 round-trips `view`                                                                                     |
+| `test/unit/graphLayoutAvailability.test.ts` (create)       | Normalisation reproduces the gear's substitutions                                                                                         |
+| `test/unit/graphViews.test.ts` (create)                    | Everything pure in `graphViews.ts`                                                                                                        |
+| `test/unit/graphViewsStore.test.ts` (create)               | Preferences parse-or-empty                                                                                                                |
+| `test/zotero/graphViews.test.ts` (create)                  | Chip, gallery, save, greyed row, reopen                                                                                                   |
+| `docs/superpowers/handoffs/2026-09-08-roadmap.md` (modify) | Tick D4, manual batch, Log                                                                                                                |
 
 ---
 
@@ -50,10 +50,12 @@ Spec: `docs/superpowers/specs/2026-09-12-graph-views-design.md`. Read it once be
 **Spec:** "The active view, in the graph state".
 
 **Files:**
+
 - Modify: `src/services/graphViewState.ts` (the `GraphViewState` interface near line 53, `GRAPH_VIEW_STATE_VERSION` at line 35, `emptyGraphViewState` at line 119, `parseGraphViewState` at line 427)
 - Test: `test/unit/graphViewState.test.ts`
 
 **Interfaces:**
+
 - Produces: `export type GraphViewRef = { id: string } | "blank" | null;` and `GraphViewState.view: GraphViewRef`. `GRAPH_VIEW_STATE_VERSION` becomes `4`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -61,44 +63,44 @@ Spec: `docs/superpowers/specs/2026-09-12-graph-views-design.md`. Read it once be
 Append to `test/unit/graphViewState.test.ts`, inside the existing top-level `describe` (find the `it("gives a version 2 whole-library graph no regions"` case and add after that block):
 
 ```ts
-  it("keeps a version 3 record's regions and ledgers", function () {
-    // Bumping the version constant must not send a version 3 graph through
-    // the version 2 migration, which discards regions and rebuilds them from
-    // the ticks.
-    const v3 = {
-      ...emptyGraphViewState(),
-      version: 3,
-      collections: { base: "none", except: [4, 12] },
-      regions: [12],
-      swatches: { assigned: { "12": 3 }, releasedOrder: [] },
-      seedSwatches: { assigned: { "k1": 1 }, releasedOrder: [] },
-      categorySwatches: { assigned: { article: 0 }, releasedOrder: [] },
-    };
-    const parsed = parseGraphViewState(JSON.stringify(v3));
-    expect(parsed?.version).to.equal(GRAPH_VIEW_STATE_VERSION);
-    expect(parsed?.regions).to.deep.equal([12]);
-    expect(parsed?.swatches.assigned).to.deep.equal({ "12": 3 });
-    expect(parsed?.seedSwatches.assigned).to.deep.equal({ k1: 1 });
-    expect(parsed?.categorySwatches.assigned).to.deep.equal({ article: 0 });
-    expect(parsed?.view).to.equal(null);
-  });
+it("keeps a version 3 record's regions and ledgers", function () {
+  // Bumping the version constant must not send a version 3 graph through
+  // the version 2 migration, which discards regions and rebuilds them from
+  // the ticks.
+  const v3 = {
+    ...emptyGraphViewState(),
+    version: 3,
+    collections: { base: "none", except: [4, 12] },
+    regions: [12],
+    swatches: { assigned: { "12": 3 }, releasedOrder: [] },
+    seedSwatches: { assigned: { k1: 1 }, releasedOrder: [] },
+    categorySwatches: { assigned: { article: 0 }, releasedOrder: [] },
+  };
+  const parsed = parseGraphViewState(JSON.stringify(v3));
+  expect(parsed?.version).to.equal(GRAPH_VIEW_STATE_VERSION);
+  expect(parsed?.regions).to.deep.equal([12]);
+  expect(parsed?.swatches.assigned).to.deep.equal({ "12": 3 });
+  expect(parsed?.seedSwatches.assigned).to.deep.equal({ k1: 1 });
+  expect(parsed?.categorySwatches.assigned).to.deep.equal({ article: 0 });
+  expect(parsed?.view).to.equal(null);
+});
 
-  it("round-trips the active view in version 4", function () {
-    for (const view of [null, "blank", { id: "overview" }] as const) {
-      const state = { ...emptyGraphViewState(), view };
-      const parsed = parseGraphViewState(serializeGraphViewState(state));
-      expect(parsed?.view, JSON.stringify(view)).to.deep.equal(view);
-    }
-  });
+it("round-trips the active view in version 4", function () {
+  for (const view of [null, "blank", { id: "overview" }] as const) {
+    const state = { ...emptyGraphViewState(), view };
+    const parsed = parseGraphViewState(serializeGraphViewState(state));
+    expect(parsed?.view, JSON.stringify(view)).to.deep.equal(view);
+  }
+});
 
-  it("parses a malformed view as never chosen", function () {
-    for (const view of [42, "other", { id: 7 }, { name: "x" }]) {
-      const parsed = parseGraphViewState(
-        JSON.stringify({ ...emptyGraphViewState(), view }),
-      );
-      expect(parsed?.view, JSON.stringify(view)).to.equal(null);
-    }
-  });
+it("parses a malformed view as never chosen", function () {
+  for (const view of [42, "other", { id: 7 }, { name: "x" }]) {
+    const parsed = parseGraphViewState(
+      JSON.stringify({ ...emptyGraphViewState(), view }),
+    );
+    expect(parsed?.view, JSON.stringify(view)).to.equal(null);
+  }
+});
 ```
 
 - [ ] **Step 2: Run the file to see the three cases fail**
@@ -125,7 +127,7 @@ export type GraphViewRef = { id: string } | "blank" | null;
 Add to the `GraphViewState` interface, after `title`:
 
 ```ts
-  view: GraphViewRef;
+view: GraphViewRef;
 ```
 
 Add to `emptyGraphViewState()` return, after `title: null,`:
@@ -191,11 +193,13 @@ git commit -m "D4: graph state version 4 carries the active view; version 3 keep
 **Spec:** "Metrics the graph cannot show".
 
 **Files:**
+
 - Create: `src/services/graphLayoutAvailability.ts`
 - Modify: `src/services/graphViewControls.ts` (delete `metricHasData` at lines 226-235; import it)
 - Test: `test/unit/graphLayoutAvailability.test.ts`
 
 **Interfaces:**
+
 - Produces: `metricHasData(nodes: CitationGraphNode[], metric: MetricID): boolean` and `normaliseLayoutFor(nodes: readonly CitationGraphNode[], layout: GraphLayoutOptions): GraphLayoutOptions`.
 
 - [ ] **Step 1: Write the failing test**
@@ -411,32 +415,83 @@ git commit -m "D4: the gear's metric availability rule as one pure function"
 **Spec:** "A view definition", "The five shipped views", "JSON on the wire", "Applying a view" (the pure half), "Tutorial card" (the chips).
 
 **Files:**
+
 - Create: `src/services/graphViews.ts`
 - Test: `test/unit/graphViews.test.ts`
 
 **Interfaces (produced, used by Tasks 4 to 9):**
 
 ```ts
-export type GraphViewNeeds = "citation-hops" | "shared-citers" | "reading-state";
+export type GraphViewNeeds =
+  "citation-hops" | "shared-citers" | "reading-state";
 export type GraphViewAvailability = "ready" | { needs: GraphViewNeeds };
 export type GraphViewRequires = "none" | "seed" | "two-seeds";
 export type GraphViewRegions = string[] | "ticked" | null;
-export type GraphViewFilters = Partial<Omit<PaperListFilterState, "collectionIDs" | "relation">>;
-export interface GraphViewDefinition { id; name; summary; paragraph; icon: IconName; appearance: GraphLayoutOptions; regions: GraphViewRegions; filters: GraphViewFilters | null; explore: null; requires; availability }
+export type GraphViewFilters = Partial<
+  Omit<PaperListFilterState, "collectionIDs" | "relation">
+>;
+export interface GraphViewDefinition {
+  id;
+  name;
+  summary;
+  paragraph;
+  icon: IconName;
+  appearance: GraphLayoutOptions;
+  regions: GraphViewRegions;
+  filters: GraphViewFilters | null;
+  explore: null;
+  requires;
+  availability;
+}
 export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[];
 export function isShippedViewName(name: string): boolean;
-export function graphViewAvailabilityLine(view): string | null;   // "Arrives with citation hops"
-export function graphViewRequirementLine(view): string | null;    // "needs a seed"
-export interface ViewFolder { collectionID: number; name: string; parentCollectionID: number | null; orderIndex: number; ticked: "on" | "off" | "mixed" }
-export interface ResolvedRegions { collectionIDs: number[]; notFound: string[]; unticked: string[]; ambiguous: Array<{ name: string; count: number }> }
-export function resolveViewRegions(regions: GraphViewRegions, folders: readonly ViewFolder[]): ResolvedRegions | null;
-export interface GraphViewApplication { layout: GraphLayoutOptions; regions: number[] | null; filters: PaperListFilterState; substituted: Array<keyof GraphLayoutOptions>; regionReport: ResolvedRegions | null }
-export function planGraphView(view, input: { nodes; layout; filters; folders }): GraphViewApplication;
-export function graphViewIsEdited(view, live: { layout; regions: number[]; filters; folders; nodes }): boolean;
+export function graphViewAvailabilityLine(view): string | null; // "Arrives with citation hops"
+export function graphViewRequirementLine(view): string | null; // "needs a seed"
+export interface ViewFolder {
+  collectionID: number;
+  name: string;
+  parentCollectionID: number | null;
+  orderIndex: number;
+  ticked: "on" | "off" | "mixed";
+}
+export interface ResolvedRegions {
+  collectionIDs: number[];
+  notFound: string[];
+  unticked: string[];
+  ambiguous: Array<{ name: string; count: number }>;
+}
+export function resolveViewRegions(
+  regions: GraphViewRegions,
+  folders: readonly ViewFolder[],
+): ResolvedRegions | null;
+export interface GraphViewApplication {
+  layout: GraphLayoutOptions;
+  regions: number[] | null;
+  filters: PaperListFilterState;
+  substituted: Array<keyof GraphLayoutOptions>;
+  regionReport: ResolvedRegions | null;
+}
+export function planGraphView(
+  view,
+  input: { nodes; layout; filters; folders },
+): GraphViewApplication;
+export function graphViewIsEdited(
+  view,
+  live: { layout; regions: number[]; filters; folders; nodes },
+): boolean;
 export function tutorialChips(view, application, swatchCount: number): string[];
 export function encodeGraphView(view): string;
-export function decodeGraphView(json: string): { ok: true; view: GraphViewDefinition } | { ok: false; field: string };
-export function captureGraphView(input: { name; paragraph; layout; regions: number[]; filters; folders }): GraphViewDefinition;
+export function decodeGraphView(
+  json: string,
+): { ok: true; view: GraphViewDefinition } | { ok: false; field: string };
+export function captureGraphView(input: {
+  name;
+  paragraph;
+  layout;
+  regions: number[];
+  filters;
+  folders;
+}): GraphViewDefinition;
 export function draftParagraph(layout, regionCount: number, filters): string;
 ```
 
@@ -485,12 +540,48 @@ function node(overrides: Partial<CitationGraphNode>): CitationGraphNode {
 const nodes = [node({ key: "a" }), node({ key: "b", citationCount: 40 })];
 
 const folders: ViewFolder[] = [
-  { collectionID: 1, name: "Timber", parentCollectionID: null, orderIndex: 0, ticked: "on" },
-  { collectionID: 2, name: "Gridshells", parentCollectionID: 1, orderIndex: 0, ticked: "on" },
-  { collectionID: 3, name: "Archive", parentCollectionID: null, orderIndex: 1, ticked: "off" },
-  { collectionID: 4, name: "To read", parentCollectionID: null, orderIndex: 2, ticked: "mixed" },
-  { collectionID: 5, name: "Old", parentCollectionID: 4, orderIndex: 0, ticked: "on" },
-  { collectionID: 6, name: "To read", parentCollectionID: null, orderIndex: 3, ticked: "off" },
+  {
+    collectionID: 1,
+    name: "Timber",
+    parentCollectionID: null,
+    orderIndex: 0,
+    ticked: "on",
+  },
+  {
+    collectionID: 2,
+    name: "Gridshells",
+    parentCollectionID: 1,
+    orderIndex: 0,
+    ticked: "on",
+  },
+  {
+    collectionID: 3,
+    name: "Archive",
+    parentCollectionID: null,
+    orderIndex: 1,
+    ticked: "off",
+  },
+  {
+    collectionID: 4,
+    name: "To read",
+    parentCollectionID: null,
+    orderIndex: 2,
+    ticked: "mixed",
+  },
+  {
+    collectionID: 5,
+    name: "Old",
+    parentCollectionID: 4,
+    orderIndex: 0,
+    ticked: "on",
+  },
+  {
+    collectionID: 6,
+    name: "To read",
+    parentCollectionID: null,
+    orderIndex: 3,
+    ticked: "off",
+  },
 ];
 
 const overview = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "overview")!;
@@ -575,7 +666,7 @@ describe("resolveViewRegions", function () {
     expect(out.ambiguous).to.deep.equal([{ name: "To read", count: 2 }]);
   });
 
-  it("takes the top of each ticked subtree for \"ticked\", in tree order", function () {
+  it('takes the top of each ticked subtree for "ticked", in tree order', function () {
     const out = resolveViewRegions("ticked", folders)!;
     // 1 (on, top) covers 2; 3 and 6 are off; 4 (mixed, top) covers 5.
     expect(out.collectionIDs).to.deep.equal([1, 4]);
@@ -627,7 +718,12 @@ describe("graphViewIsEdited", function () {
   const filters = defaultPaperListFilterState();
   it("is false right after apply, even with a substituted metric", function () {
     const poor = [node({ citationCount: null })];
-    const plan = planGraphView(overview, { nodes: poor, layout: liveLayout, filters, folders });
+    const plan = planGraphView(overview, {
+      nodes: poor,
+      layout: liveLayout,
+      filters,
+      folders,
+    });
     expect(
       graphViewIsEdited(overview, {
         layout: plan.layout,
@@ -680,7 +776,11 @@ describe("the wire form", function () {
       paragraph: "Year × references.",
       layout: { ...liveLayout, yMetric: "references" },
       regions: [2],
-      filters: { ...defaultPaperListFilterState(), collectionIDs: [2], relation: "related" },
+      filters: {
+        ...defaultPaperListFilterState(),
+        collectionIDs: [2],
+        relation: "related",
+      },
       folders,
     });
     expect(saved.id.startsWith("user:")).to.equal(true);
@@ -703,19 +803,43 @@ describe("the wire form", function () {
   });
 
   it("names the first failing field", function () {
-    const good = JSON.parse(encodeGraphView(captureGraphView({
-      name: "n", paragraph: "p", layout: liveLayout, regions: [], filters: defaultPaperListFilterState(), folders,
-    })));
+    const good = JSON.parse(
+      encodeGraphView(
+        captureGraphView({
+          name: "n",
+          paragraph: "p",
+          layout: liveLayout,
+          regions: [],
+          filters: defaultPaperListFilterState(),
+          folders,
+        }),
+      ),
+    );
     const cases: Array<[string, unknown]> = [
       ["meristemaView", { ...good, meristemaView: 2 }],
       ["name", { ...good, name: "" }],
-      ["appearance.xMetric", { ...good, appearance: { ...good.appearance, xMetric: "bogus" } }],
-      ["appearance.nodeLabelMode", { ...good, appearance: { ...good.appearance, nodeLabelMode: 3 } }],
+      [
+        "appearance.xMetric",
+        { ...good, appearance: { ...good.appearance, xMetric: "bogus" } },
+      ],
+      [
+        "appearance.nodeLabelMode",
+        { ...good, appearance: { ...good.appearance, nodeLabelMode: 3 } },
+      ],
       ["regions", { ...good, regions: "ticked" }],
       ["regions", { ...good, regions: [1] }],
-      ["filters.collectionIDs", { ...good, filters: { ...good.filters, collectionIDs: [1] } }],
-      ["filters.relation", { ...good, filters: { ...good.filters, relation: "all" } }],
-      ["filters.openAccessOnly", { ...good, filters: { ...good.filters, openAccessOnly: "yes" } }],
+      [
+        "filters.collectionIDs",
+        { ...good, filters: { ...good.filters, collectionIDs: [1] } },
+      ],
+      [
+        "filters.relation",
+        { ...good, filters: { ...good.filters, relation: "all" } },
+      ],
+      [
+        "filters.openAccessOnly",
+        { ...good, filters: { ...good.filters, openAccessOnly: "yes" } },
+      ],
     ];
     for (const [field, value] of cases) {
       const out = decodeGraphView(JSON.stringify(value));
@@ -729,7 +853,10 @@ describe("the wire form", function () {
 describe("tutorialChips", function () {
   it("lists what was applied in the reader's words", function () {
     const plan = planGraphView(folderMap, {
-      nodes, layout: liveLayout, filters: defaultPaperListFilterState(), folders,
+      nodes,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
     });
     const chips = tutorialChips(folderMap, plan, 12);
     expect(chips).to.deep.equal([
@@ -745,15 +872,28 @@ describe("tutorialChips", function () {
   it("names a substitution and a swatch overflow", function () {
     const poor = [node({ citationCount: null })];
     const plan = planGraphView(overview, {
-      nodes: poor, layout: liveLayout, filters: defaultPaperListFilterState(), folders,
+      nodes: poor,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
     });
     const chips = tutorialChips(overview, plan, 12);
-    expect(chips.some((c) => c.startsWith("y ") && c.endsWith("(no citation data)"))).to.equal(true);
+    expect(
+      chips.some((c) => c.startsWith("y ") && c.endsWith("(no citation data)")),
+    ).to.equal(true);
     const many = planGraphView(folderMap, {
-      nodes, layout: liveLayout, filters: defaultPaperListFilterState(), folders,
+      nodes,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
     });
-    expect(tutorialChips(folderMap, { ...many, regions: Array.from({ length: 14 }, (_, i) => i + 1) }, 12))
-      .to.include("14 regions, 12 colours");
+    expect(
+      tutorialChips(
+        folderMap,
+        { ...many, regions: Array.from({ length: 14 }, (_, i) => i + 1) },
+        12,
+      ),
+    ).to.include("14 regions, 12 colours");
   });
 });
 ```
@@ -793,7 +933,8 @@ import type { IconName } from "./uiIconService";
 
 export const GRAPH_VIEW_WIRE_VERSION = 1;
 
-export type GraphViewNeeds = "citation-hops" | "shared-citers" | "reading-state";
+export type GraphViewNeeds =
+  "citation-hops" | "shared-citers" | "reading-state";
 export type GraphViewAvailability = "ready" | { needs: GraphViewNeeds };
 export type GraphViewRequires = "none" | "seed" | "two-seeds";
 /** Folder names, every ticked subtree top, or leave the regions alone. */
@@ -847,7 +988,8 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "cornerstones",
     name: "Cornerstones",
-    summary: "Seeds, 2 citation hops, floor ≥ 5, colour citations. What the field rests on.",
+    summary:
+      "Seeds, 2 citation hops, floor ≥ 5, colour citations. What the field rests on.",
     // draft: reconcile with boards 3a/3b
     paragraph:
       "Starts from your seeds, follows citations two steps out, and drops anything cited fewer than five times, so what remains is the work the field keeps coming back to. Colour is citations. Seeds and collections are untouched.",
@@ -925,7 +1067,9 @@ const NEEDS_LINE: Record<GraphViewNeeds, string> = {
 export function graphViewAvailabilityLine(
   view: GraphViewDefinition,
 ): string | null {
-  return view.availability === "ready" ? null : NEEDS_LINE[view.availability.needs];
+  return view.availability === "ready"
+    ? null
+    : NEEDS_LINE[view.availability.needs];
 }
 
 export function graphViewRequirementLine(
@@ -1066,8 +1210,11 @@ function mergedFilters(
   live: PaperListFilterState,
   patch: GraphViewFilters | null,
 ): PaperListFilterState {
-  const { collectionIDs: _c, relation: _r, ...rest } = (patch ??
-    {}) as PaperListFilterState;
+  const {
+    collectionIDs: _c,
+    relation: _r,
+    ...rest
+  } = (patch ?? {}) as PaperListFilterState;
   return { ...live, ...rest, collectionIDs: [] };
 }
 
@@ -1114,7 +1261,9 @@ export function graphViewIsEdited(
   }
   if (view.filters !== null) {
     const expectedFilters = mergedFilters(live.filters, view.filters);
-    for (const key of Object.keys(view.filters) as Array<keyof GraphViewFilters>) {
+    for (const key of Object.keys(view.filters) as Array<
+      keyof GraphViewFilters
+    >) {
       if (expectedFilters[key] !== live.filters[key]) return true;
     }
   }
@@ -1169,7 +1318,10 @@ export function tutorialChips(
   return chips;
 }
 
-function filterWord(key: keyof GraphViewFilters, value: unknown): string | null {
+function filterWord(
+  key: keyof GraphViewFilters,
+  value: unknown,
+): string | null {
   switch (key) {
     case "openAccessOnly":
       return value ? "filter open access" : null;
@@ -1215,7 +1367,10 @@ export function draftParagraph(
     `size ${metricWord(layout.nodeSizeMetric)}`,
     `colour ${metricWord(layout.nodeColorMetric)}`,
   ];
-  if (regionCount) bits.push(`${regionCount} folder${regionCount === 1 ? "" : "s"} as regions`);
+  if (regionCount)
+    bits.push(
+      `${regionCount} folder${regionCount === 1 ? "" : "s"} as regions`,
+    );
   const f = Object.entries(filters)
     .map(([k, v]) => filterWord(k as keyof GraphViewFilters, v))
     .filter((x): x is string => Boolean(x));
@@ -1254,10 +1409,11 @@ export function encodeGraphView(view: GraphViewDefinition): string {
 }
 
 function stripScopeFilters(filters: GraphViewFilters): GraphViewFilters {
-  const { collectionIDs: _c, relation: _r, ...rest } = filters as Record<
-    string,
-    unknown
-  >;
+  const {
+    collectionIDs: _c,
+    relation: _r,
+    ...rest
+  } = filters as Record<string, unknown>;
   return rest as GraphViewFilters;
 }
 
@@ -1288,8 +1444,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 type Decoded =
-  | { ok: true; view: GraphViewDefinition }
-  | { ok: false; field: string };
+  { ok: true; view: GraphViewDefinition } | { ok: false; field: string };
 
 export function decodeGraphView(json: string): Decoded {
   let raw: unknown;
@@ -1315,13 +1470,20 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
   const axis = (v: unknown): v is GraphAxisMetric =>
     AXIS_METRICS.has(v as string) || isMetricID(v);
   if (!axis(a.xMetric)) return { ok: false, field: "appearance.xMetric" };
-  if (!SCALES.has(a.xScale as string)) return { ok: false, field: "appearance.xScale" };
+  if (!SCALES.has(a.xScale as string))
+    return { ok: false, field: "appearance.xScale" };
   if (!axis(a.yMetric)) return { ok: false, field: "appearance.yMetric" };
-  if (!SCALES.has(a.yScale as string)) return { ok: false, field: "appearance.yScale" };
-  if (!(SIZE_METRICS.has(a.nodeSizeMetric as string) || isMetricID(a.nodeSizeMetric))) {
+  if (!SCALES.has(a.yScale as string))
+    return { ok: false, field: "appearance.yScale" };
+  if (!(
+    SIZE_METRICS.has(a.nodeSizeMetric as string) || isMetricID(a.nodeSizeMetric)
+  )) {
     return { ok: false, field: "appearance.nodeSizeMetric" };
   }
-  if (!(COLOUR_METRICS.has(a.nodeColorMetric as string) || isMetricID(a.nodeColorMetric))) {
+  if (!(
+    COLOUR_METRICS.has(a.nodeColorMetric as string) ||
+    isMetricID(a.nodeColorMetric)
+  )) {
     return { ok: false, field: "appearance.nodeColorMetric" };
   }
   if (!LABELS.has(a.nodeLabelMode as string)) {
@@ -1338,7 +1500,10 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
   };
   let regions: string[] | null = null;
   if (raw.regions !== null && raw.regions !== undefined) {
-    if (!Array.isArray(raw.regions) || !raw.regions.every((r) => typeof r === "string")) {
+    if (
+      !Array.isArray(raw.regions) ||
+      !raw.regions.every((r) => typeof r === "string")
+    ) {
       return { ok: false, field: "regions" };
     }
     regions = raw.regions as string[];
@@ -1356,7 +1521,9 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
       const fallback = defaults[key as keyof PaperListFilterState];
       const okType =
         fallback === null
-          ? value === null || typeof value === "string" || typeof value === "number"
+          ? value === null ||
+            typeof value === "string" ||
+            typeof value === "number"
           : typeof value === typeof fallback;
       if (!okType) return { ok: false, field: `filters.${key}` };
       out[key] = value;
@@ -1440,6 +1607,7 @@ git commit -m "D4: the view model, the five shipped views, and the pure apply, e
 **Spec:** "User views".
 
 **Files:**
+
 - Create: `src/services/graphViewsStore.ts`
 - Test: `test/unit/graphViewsStore.test.ts`
 
@@ -1447,8 +1615,8 @@ git commit -m "D4: the view model, the five shipped views, and the pure apply, e
 
 ```ts
 export function listSavedGraphViews(): GraphViewDefinition[];
-export function saveGraphView(view: GraphViewDefinition): void;      // insert or replace by id
-export function deleteGraphView(id: string): void;                   // also un-dismisses its tutorial
+export function saveGraphView(view: GraphViewDefinition): void; // insert or replace by id
+export function deleteGraphView(id: string): void; // also un-dismisses its tutorial
 export function isTutorialDismissed(id: string): boolean;
 export function dismissTutorial(id: string): void;
 ```
@@ -1468,7 +1636,10 @@ import {
   listSavedGraphViews,
   saveGraphView,
 } from "../../src/services/graphViewsStore";
-import { captureGraphView, type GraphViewDefinition } from "../../src/services/graphViews";
+import {
+  captureGraphView,
+  type GraphViewDefinition,
+} from "../../src/services/graphViews";
 import { defaultPaperListFilterState } from "../../src/services/paperListViewService";
 
 const prefKey = (name: string): string => `${config.prefsPrefix}.${name}`;
@@ -1497,8 +1668,13 @@ function view(name: string): GraphViewDefinition {
     name,
     paragraph: "p",
     layout: {
-      xMetric: "year", xScale: "linear", yMetric: "citations", yScale: "linear",
-      nodeSizeMetric: "citations", nodeColorMetric: "uniform", nodeLabelMode: "author-year",
+      xMetric: "year",
+      xScale: "linear",
+      yMetric: "citations",
+      yScale: "linear",
+      nodeSizeMetric: "citations",
+      nodeColorMetric: "uniform",
+      nodeLabelMode: "author-year",
     },
     regions: [],
     filters: defaultPaperListFilterState(),
@@ -1514,7 +1690,9 @@ describe("the saved views preference", function () {
     const v = view("A");
     saveGraphView(v);
     expect(listSavedGraphViews().map((x) => x.name)).to.deep.equal(["A"]);
-    expect(JSON.parse(String(store[prefKey("graphViews")]))[0].id).to.equal(v.id);
+    expect(JSON.parse(String(store[prefKey("graphViews")]))[0].id).to.equal(
+      v.id,
+    );
   });
 
   it("replaces by id, deletes by id, and forgets a deleted view's dismissal", function () {
@@ -1531,7 +1709,12 @@ describe("the saved views preference", function () {
 
   it("skips a stored record that no longer decodes", function () {
     store[prefKey("graphViews")] = JSON.stringify([
-      { meristemaView: 1, id: "user:x", name: "bad", appearance: { xMetric: "bogus" } },
+      {
+        meristemaView: 1,
+        id: "user:x",
+        name: "bad",
+        appearance: { xMetric: "bogus" },
+      },
     ]);
     expect(listSavedGraphViews()).to.deep.equal([]);
   });
@@ -1575,7 +1758,9 @@ export function listSavedGraphViews(): GraphViewDefinition[] {
   const out: GraphViewDefinition[] = [];
   for (const record of raw) {
     const id =
-      typeof record === "object" && record && typeof (record as { id?: unknown }).id === "string"
+      typeof record === "object" &&
+      record &&
+      typeof (record as { id?: unknown }).id === "string"
         ? (record as { id: string }).id
         : null;
     if (!id || !id.startsWith("user:")) continue;
@@ -1586,7 +1771,10 @@ export function listSavedGraphViews(): GraphViewDefinition[] {
 }
 
 function writeViews(views: readonly GraphViewDefinition[]): void {
-  const records = views.map((v) => ({ ...JSON.parse(encodeGraphView(v)), id: v.id }));
+  const records = views.map((v) => ({
+    ...JSON.parse(encodeGraphView(v)),
+    id: v.id,
+  }));
   Zotero.Prefs.set(key(VIEWS), JSON.stringify(records), true);
 }
 
@@ -1602,7 +1790,9 @@ export function deleteGraphView(id: string): void {
 
 function readDismissed(): string[] {
   const raw = readRaw(DISMISSED);
-  return Array.isArray(raw) ? raw.filter((d): d is string => typeof d === "string") : [];
+  return Array.isArray(raw)
+    ? raw.filter((d): d is string => typeof d === "string")
+    : [];
 }
 
 function writeDismissed(ids: readonly string[]): void {
@@ -1634,6 +1824,7 @@ git commit -m "D4: saved views and dismissed tutorials in the profile"
 **Spec:** "Gallery" (static icon per view), "Toolbar chip".
 
 **Files:**
+
 - Modify: `src/services/uiIconService.ts` (`IconName` union near line 5, `ICON_PATHS` near line 24)
 
 No unit test: the icon table is data, and `createIcon` is already covered. The manual batch checks the set (Task 10).
@@ -1698,6 +1889,7 @@ git commit -m "D4: seven drawn icons for the View chip and the five views"
 **Spec:** "Toolbar chip and dropdown", "Tutorial card", "Gallery", "Save dialog".
 
 **Files:**
+
 - Create: `src/services/graphViewsMenu.ts`
 - Modify: `addon/content/graph.css`
 
@@ -1715,22 +1907,52 @@ export interface GraphViewsMenuOptions {
   onOpenGallery: () => void;
 }
 export interface GraphViewsMenu {
-  wrap: HTMLElement;            // the toolbar cell, a `cm-menu-wrapper`
-  button: HTMLButtonElement;    // the chip
+  wrap: HTMLElement; // the toolbar cell, a `cm-menu-wrapper`
+  button: HTMLButtonElement; // the chip
   setLabel(name: string | null, edited: boolean): void;
   close(): void;
-  refresh(activeID: string | null): void;   // rebuilds rows
+  refresh(activeID: string | null): void; // rebuilds rows
 }
 export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu;
 
-export interface TutorialCard { root: HTMLElement; show(view, chips: string[], footnote: string): void; hide(): void; }
-export function createTutorialCard(document, onDismissForever: (id: string) => void): TutorialCard;
+export interface TutorialCard {
+  root: HTMLElement;
+  show(view, chips: string[], footnote: string): void;
+  hide(): void;
+}
+export function createTutorialCard(
+  document,
+  onDismissForever: (id: string) => void,
+): TutorialCard;
 
-export interface ViewGallery { root: HTMLElement; show(count: number): void; hide(): void; }
-export function createViewGallery(document, o: { shipped; onChoose; onBlank: () => void; onImport: () => void }): ViewGallery;
+export interface ViewGallery {
+  root: HTMLElement;
+  show(count: number): void;
+  hide(): void;
+}
+export function createViewGallery(
+  document,
+  o: { shipped; onChoose; onBlank: () => void; onImport: () => void },
+): ViewGallery;
 
-export interface SavePanelResult { name: string; paragraph: string }
-export interface SavePanel { root: HTMLElement; open(o: { name; paragraph; captures: { regions: number; filters: boolean }; existing: GraphViewDefinition | null; nameTaken: (name: string) => boolean; onCopyJSON: (r: SavePanelResult) => void; onSave: (r: SavePanelResult) => void; onDelete: (() => void) | null }): void; close(): void; }
+export interface SavePanelResult {
+  name: string;
+  paragraph: string;
+}
+export interface SavePanel {
+  root: HTMLElement;
+  open(o: {
+    name;
+    paragraph;
+    captures: { regions: number; filters: boolean };
+    existing: GraphViewDefinition | null;
+    nameTaken: (name: string) => boolean;
+    onCopyJSON: (r: SavePanelResult) => void;
+    onSave: (r: SavePanelResult) => void;
+    onDelete: (() => void) | null;
+  }): void;
+  close(): void;
+}
 export function createSavePanel(document): SavePanel;
 ```
 
@@ -1797,7 +2019,8 @@ function row(
     text(document, "span", view.summary, "cm-view-row-summary"),
   );
   button.append(body);
-  const note = graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
+  const note =
+    graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
   if (note) button.append(text(document, "span", note, "cm-view-row-note"));
   if (active) button.append(text(document, "span", "✓", "cm-view-row-tick"));
   button.addEventListener("click", (event) => {
@@ -1842,10 +2065,16 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     menu.replaceChildren();
     for (const view of o.shipped) {
       menu.append(
-        row(document, view, view.id === activeID, () => {
-          close();
-          o.onChoose(view);
-        }, null),
+        row(
+          document,
+          view,
+          view.id === activeID,
+          () => {
+            close();
+            o.onChoose(view);
+          },
+          null,
+        ),
       );
     }
     const saved = o.listSaved();
@@ -1869,7 +2098,9 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
         );
       }
     }
-    menu.append(text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule"));
+    menu.append(
+      text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule"),
+    );
     for (const [labelText, handler] of [
       ["Save current as view…", o.onSaveCurrent],
       ["Import view JSON…", o.onImport],
@@ -1906,7 +2137,9 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     button,
     menu,
     setLabel(viewName, edited) {
-      name.textContent = viewName ? `${viewName}${edited ? " (edited)" : ""}` : "";
+      name.textContent = viewName
+        ? `${viewName}${edited ? " (edited)" : ""}`
+        : "";
       name.hidden = !viewName;
       button.setAttribute(
         "aria-label",
@@ -1971,7 +2204,9 @@ export function createTutorialCard(
       title.textContent = view.name;
       body.textContent = view.paragraph;
       chipRow.replaceChildren(
-        ...chips.map((chip) => text(document, "span", chip, "cm-view-chip-tag")),
+        ...chips.map((chip) =>
+          text(document, "span", chip, "cm-view-chip-tag"),
+        ),
       );
       foot.textContent = footnote;
       root.hidden = false;
@@ -2002,7 +2237,12 @@ export function createViewGallery(
   root.setAttribute("role", "region");
   root.setAttribute("aria-label", "Choose a view");
   const heading = text(document, "h2", "", "cm-view-gallery-heading");
-  const sub = text(document, "p", "Scope stays as it is.", "cm-view-gallery-sub");
+  const sub = text(
+    document,
+    "p",
+    "Scope stays as it is.",
+    "cm-view-gallery-sub",
+  );
   const grid = element(document, "div", "cm-view-gallery-grid");
   for (const view of o.shipped) {
     const card = element(document, "button", "cm-view-gallery-card");
@@ -2016,14 +2256,19 @@ export function createViewGallery(
     card.append(createIcon(document, view.icon, 28));
     card.append(text(document, "span", view.name, "cm-view-gallery-name"));
     card.append(text(document, "span", view.paragraph, "cm-view-gallery-para"));
-    const note = graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
+    const note =
+      graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
     if (note) card.append(text(document, "span", note, "cm-view-gallery-note"));
     card.addEventListener("click", () => {
       if (available) o.onChoose(view);
     });
     grid.append(card);
   }
-  const last = element(document, "div", "cm-view-gallery-card cm-view-gallery-last");
+  const last = element(
+    document,
+    "div",
+    "cm-view-gallery-card cm-view-gallery-last",
+  );
   const blank = element(document, "button", "cm-secondary-button");
   blank.type = "button";
   blank.textContent = "Start blank";
@@ -2076,7 +2321,12 @@ export function createSavePanel(document: Document): SavePanel {
   root.hidden = true;
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Save view");
-  const title = text(document, "h2", "Save current as view", "cm-view-save-title");
+  const title = text(
+    document,
+    "h2",
+    "Save current as view",
+    "cm-view-save-title",
+  );
   const nameLabel = element(document, "label", "cm-view-save-field");
   nameLabel.append(text(document, "span", "Name"));
   const nameInput = element(document, "input", "cm-view-save-input");
@@ -2092,11 +2342,20 @@ export function createSavePanel(document: Document): SavePanel {
   explainLabel.append(explain);
   const captures = element(document, "ul", "cm-view-save-captures");
   const footer = element(document, "div", "cm-view-save-footer");
-  const note = text(document, "span", "Views are stored in your Zotero profile.", "cm-view-save-note");
+  const note = text(
+    document,
+    "span",
+    "Views are stored in your Zotero profile.",
+    "cm-view-save-note",
+  );
   const copyButton = element(document, "button", "cm-secondary-button");
   copyButton.type = "button";
   copyButton.textContent = "Copy JSON";
-  const deleteButton = element(document, "button", "cm-secondary-button cm-view-save-delete");
+  const deleteButton = element(
+    document,
+    "button",
+    "cm-secondary-button cm-view-save-delete",
+  );
   deleteButton.type = "button";
   deleteButton.textContent = "Delete";
   const cancel = element(document, "button", "cm-secondary-button");
@@ -2106,7 +2365,15 @@ export function createSavePanel(document: Document): SavePanel {
   save.type = "button";
   save.textContent = "Save";
   footer.append(note, copyButton, deleteButton, cancel, save);
-  root.append(title, nameLabel, nameError, explainLabel, text(document, "p", "Captures", "cm-view-save-captures-title"), captures, footer);
+  root.append(
+    title,
+    nameLabel,
+    nameError,
+    explainLabel,
+    text(document, "p", "Captures", "cm-view-save-captures-title"),
+    captures,
+    footer,
+  );
 
   let current: SavePanelOpenOptions | null = null;
   const result = (): SavePanelResult => ({
@@ -2119,7 +2386,10 @@ export function createSavePanel(document: Document): SavePanel {
     if (!name) error = "Give the view a name.";
     else if (
       current?.nameTaken(name) &&
-      !(current.existing && current.existing.name.toLowerCase() === name.toLowerCase())
+      !(
+        current.existing &&
+        current.existing.name.toLowerCase() === name.toLowerCase()
+      )
     ) {
       error = "A view with that name already exists.";
     }
@@ -2152,7 +2422,11 @@ export function createSavePanel(document: Document): SavePanel {
     if (event.key === "Escape") close();
   });
 
-  const captureRow = (label: string, ticked: boolean, dashed = false): HTMLElement => {
+  const captureRow = (
+    label: string,
+    ticked: boolean,
+    dashed = false,
+  ): HTMLElement => {
     const li = element(document, "li", "cm-view-save-capture");
     if (dashed) li.classList.add("cm-view-save-capture--never");
     const box = element(document, "input");
@@ -2167,7 +2441,9 @@ export function createSavePanel(document: Document): SavePanel {
     root,
     open(o) {
       current = o;
-      title.textContent = o.existing ? `Edit ${o.existing.name}` : "Save current as view";
+      title.textContent = o.existing
+        ? `Edit ${o.existing.name}`
+        : "Save current as view";
       nameInput.value = o.name;
       explain.value = o.paragraph;
       captures.replaceChildren(
@@ -2176,11 +2452,16 @@ export function createSavePanel(document: Document): SavePanel {
         captureRow("Size", true),
         captureRow("Labels", true),
         captureRow(
-          o.captures.regions ? `Regions: ${o.captures.regions} folder${o.captures.regions === 1 ? "" : "s"}` : "Regions: none",
+          o.captures.regions
+            ? `Regions: ${o.captures.regions} folder${o.captures.regions === 1 ? "" : "s"}`
+            : "Regions: none",
           true,
         ),
         captureRow("Filters", true),
-        captureRow("Explore (hops, floor, shared citers) — not yet available", false),
+        captureRow(
+          "Explore (hops, floor, shared citers) — not yet available",
+          false,
+        ),
         captureRow("Scope (seeds, collections) — never saved", false, true),
       );
       deleteButton.hidden = !o.onDelete;
@@ -2509,11 +2790,13 @@ git commit -m "D4: the View chip, its dropdown, the tutorial card, the gallery a
 **Spec:** "Toolbar chip and dropdown" (placement), "Applying a view", "The active view, in the graph state" (plumbing), "Gallery" (when), "Tutorial card" (when), "Save dialog" (behaviour), "What does not change".
 
 **Files:**
+
 - Modify: `src/services/graphViewService.ts`
 
 Anchors are given as code to search for; line numbers drift. Read the file's regions named in each step before editing.
 
 **Interfaces:**
+
 - Consumes: everything from Tasks 1, 3, 4, 6.
 - Produces: the controller's `getState()` returns `view`; `applyState` reads it.
 
@@ -2559,8 +2842,8 @@ import type { GraphViewRef } from "./graphViewState";
 Next to `let regions: number[] = ...` (search `let regions: number[]`), add:
 
 ```ts
-  /** D4: the view this graph is on; null shows the gallery once. */
-  let view: GraphViewRef = null;
+/** D4: the view this graph is on; null shows the gallery once. */
+let view: GraphViewRef = null;
 ```
 
 - [ ] **Step 3: Build the DOM and place the chip**
@@ -2568,55 +2851,55 @@ Next to `let regions: number[] = ...` (search `let regions: number[]`), add:
 After the block that builds `graphWrap` (search `graphWrap.append(graphButton, graphMenu);`), add:
 
 ```ts
-  // D4: the View chip, File's sibling. It sits after File (B21: File leads
-  // the bar) and before Filter, the first control on the document.
-  const collectionTickStateOf = (
-    collection: LibraryCollectionFilter,
-  ): "on" | "off" | "mixed" =>
-    collectionTickState(
-      collectionTicks,
-      collection.collectionID,
-      collection.includedCollectionIDs.filter(
-        (id) => id !== collection.collectionID,
-      ),
-    );
-  const viewFolders = (): ViewFolder[] =>
-    snapshot.collections.map((c) => ({
-      collectionID: c.collectionID,
-      name: c.name,
-      parentCollectionID: c.parentCollectionID,
-      orderIndex: c.orderIndex,
-      ticked: collectionTickStateOf(c),
-    }));
-  const allViews = (): GraphViewDefinition[] => [
-    ...SHIPPED_GRAPH_VIEWS,
-    ...listSavedGraphViews(),
-  ];
-  const viewByID = (id: string): GraphViewDefinition | null =>
-    allViews().find((v) => v.id === id) ?? null;
-  const viewsMenu = createGraphViewsMenu({
-    document,
-    shipped: SHIPPED_GRAPH_VIEWS,
-    listSaved: listSavedGraphViews,
-    onChoose: (chosen) => applyGraphView(chosen),
-    onEdit: (chosen) => openSavePanel(chosen),
-    onSaveCurrent: () => openSavePanel(null),
-    onImport: () => void importView(),
-    onOpenGallery: () => showGallery(),
-  });
-  const tutorialCard = createTutorialCard(document, (id) => dismissTutorial(id));
-  const viewGallery = createViewGallery(document, {
-    shipped: SHIPPED_GRAPH_VIEWS,
-    onChoose: (chosen) => applyGraphView(chosen),
-    onBlank: () => {
-      view = "blank";
-      viewGallery.hide();
-      refreshViewChip();
-      notifyStateChange();
-    },
-    onImport: () => void importView(),
-  });
-  const savePanel = createSavePanel(document);
+// D4: the View chip, File's sibling. It sits after File (B21: File leads
+// the bar) and before Filter, the first control on the document.
+const collectionTickStateOf = (
+  collection: LibraryCollectionFilter,
+): "on" | "off" | "mixed" =>
+  collectionTickState(
+    collectionTicks,
+    collection.collectionID,
+    collection.includedCollectionIDs.filter(
+      (id) => id !== collection.collectionID,
+    ),
+  );
+const viewFolders = (): ViewFolder[] =>
+  snapshot.collections.map((c) => ({
+    collectionID: c.collectionID,
+    name: c.name,
+    parentCollectionID: c.parentCollectionID,
+    orderIndex: c.orderIndex,
+    ticked: collectionTickStateOf(c),
+  }));
+const allViews = (): GraphViewDefinition[] => [
+  ...SHIPPED_GRAPH_VIEWS,
+  ...listSavedGraphViews(),
+];
+const viewByID = (id: string): GraphViewDefinition | null =>
+  allViews().find((v) => v.id === id) ?? null;
+const viewsMenu = createGraphViewsMenu({
+  document,
+  shipped: SHIPPED_GRAPH_VIEWS,
+  listSaved: listSavedGraphViews,
+  onChoose: (chosen) => applyGraphView(chosen),
+  onEdit: (chosen) => openSavePanel(chosen),
+  onSaveCurrent: () => openSavePanel(null),
+  onImport: () => void importView(),
+  onOpenGallery: () => showGallery(),
+});
+const tutorialCard = createTutorialCard(document, (id) => dismissTutorial(id));
+const viewGallery = createViewGallery(document, {
+  shipped: SHIPPED_GRAPH_VIEWS,
+  onChoose: (chosen) => applyGraphView(chosen),
+  onBlank: () => {
+    view = "blank";
+    viewGallery.hide();
+    refreshViewChip();
+    notifyStateChange();
+  },
+  onImport: () => void importView(),
+});
+const savePanel = createSavePanel(document);
 ```
 
 `collectionTickState` is exported from `./graphScopeModel` (line 101); import it if the file does not already. `LibraryCollectionFilter` is in `../domain/types`.
@@ -2624,20 +2907,20 @@ After the block that builds `graphWrap` (search `graphWrap.append(graphButton, g
 Change the toolbar composition:
 
 ```ts
-  toolbar.append(
-    graphWrap,
-    viewsMenu.wrap,
-    graphFilter.root,
-    similarButton,
-    exportWrap,
-    refreshButton,
-  );
+toolbar.append(
+  graphWrap,
+  viewsMenu.wrap,
+  graphFilter.root,
+  similarButton,
+  exportWrap,
+  refreshButton,
+);
 ```
 
 After `graphArea.appendChild(emptyState);` add:
 
 ```ts
-  graphArea.append(tutorialCard.root, viewGallery.root, savePanel.root);
+graphArea.append(tutorialCard.root, viewGallery.root, savePanel.root);
 ```
 
 - [ ] **Step 4: Open and close like File's menu**
@@ -2645,23 +2928,27 @@ After `graphArea.appendChild(emptyState);` add:
 Next to `closeGraphMenu` (search `const closeGraphMenu = (): void =>`), add the same three handlers for the views menu and make each menu close the others:
 
 ```ts
-  const closeViewsMenuOnOutsidePointer = (event: Event): void => {
-    if (viewsMenu.menu.hidden) return;
-    const target = event.target as Node | null;
-    if (target && viewsMenu.wrap.contains(target)) return;
-    viewsMenu.close();
-  };
-  const closeViewsMenuOnEscape = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape" || viewsMenu.menu.hidden) return;
-    viewsMenu.close();
-    viewsMenu.button.focus();
-  };
-  document.addEventListener("pointerdown", closeViewsMenuOnOutsidePointer, true);
-  document.addEventListener("keydown", closeViewsMenuOnEscape, true);
-  viewsMenu.button.addEventListener("click", () => {
+const closeViewsMenuOnOutsidePointer = (event: Event): void => {
+  if (viewsMenu.menu.hidden) return;
+  const target = event.target as Node | null;
+  if (target && viewsMenu.wrap.contains(target)) return;
+  viewsMenu.close();
+};
+const closeViewsMenuOnEscape = (event: KeyboardEvent): void => {
+  if (event.key !== "Escape" || viewsMenu.menu.hidden) return;
+  viewsMenu.close();
+  viewsMenu.button.focus();
+};
+document.addEventListener("pointerdown", closeViewsMenuOnOutsidePointer, true);
+document.addEventListener("keydown", closeViewsMenuOnEscape, true);
+viewsMenu.button.addEventListener(
+  "click",
+  () => {
     closeGraphMenu();
     closeExportMenu();
-  }, true);
+  },
+  true,
+);
 ```
 
 In `openGraphMenu` and the export button's click handler add `viewsMenu.close();`. In `cleanup` (search `document.removeEventListener("keydown", closeGraphMenuOnEscape, true);`) add the two matching `removeEventListener` calls.
@@ -2671,33 +2958,33 @@ In `openGraphMenu` and the export button's click handler add `viewsMenu.close();
 Add, after the DOM block of Step 3:
 
 ```ts
-  const activeView = (): GraphViewDefinition | null =>
-    view && view !== "blank" ? viewByID(view.id) : null;
-  const refreshViewChip = (): void => {
-    const active = activeView();
-    if (!active) {
-      viewsMenu.setLabel(null, false);
-      viewsMenu.refresh(null);
-      return;
-    }
-    const edited = graphViewIsEdited(active, {
-      nodes: model.nodes,
-      layout: appearance.getLayout(),
-      regions,
-      filters: graphFilter.state(),
-      folders: viewFolders(),
-    });
-    viewsMenu.setLabel(active.name, edited);
-    viewsMenu.refresh(active.id);
-  };
-  /** The gallery shows once, for a graph that has never chosen and has papers. */
-  const maybeShowGallery = (): void => {
-    if (view !== null) return viewGallery.hide();
-    const shown = visibleNodeCount();
-    if (shown > 0) viewGallery.show(shown);
-    else viewGallery.hide();
-  };
-  const showGallery = (): void => viewGallery.show(visibleNodeCount());
+const activeView = (): GraphViewDefinition | null =>
+  view && view !== "blank" ? viewByID(view.id) : null;
+const refreshViewChip = (): void => {
+  const active = activeView();
+  if (!active) {
+    viewsMenu.setLabel(null, false);
+    viewsMenu.refresh(null);
+    return;
+  }
+  const edited = graphViewIsEdited(active, {
+    nodes: model.nodes,
+    layout: appearance.getLayout(),
+    regions,
+    filters: graphFilter.state(),
+    folders: viewFolders(),
+  });
+  viewsMenu.setLabel(active.name, edited);
+  viewsMenu.refresh(active.id);
+};
+/** The gallery shows once, for a graph that has never chosen and has papers. */
+const maybeShowGallery = (): void => {
+  if (view !== null) return viewGallery.hide();
+  const shown = visibleNodeCount();
+  if (shown > 0) viewGallery.show(shown);
+  else viewGallery.hide();
+};
+const showGallery = (): void => viewGallery.show(visibleNodeCount());
 ```
 
 `visibleNodeCount()`: the number the rail's Scope line shows as "shown". Find how `updateSummary` computes it (search `cm-scope-count` or `shownCount`) and reuse that variable; if it is local to `updateSummary`, hoist it to a `let shownCount = 0` updated there.
@@ -2711,37 +2998,37 @@ Call `refreshViewChip()` at the end of `updateSummary` (the summary refreshes af
 Add after `refreshViewChip`:
 
 ```ts
-  const applyGraphView = (chosen: GraphViewDefinition): void => {
-    const plan = planGraphView(chosen, {
-      nodes: model.nodes,
-      layout: appearance.getLayout(),
-      filters: graphFilter.state(),
-      folders: viewFolders(),
-    });
-    // Appearance goes through the gear's own controller, so its selects, the
-    // instance's live layout and the preference all move together.
-    appearance.setLayout(plan.layout);
-    if (plan.regions !== null) {
-      regions = [...plan.regions];
-      ensureSwatchesFor();
-    }
-    graphFilter.setState({ ...plan.filters, collectionIDs: [] });
-    view = { id: chosen.id };
-    viewGallery.hide();
-    applyFilters();
-    notifyStateChange();
-    refreshScopeRail();
-    refreshViewChip();
-    if (!isTutorialDismissed(chosen.id)) {
-      const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
-        .categorical.swatches.length;
-      tutorialCard.show(
-        chosen,
-        tutorialChips(chosen, plan, swatchCount),
-        tutorialFootnote(plan),
-      );
-    }
-  };
+const applyGraphView = (chosen: GraphViewDefinition): void => {
+  const plan = planGraphView(chosen, {
+    nodes: model.nodes,
+    layout: appearance.getLayout(),
+    filters: graphFilter.state(),
+    folders: viewFolders(),
+  });
+  // Appearance goes through the gear's own controller, so its selects, the
+  // instance's live layout and the preference all move together.
+  appearance.setLayout(plan.layout);
+  if (plan.regions !== null) {
+    regions = [...plan.regions];
+    ensureSwatchesFor();
+  }
+  graphFilter.setState({ ...plan.filters, collectionIDs: [] });
+  view = { id: chosen.id };
+  viewGallery.hide();
+  applyFilters();
+  notifyStateChange();
+  refreshScopeRail();
+  refreshViewChip();
+  if (!isTutorialDismissed(chosen.id)) {
+    const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
+      .categorical.swatches.length;
+    tutorialCard.show(
+      chosen,
+      tutorialChips(chosen, plan, swatchCount),
+      tutorialFootnote(plan),
+    );
+  }
+};
 ```
 
 `graphFilter.setState` fires `onChange` → `applyFilters` + `notifyStateChange` already (see `createPaperFilterController` at line 632); if so the explicit `applyFilters()` call is redundant but harmless. Check `ensureSwatchesFor` and `refreshScopeRail` are declared before this point or are `let` bindings assigned later (they are: lines 515-528 declare `applyFilters`, `notifyStateChange`, `refreshScopeRail` as `let`; `ensureSwatchesFor` is a `const` at line 1842, so place `applyGraphView` after it or convert the call into a deferred lookup). Simplest: place this whole block (Steps 5 to 7) right after `ensureSwatchesFor`'s definition.
@@ -2749,96 +3036,109 @@ Add after `refreshViewChip`:
 - [ ] **Step 7: Save, edit, delete, copy, import**
 
 ```ts
-  const savedNames = (): string[] => listSavedGraphViews().map((v) => v.name);
-  const nameTaken = (name: string, except: GraphViewDefinition | null): boolean => {
-    const wanted = name.trim().toLowerCase();
-    if (isShippedViewName(wanted)) return true;
-    return listSavedGraphViews().some(
-      (v) => v.id !== except?.id && v.name.toLowerCase() === wanted,
-    );
+const savedNames = (): string[] => listSavedGraphViews().map((v) => v.name);
+const nameTaken = (
+  name: string,
+  except: GraphViewDefinition | null,
+): boolean => {
+  const wanted = name.trim().toLowerCase();
+  if (isShippedViewName(wanted)) return true;
+  return listSavedGraphViews().some(
+    (v) => v.id !== except?.id && v.name.toLowerCase() === wanted,
+  );
+};
+const copyText = (value: string): void => {
+  (
+    Zotero.Utilities.Internal as unknown as {
+      copyTextToClipboard: (text: string) => void;
+    }
+  ).copyTextToClipboard(value);
+  controller.setStatus("Copied");
+};
+const openSavePanel = (existing: GraphViewDefinition | null): void => {
+  const layout = appearance.getLayout();
+  const filters = graphFilter.state();
+  const folders = viewFolders();
+  const capture = (r: {
+    name: string;
+    paragraph: string;
+  }): GraphViewDefinition => {
+    const captured = captureGraphView({
+      name: r.name,
+      paragraph: r.paragraph,
+      layout,
+      regions,
+      filters,
+      folders,
+    });
+    return existing ? { ...captured, id: existing.id } : captured;
   };
-  const copyText = (value: string): void => {
-    (
-      Zotero.Utilities.Internal as unknown as {
-        copyTextToClipboard: (text: string) => void;
-      }
-    ).copyTextToClipboard(value);
-    controller.setStatus("Copied");
-  };
-  const openSavePanel = (existing: GraphViewDefinition | null): void => {
-    const layout = appearance.getLayout();
-    const filters = graphFilter.state();
-    const folders = viewFolders();
-    const capture = (r: { name: string; paragraph: string }): GraphViewDefinition => {
-      const captured = captureGraphView({
-        name: r.name,
-        paragraph: r.paragraph,
+  savePanel.open({
+    name: existing?.name ?? "",
+    paragraph:
+      existing?.paragraph ??
+      draftParagraph(layout, regions.length, stripForDraft(filters)),
+    captures: { regions: regions.length, filters: true },
+    existing,
+    nameTaken: (name) => nameTaken(name, existing),
+    onCopyJSON: (r) => copyText(encodeGraphView(capture(r))),
+    onSave: (r) => {
+      const saved = capture(r);
+      saveGraphView(saved);
+      view = { id: saved.id };
+      viewGallery.hide();
+      notifyStateChange();
+      refreshViewChip();
+      const plan = planGraphView(saved, {
+        nodes: model.nodes,
         layout,
-        regions,
         filters,
         folders,
       });
-      return existing ? { ...captured, id: existing.id } : captured;
-    };
-    savePanel.open({
-      name: existing?.name ?? "",
-      paragraph:
-        existing?.paragraph ??
-        draftParagraph(layout, regions.length, stripForDraft(filters)),
-      captures: { regions: regions.length, filters: true },
-      existing,
-      nameTaken: (name) => nameTaken(name, existing),
-      onCopyJSON: (r) => copyText(encodeGraphView(capture(r))),
-      onSave: (r) => {
-        const saved = capture(r);
-        saveGraphView(saved);
-        view = { id: saved.id };
-        viewGallery.hide();
-        notifyStateChange();
-        refreshViewChip();
-        const plan = planGraphView(saved, {
-          nodes: model.nodes, layout, filters, folders,
-        });
-        const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
-          .categorical.swatches.length;
-        tutorialCard.show(saved, tutorialChips(saved, plan, swatchCount), tutorialFootnote(plan));
-      },
-      onDelete: existing
-        ? () => {
-            deleteGraphView(existing.id);
-            if (view && view !== "blank" && view.id === existing.id) {
-              view = "blank";
-              notifyStateChange();
-            }
-            refreshViewChip();
-          }
-        : null,
-    });
-  };
-  const stripForDraft = (filters: PaperListFilterState) => {
-    const { collectionIDs: _c, relation: _r, ...rest } = filters;
-    return rest;
-  };
-  const importView = async (): Promise<void> => {
-    const decoded = await importGraphViewFile(document);
-    if (!decoded) return;
-    if (!decoded.ok) {
-      Services.prompt.alert(
-        document.defaultView,
-        "Import view",
-        `This file is not a Meristema view: the field "${decoded.field}" is missing or invalid.`,
+      const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
+        .categorical.swatches.length;
+      tutorialCard.show(
+        saved,
+        tutorialChips(saved, plan, swatchCount),
+        tutorialFootnote(plan),
       );
-      return;
-    }
-    let imported = decoded.view;
-    if (nameTaken(imported.name, null)) {
-      let n = 2;
-      while (nameTaken(`${imported.name} (${n})`, null)) n += 1;
-      imported = { ...imported, name: `${imported.name} (${n})` };
-    }
-    saveGraphView(imported);
-    applyGraphView(imported);
-  };
+    },
+    onDelete: existing
+      ? () => {
+          deleteGraphView(existing.id);
+          if (view && view !== "blank" && view.id === existing.id) {
+            view = "blank";
+            notifyStateChange();
+          }
+          refreshViewChip();
+        }
+      : null,
+  });
+};
+const stripForDraft = (filters: PaperListFilterState) => {
+  const { collectionIDs: _c, relation: _r, ...rest } = filters;
+  return rest;
+};
+const importView = async (): Promise<void> => {
+  const decoded = await importGraphViewFile(document);
+  if (!decoded) return;
+  if (!decoded.ok) {
+    Services.prompt.alert(
+      document.defaultView,
+      "Import view",
+      `This file is not a Meristema view: the field "${decoded.field}" is missing or invalid.`,
+    );
+    return;
+  }
+  let imported = decoded.view;
+  if (nameTaken(imported.name, null)) {
+    let n = 2;
+    while (nameTaken(`${imported.name} (${n})`, null)) n += 1;
+    imported = { ...imported, name: `${imported.name} (${n})` };
+  }
+  saveGraphView(imported);
+  applyGraphView(imported);
+};
 ```
 
 `controller.setStatus` exists on the controller object built later (`controllerByMount.set(mount, controller)`); if `controller` is not in scope at this point, use the local status helper the toolbar uses (search `setStatus` or `toolbarStatus.textContent`). `Services.prompt.alert` matches the existing prompt use (B1).
@@ -2850,7 +3150,7 @@ In `getState()` add `view,` after `title: options.title ?? null,`.
 In `applyState`, after `categorySwatches = state.categorySwatches;`, add:
 
 ```ts
-      view = state.view;
+view = state.view;
 ```
 
 and at the end of `applyState` (after seeds are resolved and the projection rebuilt; search where it returns), add `refreshViewChip(); maybeShowGallery();`. In the request branch (search `// The request already shaped the graph; the state fills in what the`) add `view = options.initialState.view;` after `graphFilter.setState(...)`.
@@ -2879,6 +3179,7 @@ git commit -m "D4: the View chip applies a view, the gallery shows once, and the
 **Spec:** "Import".
 
 **Files:**
+
 - Modify: `src/services/exportService.ts` (beside `chooseSavePath` at line 21)
 - Modify: `src/services/graphViewService.ts` (Task 7's `importView` already calls `importGraphViewFile`)
 
@@ -2886,8 +3187,14 @@ git commit -m "D4: the View chip applies a view, the gallery shows once, and the
 
 ```ts
 export type PickOpenPath = (document: Document) => Promise<string | null>;
-export async function chooseOpenPath(document: Document, o: { title: string; extension: string; filterLabel: string }): Promise<string | null>;
-export async function importGraphViewFile(document: Document, pick: PickOpenPath = defaultViewPicker): Promise<ReturnType<typeof decodeGraphView> | null>;
+export async function chooseOpenPath(
+  document: Document,
+  o: { title: string; extension: string; filterLabel: string },
+): Promise<string | null>;
+export async function importGraphViewFile(
+  document: Document,
+  pick: PickOpenPath = defaultViewPicker,
+): Promise<ReturnType<typeof decodeGraphView> | null>;
 ```
 
 - [ ] **Step 1: Implement in `exportService.ts`**
@@ -2904,7 +3211,11 @@ export async function chooseOpenPath(
   const picker = Components.classes["@mozilla.org/filepicker;1"].createInstance(
     Components.interfaces.nsIFilePicker,
   );
-  picker.init((parentWindow as any).browsingContext, options.title, picker.modeOpen);
+  picker.init(
+    (parentWindow as any).browsingContext,
+    options.title,
+    picker.modeOpen,
+  );
   picker.appendFilter(options.filterLabel, `*.${options.extension}`);
   picker.appendFilters(picker.filterAll);
   const result = await new Promise<number>((resolve) => picker.open(resolve));
@@ -2962,6 +3273,7 @@ git commit -m "D4: import a view from a JSON file through an injectable picker"
 **Spec:** "Testing", Zotero suite.
 
 **Files:**
+
 - Create: `test/zotero/graphViews.test.ts`
 
 The harness is `test/zotero/graphScopeRail.test.ts`: copy its `shown`, `customMenu`, `waitFor`, `command`, `graphTabs`, `tabContent`, `graphRoot` helpers and its `before` (which makes a collection with two items and opens New Graph from Tools › Meristema). Keep the fixture names distinct (`"D4 views"`).
@@ -3004,7 +3316,9 @@ describe("Graph views (D4)", function () {
     this.timeout(30_000);
     await waitFor(() => gallery() && !gallery().hidden, 10_000);
     expect(gallery().hidden, "gallery shown").to.equal(false);
-    expect(gallery().textContent).to.contain("How do you want to look at these");
+    expect(gallery().textContent).to.contain(
+      "How do you want to look at these",
+    );
     (Array.from(gallery().querySelectorAll("button")) as HTMLButtonElement[])
       .find((b) => b.textContent?.trim() === "Start blank")!
       .click();
@@ -3025,14 +3339,20 @@ describe("Graph views (D4)", function () {
     expect(card.hidden, "tutorial card").to.equal(false);
     expect(card.textContent).to.contain("Overview");
     // A gear change on an owned field: the label gains (edited).
-    const gear = graphRoot().querySelector(".cm-appearance-button") as HTMLButtonElement;
+    const gear = graphRoot().querySelector(
+      ".cm-appearance-button",
+    ) as HTMLButtonElement;
     gear.click();
     await delay(50);
     const labels = graphRoot().querySelector(
       '.cm-appearance-panel select[data-role="labels"], .cm-appearance-panel select:last-of-type',
     ) as HTMLSelectElement;
     labels.value = "none";
-    labels.dispatchEvent(new (graphRoot().ownerDocument.defaultView as any).Event("change", { bubbles: true }));
+    labels.dispatchEvent(
+      new (graphRoot().ownerDocument.defaultView as any).Event("change", {
+        bubbles: true,
+      }),
+    );
     await waitFor(() => chipText().includes("(edited)"), 5_000);
     expect(chipText()).to.contain("(edited)");
     gear.click();
@@ -3056,7 +3376,11 @@ describe("Graph views (D4)", function () {
     this.timeout(30_000);
     chip().click();
     await delay(50);
-    (Array.from(graphRoot().querySelectorAll(".cm-view-action")) as HTMLButtonElement[])
+    (
+      Array.from(
+        graphRoot().querySelectorAll(".cm-view-action"),
+      ) as HTMLButtonElement[]
+    )
       .find((b) => b.textContent === "Save current as view…")!
       .click();
     await delay(50);
@@ -3064,32 +3388,51 @@ describe("Graph views (D4)", function () {
     expect(panel.hidden).to.equal(false);
     const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
     name.value = "D4 suite view";
-    name.dispatchEvent(new (panel.ownerDocument.defaultView as any).Event("input", { bubbles: true }));
+    name.dispatchEvent(
+      new (panel.ownerDocument.defaultView as any).Event("input", {
+        bubbles: true,
+      }),
+    );
     (Array.from(panel.querySelectorAll("button")) as HTMLButtonElement[])
       .find((b) => b.textContent === "Save")!
       .click();
     await waitFor(() => chipText().includes("D4 suite view"), 5_000);
     chip().click();
     await delay(50);
-    expect(graphRoot().querySelector(".cm-view-menu")?.textContent).to.contain("My views");
-    expect(graphRoot().querySelector(".cm-view-menu")?.textContent).to.contain("D4 suite view");
+    expect(graphRoot().querySelector(".cm-view-menu")?.textContent).to.contain(
+      "My views",
+    );
+    expect(graphRoot().querySelector(".cm-view-menu")?.textContent).to.contain(
+      "D4 suite view",
+    );
     chip().click();
-    const stored = String(Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]");
-    expect(JSON.parse(stored).map((v: { name: string }) => v.name)).to.include("D4 suite view");
+    const stored = String(
+      Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
+    );
+    expect(JSON.parse(stored).map((v: { name: string }) => v.name)).to.include(
+      "D4 suite view",
+    );
   });
 
   it("reopens a version 3 graph with the gallery and a version 4 one on its view", async function () {
     this.timeout(60_000);
     // A version 3 row, inserted raw: the store always writes the current version.
     const libraryID = Zotero.Libraries.userLibraryID;
-    const v3 = { ...emptyGraphViewState(), version: 3 } as Record<string, unknown>;
+    const v3 = { ...emptyGraphViewState(), version: 3 } as Record<
+      string,
+      unknown
+    >;
     delete v3.view;
-    const summary = await createSavedGraph(libraryID, "D4 v3 graph", emptyGraphViewState());
-    const db = (Zotero as any).DB;
-    await db.queryAsync(
-      "UPDATE saved_graphs_v1 SET state = ? WHERE id = ?",
-      [JSON.stringify(v3), summary.id],
+    const summary = await createSavedGraph(
+      libraryID,
+      "D4 v3 graph",
+      emptyGraphViewState(),
     );
+    const db = (Zotero as any).DB;
+    await db.queryAsync("UPDATE saved_graphs_v1 SET state = ? WHERE id = ?", [
+      JSON.stringify(v3),
+      summary.id,
+    ]);
     // Open it from File › Open in the graph already on screen.
     const fileButton = Array.from(
       graphRoot().querySelectorAll(".cm-toolbar-button"),
@@ -3097,9 +3440,10 @@ describe("Graph views (D4)", function () {
     fileButton.click();
     const entry = await waitFor(
       () =>
-        Array.from(graphRoot().querySelectorAll(".cm-graph-menu-list button")).find(
-          (b) => b.textContent?.includes("D4 v3 graph"),
-        ) as HTMLButtonElement | undefined,
+        Array.from(
+          graphRoot().querySelectorAll(".cm-graph-menu-list button"),
+        ).find((b) => b.textContent?.includes("D4 v3 graph")) as
+          HTMLButtonElement | undefined,
       10_000,
     );
     entry!.click();
@@ -3132,6 +3476,7 @@ git commit -m "D4: the Zotero suite walks the chip, the gallery, a save, a greye
 ### Task 10: Roadmap, manual batch, build
 
 **Files:**
+
 - Modify: `docs/superpowers/handoffs/2026-09-08-roadmap.md`
 - Modify: `docs/superpowers/specs/2026-09-12-graph-views-design.md` (status line)
 
