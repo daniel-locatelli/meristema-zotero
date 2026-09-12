@@ -118,9 +118,8 @@ import {
 } from "../../src/services/graphSnapshotStore";
 import {
   clearFocusGraphCaches,
-  focusProjectionCacheKey,
-  getFocusRelationshipFragment,
-  setFocusRelationshipFragment,
+  getHopFragment,
+  setHopFragment,
 } from "../../src/services/focusGraphCacheService";
 
 function work(
@@ -184,30 +183,22 @@ describe("Architecture foundations", function () {
     expect(model.edges[0].provenance).to.equal("crossref");
   });
 
-  it("reuses bounded Focus fragments and invalidates projection keys on change", function () {
+  it("reuses bounded hop fragments per paper and direction", function () {
     clearFocusGraphCaches();
-    const state = {
-      seedKeys: ["seed"],
-      direction: "both" as const,
-      locality: "all" as const,
-      ranking: "relevance" as const,
-      maxPerDirection: 25,
-    };
     const first = work({ doi: "10.1000/one", citationCount: 2 });
-    setFocusRelationshipFragment(1, "seed", {
-      references: [first],
-      citedBy: [],
+    setHopFragment(1, "seed", "references", {
+      expanded: true,
+      works: [first],
     });
-    const firstKey = focusProjectionCacheKey(1, "graph-a", state);
-    const cached = getFocusRelationshipFragment(1, "seed");
-    expect(cached?.references[0].doi).to.equal("10.1000/one");
+    const cached = getHopFragment(1, "seed", "references");
+    expect(cached?.works[0].doi).to.equal("10.1000/one");
 
-    setFocusRelationshipFragment(1, "seed", {
-      references: [work({ doi: "10.1000/one", citationCount: 3 })],
-      citedBy: [],
+    setHopFragment(1, "seed", "references", {
+      expanded: true,
+      works: [work({ doi: "10.1000/one", citationCount: 3 })],
     });
-    const secondKey = focusProjectionCacheKey(1, "graph-a", state);
-    expect(secondKey).not.to.equal(firstKey);
+    const updated = getHopFragment(1, "seed", "references");
+    expect(updated?.works[0].citationCount).to.equal(3);
     clearFocusGraphCaches();
   });
 
