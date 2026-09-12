@@ -356,10 +356,10 @@ export function graphViewIsEdited(
     for (const key of Object.keys(view.filters) as Array<
       keyof GraphViewFilters
     >) {
-      // These never travel on a view (see GraphViewFilters); a saved view's
-      // filters record may still carry them at runtime (a full
-      // PaperListFilterState spread), and collectionIDs is compared by
-      // reference here, so both must be skipped rather than diffed.
+      // These never travel on a view (see GraphViewFilters), but a decoded
+      // or persisted view is untrusted input and may still carry them at
+      // runtime, so both must be skipped rather than diffed (collectionIDs
+      // is also compared by reference here, which would false-positive).
       if (
         (key as string) === "collectionIDs" ||
         (key as string) === "relation"
@@ -619,14 +619,16 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
       if (key === "collectionIDs" || key === "relation") {
         return { ok: false, field: `filters.${key}` };
       }
-      if (!(key in defaults)) return { ok: false, field: `filters.${key}` };
+      if (!Object.prototype.hasOwnProperty.call(defaults, key)) {
+        return { ok: false, field: `filters.${key}` };
+      }
       const fallback = defaults[key as keyof PaperListFilterState];
       const okType =
-        fallback === null
-          ? value === null ||
-            typeof value === "string" ||
-            typeof value === "number"
-          : typeof value === typeof fallback;
+        key === "yearMin" || key === "yearMax"
+          ? value === null || typeof value === "number"
+          : key === "tag" || key === "itemType"
+            ? value === null || typeof value === "string"
+            : typeof value === typeof fallback;
       if (!okType) return { ok: false, field: `filters.${key}` };
       out[key] = value;
     }

@@ -15,6 +15,7 @@ import {
   SHIPPED_GRAPH_VIEWS,
   tutorialChips,
   type GraphViewDefinition,
+  type GraphViewFilters,
   type ViewFolder,
 } from "../../src/services/graphViews";
 
@@ -265,6 +266,53 @@ describe("graphViewIsEdited", function () {
     expect(graphViewIsEdited(saved, { ...live, regions: [2] })).to.equal(false);
     expect(graphViewIsEdited(saved, { ...live, regions: [] })).to.equal(true);
   });
+
+  it("is edited when an owned filter differs, not when it matches", function () {
+    const saved: GraphViewDefinition = {
+      ...overview,
+      id: "user:2",
+      filters: { openAccessOnly: true },
+    };
+    const live = { layout: overview.appearance, regions: [], folders, nodes };
+    expect(
+      graphViewIsEdited(saved, {
+        ...live,
+        filters: defaultPaperListFilterState(),
+      }),
+    ).to.equal(true);
+    expect(
+      graphViewIsEdited(saved, {
+        ...live,
+        filters: { ...defaultPaperListFilterState(), openAccessOnly: true },
+      }),
+    ).to.equal(false);
+  });
+
+  it("ignores collectionIDs on a filters record even when one is carried on it", function () {
+    // A decoded or persisted view is untrusted input and may still carry
+    // collectionIDs/relation at runtime even though GraphViewFilters omits
+    // them; graphViewIsEdited must skip both rather than diff them.
+    const saved: GraphViewDefinition = {
+      ...overview,
+      id: "user:3",
+      filters: {
+        openAccessOnly: true,
+        collectionIDs: [9],
+      } as GraphViewFilters,
+    };
+    const live = {
+      layout: overview.appearance,
+      regions: [],
+      folders,
+      nodes,
+      filters: {
+        ...defaultPaperListFilterState(),
+        openAccessOnly: true,
+        collectionIDs: [5],
+      },
+    };
+    expect(graphViewIsEdited(saved, live)).to.equal(false);
+  });
 });
 
 describe("the wire form", function () {
@@ -337,6 +385,17 @@ describe("the wire form", function () {
       [
         "filters.openAccessOnly",
         { ...good, filters: { ...good.filters, openAccessOnly: "yes" } },
+      ],
+      [
+        "filters.yearMin",
+        { ...good, filters: { ...good.filters, yearMin: "1990" } },
+      ],
+      [
+        "filters.__proto__",
+        {
+          ...good,
+          filters: { ...good.filters, ["__proto__"]: { x: 1 } },
+        },
       ],
     ];
     for (const [field, value] of cases) {
