@@ -6,13 +6,7 @@ import type {
   GraphNodeSizeMetric,
   MetricID,
 } from "../domain/graphTypes";
-import {
-  axisMetricDefinitions,
-  getMetricDefinition,
-  metricValue,
-  nodeColorMetricDefinitions,
-  nodeSizeMetricDefinitions,
-} from "./metricRegistry";
+import { getMetricDefinition, metricValue } from "./metricRegistry";
 
 /**
  * The gear's selects list only metrics with data in the loaded nodes, and a
@@ -33,46 +27,39 @@ export function metricHasData(
   });
 }
 
-const NON_METRIC_COLOURS = new Set<string>([
-  "uniform",
-  "publication-type",
-  "provider",
-  "open-access",
-  "retraction",
-]);
-
 function firstAvailable<T extends string>(
   nodes: readonly CitationGraphNode[],
   requested: T,
-  candidates: readonly { id: MetricID }[],
+  fallback: T,
   passthrough: (value: T) => boolean,
 ): T {
   if (passthrough(requested)) return requested;
   if (metricHasData(nodes, requested as MetricID)) return requested;
-  const fallback = candidates.find((c) => metricHasData(nodes, c.id));
-  return (fallback?.id ?? requested) as T;
+  return fallback;
 }
 
 /**
  * What the gear would land on if asked for `layout` on this graph: a metric
- * with no data becomes the first that has some, a scale goes linear where
- * the metric is not logarithmic, and a free axis is always linear.
+ * with no data becomes Free on an axis and Uniform for size and colour, as
+ * the gear's selects do (they fall back to the first non-disabled option,
+ * which is Free or Uniform, not the first metric with data); a scale goes
+ * linear where the metric is not logarithmic, and a free axis is always
+ * linear.
  */
 export function normaliseLayoutFor(
   nodes: readonly CitationGraphNode[],
   layout: GraphLayoutOptions,
 ): GraphLayoutOptions {
-  const axes = axisMetricDefinitions();
   const xMetric = firstAvailable<GraphAxisMetric>(
     nodes,
     layout.xMetric,
-    axes,
+    "free",
     (v) => v === "free",
   );
   const yMetric = firstAvailable<GraphAxisMetric>(
     nodes,
     layout.yMetric,
-    axes,
+    "free",
     (v) => v === "free",
   );
   const scaleFor = (
@@ -92,14 +79,19 @@ export function normaliseLayoutFor(
     nodeSizeMetric: firstAvailable<GraphNodeSizeMetric>(
       nodes,
       layout.nodeSizeMetric,
-      nodeSizeMetricDefinitions(),
+      "uniform",
       (v) => v === "uniform",
     ),
     nodeColorMetric: firstAvailable<GraphNodeColorMetric>(
       nodes,
       layout.nodeColorMetric,
-      nodeColorMetricDefinitions().filter((c) => !NON_METRIC_COLOURS.has(c.id)),
-      (v) => NON_METRIC_COLOURS.has(v),
+      "uniform",
+      (v) =>
+        v === "uniform" ||
+        v === "publication-type" ||
+        v === "provider" ||
+        v === "open-access" ||
+        v === "retraction",
     ),
     nodeLabelMode: layout.nodeLabelMode,
   };

@@ -39,12 +39,13 @@ describe("normaliseLayoutFor", function () {
     });
   });
 
-  it("substitutes the first available metric when the graph lacks one", function () {
+  it("falls back to Free on an axis and Uniform for size and colour, as the gear's selects do", function () {
     const nodes = [node({ citationCount: null, referenceCount: 3 })];
     const out = normaliseLayoutFor(nodes, layout);
-    expect(out.yMetric).to.not.equal("citations");
-    expect(out.nodeSizeMetric).to.not.equal("citations");
-    expect(out.nodeColorMetric).to.not.equal("citations");
+    expect(out.yMetric).to.equal("free");
+    expect(out.yScale).to.equal("linear"); // a free axis is linear
+    expect(out.nodeSizeMetric).to.equal("uniform");
+    expect(out.nodeColorMetric).to.equal("uniform");
   });
 
   it("forces a free axis to linear and keeps log where the metric allows it", function () {
