@@ -85,4 +85,41 @@ describe("CitationGraphRenderer hops", function () {
     renderer.syncModel({ draw: false });
     expect(renderer.hopAlphaFor("a")).to.equal(1);
   });
+
+  /**
+   * The category memo key concatenates `nodeColorMetric`, node count, scheme,
+   * `scopeRevision` and `hopsRevision` with no separator between the last two
+   * — both plain decimal counters with nothing else between them, the one
+   * seam in the key with no letter to anchor it. Two consecutive `setHops`
+   * calls always bump `hopsRevision` and (harmlessly) null the cached
+   * assignment too, so this alone would pass even key-first; what it actually
+   * exercises is the *entries* built at each rebuild, which is where a wrong
+   * memo key would go stale (`labelFor` re-reads `hops` live and would not
+   * notice).
+   */
+  it("rebuilds the category entries for each hop map, not a stale one", function () {
+    const renderer = makeRenderer([node("s"), node("a")], {
+      nodeColorMetric: "citation-hop",
+    });
+    renderer.setHops(
+      new Map([
+        ["s", 0],
+        ["a", 2],
+      ]),
+      false,
+    );
+    const first = renderer.getCategoryAssignment();
+    expect(first.entries.map((entry) => entry.label)).to.include("Hop 2");
+
+    renderer.setHops(
+      new Map([
+        ["s", 0],
+        ["a", 5],
+      ]),
+      false,
+    );
+    const second = renderer.getCategoryAssignment();
+    expect(second.entries.map((entry) => entry.label)).to.include("Hop 5");
+    expect(second.entries.map((entry) => entry.label)).to.not.include("Hop 2");
+  });
 });

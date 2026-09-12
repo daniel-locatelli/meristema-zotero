@@ -911,7 +911,7 @@ export class CitationGraphRenderer {
    * metric, the node set or the scheme actually changes.
    */
   private categories(): CategoryAssignment {
-    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.hopsRevision}`;
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.hopsRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(
         this.getScopeNodes(),
