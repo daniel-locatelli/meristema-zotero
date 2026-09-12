@@ -1036,9 +1036,9 @@ export function renderGraphView(
   let currentLayout = initialLayout;
   let cameraFrame = 0;
   /**
-   * A camera handed in with a state. The seeds' automatic relationship check
-   * ends with a fit, which would throw a restored camera away; while this is
-   * set, that fit places the camera here instead.
+   * A camera handed in with a state. The runner's last seed expansion ends
+   * with a fit, which would throw a restored camera away; while this is set,
+   * that fit places the camera here instead.
    */
   let restoredCamera: GraphViewTransform | null = null;
   let focusFitGeneration = 0;
@@ -1104,8 +1104,8 @@ export function renderGraphView(
       if (stableFrames >= 2 || attempts >= 24) {
         if (restoredCamera) {
           renderer?.setViewTransform(restoredCamera);
-          // The seeds' automatic relationship check ends with one more fit
-          // once every seed has reported; the camera stays armed until then.
+          // The runner ends with one more fit once every seed has expanded;
+          // the camera stays armed until then.
           if (!focusPostRefreshFitSeeds.size) restoredCamera = null;
         } else {
           renderer?.fitVisibleNodes();
@@ -1120,6 +1120,28 @@ export function renderGraphView(
     cameraFrame = view
       ? view.requestAnimationFrame(check)
       : (setTimeout(check, 0) as unknown as number);
+  };
+  /**
+   * A seed whose list in the current direction is already stored is expanded
+   * already: the planner skips it, so the runner will never reach it and
+   * `onSeedExpanded` will never fire for it. Treat it as landed for the fit's
+   * sake, or the set never empties — the one post-refresh fit would never
+   * come and every later seed's fit would be suppressed with it.
+   */
+  const drainExpandedFitSeeds = (): void => {
+    if (!focusPostRefreshFitSeeds.size || !hopModel) return;
+    let drained = false;
+    for (const key of [...focusPostRefreshFitSeeds]) {
+      const entry = hopModel.entries.get(key);
+      // Gone from the model as well as expanded: a key no longer a seed is
+      // one more the runner will never reach.
+      if (entry && !entry.expanded) continue;
+      focusPostRefreshFitSeeds.delete(key);
+      drained = true;
+    }
+    // The same one fit `onSeedExpanded` performs, minus its rebuild: the
+    // caller has just applied the model this drain read.
+    if (drained && !focusPostRefreshFitSeeds.size) scheduleFocusFit();
   };
   const fitCurrentGraph = (): void => {
     if (hopModel) renderer?.fitVisibleNodes();
@@ -2364,6 +2386,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     appearance.setColourOptionAvailable("citation-hop", true);
     applyFilters();
     if (projectionOptions.fit) scheduleFocusFit();
+    drainExpandedFitSeeds();
     updateFocusBar();
     notifyStateChange();
   };
@@ -2616,6 +2639,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     // The runner expands every seed (hop 0 is below every depth); its
     // `onSeedExpanded` consumes these and fits the cloud once they are all in.
     for (const seed of seeds) focusPostRefreshFitSeeds.add(seed.key);
+    // The keys land after the model does, so the drain inside `applyHopModel`
+    // has not seen them: the seeds already expanded leave again here.
+    drainExpandedFitSeeds();
     scheduleHopFill();
     return true;
   };
@@ -2656,6 +2682,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       return false;
     }
     for (const seed of missingSeeds) focusPostRefreshFitSeeds.add(seed.key);
+    drainExpandedFitSeeds();
     scheduleHopFill();
     return true;
   };
@@ -2983,6 +3010,10 @@ ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       } else {
+        // This invalidation covers whatever the runner was holding for the
+        // same library, so the armed timer has nothing left to flush; it
+        // expires harmlessly.
+        if (event.libraryID === snapshot.libraryID) hopSnapshotPending = false;
         invalidateCitationGraphSnapshot(event.libraryID);
       }
     }
@@ -3793,10 +3824,14 @@ ${error instanceof Error ? error.message : String(error)}`,
     return hopFillQueue
       .enqueue(async () => {
         if (cleaned || epoch !== hopFillEpoch) return;
-        if (subject.itemID <= 0)
-          await prepareExternalFocusSeedForRefresh(subject);
-        if (cleaned || epoch !== hopFillEpoch) return;
         try {
+          // Inside the guard: the seed preparation hydrates metadata over the
+          // network and can reject too. An escape here would leave the paper
+          // neither expanded nor failed, and the next plan would name it
+          // again — the fill's hot loop.
+          if (subject.itemID <= 0)
+            await prepareExternalFocusSeedForRefresh(subject);
+          if (cleaned || epoch !== hopFillEpoch) return;
           await refreshExternalRelationships(
             subject,
             libraryModel.nodes,
@@ -3852,12 +3887,24 @@ ${error instanceof Error ? error.message : String(error)}`,
         invalidateHopFragment(snapshot.libraryID, key);
         if (hopModel?.seedKeys.has(key)) onSeedExpanded(key);
       })
+      .catch((error: unknown) => {
+        // Nothing else may escape the enqueued body, but if it does the paper
+        // still leaves the plan: an unhandled rejection here would otherwise
+        // re-open the hot-retry loop the guard above closes.
+        if (epoch === hopFillEpoch) hopFailedKeys.add(key);
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      })
       .finally(() => {
         if (epoch !== hopFillEpoch) return;
         hopFillInFlight = null;
+        if (cleaned) return;
         // The rebuild re-reads one fragment and recomputes the scope, which
-        // re-plans through applyFilters, and so schedules the next fill.
-        if (!cleaned) rebuildCurrentFocus();
+        // re-plans through applyFilters — but it returns early when the walk
+        // yields no model, so the next fill is scheduled here whatever it did.
+        rebuildCurrentFocus();
+        scheduleHopFill();
       });
   };
 
