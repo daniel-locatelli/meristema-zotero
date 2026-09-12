@@ -162,6 +162,16 @@ describe("The graph's Scope rail", function () {
       );
     };
     const tried = new Set<string>();
+    // B43 evidence: what each right-click found, in dispatch order.
+    const clicks: string[] = [];
+    const menuState = (): string => {
+      const menu = graphRoot().querySelector(".cm-node-menu") as HTMLElement;
+      if (!menu) return "no menu element";
+      if (menu.hidden) return "menu hidden";
+      return `menu open [${nodeMenuItems()
+        .map((button) => button.textContent?.trim())
+        .join(", ")}]`;
+    };
     const started = Date.now();
     const deadline = started + 20_000;
     let passes = 0;
@@ -174,13 +184,20 @@ describe("The graph's Scope rail", function () {
           const paper = canvas.title;
           if (!paper || tried.has(paper)) continue;
           tried.add(paper);
-          canvas.dispatchEvent(
-            new win.MouseEvent("contextmenu", {
-              bubbles: true,
-              cancelable: true,
-              clientX: x,
-              clientY: y,
-            }),
+          const rightClick = new win.MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            clientX: x,
+            clientY: y,
+          });
+          canvas.dispatchEvent(rightClick);
+          // The renderer prevents the default only when its hit test found a
+          // node, so this says whether the right-click and the hover agreed.
+          clicks.push(
+            `${paper.split("\n")[0]} @${Math.round(x - box.left)},${Math.round(
+              y - box.top,
+            )} pass ${passes}: hit=${rightClick.defaultPrevented} ${menuState()}` +
+              ` title-after=${canvas.title === paper}`,
           );
           const entry = nodeMenuItems().find(
             (button) => button.textContent?.trim() === label,
@@ -198,7 +215,11 @@ describe("The graph's Scope rail", function () {
       `no node menu entry reading ${label}; ${tried.size} paper(s) offered ` +
         `${[...tried].join(" | ") || "nothing"}` +
         `; ${passes} pass(es) over the canvas in ${Date.now() - started}ms` +
-        `; ${galleryState()}`,
+        `; ${galleryState()}` +
+        `; clicks: ${clicks.join(" || ") || "none"}` +
+        `; recent Zotero errors: ${
+          (Zotero.getErrors(true) as string[]).slice(-5).join(" || ") || "none"
+        }`,
     );
   }
 
