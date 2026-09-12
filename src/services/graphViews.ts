@@ -382,6 +382,7 @@ function metricWord(metric: string): string {
     provider: "provider",
     "open-access": "open access",
     retraction: "retraction",
+    "citation-hop": "citation hop",
   };
   if (special[metric]) return special[metric];
   return getMetricDefinition(metric as MetricID).label.toLowerCase();
@@ -535,6 +536,7 @@ const COLOUR_METRICS = new Set<string>([
   "provider",
   "open-access",
   "retraction",
+  "citation-hop",
 ]);
 const SCALES = new Set<string>(["linear", "log"]);
 const LABELS = new Set<string>(["title", "author-year", "none"]);

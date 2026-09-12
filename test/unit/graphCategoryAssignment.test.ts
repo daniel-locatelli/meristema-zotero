@@ -240,3 +240,42 @@ describe("assignCategories with an out-of-range ledger index", function () {
     );
   });
 });
+
+describe("the Citation hop colouring", function () {
+  it("names Seed and Hop n through the hop resolver, not the node", function () {
+    const nodes = [node("s"), node("a"), node("b"), node("c", { hop: 5 })];
+    const hop = new Map([
+      ["s", 0],
+      ["a", 1],
+      ["b", 1],
+    ]);
+    const assignment = assignCategories(nodes, "citation-hop", LIGHT, {
+      labels: { labelFor: () => null },
+      ledger: emptySwatchLedger(),
+      hopOf: (key) => hop.get(key),
+    });
+    expect(assignment.labelFor(nodes[0])).to.equal("Seed");
+    expect(assignment.labelFor(nodes[1])).to.equal("Hop 1");
+    expect(assignment.keyFor(nodes[1])).to.equal("hop:1");
+    // c carries a stamped hop but the resolver says nothing: the resolver
+    // wins, because the plot's library nodes never carry the stamp.
+    expect(assignment.labelFor(nodes[3])).to.equal("No value");
+    expect(assignment.entries.map((entry) => entry.label)).to.deep.equal([
+      "Hop 1",
+      "Seed",
+    ]);
+  });
+
+  it("falls back to the stamped hop without a resolver", function () {
+    const assignment = assignCategories(
+      [node("x", { hop: 2 })],
+      "citation-hop",
+      LIGHT,
+      {
+        labels: { labelFor: () => null },
+        ledger: emptySwatchLedger(),
+      },
+    );
+    expect(assignment.labelFor(node("x", { hop: 2 }))).to.equal("Hop 2");
+  });
+});

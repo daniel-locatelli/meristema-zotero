@@ -5,6 +5,8 @@ import {
   GRAPH_APPEARANCE_PREF,
   graphThemeCustomProperties,
   graphThemeFor,
+  HOP_OPACITY,
+  hopOpacity,
   inLibraryRingColor,
   resolveGraphScheme,
   seedColorAt,
@@ -168,5 +170,16 @@ describe("resolving the scheme", function () {
     expect(withPref(2, () => resolveGraphScheme(view))).to.equal("dark");
     expect(withPref(null, () => resolveGraphScheme(view))).to.equal("dark");
     expect(resolveGraphScheme(null)).to.equal("light");
+  });
+});
+
+describe("hopOpacity", function () {
+  it("follows the design's ramp and clamps past hop 6", function () {
+    expect(HOP_OPACITY).to.deep.equal([1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]);
+    expect(hopOpacity(0)).to.equal(1);
+    expect(hopOpacity(3)).to.equal(0.7);
+    expect(hopOpacity(9)).to.equal(0.4);
+    expect(hopOpacity(undefined)).to.equal(1);
+    expect(hopOpacity(null)).to.equal(1);
   });
 });

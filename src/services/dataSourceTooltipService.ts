@@ -186,6 +186,7 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "doi":
       return normalizedSources(["zotero"]);
     case "open-access":
+    case "citation-hop":
     case "openaccessstatus":
     case "open-access-status":
     case "retracted":

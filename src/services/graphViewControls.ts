@@ -274,6 +274,7 @@ function appendMetricOption(
   option.textContent = label;
   option.title = description;
   option.dataset.metricDescription = description;
+  option.dataset.metric = value;
   select.appendChild(option);
 }
 
@@ -351,6 +352,15 @@ export function createAxesAppearance(
   setLayout: (layout: GraphLayoutOptions, persist?: boolean) => void;
   getLayout: () => GraphLayoutOptions;
   close: () => void;
+  /**
+   * Enable or disable one colouring's option. Citation hop means nothing
+   * without a seed, so the view flips it with seededness; a disabled
+   * option that is selected falls back to Uniform.
+   */
+  setColourOptionAvailable(
+    metric: GraphNodeColorMetric,
+    available: boolean,
+  ): void;
 } {
   const root = element(document, "div", "cm-appearance-control");
   const button = element(
@@ -434,6 +444,13 @@ export function createAxesAppearance(
       label: "Retraction",
       description: "Distinguish works with known retraction status.",
       available: colourOptionHasData(nodes, "retraction"),
+    },
+    {
+      value: "citation-hop",
+      label: "Citation hop",
+      description:
+        "Colour nodes by how many citation hops they sit from the nearest seed.",
+      available: colourOptionHasData(nodes, "citation-hop"),
     },
   ];
   for (const definition of categoricalDefinitions) {
@@ -676,6 +693,17 @@ export function createAxesAppearance(
     setLayout,
     getLayout: read,
     close,
+    setColourOptionAvailable(metric, available) {
+      const option = colorMetric.querySelector(
+        `option[data-metric="${metric}"]`,
+      ) as HTMLOptionElement | null;
+      if (!option) return;
+      option.disabled = !available;
+      if (!available && colorMetric.value === metric) {
+        colorMetric.value = "uniform";
+        colorMetric.dispatchEvent(new Event("change"));
+      }
+    },
   };
 }
 

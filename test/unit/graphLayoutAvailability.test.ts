@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { CitationGraphNode } from "../../src/domain/graphTypes";
-import { normaliseLayoutFor } from "../../src/services/graphLayoutAvailability";
+import {
+  colourOptionHasData,
+  normaliseLayoutFor,
+} from "../../src/services/graphLayoutAvailability";
 
 function node(overrides: Partial<CitationGraphNode>): CitationGraphNode {
   return {
@@ -77,5 +80,11 @@ describe("normaliseLayoutFor", function () {
         nodeColorMetric: "provider",
       }).nodeColorMetric,
     ).to.equal("provider");
+  });
+});
+
+describe("colourOptionHasData for citation-hop", function () {
+  it("is always true: the gear enables the option by seededness instead", function () {
+    expect(colourOptionHasData([], "citation-hop")).to.equal(true);
   });
 });

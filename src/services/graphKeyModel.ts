@@ -34,6 +34,7 @@ export const CATEGORICAL_COLOR_LABELS: Record<string, string> = {
   provider: "Provider",
   "open-access": "Open Access",
   retraction: "Retraction",
+  "citation-hop": "Citation hop",
 };
 
 export function isCategoricalColorMetric(

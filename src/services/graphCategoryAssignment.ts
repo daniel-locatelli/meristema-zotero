@@ -110,7 +110,14 @@ const RETRACTION_LABELS = ["Retracted", "Not retracted"] as const;
 export function nodeCategory(
   node: CitationGraphNode,
   metric: GraphNodeColorMetric,
+  hopOf?: (key: string) => number | undefined,
 ): CategoryRef | null {
+  if (metric === "citation-hop") {
+    const hop = hopOf ? hopOf(node.key) : (node.hop ?? undefined);
+    if (hop === undefined || hop === null) return null;
+    const label = hop === 0 ? "Seed" : `Hop ${hop}`;
+    return { key: `hop:${hop}`, label };
+  }
   if (metric === "publication-type") {
     return node.publicationType
       ? { key: node.publicationType, label: node.publicationType }
@@ -142,6 +149,13 @@ export interface AssignCategoriesOptions {
   labels?: CategoryLabelSource;
   /** Colours are held by key, in this ledger, and never dealt by rank. */
   ledger: SwatchLedgerState;
+  /**
+   * The Citation hop colouring's source of truth. The plot's library nodes
+   * never carry `hop` (additiveGraphModel keeps the library's own object),
+   * so the view hands the hop map in and the node's stamp is only a fallback
+   * for fixtures.
+   */
+  hopOf?: (key: string) => number | undefined;
 }
 
 export function assignCategories(
@@ -154,7 +168,7 @@ export function assignCategories(
   let noValueCount = 0;
 
   for (const node of nodes) {
-    const ref = nodeCategory(node, metric);
+    const ref = nodeCategory(node, metric, options.hopOf);
     if (!ref) {
       noValueCount += 1;
       continue;
@@ -209,7 +223,7 @@ export function assignCategories(
     : null;
 
   function firstCategory(node: CitationGraphNode): CategoryRef | null {
-    return nodeCategory(node, metric);
+    return nodeCategory(node, metric, options.hopOf);
   }
 
   return {

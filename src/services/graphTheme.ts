@@ -96,6 +96,19 @@ export interface GraphTheme {
 }
 
 /**
+ * Node and label alpha by citation hop, seeds first (spec, "The plot"). Under
+ * every colouring; the renderer multiplies it with its hover, search and
+ * emphasis dimming so those still read.
+ */
+export const HOP_OPACITY: readonly number[] = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
+
+export function hopOpacity(hop: number | null | undefined): number {
+  if (hop === null || hop === undefined || !Number.isFinite(hop)) return 1;
+  const index = Math.max(0, Math.min(HOP_OPACITY.length - 1, Math.floor(hop)));
+  return HOP_OPACITY[index];
+}
+
+/**
  * Colour alone cannot separate more than five node fills on a plot where any two
  * nodes can touch. Assignment gives the five largest categories a swatch and
  * collapses the rest into `other`; the Key rail and the node labels carry the

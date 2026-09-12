@@ -145,7 +145,8 @@ function ghostColor(
   if (
     metric === "publication-type" ||
     metric === "provider" ||
-    metric === "open-access"
+    metric === "open-access" ||
+    metric === "citation-hop"
   ) {
     return theme.categorical.noValue;
   }
