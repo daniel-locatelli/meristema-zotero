@@ -1,7 +1,12 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
 import { config } from "../../package.json";
+import {
+  captureGraphView,
+  encodeGraphView,
+} from "../../src/services/graphViews";
 import { emptyGraphViewState } from "../../src/services/graphViewState";
+import { defaultPaperListFilterState } from "../../src/services/paperListViewService";
 import { getPluginDatabase } from "../../src/services/pluginDatabase";
 import {
   createSavedGraph,
@@ -12,6 +17,7 @@ import { delay } from "./visualHarness";
 const COLLECTION_NAME = "D4 views";
 const SAVED_VIEW_NAME = "D4 suite view";
 const V3_GRAPH_NAME = "D4 v3 graph";
+const IMPORTED_VIEW_NAME = "D4 imported";
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -71,6 +77,8 @@ describe("Graph views (D4)", function () {
   let collectionID: number | null = null;
   let fixtureIDs: number[] = [];
   let v3GraphID: number | null = null;
+  /** What the injected file picker answers; the import case writes it. */
+  let importPath: string | null = null;
 
   function tabContent(id: string | null): HTMLElement | null {
     if (!id) return null;
@@ -190,6 +198,11 @@ describe("Graph views (D4)", function () {
       `${config.prefsPrefix}.graphViewTutorialsDismissed`,
       true,
     );
+    // The seam goes in before the graph is built: `renderGraphView` reads
+    // its options once, so a picker installed later would never be seen.
+    (globalThis as any).__meristemaGraphViewOptions = {
+      pickViewFile: async () => importPath,
+    };
     const libraryID = Zotero.Libraries.userLibraryID;
     const collection = new Zotero.Collection();
     collection.libraryID = libraryID;
@@ -270,6 +283,13 @@ describe("Graph views (D4)", function () {
     } catch (error) {
       record(error);
     }
+    delete (globalThis as any).__meristemaGraphViewOptions;
+    try {
+      if (importPath) await IOUtils.remove(importPath, { ignoreAbsent: true });
+    } catch (error) {
+      record(error);
+    }
+    importPath = null;
     if (v3GraphID !== null) await deleteSavedGraph(v3GraphID);
     Zotero.Prefs.clear(`${config.prefsPrefix}.graphViews`, true);
     Zotero.Prefs.clear(
@@ -496,5 +516,75 @@ describe("Graph views (D4)", function () {
     openedTabID = null;
     await delay(300);
     win.Zotero_Tabs.select(tabID);
+  });
+
+  it("imports a view from a JSON file and suffixes a taken name", async function () {
+    this.timeout(60_000);
+    const wire = encodeGraphView(
+      captureGraphView({
+        name: IMPORTED_VIEW_NAME,
+        paragraph: "A view that arrived as a file.",
+        layout: {
+          xMetric: "year",
+          xScale: "linear",
+          yMetric: "citations",
+          yScale: "linear",
+          nodeSizeMetric: "citations",
+          nodeColorMetric: "uniform",
+          nodeLabelMode: "author-year",
+        },
+        regions: [],
+        filters: defaultPaperListFilterState(),
+        folders: [],
+      }),
+    );
+    importPath = PathUtils.join(
+      Zotero.getTempDirectory().path,
+      "meristema-d4-imported-view.json",
+    );
+    await IOUtils.writeUTF8(importPath, wire);
+
+    const clickImport = async (): Promise<void> => {
+      await openChipMenu();
+      const action = (
+        Array.from(
+          graphRoot().querySelectorAll(".cm-view-action"),
+        ) as HTMLButtonElement[]
+      ).find(
+        (candidate) => normalize(candidate.textContent) === "Import view JSON…",
+      );
+      expect(action, "the Import view JSON… action").to.exist;
+      action!.click();
+    };
+
+    await clickImport();
+    await waitFor(() => chipText().includes(IMPORTED_VIEW_NAME), 20_000);
+    expect(chipText(), `chip text was "${chipText()}"`).to.contain(
+      IMPORTED_VIEW_NAME,
+    );
+    const menuText = normalize((await openChipMenu()).textContent);
+    expect(menuText, `the dropdown read "${menuText}"`).to.contain("My views");
+    expect(menuText, `the dropdown read "${menuText}"`).to.contain(
+      IMPORTED_VIEW_NAME,
+    );
+    await closeChipMenu();
+
+    // The same file again: the name is taken, so it arrives suffixed.
+    await clickImport();
+    await waitFor(
+      () => chipText().includes(`${IMPORTED_VIEW_NAME} (2)`),
+      20_000,
+    );
+    const stored = String(
+      Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
+    );
+    expect(
+      chipText(),
+      `chip text was "${chipText()}"; the preference held ${stored}`,
+    ).to.contain(`${IMPORTED_VIEW_NAME} (2)`);
+    expect(
+      JSON.parse(stored).map((saved: { name: string }) => saved.name),
+      `the preference held ${stored}`,
+    ).to.include(`${IMPORTED_VIEW_NAME} (2)`);
   });
 });

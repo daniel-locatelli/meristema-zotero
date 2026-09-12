@@ -13,7 +13,9 @@ import {
   planGraphView,
   resolveViewRegions,
   SHIPPED_GRAPH_VIEWS,
+  draftParagraph,
   tutorialChips,
+  tutorialFootnote,
   type GraphViewDefinition,
   type GraphViewFilters,
   type ViewFolder,
@@ -453,5 +455,113 @@ describe("tutorialChips", function () {
         12,
       ),
     ).to.include("14 regions, 12 colours");
+  });
+});
+
+describe("the missing-value filter chips", function () {
+  it("names a hidden missing year on the card and in the draft", function () {
+    const view = captureGraphView({
+      name: "No missing years",
+      paragraph: "",
+      layout: liveLayout,
+      regions: [],
+      filters: { ...defaultPaperListFilterState(), includeMissingYear: false },
+      folders,
+    });
+    const plan = planGraphView(view, {
+      nodes,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
+    });
+    expect(tutorialChips(view, plan, 12)).to.include(
+      "filter missing year hidden",
+    );
+    // The two that are still at their default say nothing.
+    expect(
+      tutorialChips(view, plan, 12).filter((c) => c.startsWith("filter ")),
+    ).to.deep.equal(["filter missing year hidden"]);
+    expect(
+      draftParagraph(liveLayout, 0, view.filters as GraphViewFilters),
+    ).to.contain("filter missing year hidden");
+  });
+});
+
+describe("tutorialFootnote", function () {
+  const plan = (
+    regionReport: ReturnType<typeof resolveViewRegions>,
+  ): Parameters<typeof tutorialFootnote>[0] => ({
+    layout: liveLayout,
+    regions: [],
+    filters: defaultPaperListFilterState(),
+    substituted: [],
+    regionReport,
+  });
+
+  it("says what a view never touches", function () {
+    expect(tutorialFootnote(plan(null))).to.equal(
+      "Seeds and collections are untouched.",
+    );
+  });
+
+  it("names folders it could not find, could not show, or found twice", function () {
+    expect(
+      tutorialFootnote(
+        plan({
+          collectionIDs: [],
+          notFound: ["Ghosts"],
+          unticked: [],
+          ambiguous: [],
+        }),
+      ),
+    ).to.equal("Seeds and collections are untouched. Not found: Ghosts.");
+    expect(
+      tutorialFootnote(
+        plan({
+          collectionIDs: [],
+          notFound: [],
+          unticked: ["Archive"],
+          ambiguous: [],
+        }),
+      ),
+    ).to.equal(
+      "Seeds and collections are untouched. Not shown: Archive is unticked.",
+    );
+    expect(
+      tutorialFootnote(
+        plan({
+          collectionIDs: [],
+          notFound: [],
+          unticked: ["Archive", "Old"],
+          ambiguous: [],
+        }),
+      ),
+    ).to.equal(
+      "Seeds and collections are untouched. Not shown: Archive, Old are unticked.",
+    );
+    expect(
+      tutorialFootnote(
+        plan({
+          collectionIDs: [],
+          notFound: [],
+          unticked: [],
+          ambiguous: [{ name: "To read", count: 2 }],
+        }),
+      ),
+    ).to.equal("Seeds and collections are untouched. To read: 2 folders.");
+  });
+});
+
+describe("draftParagraph", function () {
+  it("reads back the settings, regions and filters included", function () {
+    expect(draftParagraph(liveLayout, 2, { openAccessOnly: true })).to.equal(
+      "publication year across, citations up; size citations; colour uniform; 2 folders as regions; filter open access. Seeds and collections are untouched.",
+    );
+  });
+
+  it("drops the regions and the filters when there are none", function () {
+    expect(draftParagraph(liveLayout, 0, {})).to.equal(
+      "publication year across, citations up; size citations; colour uniform. Seeds and collections are untouched.",
+    );
   });
 });

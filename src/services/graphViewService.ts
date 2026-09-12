@@ -426,6 +426,15 @@ export function renderGraphView(
     : [];
   /** D4: the view this graph is on; null shows the gallery once. */
   let view: GraphViewRef = null;
+  /**
+   * `activeView` runs from `refreshViewChip`, so on every keystroke in the
+   * search box; for a saved view that is a preference read and a JSON parse
+   * each time. Held here and dropped whenever the saved list or `view` moves.
+   */
+  let activeViewCache: { id: string; view: GraphViewDefinition } | null = null;
+  const invalidateActiveView = (): void => {
+    activeViewCache = null;
+  };
   /** Which swatch each region's folder holds. Never dealt by rank; see B12. */
   const swatches = createSwatchLedgerStore();
   /** Which seed-palette index each seed key holds. */
@@ -812,6 +821,7 @@ export function renderGraphView(
     onChoose: (chosen) => applyGraphView(chosen),
     onBlank: () => {
       view = "blank";
+      invalidateActiveView();
       viewGallery.hide();
       refreshViewChip();
       notifyStateChange();
@@ -1974,8 +1984,15 @@ export function renderGraphView(
    */
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
-  const activeView = (): GraphViewDefinition | null =>
-    view && view !== "blank" ? viewByID(view.id) : null;
+  const activeView = (): GraphViewDefinition | null => {
+    if (!view || view === "blank") return null;
+    if (activeViewCache && activeViewCache.id === view.id) {
+      return activeViewCache.view;
+    }
+    const found = viewByID(view.id);
+    activeViewCache = found ? { id: view.id, view: found } : null;
+    return found;
+  };
   /*
    * The label only: this runs from `updateSummary`, so on every keystroke in
    * the search box and on every background refresh. The dropdown's rows are
@@ -2025,6 +2042,7 @@ export function renderGraphView(
     // controller's `onChange`, which runs `applyFilters` and with it
     // `maybeShowGallery`, and that must not flash the gallery on its way out.
     view = { id: chosen.id };
+    invalidateActiveView();
     viewGallery.hide();
     graphFilter.setState({ ...plan.filters, collectionIDs: [] });
     notifyStateChange();
@@ -2070,26 +2088,45 @@ export function renderGraphView(
     const layout = appearance.getLayout();
     const filters = graphFilter.state();
     const folders = viewFolders();
+    const regionsAtOpen = [...regions];
+    // The spec's "pre-filled" panel renames and re-words a saved view; it
+    // never silently overwrites that view's settings with the current graph's.
     const capture = (r: {
       name: string;
       paragraph: string;
     }): GraphViewDefinition => {
-      const captured = captureGraphView({
+      if (existing) {
+        return {
+          ...existing,
+          name: r.name.trim(),
+          paragraph: r.paragraph.trim(),
+        };
+      }
+      return captureGraphView({
         name: r.name,
         paragraph: r.paragraph,
         layout,
-        regions,
+        regions: regionsAtOpen,
         filters,
         folders,
       });
-      return existing ? { ...captured, id: existing.id } : captured;
     };
+    const capturedRegionCount = existing
+      ? existing.regions === null
+        ? 0
+        : existing.regions === "ticked"
+          ? regionsAtOpen.length
+          : existing.regions.length
+      : regionsAtOpen.length;
     savePanel.open({
       name: existing?.name ?? "",
       paragraph:
         existing?.paragraph ??
-        draftParagraph(layout, regions.length, stripForDraft(filters)),
-      captures: { regions: regions.length, filters: true },
+        draftParagraph(layout, regionsAtOpen.length, stripForDraft(filters)),
+      captures: {
+        regions: capturedRegionCount,
+        filters: existing ? existing.filters !== null : true,
+      },
       existing,
       nameTaken: (name) => nameTaken(name, existing),
       onCopyJSON: (r) => copyText(encodeGraphView(capture(r))),
@@ -2097,6 +2134,7 @@ export function renderGraphView(
         const saved = capture(r);
         saveGraphView(saved);
         view = { id: saved.id };
+        invalidateActiveView();
         viewGallery.hide();
         notifyStateChange();
         refreshViewChip();
@@ -2120,17 +2158,31 @@ export function renderGraphView(
       onDelete: existing
         ? (): void => {
             deleteGraphView(existing.id);
+            invalidateActiveView();
             if (view && view !== "blank" && view.id === existing.id) {
               view = "blank";
               notifyStateChange();
             }
+            // The card explains a view that is gone; it goes with it.
+            tutorialCard.hide();
             refreshViewChip();
           }
         : null,
     });
   };
   importView = async (): Promise<void> => {
-    const decoded = await importGraphViewFile(document, options.pickViewFile);
+    let decoded: Awaited<ReturnType<typeof importGraphViewFile>>;
+    try {
+      decoded = await importGraphViewFile(document, options.pickViewFile);
+    } catch (error) {
+      Services.prompt.alert(
+        document.defaultView as unknown as mozIDOMWindowProxy,
+        "Import view",
+        `The file could not be read.
+${error instanceof Error ? error.message : String(error)}`,
+      );
+      return;
+    }
     if (!decoded) return;
     if (!decoded.ok) {
       Services.prompt.alert(
@@ -2147,6 +2199,7 @@ export function renderGraphView(
       imported = { ...imported, name: `${imported.name} (${n})` };
     }
     saveGraphView(imported);
+    invalidateActiveView();
     applyGraphView(imported);
   };
 
@@ -4458,6 +4511,7 @@ export function renderGraphView(
       // Reopening a saved graph restores the chip's label only: nothing
       // reapplies the view, because the state already carries what it did.
       view = state.view;
+      invalidateActiveView();
       renderer?.setCategorySwatchLedger(categorySwatches);
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
@@ -4648,6 +4702,7 @@ export function renderGraphView(
           collectionIDs: [],
         });
         view = options.initialState.view;
+        invalidateActiveView();
         if (focusProjection) scheduleFocusRebuild();
       } else {
         applyState(options.initialState);

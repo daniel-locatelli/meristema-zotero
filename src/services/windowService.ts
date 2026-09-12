@@ -681,7 +681,9 @@ function viewStateOptions(
 /**
  * The Zotero suite's seam: it stashes `__meristemaGraphViewOptions` on
  * `globalThis` to inject a stub (e.g. `pickViewFile`) into a rendered graph
- * view. Empty in production.
+ * view. Empty in production. It is spread first at every render site, so it
+ * supplies test-only options and can never shadow a real one such as
+ * `initialState`.
  */
 function testGraphViewOptions(): Partial<GraphViewOptions> {
   return (
@@ -729,6 +731,9 @@ function renderDetachedWindow(
   instance.dirty = false;
   const host = liveHostWindow(hostWindow);
   renderGraphView(popup.document, mount, snapshot, {
+    // First, so the seam can only supply test-only options such as
+    // `pickViewFile` and can never shadow the real state below it.
+    ...testGraphViewOptions(),
     mode: "window",
     initialState: instance.viewState,
     onSelectPaper: (itemID) => {
@@ -745,7 +750,6 @@ function renderDetachedWindow(
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
-    ...testGraphViewOptions(),
   });
   instance.pendingLibrarySelection = null;
   // Adopt only: a list selection this graph cannot show must not undo the
@@ -1222,6 +1226,9 @@ function renderTab(
     }
     const request = consumePendingRequest(instance);
     renderGraphView(win.document, container, snapshot, {
+      // First, so the seam can only supply test-only options such as
+      // `pickViewFile` and can never shadow the real state below it.
+      ...testGraphViewOptions(),
       mode: "tab",
       onSelectPaper: (itemID) => {
         void selectPaper(win, itemID).catch((error) =>
@@ -1238,7 +1245,6 @@ function renderTab(
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
       initialState: instance.viewState,
-      ...testGraphViewOptions(),
     });
     const current = selectionBinding(win).current().itemIDs;
     instance.pendingLibrarySelection = null;

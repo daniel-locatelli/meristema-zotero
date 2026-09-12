@@ -298,6 +298,10 @@ describe("The graph's Scope rail", function () {
       ".cm-command-actions",
     ) as HTMLElement;
     expect(toolbar.textContent).to.contain("File");
+    // The View dropdown lives in this toolbar and its rows carry "needs 2
+    // seeds", but they are built only when the chip opens, so the toolbar's
+    // text has no "seeds" until then. If the menu is ever prebuilt, scope
+    // this assertion to the toolbar's own buttons.
     expect(toolbar.textContent?.toLowerCase()).to.not.contain("seeds");
     const add = graphRoot().querySelector(
       ".cm-scope-add-seed",

@@ -437,6 +437,14 @@ function filterWord(
       return value ? `filter tag ${String(value)}` : null;
     case "itemType":
       return value ? `filter type ${String(value)}` : null;
+    // The three missing-value filters default to true (see
+    // `defaultPaperListFilterState`), so only a false is worth a chip.
+    case "includeMissingYear":
+      return value === false ? "filter missing year hidden" : null;
+    case "includeMissingCitations":
+      return value === false ? "filter missing citations hidden" : null;
+    case "includeMissingReferences":
+      return value === false ? "filter missing references hidden" : null;
     default:
       return null;
   }
