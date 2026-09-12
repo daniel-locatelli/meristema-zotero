@@ -433,12 +433,14 @@ describe("Graph views (D4)", function () {
     this.timeout(30_000);
     const before = chipName();
     await openChipMenu();
-    const row = viewRow("cornerstones");
+    // Cornerstones is ready as of Stage 3, so the greyed example is now the
+    // one view still waiting on a stage: Who cites whom, on shared citers.
+    const row = viewRow("who-cites-whom");
     expect(
       row.getAttribute("aria-disabled"),
-      "Cornerstones needs a seed",
+      `Who cites whom waits on shared citers; the row read "${normalize(row.textContent)}"`,
     ).to.equal("true");
-    expect(normalize(row.textContent)).to.contain("needs a seed");
+    expect(normalize(row.textContent)).to.contain("Arrives with shared citers");
     row.click();
     // A fixed window on purpose: nothing is meant to happen, so there is no
     // state to wait for. The menu-still-open assertion below carries it — a
