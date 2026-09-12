@@ -1,5 +1,6 @@
 import type { CitationGraphModel } from "../domain/graphTypes";
 import type { LibrarySnapshot } from "../domain/types";
+import { decodeGraphView } from "./graphViews";
 
 function sanitizeFilename(value: string): string {
   return (
@@ -45,6 +46,51 @@ async function chooseSavePath(
     return null;
   }
   return String(picker.file?.path ?? "").trim() || null;
+}
+
+export async function chooseOpenPath(
+  document: Document,
+  options: { title: string; extension: string; filterLabel: string },
+): Promise<string | null> {
+  const parentWindow = document.defaultView;
+  if (!parentWindow) throw new Error("Unable to open the file dialog.");
+  const picker = Components.classes["@mozilla.org/filepicker;1"].createInstance(
+    Components.interfaces.nsIFilePicker,
+  );
+  picker.init(
+    (parentWindow as any).browsingContext,
+    options.title,
+    picker.modeOpen,
+  );
+  picker.appendFilter(options.filterLabel, `*.${options.extension}`);
+  picker.appendFilters(picker.filterAll);
+  const result = await new Promise<number>((resolve) => picker.open(resolve));
+  if (result !== picker.returnOK) return null;
+  return String(picker.file?.path ?? "").trim() || null;
+}
+
+export type PickOpenPath = (document: Document) => Promise<string | null>;
+
+const defaultViewPicker: PickOpenPath = (document) =>
+  chooseOpenPath(document, {
+    title: "Import view",
+    extension: "json",
+    filterLabel: "Meristema view (JSON)",
+  });
+
+/**
+ * D4 import. The picker is a parameter so the Zotero suite can hand in a
+ * temp file: an XPCOM picker built inside the function cannot be stubbed.
+ * Returns null when the reader cancelled.
+ */
+export async function importGraphViewFile(
+  document: Document,
+  pick: PickOpenPath = defaultViewPicker,
+): Promise<ReturnType<typeof decodeGraphView> | null> {
+  const path = await pick(document);
+  if (!path) return null;
+  const contents = await Zotero.File.getContentsAsync(path);
+  return decodeGraphView(String(contents));
 }
 
 async function saveExport(

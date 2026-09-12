@@ -98,6 +98,8 @@ import {
   exportGraphCSV,
   exportGraphJSON,
   exportGraphPNG,
+  importGraphViewFile,
+  type PickOpenPath,
 } from "./exportService";
 import {
   captureGraphView,
@@ -109,7 +111,6 @@ import {
   SHIPPED_GRAPH_VIEWS,
   tutorialChips,
   tutorialFootnote,
-  type decodeGraphView,
   type GraphViewDefinition,
   type ViewFolder,
 } from "./graphViews";
@@ -347,6 +348,8 @@ export interface GraphViewOptions {
   onExternalWorkImported?: (identityKey: string, itemKey: string) => void;
   /** Backs the toolbar's Graph menu. Without it the menu is disabled. */
   savedGraphs?: GraphViewSavedGraphsHost | null;
+  /** D4 import's file picker; the suite injects one that answers a temp path. */
+  pickViewFile?: PickOpenPath;
 }
 
 function localPaperByKey(snapshot: LibrarySnapshot): Map<string, ZoteroPaper> {
@@ -2126,12 +2129,8 @@ export function renderGraphView(
         : null,
     });
   };
-  // D4: replaced by exportService.importGraphViewFile in Task 8.
-  const importGraphViewFile = async (
-    _document: Document,
-  ): Promise<ReturnType<typeof decodeGraphView> | null> => null;
   importView = async (): Promise<void> => {
-    const decoded = await importGraphViewFile(document);
+    const decoded = await importGraphViewFile(document, options.pickViewFile);
     if (!decoded) return;
     if (!decoded.ok) {
       Services.prompt.alert(

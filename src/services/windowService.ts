@@ -678,6 +678,18 @@ function viewStateOptions(
   };
 }
 
+/**
+ * The Zotero suite's seam: it stashes `__meristemaGraphViewOptions` on
+ * `globalThis` to inject a stub (e.g. `pickViewFile`) into a rendered graph
+ * view. Empty in production.
+ */
+function testGraphViewOptions(): Partial<GraphViewOptions> {
+  return (
+    ((globalThis as Record<string, unknown>).__meristemaGraphViewOptions as
+      Partial<GraphViewOptions> | undefined) ?? {}
+  );
+}
+
 /** The controller of the view currently rendered for the instance, if any. */
 function liveController(
   win: _ZoteroTypes.MainWindow,
@@ -733,6 +745,7 @@ function renderDetachedWindow(
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
+    ...testGraphViewOptions(),
   });
   instance.pendingLibrarySelection = null;
   // Adopt only: a list selection this graph cannot show must not undo the
@@ -1225,6 +1238,7 @@ function renderTab(
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
       initialState: instance.viewState,
+      ...testGraphViewOptions(),
     });
     const current = selectionBinding(win).current().itemIDs;
     instance.pendingLibrarySelection = null;
