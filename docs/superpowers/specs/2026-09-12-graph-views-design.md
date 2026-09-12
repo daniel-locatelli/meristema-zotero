@@ -1,7 +1,8 @@
 # Graph Views: Five Named Ways to Look at the Same Graph
 
 **Date:** 2026-09-12
-**Status:** Approved in conversation 2026-09-12; awaiting the user's read of this file
+**Status:** Approved in conversation 2026-09-12; revised the same day after an
+adversarial review (18 findings, folded in below); awaiting the user's read
 
 Backlog entry D4 ("graph templates"). The design is section F of the Claude
 Design project "Zotero Citation Network Plugin", handoff package
@@ -73,9 +74,9 @@ interface GraphViewDefinition {
   icon: GraphViewIcon;   // a drawn glyph name, see uiIconService
   appearance: GraphLayoutOptions;            // all seven fields, always
   regions: string[] | "ticked" | null;       // folder names, every ticked folder, or leave alone
-  filters: Partial<PaperListFilterState> | null;
+  filters: GraphViewFilters | null;          // PaperListFilterState minus collectionIDs and relation
   explore: null;         // reserved: { hops, floor, sharedCiters } from Stage 3/4
-  requires: "none" | "seed" | "two-seeds";
+  requires: "none" | "seed" | "two-seeds";   // display only today: the dropdown's muted note
   availability: "ready" | { needs: "citation-hops" | "shared-citers" | "reading-state" };
 }
 ```
@@ -86,15 +87,35 @@ other three with the defaults from `citationPreferences.ts`; a saved view
 captures all seven. Applying is then deterministic, and "(edited)" is a plain
 field-by-field comparison.
 
-`regions` are **folder names**, not collection IDs, or the marker `"ticked"`,
-which Folder map uses to mean every folder ticked in the rail at apply time
-(the marker is never on the wire: a saved view captures names). Names, not IDs, so a view survives a
-library the ids are not from and so the JSON reads. They resolve at apply time
-against the library's collection tree, top-level and nested alike, by exact
-name; names matching nothing are reported on the tutorial card's last line and
-skipped. Ambiguous names (two folders called "To read") resolve to all of
-them. The design's cap of four regions is not applied: F14 uncapped regions on
-2026-09-11 and a view follows the rail.
+`regions` are **folder names**, not collection IDs, or the marker `"ticked"`.
+Names, not IDs, so a view survives a library the ids are not from and so the
+JSON reads. They resolve at apply time against the library's collection tree,
+top-level and nested alike, by exact name. A name matching nothing is skipped
+and named on the tutorial card ("Not found: Gridshells"). A name matching a
+folder whose tick is off is also skipped and named ("Not shown: Gridshells is
+unticked"): the rail's rule is that a region is a ticked folder
+(`selectRow` ticks first, and unticking drops the region), and a view reads
+ticks but never writes them. Ambiguous names resolve to every match, and the
+card says how many ("Gridshells: 2 folders"). The design's cap of four is not
+applied: F14 uncapped regions on 2026-09-11 and a view follows the rail.
+
+`"ticked"` is what Folder map uses and is never on the wire (the decoder
+rejects it; a saved view captures names). It means the **top of each ticked
+subtree**: every folder whose tick is on or mixed and that has no ticked
+ancestor, in tree order. Not every ticked folder: a library graph starts with
+every folder ticked, ticks cascade to descendants, and a parent and its
+children as separate hulls is noise. When the tops still outnumber the twelve
+categorical swatches, the ledger doubles up as it does today and the card says
+so ("14 regions, 12 colours").
+
+`filters` on a view is `PaperListFilterState` **without** `collectionIDs`
+(that is Scope, and the graph already zeroes it in both directions) and
+without `relation` (relative to the selected paper, meaningless in a view).
+The decoder rejects both keys by name.
+
+`requires` is display data only today: both views that need seeds are also
+unavailable, so nothing acts on it. It stays because the dropdown row shows it
+and Stage 3 will act on it.
 
 `explore` is null in every view until Stage 3 lands. The field exists so the
 JSON schema does not change when it does. The Explore section behind the gear
@@ -121,12 +142,19 @@ availability line is derived from `needs`: "Arrives with citation hops",
 
 ### User views
 
-One profile preference, `graphViews`, holding a JSON array of
-`GraphViewDefinition` with `id` starting `user:`; a second, `graphViewsVersion`,
-for the schema. A value that fails to parse is treated as empty and rewritten
-on the next save, never thrown. A third preference,
+One profile preference, `graphViews`, holding a JSON array of wire-form
+views (below), each with an `id` starting `user:`. The `meristemaView` field on
+each record is the schema version; there is no separate version preference
+(`updateLibraryIDs` in `citationPreferences.ts` is the parse-or-fallback
+precedent). A value that fails to parse is treated as empty and rewritten on
+the next save, never thrown. A second preference,
 `graphViewTutorialsDismissed`, holds the ids whose card the reader closed with
-"Don't show for this view again".
+"Don't show for this view again"; deleting a view removes its id.
+
+A **saved view always owns regions and filters**: it captures `[]` when the
+graph has no regions and the full filter record even at defaults, so applying
+it restores the snapshot and any later change reads as "(edited)". `null` in
+those two fields is reserved for shipped views that leave them alone.
 
 ### The active view, in the graph state
 
@@ -143,10 +171,27 @@ gallery once; that is the design's rule ("a graph with no saved view state")
 and it costs one dismissal per old graph. "(edited)" is not stored: it is
 recomputed whenever the chip renders.
 
+**The migration must not touch anything else.** `parseGraphViewState` today
+admits only the current version, 2 and 1, and takes the saved `regions` only
+at the current version, migrating everything older from the ticks. Bumping the
+constant alone would reject or strip every version 3 graph. The gate admits 3
+and the regions branch becomes `version >= 3`; a unit test pins that a
+version 3 record keeps its regions and all three ledgers.
+
+**The field must be plumbed.** The view controller keeps `view` in a closure
+variable; `getState` writes it (that function lists every field by hand and
+autosave runs through it, so an unlisted field reverts to null on the next
+tick), `applyState` reads it, and the request path that builds the initial
+state from a folder or item request leaves it null.
+
 Reopening a saved graph applies nothing. The graph already carries the
 regions and filters the view wrote, appearance is the global preference as
 today, and the chip only restores its label. If the reader has changed the
-appearance since, the chip says "(edited)", which is true.
+appearance since, the chip says "(edited)", which is true. With two graphs in
+tabs, a view applied in one changes the global appearance the other will read
+on its next open, so the other's chip may gain "(edited)" on reopen; within a
+session each instance compares against its own live layout, never the
+preference.
 
 ### JSON on the wire
 
@@ -167,7 +212,9 @@ appearance since, the chip says "(edited)", which is true.
 `id`, `icon`, `requires` and `availability` are not on the wire: an imported
 view gets a fresh `user:` id, the user-view icon, `requires: "none"` and
 `availability: "ready"`. Decoding validates every field against the metric and
-mode unions in `graphTypes.ts`; the first failing field names the error. The
+mode unions in `graphTypes.ts`, rejects `"ticked"`, `collectionIDs` and
+`relation`, and names the first failing field. The stored preference uses the
+same form plus `id`. The
 schema on board 3c is reconciled with this one when the package is in the
 repo; field names here follow the code's, which the board also uses.
 
@@ -192,17 +239,36 @@ The dropdown, top to bottom:
 3. A divider, then `Save current as view…`, `Import view JSON…`,
    `Choose a view…` (reopens the gallery).
 
-The dropdown is the same popover family as the gear panel (`cm-appearance-
-panel`): `role="menu"`, closes on Escape, on a click outside and on choosing.
+The dropdown is a sibling of File's menu and uses its family
+(`cm-menu-wrapper` and `cm-export-menu`, with the same open and close
+handling), not the gear's rail-footer panel: `role="menu"`, closes on Escape,
+on a click outside and on choosing.
 
 ### Applying a view
 
-In order: write `appearance` through `setGraphAppearance` (or the focus
-variant when the graph is seeded, as the gear does today); resolve `regions`
-and replace the state's region list, allocating swatches through the existing
-ledger; merge `filters` into the state's filter record; set `state.view`;
-re-render; show the tutorial card. Scope is untouched: seeds, ticks, unfiled,
-external and hidden keys are not read or written.
+In order: hand `appearance` to the gear's own controller
+(`appearance.setLayout`, which persists as the gear does and keeps the selects
+and the instance's live layout in step; writing the preference directly would
+leave both stale); resolve `regions` and replace the state's region list,
+allocating swatches through the existing ledger and following `selectRow`'s
+sequence (ensure swatches, notify, refresh the rail); merge `filters` into the
+state's filter record; set `state.view`; re-render; show the tutorial card.
+Scope is untouched: seeds, ticks, unfiled, external and hidden keys are never
+written; ticks are read for the region rules above.
+
+**Metrics the graph cannot show.** The gear omits any metric with no data in
+the loaded nodes and substitutes the first available one, and forces a scale
+to linear where the metric is not logarithmic. A view is normalised by the
+same rules before it is applied and before it is compared, through one pure
+function extracted from the controls (`normaliseLayoutFor(nodes, layout)`),
+so "(edited)" is false right after apply; the tutorial chips name what landed
+("y citations" or, substituted, "y year (no citation data)").
+
+**The seeded appearance preference is write-only today.** The gear writes the
+focus variant when the graph is seeded, but nothing reads it back: every open
+reads the global preference. That is a pre-existing bug, filed as B41; this
+feature does not fix it, and its reload test for the chip runs on an unseeded
+graph until B41 is done.
 
 A view whose `requires` is unmet is only ever a greyed row today, because both
 such views are also unavailable. The design's behaviour, opening Add seed with
@@ -223,8 +289,13 @@ after Save, with the reader's own paragraph.
 
 ### Gallery
 
-A non-modal overlay in the plot inset, shown when `state.view` is null,
-reopened by `Choose a view…`. Heading "How do you want to look at these N
+A non-modal overlay in the plot inset, shown when `state.view` is null and
+the graph has at least one visible paper (a seedless New Graph already shows
+the empty-state overlay, and two overlays is one too many; the gallery comes
+up once papers do), reopened by `Choose a view…`. A graph opened from a folder
+or from selected items also starts with `view: null` and shows it; Folder map
+on a folder graph resolves `"ticked"` to that folder, which is the region the
+request already set. Heading "How do you want to look at these N
 papers?" with N the visible count; sub-line "Scope stays as it is." Three
 columns of cards: icon, name, paragraph, and a last line that is the
 requirement, the availability line, or nothing. Cards for unavailable views
@@ -256,10 +327,16 @@ time; the folder names are looked up then, not at apply.
 
 ### Import
 
-`Import view JSON…` opens Zotero's file picker filtered to `.json`. The file
-is decoded as above; on failure a native error dialog (`Services.prompt`)
-names the field. On success the view is added to MY VIEWS and applied at
-once, tutorial card included.
+`Import view JSON…` opens Zotero's file picker in open mode filtered to
+`.json`, through a helper beside `exportService.ts`'s `chooseSavePath`, and
+reads the file with `Zotero.File.getContentsAsync`. The picker is injected
+(`importGraphView(pickFile)`), since an XPCOM picker built inside the function
+cannot be stubbed by the suite. The file is decoded as above; on failure a
+native error dialog (`Services.prompt`) names the field. On success the view
+is added to MY VIEWS, with " (2)" appended to a name that collides, and
+applied at once, tutorial card included. Copy JSON uses
+`Zotero.Utilities.Internal.copyTextToClipboard`, which `zotero-types` does not
+declare, so it is called through a typed cast in one place.
 
 ## What does not change
 
@@ -283,37 +360,46 @@ not in this spec.
 
 Unit, in `test/unit/`, all pure:
 
-- `applyGraphView(state, layout, view, collections)` returns the new state and
-  layout: appearance replaced whole, regions resolved by name with unmatched
-  names returned, filters merged, seeds and ticks byte-identical to the input.
-- `graphViewIsEdited(state, layout, view)` is false right after apply and true
-  after one owned field changes; a null `regions` ignores region changes.
+- `applyGraphView(state, layout, view, collections, nodes)` returns the new
+  state and layout: appearance normalised and replaced whole, regions resolved
+  by name with unmatched, unticked and ambiguous names returned, `"ticked"`
+  resolving to subtree tops in tree order, filters merged with
+  `collectionIDs` still `[]`, seeds and ticks byte-identical to the input.
+- `graphViewIsEdited(state, layout, view, nodes)` is false right after apply,
+  including for a view naming a metric the nodes lack, and true after one
+  owned field changes; a null `regions` ignores region changes, `[]` does not.
 - `encodeGraphView` / `decodeGraphView` round-trip, and every invalid shape
-  (wrong version, unknown metric, missing name, regions not strings) fails
-  with the field named.
+  (wrong version, unknown metric, missing name, regions not strings,
+  `"ticked"`, `collectionIDs`, `relation`) fails with the field named.
+- `normaliseLayoutFor` reproduces the gear's substitutions.
 - `graphViewAvailabilityLine` for each `needs`; the shipped list has five
   entries with unique ids and full appearance records.
-- Version 3 state parses with `view: null`; version 4 round-trips each of the
-  three values.
+- Version 3 state parses with `view: null` **and keeps its regions and its
+  three ledgers**; version 4 round-trips each of the three values.
 
 Zotero suite, in `test/zotero/`, through the plugin's own menus:
 
 - Open a graph, pick Overview from the dropdown: the chip reads
   `View  Overview`, `state.view.id` is `overview`, the tutorial card is in the
   document; change the y axis through the gear: the chip gains `(edited)`.
-- Open a graph saved at version 3: the gallery is in the plot inset; Start
-  blank removes it and a reopen of the graph shows no gallery.
+- Open a graph saved at version 3 (inserted as raw JSON through the store's
+  connection, since the store always writes the current version): the gallery
+  is in the plot inset; Start blank removes it and a reopen shows no gallery.
+- Reopen an unseeded graph on Overview: the chip reads `View  Overview` with
+  no "(edited)".
 - Save current as view with a name: the dropdown lists it under MY VIEWS and
   the preference holds one entry.
 - Click the greyed Cornerstones row: `state.view` is unchanged.
 
-Manual batch (appended to the roadmap's list): the chip's place after File on
-both themes; the greyed rows' contrast; the tutorial card's position over a
+Manual batch (appended to the roadmap's list): the toolbar reads File, View,
+Filter, Similar, Export, Refresh, which supersedes B21's check of the order; the greyed rows' contrast; the tutorial card's position over a
 narrow plot; the gallery over a 300+ paper folder; the dialog's checklist
 reading; the icon set.
 
 ## Follow-ups this spec creates
 
+- B41: the seeded appearance preference is written by the gear and read by
+  nothing, so any gear change on a seeded graph is lost on reopen.
 - Stage 3 spec: fill `explore` for Cornerstones and Who cites whom, flip their
   availability, and specify the Add-seed queue for an unmet requirement.
 - A reading-state entry (boards 2a, 1f to 1i) does not exist on the roadmap;
