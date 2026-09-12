@@ -2075,7 +2075,7 @@ export function renderGraphView(
       tutorialCard.show(
         chosen,
         tutorialChips(chosen, plan, swatchCount),
-        tutorialFootnote(plan),
+        tutorialFootnote(plan, chosen),
       );
     }
   };

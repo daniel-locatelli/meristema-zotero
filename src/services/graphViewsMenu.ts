@@ -368,7 +368,7 @@ export interface SavePanelResult {
 export interface SavePanelOpenOptions {
   name: string;
   paragraph: string;
-  captures: { regions: number; filters: boolean };
+  captures: { regions: number; filters: boolean; explore: string | null };
   existing: GraphViewDefinition | null;
   nameTaken: (name: string) => boolean;
   onCopyJSON: (result: SavePanelResult) => void;
@@ -526,8 +526,10 @@ export function createSavePanel(document: Document): SavePanel {
         ),
         captureRow("Filters", true),
         captureRow(
-          "Explore (hops, floor, shared citers) — not yet available",
-          false,
+          o.captures.explore
+            ? `Explore: ${o.captures.explore}`
+            : "Explore: none",
+          Boolean(o.captures.explore),
         ),
         captureRow("Scope (seeds, collections) — never saved", false, true),
       );

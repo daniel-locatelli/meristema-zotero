@@ -8,6 +8,7 @@ import type {
   GraphScaleType,
   MetricID,
 } from "../domain/graphTypes";
+import { clampHopDepth, type HopDirection } from "./graphHopModel";
 import { normaliseLayoutFor } from "./graphLayoutAvailability";
 import { getMetricDefinition } from "./metricRegistry";
 import {
@@ -25,8 +26,7 @@ import type { IconName } from "./uiIconService";
 
 export const GRAPH_VIEW_WIRE_VERSION = 1;
 
-export type GraphViewNeeds =
-  "citation-hops" | "shared-citers" | "reading-state";
+export type GraphViewNeeds = "shared-citers" | "reading-state";
 export type GraphViewAvailability = "ready" | { needs: GraphViewNeeds };
 export type GraphViewRequires = "none" | "seed" | "two-seeds";
 /** Folder names, every ticked subtree top, or leave the regions alone. */
@@ -35,6 +35,18 @@ export type GraphViewRegions = string[] | "ticked" | null;
 export type GraphViewFilters = Partial<
   Omit<PaperListFilterState, "collectionIDs" | "relation">
 >;
+
+/** Stage 3: the direction and the depth a view opens. Stage 4 adds `floor`. */
+export interface GraphViewExplore {
+  direction: HopDirection;
+  hops: number;
+}
+
+export interface GraphViewLiveHops {
+  direction: HopDirection;
+  depth: number;
+  enabled: readonly boolean[];
+}
 
 export interface GraphViewDefinition {
   id: string;
@@ -45,8 +57,7 @@ export interface GraphViewDefinition {
   appearance: GraphLayoutOptions;
   regions: GraphViewRegions;
   filters: GraphViewFilters | null;
-  /** Reserved for Stage 3 and 4: hops, floor, shared citers. */
-  explore: null;
+  explore: GraphViewExplore | null;
   requires: GraphViewRequires;
   availability: GraphViewAvailability;
 }
@@ -81,17 +92,16 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     id: "cornerstones",
     name: "Cornerstones",
     summary:
-      "Seeds, 2 citation hops, floor ≥ 5, colour citations. What the field rests on.",
-    // draft: reconcile with boards 3a/3b
+      "Seeds, 2 hops of references, colour citations. What the field rests on.",
     paragraph:
-      "Starts from your seeds, follows citations two steps out, and drops anything cited fewer than five times, so what remains is the work the field keeps coming back to. Colour is citations. Seeds and collections are untouched.",
+      "Starts from your seeds and follows their references two steps out, so what remains is the work the field rests on. Colour is citations. Seeds and collections are untouched.",
     icon: "view-cornerstones",
     appearance: { ...BASE, nodeColorMetric: "citations" },
     regions: null,
     filters: null,
-    explore: null,
+    explore: { direction: "references", hops: 2 },
     requires: "seed",
-    availability: { needs: "citation-hops" },
+    availability: "ready",
   },
   {
     id: "reading-plan",
@@ -151,7 +161,6 @@ export function isShippedViewName(name: string): boolean {
 }
 
 const NEEDS_LINE: Record<GraphViewNeeds, string> = {
-  "citation-hops": "Arrives with citation hops",
   "shared-citers": "Arrives with shared citers",
   "reading-state": "Arrives with reading state",
 };
@@ -286,6 +295,7 @@ export interface GraphViewLiveInput {
   layout: GraphLayoutOptions;
   filters: PaperListFilterState;
   folders: readonly ViewFolder[];
+  hops: GraphViewLiveHops;
 }
 
 const LAYOUT_KEYS: ReadonlyArray<keyof GraphLayoutOptions> = [
@@ -369,6 +379,13 @@ export function graphViewIsEdited(
       if (expectedFilters[key] !== live.filters[key]) return true;
     }
   }
+  if (view.explore !== null) {
+    if (live.hops.direction !== view.explore.direction) return true;
+    if (live.hops.depth !== view.explore.hops) return true;
+    for (let hop = 1; hop <= view.explore.hops; hop += 1) {
+      if (live.hops.enabled[hop] === false) return true;
+    }
+  }
   return false;
 }
 
@@ -400,13 +417,18 @@ export function tutorialChips(
   const l = application.layout;
   const a = view.appearance;
   const sub = new Set(application.substituted);
-  const chips = [
+  const chips: string[] = [
     `x ${metricWord(l.xMetric)}${sub.has("xMetric") ? noDataNote(a.xMetric) : ""}`,
     `y ${metricWord(l.yMetric)}${sub.has("yMetric") ? noDataNote(a.yMetric) : ""}`,
     `size ${metricWord(l.nodeSizeMetric)}${sub.has("nodeSizeMetric") ? noDataNote(a.nodeSizeMetric) : ""}`,
     `colour ${metricWord(l.nodeColorMetric)}${sub.has("nodeColorMetric") ? noDataNote(a.nodeColorMetric) : ""}`,
     `labels ${l.nodeLabelMode}`,
   ];
+  if (view.explore) {
+    chips.push(
+      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}`,
+    );
+  }
   if (application.regions !== null) {
     const n = application.regions.length;
     chips.push(`regions ${n} folder${n === 1 ? "" : "s"}`);
@@ -452,7 +474,10 @@ function filterWord(
 }
 
 /** The last line of the card: what the view did not touch, and what it could not do. */
-export function tutorialFootnote(application: GraphViewApplication): string {
+export function tutorialFootnote(
+  application: GraphViewApplication,
+  view?: GraphViewDefinition,
+): string {
   const parts = ["Seeds and collections are untouched."];
   const r = application.regionReport;
   if (r) {
@@ -463,6 +488,9 @@ export function tutorialFootnote(application: GraphViewApplication): string {
       );
     }
     for (const a of r.ambiguous) parts.push(`${a.name}: ${a.count} folders.`);
+  }
+  if (view?.explore) {
+    parts.push("Opening hops fetches citations from the providers.");
   }
   return parts.join(" ");
 }
@@ -498,7 +526,7 @@ interface WireView {
   appearance: GraphLayoutOptions;
   regions: string[] | null;
   filters: GraphViewFilters | null;
-  explore: null;
+  explore: GraphViewExplore | null;
 }
 
 function userID(): string {
@@ -514,7 +542,7 @@ export function encodeGraphView(view: GraphViewDefinition): string {
     appearance: { ...view.appearance },
     regions: view.regions === "ticked" ? null : view.regions,
     filters: view.filters ? stripScopeFilters(view.filters) : null,
-    explore: null,
+    explore: view.explore ? { ...view.explore } : null,
   };
   return JSON.stringify(wire, null, 2);
 }
@@ -644,6 +672,15 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
     }
     filters = out as GraphViewFilters;
   }
+  let explore: GraphViewExplore | null = null;
+  if (raw.explore !== undefined && raw.explore !== null) {
+    if (!isRecord(raw.explore)) return { ok: false, field: "explore" };
+    const direction = raw.explore.direction;
+    if (direction !== "cited-by" && direction !== "references") {
+      return { ok: false, field: "explore.direction" };
+    }
+    explore = { direction, hops: clampHopDepth(raw.explore.hops) };
+  }
   return {
     ok: true,
     view: {
@@ -655,7 +692,7 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
       appearance,
       regions,
       filters,
-      explore: null,
+      explore,
       requires: "none",
       availability: "ready",
     },
@@ -677,6 +714,7 @@ export interface CaptureInput {
   regions: readonly number[];
   filters: PaperListFilterState;
   folders: readonly ViewFolder[];
+  hops: GraphViewLiveHops;
 }
 
 /** A saved view is a snapshot: it always owns regions (by name) and filters. */
@@ -694,7 +732,7 @@ export function captureGraphView(input: CaptureInput): GraphViewDefinition {
     appearance: { ...input.layout },
     regions,
     filters: stripScopeFilters(input.filters),
-    explore: null,
+    explore: { direction: input.hops.direction, hops: input.hops.depth },
     requires: "none",
     availability: "ready",
   };

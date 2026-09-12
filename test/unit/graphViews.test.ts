@@ -98,6 +98,12 @@ const liveLayout = {
   nodeLabelMode: "author-year",
 } as const;
 
+const liveHops = {
+  direction: "cited-by" as const,
+  depth: 1,
+  enabled: [true, true, true, true, true, true, true],
+};
+
 describe("the shipped views", function () {
   it("are five, with unique ids and full appearance records", function () {
     expect(SHIPPED_GRAPH_VIEWS.map((v) => v.id)).to.deep.equal([
@@ -117,17 +123,21 @@ describe("the shipped views", function () {
         "yMetric",
         "yScale",
       ]);
-      expect(view.explore, view.id).to.equal(null);
+      expect(view.explore, view.id).to.deep.equal(
+        view.id === "cornerstones"
+          ? { direction: "references", hops: 2 }
+          : null,
+      );
     }
+    const cornerstones = SHIPPED_GRAPH_VIEWS.find(
+      (v) => v.id === "cornerstones",
+    )!;
+    expect(cornerstones.availability).to.equal("ready");
+    expect(graphViewAvailabilityLine(cornerstones)).to.equal(null);
   });
 
   it("names what a greyed view waits on, and what a view needs", function () {
     expect(graphViewAvailabilityLine(overview)).to.equal(null);
-    expect(
-      graphViewAvailabilityLine(
-        SHIPPED_GRAPH_VIEWS.find((v) => v.id === "cornerstones")!,
-      ),
-    ).to.equal("Arrives with citation hops");
     expect(
       graphViewAvailabilityLine(
         SHIPPED_GRAPH_VIEWS.find((v) => v.id === "reading-plan")!,
@@ -184,6 +194,7 @@ describe("planGraphView", function () {
       layout: { ...liveLayout, xScale: "log" },
       filters: { ...filters, collectionIDs: [9], openAccessOnly: true },
       folders,
+      hops: liveHops,
     });
     expect(plan.layout).to.deep.equal(overview.appearance);
     expect(plan.regions).to.equal(null);
@@ -198,6 +209,7 @@ describe("planGraphView", function () {
       layout: liveLayout,
       filters,
       folders,
+      hops: liveHops,
     });
     expect(plan.substituted).to.include("yMetric");
     expect(plan.substituted).to.include("nodeSizeMetric");
@@ -209,6 +221,7 @@ describe("planGraphView", function () {
       layout: liveLayout,
       filters: { ...filters, collectionIDs: [9] },
       folders,
+      hops: liveHops,
     });
     expect(plan.regions).to.deep.equal([1, 4]);
     expect(plan.filters.collectionIDs).to.deep.equal([]);
@@ -224,6 +237,7 @@ describe("graphViewIsEdited", function () {
       layout: liveLayout,
       filters,
       folders,
+      hops: liveHops,
     });
     expect(
       graphViewIsEdited(overview, {
@@ -232,6 +246,7 @@ describe("graphViewIsEdited", function () {
         filters,
         folders,
         nodes: poor,
+        hops: liveHops,
       }),
     ).to.equal(false);
   });
@@ -244,6 +259,7 @@ describe("graphViewIsEdited", function () {
         filters,
         folders,
         nodes,
+        hops: liveHops,
       }),
     ).to.equal(true);
     expect(
@@ -253,6 +269,7 @@ describe("graphViewIsEdited", function () {
         filters,
         folders,
         nodes,
+        hops: liveHops,
       }),
     ).to.equal(false);
   });
@@ -264,7 +281,13 @@ describe("graphViewIsEdited", function () {
       regions: ["Gridshells"],
       filters: { ...filters },
     };
-    const live = { layout: overview.appearance, filters, folders, nodes };
+    const live = {
+      layout: overview.appearance,
+      filters,
+      folders,
+      nodes,
+      hops: liveHops,
+    };
     expect(graphViewIsEdited(saved, { ...live, regions: [2] })).to.equal(false);
     expect(graphViewIsEdited(saved, { ...live, regions: [] })).to.equal(true);
   });
@@ -275,7 +298,13 @@ describe("graphViewIsEdited", function () {
       id: "user:2",
       filters: { openAccessOnly: true },
     };
-    const live = { layout: overview.appearance, regions: [], folders, nodes };
+    const live = {
+      layout: overview.appearance,
+      regions: [],
+      folders,
+      nodes,
+      hops: liveHops,
+    };
     expect(
       graphViewIsEdited(saved, {
         ...live,
@@ -307,6 +336,7 @@ describe("graphViewIsEdited", function () {
       regions: [],
       folders,
       nodes,
+      hops: liveHops,
       filters: {
         ...defaultPaperListFilterState(),
         openAccessOnly: true,
@@ -330,6 +360,7 @@ describe("the wire form", function () {
         relation: "related",
       },
       folders,
+      hops: liveHops,
     });
     expect(saved.id.startsWith("user:")).to.equal(true);
     expect(saved.regions).to.deep.equal(["Gridshells"]);
@@ -360,6 +391,7 @@ describe("the wire form", function () {
           regions: [],
           filters: defaultPaperListFilterState(),
           folders,
+          hops: liveHops,
         }),
       ),
     );
@@ -416,6 +448,7 @@ describe("tutorialChips", function () {
       layout: liveLayout,
       filters: defaultPaperListFilterState(),
       folders,
+      hops: liveHops,
     });
     const chips = tutorialChips(folderMap, plan, 12);
     expect(chips).to.deep.equal([
@@ -435,6 +468,7 @@ describe("tutorialChips", function () {
       layout: liveLayout,
       filters: defaultPaperListFilterState(),
       folders,
+      hops: liveHops,
     });
     const chips = tutorialChips(overview, plan, 12);
     expect(
@@ -447,6 +481,7 @@ describe("tutorialChips", function () {
       layout: liveLayout,
       filters: defaultPaperListFilterState(),
       folders,
+      hops: liveHops,
     });
     expect(
       tutorialChips(
@@ -467,12 +502,14 @@ describe("the missing-value filter chips", function () {
       regions: [],
       filters: { ...defaultPaperListFilterState(), includeMissingYear: false },
       folders,
+      hops: liveHops,
     });
     const plan = planGraphView(view, {
       nodes,
       layout: liveLayout,
       filters: defaultPaperListFilterState(),
       folders,
+      hops: liveHops,
     });
     expect(tutorialChips(view, plan, 12)).to.include(
       "filter missing year hidden",
@@ -563,5 +600,149 @@ describe("draftParagraph", function () {
     expect(draftParagraph(liveLayout, 0, {})).to.equal(
       "publication year across, citations up; size citations; colour uniform. Seeds and collections are untouched.",
     );
+  });
+});
+
+describe("explore on a view", function () {
+  const cornerstones = SHIPPED_GRAPH_VIEWS.find(
+    (v) => v.id === "cornerstones",
+  )!;
+  const under = {
+    direction: "references" as const,
+    depth: 2,
+    enabled: [true, true, true, true, true, true, true],
+  };
+
+  it("reads edited when direction, depth or a hop within the depth differs", function () {
+    const live = {
+      nodes,
+      layout: { ...liveLayout, nodeColorMetric: "citations" as const },
+      regions: [],
+      filters: defaultPaperListFilterState(),
+      folders,
+    };
+    expect(graphViewIsEdited(cornerstones, { ...live, hops: under })).to.equal(
+      false,
+    );
+    expect(
+      graphViewIsEdited(cornerstones, {
+        ...live,
+        hops: { ...under, direction: "cited-by" },
+      }),
+    ).to.equal(true);
+    expect(
+      graphViewIsEdited(cornerstones, {
+        ...live,
+        hops: { ...under, depth: 3 },
+      }),
+    ).to.equal(true);
+    expect(
+      graphViewIsEdited(cornerstones, {
+        ...live,
+        hops: {
+          ...under,
+          enabled: [true, true, false, true, true, true, true],
+        },
+      }),
+    ).to.equal(true);
+    // A hop past the view's depth is not the view's claim.
+    expect(
+      graphViewIsEdited(cornerstones, {
+        ...live,
+        hops: {
+          ...under,
+          enabled: [true, true, true, false, true, true, true],
+        },
+      }),
+    ).to.equal(false);
+    // A view without explore ignores the hops entirely.
+    expect(
+      graphViewIsEdited(overview, {
+        ...live,
+        layout: liveLayout,
+        hops: { ...under, depth: 5 },
+      }),
+    ).to.equal(false);
+  });
+
+  it("captures the live direction and depth, never the toggles", function () {
+    const view = captureGraphView({
+      name: "Mine",
+      paragraph: "",
+      layout: liveLayout,
+      regions: [],
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: {
+        ...under,
+        enabled: [true, false, false, false, false, false, false],
+      },
+    });
+    expect(view.explore).to.deep.equal({ direction: "references", hops: 2 });
+  });
+
+  it("round-trips explore on the wire and clamps a bad depth", function () {
+    const view = captureGraphView({
+      name: "Mine",
+      paragraph: "",
+      layout: liveLayout,
+      regions: [],
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: under,
+    });
+    const decoded = decodeGraphView(encodeGraphView(view));
+    expect(decoded.ok && decoded.view.explore).to.deep.equal({
+      direction: "references",
+      hops: 2,
+    });
+    const raw = JSON.parse(encodeGraphView(view));
+    raw.explore = { direction: "references", hops: 40 };
+    const clamped = decodeGraphView(JSON.stringify(raw));
+    expect(clamped.ok && clamped.view.explore?.hops).to.equal(6);
+    raw.explore = { direction: "both", hops: 2 };
+    const bad = decodeGraphView(JSON.stringify(raw));
+    expect(bad).to.deep.equal({ ok: false, field: "explore.direction" });
+    delete raw.explore;
+    const absent = decodeGraphView(JSON.stringify(raw));
+    expect(absent.ok && absent.view.explore).to.equal(null);
+  });
+
+  it("decodes citation-hop as a colouring", function () {
+    const raw = JSON.parse(encodeGraphView(overview));
+    raw.appearance.nodeColorMetric = "citation-hop";
+    const decoded = decodeGraphView(JSON.stringify(raw));
+    expect(decoded.ok && decoded.view.appearance.nodeColorMetric).to.equal(
+      "citation-hop",
+    );
+  });
+
+  it("adds the hops chip and the traffic footnote for a view with explore", function () {
+    const plan = planGraphView(cornerstones, {
+      nodes,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: under,
+    });
+    expect(tutorialChips(cornerstones, plan, 8)).to.include(
+      "hops 2 · references",
+    );
+    expect(tutorialFootnote(plan, cornerstones)).to.include(
+      "Opening hops fetches citations from the providers.",
+    );
+    expect(
+      tutorialChips(
+        overview,
+        planGraphView(overview, {
+          nodes,
+          layout: liveLayout,
+          filters: defaultPaperListFilterState(),
+          folders,
+          hops: under,
+        }),
+        8,
+      ),
+    ).to.not.include("hops 2 · references");
   });
 });

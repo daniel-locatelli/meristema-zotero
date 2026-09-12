@@ -438,7 +438,7 @@ describe("Graph views (D4)", function () {
       row.getAttribute("aria-disabled"),
       "Cornerstones needs a seed",
     ).to.equal("true");
-    expect(normalize(row.textContent)).to.contain("Arrives with citation hops");
+    expect(normalize(row.textContent)).to.contain("needs a seed");
     row.click();
     // A fixed window on purpose: nothing is meant to happen, so there is no
     // state to wait for. The menu-still-open assertion below carries it — a
@@ -634,6 +634,7 @@ describe("Graph views (D4)", function () {
         regions: [],
         filters: defaultPaperListFilterState(),
         folders: [],
+        hops: { direction: "cited-by", depth: 1, enabled: [] },
       }),
     );
     importPath = PathUtils.join(
