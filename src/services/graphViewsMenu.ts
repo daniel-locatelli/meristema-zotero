@@ -39,7 +39,6 @@ export interface GraphViewsMenu {
   setActive(id: string | null): void;
   close(): void;
   open(): void;
-  refresh(activeID: string | null): void;
 }
 
 function row(
@@ -210,7 +209,6 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     },
     close,
     open,
-    refresh,
   };
 }
 
