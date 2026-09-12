@@ -431,7 +431,10 @@ export function renderGraphView(
    * search box; for a saved view that is a preference read and a JSON parse
    * each time. Held here and dropped whenever the saved list or `view` moves.
    */
-  let activeViewCache: { id: string; view: GraphViewDefinition } | null = null;
+  let activeViewCache: {
+    id: string;
+    view: GraphViewDefinition | null;
+  } | null = null;
   const invalidateActiveView = (): void => {
     activeViewCache = null;
   };
@@ -812,6 +815,11 @@ export function renderGraphView(
     onSaveCurrent: () => openSavePanel(null),
     onImport: () => void importView(),
     onOpenGallery: () => showGallery(),
+    // Another tab may have renamed or deleted the view this chip is on.
+    onOpen: () => {
+      invalidateActiveView();
+      refreshViewChip();
+    },
   });
   const tutorialCard = createTutorialCard(document, (id) =>
     dismissTutorial(id),
@@ -1989,8 +1997,10 @@ export function renderGraphView(
     if (activeViewCache && activeViewCache.id === view.id) {
       return activeViewCache.view;
     }
+    // The miss is cached too: an id naming a view deleted in another tab
+    // would otherwise re-read the preference on every keystroke.
     const found = viewByID(view.id);
-    activeViewCache = found ? { id: view.id, view: found } : null;
+    activeViewCache = { id: view.id, view: found };
     return found;
   };
   /*
@@ -2133,6 +2143,17 @@ export function renderGraphView(
       onSave: (r) => {
         const saved = capture(r);
         saveGraphView(saved);
+        // A new save puts the graph on its view; an edit only does so when
+        // it is the view the graph is already on. Renaming a view from the
+        // dropdown must not move the chip onto it, where the live settings
+        // would read "(edited)" against a view nobody applied.
+        const becomesActive =
+          !existing || (view && view !== "blank" && view.id === existing.id);
+        invalidateActiveView();
+        if (!becomesActive) {
+          refreshViewChip();
+          return;
+        }
         view = { id: saved.id };
         invalidateActiveView();
         viewGallery.hide();

@@ -119,6 +119,19 @@ describe("The graph's Scope rail", function () {
     ).filter((button) => !button.hidden);
   }
 
+  /**
+   * D4's gallery sits over the plot of a graph that has never chosen a view,
+   * and its backdrop blur is the first suspect for the walk's flake (B43),
+   * so every failure of the walk says what the gallery was doing.
+   */
+  function galleryState(): string {
+    const section = graphRoot().querySelector(
+      ".cm-view-gallery",
+    ) as HTMLElement | null;
+    if (!section) return "no gallery in the DOM";
+    return section.hidden ? "gallery present, hidden" : "gallery SHOWN";
+  }
+
   function closeNodeMenu(): void {
     const menu = graphRoot().querySelector(".cm-node-menu") as HTMLElement;
     if (!menu || menu.hidden) return;
@@ -149,8 +162,11 @@ describe("The graph's Scope rail", function () {
       );
     };
     const tried = new Set<string>();
-    const deadline = Date.now() + 20_000;
+    const started = Date.now();
+    const deadline = started + 20_000;
+    let passes = 0;
     for (;;) {
+      passes += 1;
       const box = canvas.getBoundingClientRect();
       for (let y = box.top + 4; y < box.bottom - 4; y += 5) {
         for (let x = box.left + 4; x < box.right - 4; x += 5) {
@@ -180,7 +196,9 @@ describe("The graph's Scope rail", function () {
     }
     expect.fail(
       `no node menu entry reading ${label}; ${tried.size} paper(s) offered ` +
-        `${[...tried].join(" | ") || "nothing"}`,
+        `${[...tried].join(" | ") || "nothing"}` +
+        `; ${passes} pass(es) over the canvas in ${Date.now() - started}ms` +
+        `; ${galleryState()}`,
     );
   }
 
@@ -265,7 +283,11 @@ describe("The graph's Scope rail", function () {
     expect(before, "the library has papers to lose").to.be.at.least(2);
     (await nodeMenuEntry("Add as seed")).click();
     await waitFor(() => seedRowCount() === 1, 10_000);
-    expect(seedRowCount(), "the rail lists the seed").to.equal(1);
+    expect(
+      seedRowCount(),
+      `the rail lists the seed; ${galleryState()}; scope ${scopeCount()} of ` +
+        `${scopeTotal()}`,
+    ).to.equal(1);
     expect(scopeCount()).to.be.at.least(before);
     expect(scopeTotal()).to.be.at.least(before);
   });
@@ -282,7 +304,10 @@ describe("The graph's Scope rail", function () {
     await waitFor(() => scopeCount() < before, 5_000);
     expect(scopeCount()).to.be.lessThan(before);
     // No rule can hide a seed, so the seed row and its paper are still there.
-    expect(seedRowCount()).to.equal(1);
+    expect(
+      seedRowCount(),
+      `the seed survives the untick; ${galleryState()}; scope ${scopeCount()}`,
+    ).to.equal(1);
     (
       scopeRowLabelled(COLLECTION_NAME).querySelector(
         "input",

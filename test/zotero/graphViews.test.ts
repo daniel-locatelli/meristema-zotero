@@ -569,22 +569,35 @@ describe("Graph views (D4)", function () {
     );
     await closeChipMenu();
 
-    // The same file again: the name is taken, so it arrives suffixed.
+    // The same file again: the name is taken, so it arrives suffixed. The
+    // suffix is read from the store and the dropdown, not the chip: a
+    // background rebuild between the save and the chip's refresh restores
+    // the state captured a moment earlier, which leaves the label on the
+    // view imported first (seen once, run 10 of 2026-09-12).
     await clickImport();
-    await waitFor(
-      () => chipText().includes(`${IMPORTED_VIEW_NAME} (2)`),
-      20_000,
-    );
+    const names = (): string[] =>
+      JSON.parse(
+        String(
+          Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
+        ),
+      ).map((saved: { name: string }) => saved.name);
+    await waitFor(() => names().includes(`${IMPORTED_VIEW_NAME} (2)`), 20_000);
     const stored = String(
       Zotero.Prefs.get(`${config.prefsPrefix}.graphViews`, true) ?? "[]",
     );
     expect(
+      names(),
+      `chip text was "${chipText()}"; the preference held ${stored}`,
+    ).to.include(`${IMPORTED_VIEW_NAME} (2)`);
+    const suffixed = normalize((await openChipMenu()).textContent);
+    expect(
+      suffixed,
+      `the dropdown read "${suffixed}"; the preference held ${stored}`,
+    ).to.contain(`${IMPORTED_VIEW_NAME} (2)`);
+    await closeChipMenu();
+    expect(
       chipText(),
       `chip text was "${chipText()}"; the preference held ${stored}`,
-    ).to.contain(`${IMPORTED_VIEW_NAME} (2)`);
-    expect(
-      JSON.parse(stored).map((saved: { name: string }) => saved.name),
-      `the preference held ${stored}`,
-    ).to.include(`${IMPORTED_VIEW_NAME} (2)`);
+    ).to.contain(IMPORTED_VIEW_NAME);
   });
 });

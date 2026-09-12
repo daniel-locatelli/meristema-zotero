@@ -22,6 +22,12 @@ export interface GraphViewsMenuOptions {
   onSaveCurrent: () => void;
   onImport: () => void;
   onOpenGallery: () => void;
+  /**
+   * The dropdown is about to be drawn. The service drops its active-view
+   * memo here, so a rename or a delete made in another tab shows on the
+   * next open rather than on the next render.
+   */
+  onOpen?: () => void;
 }
 
 export interface GraphViewsMenu {
@@ -175,6 +181,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
   const open = (): void => {
     // Saved views, their names and the tick are as of this moment, and the
     // reader cannot be mid-click on a row that is about to be replaced.
+    o.onOpen?.();
     refresh(activeID);
     menu.hidden = false;
     button.setAttribute("aria-expanded", "true");
@@ -338,7 +345,13 @@ export function createViewGallery(
   return {
     root,
     show(count) {
-      heading.textContent = `How do you want to look at these ${count.toLocaleString()} papers?`;
+      const line = `How do you want to look at these ${count.toLocaleString()} papers?`;
+      // `maybeShowGallery` runs at the end of every filter pass. Writing the
+      // same heading into a gallery that is already up would re-invalidate
+      // its blurred compositing layer each time, so an unchanged show is a
+      // no-op.
+      if (!root.hidden && heading.textContent === line) return;
+      heading.textContent = line;
       root.hidden = false;
     },
     hide() {

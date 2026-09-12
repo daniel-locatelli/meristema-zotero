@@ -684,18 +684,16 @@ function viewStateOptions(
  * production. It is spread first at every render site, so it supplies
  * test-only options and can never shadow a real one such as `initialState`.
  *
- * `Zotero` carries it, not `globalThis`: the test bundle is a second copy of
+ * `Zotero` carries it, and nothing else: the test bundle is a second copy of
  * the plugin in a sandbox of its own, so the two copies share no global but
- * do share this object.
+ * do share this object. A `globalThis` seam is never seen by the copy that
+ * renders the graph.
  */
 function testGraphViewOptions(): Partial<GraphViewOptions> {
   const host = Zotero as unknown as Record<string, unknown>;
   return (
     (host.__meristemaGraphViewOptions as
-      Partial<GraphViewOptions> | undefined) ??
-    ((globalThis as Record<string, unknown>).__meristemaGraphViewOptions as
-      Partial<GraphViewOptions> | undefined) ??
-    {}
+      Partial<GraphViewOptions> | undefined) ?? {}
   );
 }
 
