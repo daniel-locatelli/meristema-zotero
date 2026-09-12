@@ -149,6 +149,14 @@ describe("The graph's Scope rail", function () {
    * pointer moves, and every point that names a paper it has not tried yet
    * gets a right-click. A seed's menu and a plain paper's differ, so the walk
    * continues until one of them offers the entry asked for.
+   *
+   * The grid is walked in whole CSS pixels (B43). A synthetic PointerEvent
+   * keeps a fractional clientX, but a synthetic MouseEvent is delivered at
+   * the truncated integer, so a hover at 182.8 and a right-click "at the same
+   * point" reached the renderer 0.8 px apart — and the first grid point to
+   * enter a node's disc is at its fringe, where that is enough to miss. Whether
+   * the canvas box sat on a fractional pixel is what made it a one-run-in-four
+   * flake.
    */
   async function nodeMenuEntry(label: string): Promise<HTMLButtonElement> {
     const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
@@ -172,45 +180,17 @@ describe("The graph's Scope rail", function () {
         .map((button) => button.textContent?.trim())
         .join(", ")}]`;
     };
-    // B43 evidence: does the right-click reach the canvas, and with which
-    // coordinates? A capture spy on the document and one on the canvas say.
-    const seen: string[] = [];
-    const spyDoc = (event: Event): void => {
-      const mouse = event as MouseEvent;
-      seen.push(`doc@${mouse.clientX},${mouse.clientY}`);
-    };
-    const spyCanvas = (event: Event): void => {
-      const mouse = event as MouseEvent;
-      seen.push(
-        `canvas@${mouse.clientX},${mouse.clientY} target=${
-          (event.target as Element | null)?.tagName
-        } same=${event.target === canvas}`,
-      );
-    };
-    win.document.addEventListener("contextmenu", spyDoc, true);
-    canvas.addEventListener("contextmenu", spyCanvas, true);
-    const rehover = (x: number, y: number, paper: string): boolean => {
-      // Leave the canvas, which clears the renderer's hover, then come back
-      // to the same point: does the hover find the same paper again?
-      canvas.dispatchEvent(
-        new win.PointerEvent("pointerleave", { bubbles: true }),
-      );
-      const cleared = canvas.title === "";
-      move(x, y);
-      return cleared && canvas.title === paper;
-    };
-    const finish = (): void => {
-      win.document.removeEventListener("contextmenu", spyDoc, true);
-      canvas.removeEventListener("contextmenu", spyCanvas, true);
-    };
     const started = Date.now();
     const deadline = started + 20_000;
     let passes = 0;
     for (;;) {
       passes += 1;
       const box = canvas.getBoundingClientRect();
-      for (let y = box.top + 4; y < box.bottom - 4; y += 5) {
-        for (let x = box.left + 4; x < box.right - 4; x += 5) {
+      // Whole pixels, so the hover and the right-click test the same point.
+      const left = Math.ceil(box.left);
+      const top = Math.ceil(box.top);
+      for (let y = top + 4; y < box.bottom - 4; y += 5) {
+        for (let x = left + 4; x < box.right - 4; x += 5) {
           move(x, y);
           const paper = canvas.title;
           if (!paper || tried.has(paper)) continue;
@@ -221,30 +201,20 @@ describe("The graph's Scope rail", function () {
             clientX: x,
             clientY: y,
           });
-          seen.length = 0;
           canvas.dispatchEvent(rightClick);
           // The renderer prevents the default only when its hit test found a
           // node, so this says whether the right-click and the hover agreed.
-          const state = menuState();
           clicks.push(
             `${paper.split("\n")[0]} @${x},${y} (box ${Math.round(
               box.left,
             )},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(
               box.height,
-            )}) pass ${passes}: hit=${rightClick.defaultPrevented} ${state}` +
-              ` title-after=${canvas.title === paper}` +
-              ` seen=[${seen.join("; ") || "nothing"}]` +
-              (state === "menu hidden"
-                ? ` rehover=${rehover(x, y, paper)}`
-                : ""),
+            )}) pass ${passes}: hit=${rightClick.defaultPrevented} ${menuState()}`,
           );
           const entry = nodeMenuItems().find(
             (button) => button.textContent?.trim() === label,
           );
-          if (entry) {
-            finish();
-            return entry;
-          }
+          if (entry) return entry;
           closeNodeMenu();
         }
       }
@@ -253,7 +223,6 @@ describe("The graph's Scope rail", function () {
       // moved under it by the next pass.
       await delay(500);
     }
-    finish();
     expect.fail(
       `no node menu entry reading ${label}; ${tried.size} paper(s) offered ` +
         `${[...tried].join(" | ") || "nothing"}` +
