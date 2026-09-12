@@ -58,6 +58,14 @@ export interface CitationGraphNode {
   itemKey: string;
   kind?: CitationGraphNodeKind;
   focusRole?: CitationGraphFocusRole | null;
+  /**
+   * Distance from the nearest seed along the graph's hop direction, stamped
+   * by `graphHopModel.ts` on the external nodes it builds. Never read by the
+   * renderer or the Key, which take the hop map from `setHops`, because
+   * `additiveGraphModel` keeps the library's own node object and drops the
+   * model's copy for a library paper.
+   */
+  hop?: number | null;
   externalWork?: RelatedWorkMetadata | null;
   title: string;
   abstract: string | null;
