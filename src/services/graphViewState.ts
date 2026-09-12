@@ -10,11 +10,12 @@ import {
   onlyCollectionsTicked,
   type GraphViewCollectionTicks,
 } from "./graphScopeModel";
+import { externalWorkToFocusNode } from "./graphFocusService";
 import {
-  externalWorkToFocusNode,
-  type GraphFocusDirection,
-  type GraphFocusLocality,
-} from "./graphFocusService";
+  clampHopDepth,
+  MAX_HOP_DEPTH,
+  type HopDirection,
+} from "./graphHopModel";
 import {
   defaultPaperListFilterState,
   type PaperListFilterState,
@@ -32,7 +33,7 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 4;
+export const GRAPH_VIEW_STATE_VERSION = 5;
 
 /**
  * Which view (D4) the graph is on. `null` is "never chosen", which shows
@@ -53,16 +54,23 @@ export type GraphViewSeed =
    */
   | { kind: "external"; identityKey: string; work: RelatedWorkMetadata };
 
-export interface GraphViewExploreSettings {
-  direction: GraphFocusDirection;
-  locality: GraphFocusLocality;
+export interface GraphViewHopsSettings {
+  direction: HopDirection;
+  /** The deepest hop opened, 1..6. */
+  depth: number;
+  /** By hop, length 7; index 0 is the seeds and is always true. */
+  enabled: boolean[];
+}
+
+export function defaultHopEnabled(): boolean[] {
+  return Array.from({ length: MAX_HOP_DEPTH + 1 }, () => true);
 }
 
 export interface GraphViewState {
   version: typeof GRAPH_VIEW_STATE_VERSION;
   /** Ordered. The first entry is the primary seed. Empty means library graph. */
   seeds: GraphViewSeed[];
-  explore: GraphViewExploreSettings;
+  hops: GraphViewHopsSettings;
   filters: PaperListFilterState;
   /** Which of the library's folders are drawn. */
   collections: GraphViewCollectionTicks;
@@ -116,20 +124,20 @@ export interface GraphViewState {
    * under a ticked parent would come back.
    */
   ticksNeedDescendants?: boolean;
+  /**
+   * True when this parse mapped a version 4 `explore.direction` of `both`
+   * to Citers. The view shows a one-time status for it. Never serialised.
+   */
+  migratedFromBothDirections?: boolean;
 }
 
-const DIRECTIONS: readonly GraphFocusDirection[] = [
-  "both",
-  "references",
-  "cited-by",
-];
-const LOCALITIES: readonly GraphFocusLocality[] = ["all", "local"];
+const HOP_DIRECTIONS: readonly HopDirection[] = ["cited-by", "references"];
 
 export function emptyGraphViewState(): GraphViewState {
   return {
     version: GRAPH_VIEW_STATE_VERSION,
     seeds: [],
-    explore: { direction: "both", locality: "all" },
+    hops: { direction: "cited-by", depth: 1, enabled: defaultHopEnabled() },
     filters: defaultPaperListFilterState(),
     collections: allCollectionsTicked(),
     includeUnfiled: true,
@@ -215,7 +223,11 @@ export function resolveGraphViewSeeds(
 }
 
 export function serializeGraphViewState(state: GraphViewState): string {
-  const { ticksNeedDescendants: _migrated, ...persisted } = state;
+  const {
+    ticksNeedDescendants: _migrated,
+    migratedFromBothDirections: _both,
+    ...persisted
+  } = state;
   return JSON.stringify(persisted);
 }
 
@@ -442,6 +454,50 @@ function migrateFromVersion1(
   };
 }
 
+/**
+ * Version 5 stores `hops`. Versions 1 to 4 stored `explore.direction` in
+ * `both | references | cited-by`; `both` and `cited-by` become Citers, and
+ * `both` is reported so the view can say so once. Locality is dropped.
+ *
+ * Which field is authoritative is decided by `version`, not by which key
+ * happens to be present: a version 4 fixture built by spreading
+ * `emptyGraphViewState()` carries a default `hops` alongside its `explore`
+ * override, and the `explore` override must still win.
+ */
+function parseHops(
+  raw: Record<string, unknown>,
+  version: unknown,
+): { hops: GraphViewHopsSettings; migratedFromBoth: boolean } {
+  const empty = emptyGraphViewState().hops;
+  if (version === GRAPH_VIEW_STATE_VERSION && isRecord(raw.hops)) {
+    const rawHops = raw.hops;
+    const direction =
+      HOP_DIRECTIONS.find((d) => d === rawHops.direction) ?? empty.direction;
+    const enabledRaw = Array.isArray(rawHops.enabled) ? rawHops.enabled : [];
+    const enabled = defaultHopEnabled().map((fallback, hop) =>
+      hop === 0
+        ? true
+        : typeof enabledRaw[hop] === "boolean"
+          ? enabledRaw[hop]
+          : fallback,
+    );
+    return {
+      hops: { direction, depth: clampHopDepth(rawHops.depth), enabled },
+      migratedFromBoth: false,
+    };
+  }
+  const explore = isRecord(raw.explore) ? raw.explore : {};
+  const legacy = explore.direction;
+  return {
+    hops: {
+      direction: legacy === "references" ? "references" : "cited-by",
+      depth: 1,
+      enabled: defaultHopEnabled(),
+    },
+    migratedFromBoth: legacy === "both",
+  };
+}
+
 export function parseGraphViewState(json: string): GraphViewState | null {
   let raw: unknown;
   try {
@@ -452,6 +508,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 4 &&
     raw.version !== 3 &&
     raw.version !== 2 &&
     raw.version !== 1
@@ -459,9 +516,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     return null;
   }
   const empty = emptyGraphViewState();
-  const explore = isRecord(raw.explore) ? raw.explore : {};
-  const direction = DIRECTIONS.find((d) => d === explore.direction);
-  const locality = LOCALITIES.find((l) => l === explore.locality);
+  const hops = parseHops(raw, raw.version);
   const filters = parseFilters(raw.filters);
   const scope =
     raw.version === 1
@@ -478,7 +533,8 @@ export function parseGraphViewState(json: string): GraphViewState | null {
           ticksNeedDescendants: false,
         };
   // Regions have been stored since version 3; older records rebuild them
-  // from the ticks. Version 4 only added `view`.
+  // from the ticks. Version 4 only added `view`. Version 5 replaced
+  // `explore` with `hops`.
   const regions =
     typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
@@ -490,10 +546,10 @@ export function parseGraphViewState(json: string): GraphViewState | null {
           .map(parseSeed)
           .filter((seed): seed is GraphViewSeed => seed !== null)
       : [],
-    explore: {
-      direction: direction ?? empty.explore.direction,
-      locality: locality ?? empty.explore.locality,
-    },
+    hops: hops.hops,
+    ...(isRecord(raw.explore)
+      ? { migratedFromBothDirections: hops.migratedFromBoth }
+      : {}),
     filters,
     ...scope,
     regions,

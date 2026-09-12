@@ -167,7 +167,11 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
       { kind: "item", itemKey: "AAAA0001" },
       { kind: "external", identityKey: "doi:10.1000/seed", work: work() },
     ],
-    explore: { direction: "references", locality: "local" },
+    hops: {
+      direction: "references",
+      depth: 3,
+      enabled: [true, true, true, false, true, true, true],
+    },
     filters: {
       ...emptyGraphViewState().filters,
       collectionIDs: [3, 4],
@@ -191,7 +195,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 5 });
+    const other = JSON.stringify({ ...state, version: 6 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -221,9 +225,10 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
     expect(parsed?.seeds).to.deep.equal([
       { kind: "item", itemKey: "AAAA0001" },
     ]);
-    expect(parsed?.explore).to.deep.equal({
-      direction: "both",
-      locality: "local",
+    expect(parsed?.hops).to.deep.equal({
+      direction: "cited-by",
+      depth: 1,
+      enabled: [true, true, true, true, true, true, true],
     });
     expect(parsed?.filters.tag).to.equal(null);
     expect(parsed?.filters.excludeRetracted).to.equal(true);
@@ -318,7 +323,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 5 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 6 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -541,5 +546,79 @@ describe("markExternalSeedImported", function () {
     });
     expect(dropped).to.equal(0);
     expect(nodes).to.deep.equal([local]);
+  });
+});
+
+describe("hops in the state", function () {
+  const enabledAll = [true, true, true, true, true, true, true];
+
+  it("defaults to Citers, depth 1, every hop enabled", function () {
+    expect(emptyGraphViewState().hops).to.deep.equal({
+      direction: "cited-by",
+      depth: 1,
+      enabled: enabledAll,
+    });
+  });
+
+  it("migrates a version 4 explore, mapping both to Citers and reporting it", function () {
+    const migrate = (direction: string) =>
+      parseGraphViewState(
+        JSON.stringify({
+          ...emptyGraphViewState(),
+          version: 4,
+          explore: { direction, locality: "local" },
+        }),
+      )!;
+    expect(migrate("both").hops).to.deep.equal({
+      direction: "cited-by",
+      depth: 1,
+      enabled: enabledAll,
+    });
+    expect(migrate("both").migratedFromBothDirections).to.equal(true);
+    expect(migrate("cited-by").hops.direction).to.equal("cited-by");
+    expect(migrate("cited-by").migratedFromBothDirections).to.equal(false);
+    expect(migrate("references").hops.direction).to.equal("references");
+    expect(migrate("sideways").hops.direction).to.equal("cited-by");
+  });
+
+  it("round-trips a version 5 record and clamps the depth", function () {
+    const state = {
+      ...emptyGraphViewState(),
+      hops: {
+        direction: "references" as const,
+        depth: 4,
+        enabled: [true, true, false, true, true, true, true],
+      },
+    };
+    const parsed = parseGraphViewState(serializeGraphViewState(state))!;
+    expect(parsed.hops).to.deep.equal(state.hops);
+    expect(parsed.version).to.equal(5);
+    expect("migratedFromBothDirections" in parsed).to.equal(false);
+    const clamped = parseGraphViewState(
+      JSON.stringify({
+        ...state,
+        hops: { direction: "references", depth: 42, enabled: [] },
+      }),
+    )!;
+    expect(clamped.hops.depth).to.equal(6);
+    expect(clamped.hops.enabled).to.deep.equal(enabledAll);
+    expect(
+      parseGraphViewState(
+        serializeGraphViewState({ ...state, migratedFromBothDirections: true }),
+      ),
+    ).to.not.have.property("migratedFromBothDirections");
+  });
+
+  it("still migrates versions 1 to 3 and then applies the same mapping", function () {
+    const v3 = parseGraphViewState(
+      JSON.stringify({
+        version: 3,
+        seeds: [],
+        explore: { direction: "references", locality: "all" },
+        filters: {},
+      }),
+    )!;
+    expect(v3.hops.direction).to.equal("references");
+    expect(v3.version).to.equal(5);
   });
 });
