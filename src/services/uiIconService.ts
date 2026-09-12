@@ -19,7 +19,14 @@ export type IconName =
   | "fit"
   | "document"
   | "sliders"
-  | "settings";
+  | "settings"
+  | "view"
+  | "view-overview"
+  | "view-cornerstones"
+  | "view-reading-plan"
+  | "view-who-cites-whom"
+  | "view-folder-map"
+  | "view-user";
 
 const ICON_PATHS: Record<IconName, string[]> = {
   add: ["M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"],
@@ -96,6 +103,20 @@ const ICON_PATHS: Record<IconName, string[]> = {
   settings: [
     "M22.2 9.9L22.2 14.1L19.7 14.3L19.1 15.8L20.7 17.7L17.7 20.7L15.8 19.1L14.3 19.7L14.1 22.2L9.9 22.2L9.7 19.7L8.2 19.1L6.3 20.7L3.3 17.7L4.9 15.8L4.3 14.3L1.8 14.1L1.8 9.9L4.3 9.7L4.9 8.2L3.3 6.3L6.3 3.3L8.2 4.9L9.7 4.3L9.9 1.8L14.1 1.8L14.3 4.3L15.8 4.9L17.7 3.3L20.7 6.3L19.1 8.2L19.7 9.7ZM15.4 12.0L15.2 13.1L14.8 14.0L14.0 14.8L13.1 15.2L12.0 15.4L10.9 15.2L10.0 14.8L9.2 14.0L8.8 13.1L8.6 12.0L8.8 10.9L9.2 10.0L10.0 9.2L10.9 8.8L12.0 8.6L13.1 8.8L14.0 9.2L14.8 10.0L15.2 10.9Z",
   ],
+  // D4: drawn in Task 5
+  view: [],
+  // D4: drawn in Task 5
+  "view-overview": [],
+  // D4: drawn in Task 5
+  "view-cornerstones": [],
+  // D4: drawn in Task 5
+  "view-reading-plan": [],
+  // D4: drawn in Task 5
+  "view-who-cites-whom": [],
+  // D4: drawn in Task 5
+  "view-folder-map": [],
+  // D4: drawn in Task 5
+  "view-user": [],
 };
 
 /**
