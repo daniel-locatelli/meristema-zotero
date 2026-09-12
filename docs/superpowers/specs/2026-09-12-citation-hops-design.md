@@ -115,11 +115,21 @@ The walk is breadth first from the seed set. A paper already assigned keeps its
 hop and gains a parent; a seed is never reassigned, so promoting a hop-2 paper
 to a seed recomputes every hop from the new seed set. The walk reads the
 stored lists only; it never fetches. It reads each paper's list through the
-per-paper, per-direction fragment cache in `focusGraphCacheService.ts`, which
-survives with a new key: library, paper key, direction and the store's
-revision for that paper, invalidated by that paper's own `membership-published`
-and `metadata-published`, so a rebuild after one landing re-reads one list,
-not every expanded list.
+fragment cache in `focusGraphCacheService.ts`, whose entry becomes one list
+for one paper in one direction (today an entry holds a seed's references and
+citers together; the shape splits, not just the key). An entry is dropped by
+that paper's own `membership-published` and `metadata-published`; today only
+`metadata-published` drops one, so the publication handler gains the
+membership case. A rebuild after one landing then re-reads one list, not
+every expanded list.
+
+The model still computes the seed-relative **citation sequence**, the default
+X axis of a seeded graph: it calls `assignFocusCitationSequence` on its nodes
+and edges with the primary seed, exactly where the projection called it, and
+stamps `focusRole` on the nodes it clones, `"seed"` for a seed and
+`"reference"` or `"cited-by"` by the graph's direction, which is the fallback
+that service reads for a paper not directly linked to the primary seed. The
+role `"both"` can no longer occur and `mergeRole` goes with the projection.
 
 **How `hop` reaches the plot.** `additiveGraphModel` keeps the library's own
 node object and drops the hop model's copy, so a value stamped on the model's
@@ -144,9 +154,11 @@ outside it.
 
 ### Visibility, in order
 
-`computeGraphScope` keeps its shape: a seed is always visible; every other
+`computeGraphScope` keeps its order: a seed is always visible; every other
 paper is admitted by one of two rules that sit beside each other; the later
-rules then remove. The seed-reach rule becomes the hop rule.
+rules then remove. The seed-reach rule becomes the hop rule. The algorithm
+does change: today's single pass over a static reached set becomes a pass in
+hop order, because the hop rule reads a parent's final visibility.
 
 1. A seed is visible, always.
 2. **Admitted by folder ticks** (library papers), unchanged from Stage 2.
@@ -372,6 +384,8 @@ and depth it will save, as it lists the layout.
 - **Who cites whom** stays greyed on shared citers. The D4 spec asked this
   stage to fill its `explore` too; it is left as it is because its `requires`
   is two seeds and its meaning is the shared-citer tiers, which are Stage 4.
+- The `GraphViewNeeds` value `"citation-hops"` and its "Arrives with citation
+  hops" line have no user left once Cornerstones is ready; both are deleted.
 - A view whose `requires` is unmet on a seedless graph opens the Add seed panel
   with the view queued; when the seed lands, the view is applied. This is the
   behaviour the D4 spec deferred to "that stage's spec".
@@ -409,9 +423,10 @@ flag, the failed set, the plan, the per-hop expansion counts and caps, the
 reported counts. The design's `loadedDepth` does not exist: under a lazy fill
 "loaded" is a fact per paper, not per hop.
 
-**Store keys.** A hop node's key is `focus:<lookupIdentity>` of the parent's
-stored work, and `synchronizeExternalFocusNode` promotes a `focus:candidate:`
-key to a stable one once metadata identifies the work. A list stored under
+**Store keys.** A hop node's `key` is `focus:<lookupIdentity>` of the parent's
+stored work and never changes; the relationship store is keyed by `itemKey`,
+which `synchronizeExternalFocusNode` promotes from `focus:candidate:` to a
+stable identity once metadata identifies the work. A list stored under
 the promoted key must be found by a walk that rebuilds the node from the
 parent's unhydrated work; the hop model's lookup resolves a key through the
 same promotion before reading the store, and a unit case proves a list stored
@@ -452,11 +467,19 @@ under the promoted key is found from the candidate key.
   Explore section and the projection path; the seed path narrowed to manual).
 - Modify `src/services/graphViewState.ts` (version 5, migration, the `both`
   report).
-- Modify `src/services/graphFocusService.ts` (delete the projection; keep
-  `externalWorkToFocusNode`, `synchronizeExternalFocusNode`,
-  `additiveGraphModel`).
-- Modify `src/services/focusGraphCacheService.ts` (re-key the fragment cache
-  per paper and direction; drop the projection cache).
+- Modify `src/services/graphFocusService.ts` (delete the projection, the
+  ranking and `mergeRole`; keep `externalWorkToFocusNode`,
+  `synchronizeExternalFocusNode`, `additiveGraphModel`; export the
+  local-matching helpers the hop lookup needs).
+- Modify `src/services/focusGraphCacheService.ts` (one list per paper and
+  direction; drop the projection cache).
+- Modify `src/services/relationshipRefreshPolicy.ts`:
+  `relationshipProviderPolicyForSize` honours an explicit strategy and limit
+  instead of discarding them. This reverses a documented rule ("size must not
+  silently reduce the provider set") on purpose and narrowly: size still
+  never reduces it; a caller may, and only the hop runner does. The
+  architecture test that asserts overrides are discarded is rewritten to
+  assert they are honoured.
 - Modify `src/services/relationshipEvents.ts` and
   `src/services/itemTreeColumnService.ts` or wherever the coalescing lands
   (the `source: "hop-fill"` mark and the ten-second batching).
@@ -508,6 +531,12 @@ Unit (`test/unit`):
   the button's position, the progress line's three states.
 - `graphFocusService.test.ts`: the projection cases go; `additiveGraphModel`
   and the promotion cases stay.
+- `graphHopModel.test.ts` also proves the seed-relative citation sequence: the
+  primary seed at 0, a hop-1 citer positive, a hop-1 reference negative.
+- `focusGraphCacheService.test.ts` (new): one entry per paper and direction;
+  invalidating a paper drops both directions.
+- `architecture.test.ts`: the provider-policy case flips to "an explicit
+  override is honoured".
 - A runner case at the service level, DOM-stubbed as the seed refresh cases
   are: a paper whose refresh resolves nothing is marked failed and not
   re-planned; a landing on the runner's queue does not touch the Refresh
@@ -542,7 +571,8 @@ The citation floor, shared citers, the presets and the Key's shared-citer
 tiers (Stage 4). Per-seed direction. Cancelling an in-flight request. A
 "more" control for a paper with more than 50 works in a direction beyond the
 detail pane's manual refresh. Prior and Derivative works (the study branch).
-Any change to the providers' limits or backoff.
+Any change to the providers' limits or backoff (the provider policy change
+above narrows which providers one expansion asks; it touches no limit).
 
 ## Review 2026-09-12
 
@@ -583,3 +613,22 @@ rest changed the spec as follows.
   tests and the `focus:candidate:` promotion case are on the list.
 - **Cache.** `focusGraphCacheService.ts` was already used by the publication
   handler, so it survives re-keyed rather than deleted.
+
+### Second pass, same day
+
+A second fresh-context review of the folded spec found eight items, none of
+which overturned a decision.
+
+- **Citation sequence.** `assignFocusCitationSequence` had one caller, the
+  deleted projection, and it feeds the default X axis of a seeded graph. The
+  hop model calls it and stamps `focusRole` by direction; `"both"` and
+  `mergeRole` go.
+- **Provider policy.** `relationshipProviderPolicyForSize` discards the
+  overrides it is handed, by design and by test, so "one provider per
+  expansion" needs that function changed and the test flipped; stated as a
+  deliberate, narrow reversal.
+- **Fragment cache.** The entry shape splits per direction, and the handler
+  gains membership-published invalidation, which today only metadata has.
+- **Wording.** The scope function keeps its order, not its algorithm; the
+  promoted key is `itemKey`, not `key`; the dead `"citation-hops"` needs value
+  is deleted.
