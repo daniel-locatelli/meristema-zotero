@@ -1,4 +1,5 @@
 import type { CitationProviderID } from "../domain/citationTypes";
+import type { CitationUpdateCompletedEvent } from "./citationUpdateEvents";
 import { publishCitationUpdateCompleted } from "./citationUpdateEvents";
 
 export type PublishedRelationshipDirection = "references" | "cited-by";
@@ -16,6 +17,8 @@ export interface RelationshipPublicationEvent {
   reportedCount: number | null;
   reportedCountProvider: CitationProviderID | null;
   identifiedCount: number;
+  /** Set by the hop runner; presentation refreshes for these are coalesced. */
+  source?: "hop-fill";
 }
 
 export interface RelationshipPublicationState {
@@ -79,6 +82,21 @@ function deferListenerPublication(
   deferredPublications.set(key, deferred);
 }
 
+/** One item-tree column refresh per this many ms while the runner fills. */
+export const HOP_FILL_REFRESH_COALESCE_MS = 10_000;
+
+let coalescedRefresh: ReturnType<typeof setTimeout> | null = null;
+let coalescedEvent: CitationUpdateCompletedEvent | null = null;
+
+/** Fire the held refresh now; the runner calls this when its plan empties. */
+export function flushCoalescedPresentationRefresh(): void {
+  if (coalescedRefresh) clearTimeout(coalescedRefresh);
+  coalescedRefresh = null;
+  const event = coalescedEvent;
+  coalescedEvent = null;
+  if (event) publishCitationUpdateCompleted(event);
+}
+
 function requestPresentationRefresh(event: RelationshipPublicationEvent): void {
   // The initiating view already marks itself as updating, and graph listeners
   // receive the publication directly. Re-rendering every item pane and item
@@ -92,11 +110,27 @@ function requestPresentationRefresh(event: RelationshipPublicationEvent): void {
   // graph views subscribe to the targeted relationship publication directly.
   if (event.phase === "metadata-published") return;
 
-  publishCitationUpdateCompleted({
+  const refresh = {
     refreshGraph: false,
     refreshColumns: event.phase === "membership-published",
     refreshItemPanes: true,
-  });
+  };
+  if (event.source === "hop-fill") {
+    coalescedEvent = {
+      refreshGraph: false,
+      refreshColumns:
+        refresh.refreshColumns || Boolean(coalescedEvent?.refreshColumns),
+      refreshItemPanes: true,
+    };
+    if (!coalescedRefresh) {
+      coalescedRefresh = setTimeout(
+        flushCoalescedPresentationRefresh,
+        HOP_FILL_REFRESH_COALESCE_MS,
+      );
+    }
+    return;
+  }
+  publishCitationUpdateCompleted(refresh);
 }
 
 export function getRelationshipPublicationState(

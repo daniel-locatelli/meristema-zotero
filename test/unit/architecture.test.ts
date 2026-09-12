@@ -811,7 +811,7 @@ describe("Architecture foundations", function () {
     expect(policy.metadataBatchSize).to.equal(50);
   });
 
-  it("does not reduce the enabled provider set for very large relationship lists", function () {
+  it("size never reduces the provider set, an explicit override does", function () {
     expect(relationshipProviderPolicyForSize("manual", 1221)).to.deep.equal({
       providerStrategy: "aggregate",
       providerLimit: Number.POSITIVE_INFINITY,
@@ -822,8 +822,8 @@ describe("Architecture foundations", function () {
         providerLimit: 2,
       }),
     ).to.deep.equal({
-      providerStrategy: "aggregate",
-      providerLimit: Number.POSITIVE_INFINITY,
+      providerStrategy: "native-first",
+      providerLimit: 2,
     });
   });
 

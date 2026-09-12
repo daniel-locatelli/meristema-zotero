@@ -66,10 +66,11 @@ export function relationshipProviderPolicyForSize(
 ): Pick<RelationshipRefreshPolicy, "providerStrategy" | "providerLimit"> {
   void mode;
   void reportedCount;
-  void overrides;
+  // Size never reduces the provider set (B9). A caller may still narrow it
+  // on purpose: a hop expansion asks the paper's own provider and no other.
   return {
-    providerStrategy: "aggregate",
-    providerLimit: Number.POSITIVE_INFINITY,
+    providerStrategy: overrides.providerStrategy ?? "aggregate",
+    providerLimit: overrides.providerLimit ?? Number.POSITIVE_INFINITY,
   };
 }
 

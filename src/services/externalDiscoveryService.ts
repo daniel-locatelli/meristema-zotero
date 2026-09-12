@@ -178,6 +178,7 @@ interface RelationshipMetadataHydrationTarget {
   providers: Set<CitationProviderID>;
   silent: boolean;
   onHydrated: Set<() => void>;
+  source?: "hop-fill";
 }
 
 interface RelationshipMetadataHydrationQueueEntry {
@@ -415,6 +416,7 @@ function publishRelationshipState(
     | "refresh-finished",
   identifiedCount: number,
   reported: RelationshipReportedCount | null,
+  source?: "hop-fill",
 ): void {
   publishRelationshipPublication({
     libraryID: nodeLibraryID(node),
@@ -424,6 +426,7 @@ function publishRelationshipState(
     reportedCount: reported?.count ?? null,
     reportedCountProvider: reported?.provider ?? null,
     identifiedCount,
+    ...(source ? { source } : {}),
   });
 }
 
@@ -637,6 +640,7 @@ function queueRelationshipMetadataHydration(
   ).providers,
   silent = false,
   onHydrated?: () => void,
+  source?: "hop-fill",
 ): void {
   if (!externalDiscoveryRunning) return;
   const target: RelationshipMetadataHydrationTarget = {
@@ -645,6 +649,7 @@ function queueRelationshipMetadataHydration(
     providers: new Set(providers),
     silent,
     onHydrated: new Set(onHydrated ? [onHydrated] : []),
+    ...(source ? { source } : {}),
   };
   const targetKey = relationshipHydrationTargetKey(target);
   for (const rawWork of works) {
@@ -667,6 +672,7 @@ function queueRelationshipMetadataHydration(
         }
         existingTarget.silent = existingTarget.silent && silent;
         if (onHydrated) existingTarget.onHydrated.add(onHydrated);
+        if (source) existingTarget.source = source;
       } else {
         existing.targets.set(targetKey, target);
       }
@@ -707,6 +713,7 @@ async function persistHydratedRelationshipMetadata(
       "metadata-published",
       selectedCount,
       storedRelationshipReportedCount(target.node, target.direction),
+      target.source,
     );
     await yieldToUI();
   }
@@ -748,6 +755,7 @@ function accumulateHydrationTargets(
     for (const callback of target.onHydrated) {
       existing.onHydrated.add(callback);
     }
+    if (target.source) existing.source = target.source;
   }
 }
 
@@ -764,6 +772,7 @@ function uniqueRelationshipHydrationTargets(
       for (const callback of target.onHydrated) {
         existing.onHydrated.add(callback);
       }
+      if (target.source) existing.source = target.source;
     } else {
       uniqueTargets.set(key, target);
     }
@@ -1457,6 +1466,8 @@ export interface ExternalRelationshipRefreshOptions {
   mode?: RelationshipRefreshMode;
   providerStrategy?: RelationshipProviderStrategy;
   providerLimit?: number;
+  /** Set by the hop runner; marks publications for coalesced presentation refresh. */
+  publicationSource?: "hop-fill";
   metadataHydrationLimit?: number;
   metadataBatchSize?: number;
   /** Show a singleton progress activity while deferred metadata is hydrated. */
@@ -1680,6 +1691,7 @@ async function runExternalRelationshipRefresh(
       "refresh-started",
       cachedMembershipCount,
       storedRelationshipReportedCount(node, direction),
+      options.publicationSource,
     );
     const providers = relationshipProviders(
       node,
@@ -1791,6 +1803,7 @@ async function runExternalRelationshipRefresh(
       "membership-published",
       committed.length,
       publishedReported,
+      options.publicationSource,
     );
     options.onMembershipResolved?.({
       complete: selection.complete,
@@ -1848,6 +1861,7 @@ async function runExternalRelationshipRefresh(
       "metadata-published",
       committed.length,
       publishedReported,
+      options.publicationSource,
     );
 
     if (queueBackgroundHydration && committed.length && !cancelled()) {
@@ -1861,6 +1875,7 @@ async function runExternalRelationshipRefresh(
         usable.map((snapshot) => snapshot.provider),
         options.showBackgroundProgress !== true,
         options.onMetadataHydrated,
+        options.publicationSource,
       );
     }
     const output = toExternalWorks(committed.slice(0, maximum), libraryNodes);
@@ -1888,6 +1903,7 @@ async function runExternalRelationshipRefresh(
         "refresh-finished",
         selectedCount,
         storedRelationshipReportedCount(node, direction),
+        options.publicationSource,
       );
     }
     if (refreshMembership) {
