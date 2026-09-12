@@ -610,7 +610,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   function progressLine(progress: ScopeHopsProgress): HTMLElement {
     const line = element(document, "p", "cm-scope-hop-progress");
     line.append(text(document, "span", progress.text));
-    const control = element(document, "button", "cm-scope-show-all");
+    // Its own class, not the hidden line's `cm-scope-show-all`: the two sit in
+    // the same Scope section, and a `querySelector` for one must never answer
+    // with the other (the progress line is rendered above it).
+    const control = element(document, "button", "cm-scope-hop-action");
     control.type = "button";
     control.textContent = progress.actionLabel;
     control.addEventListener("click", () =>

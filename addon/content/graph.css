@@ -1395,6 +1395,7 @@
   font-weight: 600;
 }
 .meristema-root .cm-scope-add-seed,
+.meristema-root .cm-scope-hop-action,
 .meristema-root .cm-scope-show-all {
   appearance: none;
   min-width: 0;
@@ -1408,6 +1409,7 @@
   cursor: pointer;
 }
 .meristema-root .cm-scope-add-seed:hover,
+.meristema-root .cm-scope-hop-action:hover,
 .meristema-root .cm-scope-show-all:hover {
   text-decoration: underline;
 }
