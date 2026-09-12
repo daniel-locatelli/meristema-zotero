@@ -826,7 +826,7 @@
   font-size: 11px;
   line-height: 1.4;
 }
-.cm-view-gallery-last {
+.meristema-root .cm-view-gallery-last {
   justify-content: center;
   align-items: center;
   gap: 10px;
