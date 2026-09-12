@@ -477,6 +477,9 @@ export function createAxesAppearance(
     labels.appendChild(option);
   }
   labels.value = initial.nodeLabelMode;
+  // The one select in the panel a test can name: the others are found by the
+  // metric they carry, and "Label" has no metric.
+  labels.dataset.role = "labels";
 
   const tabs = element(document, "div", "cm-detail-tabs");
   tabs.style.marginTop = "0";
