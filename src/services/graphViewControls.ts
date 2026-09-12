@@ -13,11 +13,11 @@ import type {
 } from "../domain/graphTypes";
 import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
 import { externalWorkDisplayTitle } from "./externalWorkMetadataService";
+import { metricHasData } from "./graphLayoutAvailability";
 import { clamp } from "./graphMetricScale";
 import {
   axisMetricDefinitions,
   getMetricDefinition,
-  metricValue,
   nodeColorMetricDefinitions,
   nodeSizeMetricDefinitions,
 } from "./metricRegistry";
@@ -221,17 +221,6 @@ interface SelectableMetricDefinition {
   label: string;
   description: string;
   interpretation?: string;
-}
-
-function metricHasData(nodes: CitationGraphNode[], metric: MetricID): boolean {
-  // Focus projections derive this metric after the appearance controls are
-  // created, so it must remain selectable even when the initial library graph
-  // has no precise publication dates.
-  if (metric === "citation-sequence") return true;
-  return nodes.some((node) => {
-    const value = metricValue(node, metric);
-    return typeof value === "number" && Number.isFinite(value);
-  });
 }
 
 function createMetricSelect(
