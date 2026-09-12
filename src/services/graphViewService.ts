@@ -4655,8 +4655,8 @@ export function renderGraphView(
     }
   });
   updateSummary();
-  // Populate the dropdown once; from here on it redraws as it opens.
-  viewsMenu.refresh(null);
+  // The dropdown builds its rows when it opens, so there is nothing to draw
+  // here; `refreshViewChip` sets the label and the id the next open ticks.
   refreshViewChip();
   maybeShowGallery();
   const localCitationWarmupItemIDs = [

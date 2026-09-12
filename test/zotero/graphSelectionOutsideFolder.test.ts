@@ -194,6 +194,28 @@ describe("Selecting a node whose paper is outside the open folder", function () 
       30_000,
     );
     expect(rail, "the rail's Scope section").to.exist;
+
+    // D4: a graph that has never chosen a view greets the reader with the
+    // gallery, and the gallery lies over the plot. A real pointer would land
+    // on it rather than on a node, so it is sent away the way a reader sends
+    // it away — the gallery's own "Start blank".
+    const gallery = await waitFor(
+      () => graphRoot().querySelector(".cm-view-gallery") as HTMLElement | null,
+      15_000,
+    );
+    expect(gallery, "D4's view gallery").to.exist;
+    await waitFor(() => !gallery!.hidden, 15_000);
+    const blank = (
+      Array.from(gallery!.querySelectorAll("button")) as HTMLButtonElement[]
+    ).find((button) => button.textContent?.trim() === "Start blank");
+    expect(blank, "the gallery's Start blank button").to.exist;
+    blank!.click();
+    const dismissed = await waitFor(() => gallery!.hidden, 10_000);
+    expect(
+      dismissed,
+      "the gallery is down before the plot is clicked",
+    ).to.equal(true);
+
     const fit = await waitFor(
       () =>
         graphRoot().querySelector(
@@ -270,10 +292,14 @@ describe("Selecting a node whose paper is outside the open folder", function () 
         point.x,
         point.y,
       ) as Element | null;
+      const gallery = graphRoot().querySelector(
+        ".cm-view-gallery",
+      ) as HTMLElement | null;
       expect(
         selectedInGraph,
         `the graph selected the outside paper (detail pane: ${detailTitle()}; ` +
-          `under the pointer: ${under?.tagName}#${under?.id})`,
+          `under the pointer: ${under?.tagName}#${under?.id}; ` +
+          `gallery hidden: ${gallery ? gallery.hidden : "absent"})`,
       ).to.equal(true);
 
       const askedZotero = await waitFor(() => asked.length > 0, 5_000);
