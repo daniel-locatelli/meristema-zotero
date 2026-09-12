@@ -429,7 +429,7 @@ export function renderGraphView(
     ? [...options.initialCollectionIDs]
     : [];
   /** D4: the view this graph is on; null shows the gallery once. */
-  let view: GraphViewRef = null;
+  let activeViewRef: GraphViewRef = null;
   /**
    * `activeView` runs from `refreshViewChip`, so on every keystroke in the
    * search box; for a saved view that is a preference read and a JSON parse
@@ -839,7 +839,7 @@ export function renderGraphView(
     shipped: SHIPPED_GRAPH_VIEWS,
     onChoose: (chosen) => applyGraphView(chosen),
     onBlank: () => {
-      view = "blank";
+      activeViewRef = "blank";
       invalidateActiveView();
       viewGallery.hide();
       refreshViewChip();
@@ -2004,14 +2004,14 @@ export function renderGraphView(
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
   const activeView = (): GraphViewDefinition | null => {
-    if (!view || view === "blank") return null;
-    if (activeViewCache && activeViewCache.id === view.id) {
+    if (!activeViewRef || activeViewRef === "blank") return null;
+    if (activeViewCache && activeViewCache.id === activeViewRef.id) {
       return activeViewCache.view;
     }
     // The miss is cached too: an id naming a view deleted in another tab
     // would otherwise re-read the preference on every keystroke.
-    const found = viewByID(view.id);
-    activeViewCache = { id: view.id, view: found };
+    const found = viewByID(activeViewRef.id);
+    activeViewCache = { id: activeViewRef.id, view: found };
     return found;
   };
   /*
@@ -2038,7 +2038,7 @@ export function renderGraphView(
   };
   /** The gallery shows once, for a graph that has never chosen and has papers. */
   maybeShowGallery = (): void => {
-    if (view !== null) return viewGallery.hide();
+    if (activeViewRef !== null) return viewGallery.hide();
     const shown = visibleNodeCount();
     if (shown > 0) viewGallery.show(shown);
     else viewGallery.hide();
@@ -2062,7 +2062,7 @@ export function renderGraphView(
     // The view is on the graph before the filters move: `setState` fires the
     // controller's `onChange`, which runs `applyFilters` and with it
     // `maybeShowGallery`, and that must not flash the gallery on its way out.
-    view = { id: chosen.id };
+    activeViewRef = { id: chosen.id };
     invalidateActiveView();
     viewGallery.hide();
     graphFilter.setState({ ...plan.filters, collectionIDs: [] });
@@ -2159,13 +2159,16 @@ export function renderGraphView(
         // dropdown must not move the chip onto it, where the live settings
         // would read "(edited)" against a view nobody applied.
         const becomesActive =
-          !existing || (view && view !== "blank" && view.id === existing.id);
+          !existing ||
+          (activeViewRef &&
+            activeViewRef !== "blank" &&
+            activeViewRef.id === existing.id);
         invalidateActiveView();
         if (!becomesActive) {
           refreshViewChip();
           return;
         }
-        view = { id: saved.id };
+        activeViewRef = { id: saved.id };
         invalidateActiveView();
         viewGallery.hide();
         notifyStateChange();
@@ -2191,8 +2194,12 @@ export function renderGraphView(
         ? (): void => {
             deleteGraphView(existing.id);
             invalidateActiveView();
-            if (view && view !== "blank" && view.id === existing.id) {
-              view = "blank";
+            if (
+              activeViewRef &&
+              activeViewRef !== "blank" &&
+              activeViewRef.id === existing.id
+            ) {
+              activeViewRef = "blank";
               notifyStateChange();
             }
             // The card explains a view that is gone; it goes with it.
@@ -4492,7 +4499,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       categorySwatches: renderer?.getCategorySwatchLedger() ?? categorySwatches,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
-      view,
+      view: activeViewRef,
     };
   };
 
@@ -4545,7 +4552,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       categorySwatches = state.categorySwatches;
       // Reopening a saved graph restores the chip's label only: nothing
       // reapplies the view, because the state already carries what it did.
-      view = state.view;
+      activeViewRef = state.view;
       invalidateActiveView();
       renderer?.setCategorySwatchLedger(categorySwatches);
       applyFilters();
@@ -4736,7 +4743,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           ...options.initialState.filters,
           collectionIDs: [],
         });
-        view = options.initialState.view;
+        activeViewRef = options.initialState.view;
         invalidateActiveView();
         if (focusProjection) scheduleFocusRebuild();
       } else {
