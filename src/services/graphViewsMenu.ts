@@ -360,6 +360,7 @@ export function createSavePanel(document: Document): SavePanel {
   root.hidden = true;
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Save view");
+  root.tabIndex = -1;
   const title = text(
     document,
     "h2",
