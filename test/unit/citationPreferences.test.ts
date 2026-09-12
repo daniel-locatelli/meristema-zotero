@@ -4,6 +4,7 @@ import { config } from "../../package.json";
 import {
   getFocusGraphAppearance,
   getGraphAppearance,
+  initialGraphAppearance,
 } from "../../src/services/citationPreferences";
 
 const prefKey = (name: string): string => `${config.prefsPrefix}.${name}`;
@@ -103,5 +104,43 @@ describe("the focus graph appearance preference", function () {
       "log",
       "the rest of the record survives",
     );
+  });
+});
+
+describe("the appearance a graph opens with (B41)", function () {
+  const record = (xMetric: string): string =>
+    JSON.stringify({
+      xMetric,
+      xScale: "linear",
+      yMetric: "citations",
+      yScale: "linear",
+      nodeSizeMetric: "citations",
+      nodeColorMetric: "uniform",
+      nodeLabelMode: "author-year",
+    });
+
+  it("reads the focus variant for a seeded graph and the global one otherwise", function () {
+    // The gear writes focusGraphAppearance while a graph is seeded, so a
+    // seeded open has to read it back, or the change is lost on reopen.
+    stubPrefs({
+      graphAppearanceVersion: 4,
+      graphAppearance: record("free"),
+      focusGraphAppearanceVersion: 1,
+      focusGraphAppearance: record("year"),
+    });
+    expect(initialGraphAppearance(false).xMetric).to.equal("free");
+    expect(initialGraphAppearance(true).xMetric).to.equal("year");
+  });
+
+  it("gives a seeded graph the citation-sequence variant of the global one when no focus record exists", function () {
+    stubPrefs({ graphAppearanceVersion: 4, graphAppearance: record("free") });
+    const seeded = initialGraphAppearance(true);
+    expect(seeded.xMetric).to.equal("citation-sequence");
+    expect(seeded.xScale).to.equal("linear");
+    expect(seeded.yMetric).to.equal("citations");
+    expect(
+      store[prefKey("focusGraphAppearance")],
+      "the fallback is written, so the gear's next write has a base",
+    ).to.be.a("string");
   });
 });

@@ -218,6 +218,7 @@ import {
 } from "./focusGraphCacheService";
 import {
   getGraphAppearance,
+  initialGraphAppearance,
   resetFocusGraphAppearance,
   resetGraphAppearance,
   setFocusGraphAppearance,
@@ -607,7 +608,14 @@ export function renderGraphView(
   }> = () => [];
   /** What the search is currently matching, so the Key can name that mark. */
   let searchMatchKeys: Set<string> | null = null;
-  const initialLayout = getGraphAppearance();
+  // B41: a graph that opens seeded reads the focus record the gear writes
+  // while a graph is seeded (see `createAxesAppearance`'s persist callback
+  // below), not the library graph's; otherwise a gear change made on a seeded
+  // graph was written and never read back.
+  const opensSeeded = Boolean(
+    options.initialFocusItemIDs?.length || options.initialState?.seeds.length,
+  );
+  const initialLayout = initialGraphAppearance(opensSeeded);
   const selectPaper = async (itemID: number): Promise<void> => {
     try {
       await options.onSelectPaper(itemID);

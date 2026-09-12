@@ -293,3 +293,16 @@ export function resetFocusGraphAppearance(
   setFocusGraphAppearance(reset);
   return reset;
 }
+
+/**
+ * The layout a graph opens with. The gear writes the focus record while a
+ * graph is seeded and the global one otherwise, so an open has to read the
+ * same way round: a graph that opens seeded (a request with seeds, or a
+ * saved graph whose recipe has them) takes the focus variant, a library
+ * graph the global one. Before B41 every open read the global record, and a
+ * gear change on a seeded graph was lost on reopen.
+ */
+export function initialGraphAppearance(seeded: boolean): GraphLayoutOptions {
+  const base = getGraphAppearance();
+  return seeded ? getFocusGraphAppearance(base) : base;
+}
