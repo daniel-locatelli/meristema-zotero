@@ -32,7 +32,15 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 3;
+export const GRAPH_VIEW_STATE_VERSION = 4;
+
+/**
+ * Which view (D4) the graph is on. `null` is "never chosen", which shows
+ * the gallery; `"blank"` is the reader's Start blank; otherwise the id of a
+ * shipped view or of a saved one (`user:…`). "(edited)" is never stored: the
+ * chip recomputes it by comparing the live settings with the view.
+ */
+export type GraphViewRef = { id: string } | "blank" | null;
 
 /** At most this many folder regions are drawn at once. */
 
@@ -98,6 +106,7 @@ export interface GraphViewState {
   camera: GraphViewTransform | null;
   /** The custom tab title, or null when the title is derived. */
   title: string | null;
+  view: GraphViewRef;
   /**
    * True when the ticks came out of the version 1 migration and still name
    * only the folders that recipe listed. The view expands them once through
@@ -132,6 +141,7 @@ export function emptyGraphViewState(): GraphViewState {
     categorySwatches: emptySwatchLedger(),
     camera: null,
     title: null,
+    view: null,
   };
 }
 
@@ -323,6 +333,14 @@ function parseCamera(value: unknown): GraphViewTransform | null {
     : { x, y, scale };
 }
 
+function parseViewRef(value: unknown): GraphViewRef {
+  if (value === "blank") return "blank";
+  if (isRecord(value) && typeof value.id === "string" && value.id.trim()) {
+    return { id: value.id };
+  }
+  return null;
+}
+
 function parseTicks(value: unknown): GraphViewCollectionTicks | null {
   if (!isRecord(value)) return null;
   if (value.base !== "all" && value.base !== "none") return null;
@@ -434,6 +452,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 3 &&
     raw.version !== 2 &&
     raw.version !== 1
   ) {
@@ -458,8 +477,10 @@ export function parseGraphViewState(json: string): GraphViewState | null {
           hiddenKeys: parseKeys(raw.hiddenKeys),
           ticksNeedDescendants: false,
         };
+  // Regions have been stored since version 3; older records rebuild them
+  // from the ticks. Version 4 only added `view`.
   const regions =
-    raw.version === GRAPH_VIEW_STATE_VERSION
+    typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
       : migratedRegions(scope.collections);
   return {
@@ -481,5 +502,6 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     categorySwatches: parsedLedger(raw.categorySwatches),
     camera: parseCamera(raw.camera),
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : null,
+    view: parseViewRef(raw.view),
   };
 }

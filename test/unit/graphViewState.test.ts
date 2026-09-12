@@ -191,7 +191,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 4 });
+    const other = JSON.stringify({ ...state, version: 5 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -318,7 +318,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 4 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 5 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -360,6 +360,45 @@ describe("version 3", function () {
     };
     const parsed = parseGraphViewState(JSON.stringify(legacy));
     expect(parsed?.regions).to.deep.equal([]);
+  });
+
+  it("keeps a version 3 record's regions and ledgers", function () {
+    // Bumping the version constant must not send a version 3 graph through
+    // the version 2 migration, which discards regions and rebuilds them from
+    // the ticks.
+    const v3 = {
+      ...emptyGraphViewState(),
+      version: 3,
+      collections: { base: "none", except: [4, 12] },
+      regions: [12],
+      swatches: { assigned: { "12": 3 }, releasedOrder: [] },
+      seedSwatches: { assigned: { k1: 1 }, releasedOrder: [] },
+      categorySwatches: { assigned: { article: 0 }, releasedOrder: [] },
+    };
+    const parsed = parseGraphViewState(JSON.stringify(v3));
+    expect(parsed?.version).to.equal(GRAPH_VIEW_STATE_VERSION);
+    expect(parsed?.regions).to.deep.equal([12]);
+    expect(parsed?.swatches.assigned).to.deep.equal({ "12": 3 });
+    expect(parsed?.seedSwatches.assigned).to.deep.equal({ k1: 1 });
+    expect(parsed?.categorySwatches.assigned).to.deep.equal({ article: 0 });
+    expect(parsed?.view).to.equal(null);
+  });
+
+  it("round-trips the active view in version 4", function () {
+    for (const view of [null, "blank", { id: "overview" }] as const) {
+      const state = { ...emptyGraphViewState(), view };
+      const parsed = parseGraphViewState(serializeGraphViewState(state));
+      expect(parsed?.view, JSON.stringify(view)).to.deep.equal(view);
+    }
+  });
+
+  it("parses a malformed view as never chosen", function () {
+    for (const view of [42, "other", { id: 7 }, { name: "x" }]) {
+      const parsed = parseGraphViewState(
+        JSON.stringify({ ...emptyGraphViewState(), view }),
+      );
+      expect(parsed?.view, JSON.stringify(view)).to.equal(null);
+    }
   });
 
   it("gives a version 2 migration every folder it scoped, in ID order", function () {
