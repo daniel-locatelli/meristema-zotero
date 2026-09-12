@@ -75,6 +75,8 @@ export interface RendererSceneContext {
   isDarkMode(): boolean;
   getTheme(): GraphTheme;
   draw(): void;
+  hopAlphaFor(key: string): number;
+  emphasisAlphaFor(key: string): number;
 }
 
 const WORLD_WIDTH = 1100;
@@ -714,7 +716,12 @@ export function drawRendererLabels(
     }
 
     const ghosted = renderer.isNodeGhosted(node);
-    context.globalAlpha = ghosted ? 0.58 : 1;
+    // The label fades with its disc: hop opacity and the Key's emphasis both
+    // feed it, so a dimmed hop-6 paper does not keep a full-strength name.
+    context.globalAlpha =
+      (ghosted ? 0.58 : 1) *
+      renderer.hopAlphaFor(node.key) *
+      renderer.emphasisAlphaFor(node.key);
     context.textAlign = chosen.align;
     context.fillStyle = renderer.getTheme().inks.primary;
     context.fillText(shortened, chosen.x, chosen.y);

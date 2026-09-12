@@ -38,6 +38,7 @@ import {
 } from "./graphMetricScale";
 import {
   graphThemeFor,
+  hopOpacity,
   inLibraryRingColor,
   observeGraphScheme,
   resolveGraphScheme,
@@ -273,6 +274,10 @@ export class CitationGraphRenderer {
   private layoutRevision = 0;
   /** Papers a seed reached that the library already holds. */
   private inLibraryReachedKeys = new Set<string>();
+  /** Each reached paper's hop; absent means a library paper no hop reached. */
+  private hops = new Map<string, number>();
+  /** Bumped by `setHops`, so the category assignment rebuilds for the new map. */
+  private hopsRevision = 0;
   private hoverKey: string | null = null;
   private ghostPreview: GhostPreview | null = null;
   private transform = { x: 0, y: 0, scale: 1 };
@@ -906,7 +911,7 @@ export class CitationGraphRenderer {
    * metric, the node set or the scheme actually changes.
    */
   private categories(): CategoryAssignment {
-    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}`;
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.hopsRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(
         this.getScopeNodes(),
@@ -915,6 +920,7 @@ export class CitationGraphRenderer {
         {
           labels: { labelFor: (id) => this.collectionLabels.get(id) ?? null },
           ledger: this.categorySwatchLedger,
+          hopOf: (nodeKey) => this.hops.get(nodeKey),
         },
       );
       this.categorySwatchLedger = this.categoryAssignment.ledger;
@@ -1683,11 +1689,13 @@ export class CitationGraphRenderer {
           curveApex,
           baseOpacity,
           // An edge belongs to an emphasised group if either end does, so the
-          // group's connections out into the graph stay legible.
+          // group's connections out into the graph stay legible. The hop
+          // opacity is the citer's: under the citer → cited convention the
+          // source is the citer.
           Math.max(
             this.emphasisAlphaFor(edge.source),
             this.emphasisAlphaFor(edge.target),
-          ),
+          ) * this.hopAlphaFor(edge.source),
         );
       }
 
@@ -1699,7 +1707,7 @@ export class CitationGraphRenderer {
           position,
           radii.get(node.key) ?? this.baseNodeRadius() * this.ratio,
           this.nodeColor(node, colorDomain),
-          this.emphasisAlphaFor(node.key),
+          this.emphasisAlphaFor(node.key) * this.hopAlphaFor(node.key),
         );
       }
       this.drawLabels(nodes, radii);
@@ -1762,6 +1770,24 @@ export class CitationGraphRenderer {
     if (draw) this.draw();
   }
 
+  /**
+   * The hop of every paper the walk reached. A map, not a node field: the
+   * model's library nodes are the library's own objects, which no walk
+   * stamps. Re-sent after every rebuild of the walk and every
+   * `replaceLibraryGraph`.
+   */
+  public setHops(hops: ReadonlyMap<string, number>, draw = true): void {
+    this.hops = new Map(hops);
+    this.hopsRevision += 1;
+    this.categoryAssignment = null;
+    if (draw) this.draw();
+  }
+
+  /** The hop opacity ramp for a node; 1 for a node no hop reached. */
+  public hopAlphaFor(key: string): number {
+    return hopOpacity(this.hops.get(key));
+  }
+
   public syncModel(options: { project?: boolean; draw?: boolean } = {}): void {
     const validKeys = new Set(this.model.nodes.map((node) => node.key));
     for (const key of [...this.positions.keys()]) {
@@ -1789,6 +1815,7 @@ export class CitationGraphRenderer {
     this.inLibraryReachedKeys = new Set(
       [...this.inLibraryReachedKeys].filter((key) => validKeys.has(key)),
     );
+    this.hops = new Map([...this.hops].filter(([key]) => validKeys.has(key)));
     if (this.selectedKey && !validKeys.has(this.selectedKey)) {
       this.selectedKey = null;
       this.onSelectionChange(null);
@@ -1832,7 +1859,7 @@ export class CitationGraphRenderer {
   }
 
   /** How strongly a node — or an edge's endpoint — is drawn right now. */
-  private emphasisAlphaFor(key: string): number {
+  public emphasisAlphaFor(key: string): number {
     if (!this.emphasisKeys || this.emphasisAmount <= 0) return 1;
     if (this.emphasisKeys.has(key)) return 1;
     return 1 - (1 - EMPHASIS_ALPHA) * this.emphasisAmount;
