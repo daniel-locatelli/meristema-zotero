@@ -429,6 +429,10 @@ describe("Graph view, looked at", function () {
         removeSeed: () => undefined,
         addSeed: () => undefined,
         showAllHidden: () => undefined,
+        setHopDirection: () => undefined,
+        fetchHop: () => undefined,
+        toggleHop: () => undefined,
+        fillControl: () => undefined,
       },
     });
     stage.main.insertBefore(rail.root, stage.graphArea);

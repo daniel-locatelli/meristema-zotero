@@ -1613,3 +1613,84 @@
   color: var(--cm-muted);
   font-size: 11px;
 }
+.cm-scope-hops {
+  margin-top: 10px;
+}
+.cm-scope-hops-heading {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* The design's segmented control: 11px, radius 5, active cell on the hairline fill. */
+.cm-segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--cm-border);
+  border-radius: 5px;
+  font-size: 11px;
+}
+.meristema-root button.cm-segmented-cell {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cm-muted);
+  cursor: pointer;
+}
+.meristema-root button.cm-segmented-cell-active {
+  background: var(--cm-border-soft);
+  color: var(--cm-ink);
+}
+.cm-scope-hop-rows {
+  display: grid;
+  margin-top: 6px;
+}
+.cm-scope-hop-row-dimmed {
+  opacity: 0.45;
+}
+.cm-scope-hop-spacer {
+  width: 19px;
+  flex: 0 0 auto;
+}
+.cm-scope-hop-swatch {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--cm-hop-swatch);
+}
+.cm-scope-hop-swatch-neutral {
+  background: var(--cm-muted);
+  opacity: 0.5;
+}
+.cm-scope-hop-body {
+  cursor: default;
+}
+.cm-scope-hop-reported {
+  flex: 0 0 auto;
+  margin-inline-start: 4px;
+  color: var(--cm-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.meristema-root button.cm-scope-hop-fetch {
+  padding: 1px 7px;
+  border: 1px solid var(--cm-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cm-ink);
+  font-size: 11px;
+  cursor: pointer;
+}
+.meristema-root button.cm-scope-hop-fetch:hover {
+  background: var(--cm-border-soft);
+}
+.cm-scope-hop-progress {
+  margin: 2px 0 4px 32px;
+  color: var(--cm-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}

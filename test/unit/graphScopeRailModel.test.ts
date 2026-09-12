@@ -343,3 +343,135 @@ describe("scopeSquare", function () {
     expect(scopeSquare(model[5])).to.deep.equal({ fill: "off", dash: false });
   });
 });
+
+import type { ScopeHopsInput } from "../../src/services/graphScopeRailModel";
+
+function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
+  return {
+    direction: "cited-by",
+    depth: 2,
+    enabled: [true, true, true, true, true, true, true],
+    shownByHop: [1, 4, 9],
+    availableByHop: [1, 5, 12],
+    reportedByHop: [null, 1200, null],
+    colours: null,
+    fill: null,
+    ...overrides,
+  };
+}
+
+function railWithHops(hops: ScopeHopsInput | null) {
+  return buildScopeRailModel({
+    collections: TREE,
+    ticks: allCollectionsTicked(),
+    includeUnfiled: true,
+    includeExternal: true,
+    seeds: hops ? [{ key: "s", label: "Seed (2020)", color: "#000" }] : [],
+    scope: emptyScope(),
+    regions: [],
+    regionColors: new Map(),
+    hops,
+  });
+}
+
+describe("the Citation hops block", function () {
+  it("is absent on a seedless graph", function () {
+    expect(railWithHops(null).hops).to.equal(null);
+  });
+
+  it("lists Seeds and Hop 1 to Hop 6 with counts, not fetched, and the button", function () {
+    const block = railWithHops(hopsInput())!.hops!;
+    expect(block.direction).to.equal("cited-by");
+    expect(block.rows.map((row) => row.label)).to.deep.equal([
+      "Seeds",
+      "Hop 1",
+      "Hop 2",
+      "Hop 3",
+      "Hop 4",
+      "Hop 5",
+      "Hop 6",
+    ]);
+    expect(block.rows[0]).to.include({
+      count: "1",
+      checkbox: false,
+      dimmed: false,
+      fetchButton: false,
+    });
+    expect(block.rows[1]).to.include({
+      count: "4/5",
+      reported: "of 1,200",
+      checkbox: true,
+    });
+    expect(block.rows[2]).to.include({ count: "9/12", reported: null });
+    expect(block.rows[3]).to.include({
+      count: "not fetched",
+      fetchButton: true,
+      dimmed: true,
+      enabled: true,
+    });
+    expect(block.rows[4]).to.include({
+      count: "not fetched",
+      fetchButton: false,
+      dimmed: true,
+    });
+  });
+
+  it("dims an unticked hop and carries no button at depth 6", function () {
+    const block = railWithHops(
+      hopsInput({
+        depth: 6,
+        enabled: [true, true, false, true, true, true, true],
+        shownByHop: [1, 1, 0, 0, 0, 0, 0],
+        availableByHop: [1, 1, 1, 0, 0, 0, 0],
+        reportedByHop: [null, null, null, null, null, null, null],
+      }),
+    )!.hops!;
+    expect(block.rows[2]).to.include({
+      enabled: false,
+      dimmed: true,
+      count: "0/1",
+    });
+    expect(block.rows.some((row) => row.fetchButton)).to.equal(false);
+  });
+
+  it("takes the hop's category colour only under the Citation hop colouring", function () {
+    const neutral = railWithHops(hopsInput())!.hops!;
+    expect(neutral.rows[1].swatch).to.equal(null);
+    const coloured = railWithHops(
+      hopsInput({ colours: ["#111", "#222", "#333"] }),
+    )!.hops!;
+    expect(coloured.rows[1].swatch).to.equal("#222");
+    expect(coloured.rows[5].swatch).to.equal(null);
+  });
+
+  it("prints the progress line in its three states under the deepest open hop", function () {
+    const running = railWithHops(
+      hopsInput({ fill: { remaining: 7, waiting: 0, paused: false } }),
+    )!.hops!;
+    expect(running.progress).to.deep.equal({
+      afterHop: 2,
+      text: "expanding · 7 left",
+      action: "stop",
+      actionLabel: "Stop",
+    });
+    const paused = railWithHops(
+      hopsInput({ fill: { remaining: 7, waiting: 0, paused: true } }),
+    )!.hops!;
+    expect(paused.progress).to.deep.include({
+      action: "resume",
+      actionLabel: "Resume",
+    });
+    const capped = railWithHops(
+      hopsInput({ fill: { remaining: 0, waiting: 1800, paused: false } }),
+    )!.hops!;
+    expect(capped.progress).to.deep.equal({
+      afterHop: 2,
+      text: "500 expanded · 1,800 waiting",
+      action: "more",
+      actionLabel: "Fetch more",
+    });
+    expect(railWithHops(hopsInput({ fill: null }))!.hops!.progress).to.equal(
+      null,
+    );
+  });
+});

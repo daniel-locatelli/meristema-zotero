@@ -14,6 +14,8 @@ import {
   type GraphScopeResult,
   type GraphViewCollectionTicks,
 } from "./graphScopeModel";
+import { HOP_EXPANSION_CAP } from "./graphHopFillModel";
+import { MAX_HOP_DEPTH, type HopDirection } from "./graphHopModel";
 
 export interface ScopeSeedRow {
   /** The seed's node key. */
@@ -52,6 +54,53 @@ export interface ScopeToggleRow {
 
 export type ScopeRow = ScopeCollectionRow | ScopeToggleRow;
 
+export interface ScopeHopsInput {
+  direction: HopDirection;
+  depth: number;
+  enabled: readonly boolean[];
+  shownByHop: readonly number[];
+  availableByHop: readonly number[];
+  /** The parents' reported totals summed per hop, or null when unknown. */
+  reportedByHop: readonly (number | null)[];
+  /** The hop category colours by hop while the colouring is Citation hop, else null. */
+  colours: readonly (string | null)[] | null;
+  /** The runner's state, or null while it has nothing to do and nothing waits. */
+  fill: { remaining: number; waiting: number; paused: boolean } | null;
+}
+
+export interface ScopeHopRow {
+  hop: number;
+  label: string;
+  /** `{shown}/{available}`, the seed count, or `not fetched`. */
+  count: string;
+  /** `of {reported}` when the parents reported more than is stored. */
+  reported: string | null;
+  /** The Fetch hop N button sits in this row instead of a count. */
+  fetchButton: boolean;
+  /** The row carries a checkbox: every hop, never Seeds. */
+  checkbox: boolean;
+  enabled: boolean;
+  /** Past the depth or unticked: drawn at 0.45 opacity, checkbox inert past the depth. */
+  dimmed: boolean;
+  /** True while the hop is at or below the depth. */
+  opened: boolean;
+  swatch: string | null;
+}
+
+export interface ScopeHopsProgress {
+  /** The row the line follows: the deepest open hop. */
+  afterHop: number;
+  text: string;
+  action: "stop" | "resume" | "more";
+  actionLabel: "Stop" | "Resume" | "Fetch more";
+}
+
+export interface ScopeHopsBlock {
+  direction: HopDirection;
+  rows: ScopeHopRow[];
+  progress: ScopeHopsProgress | null;
+}
+
 export interface ScopeRailModel {
   /** `{shown} of {total} papers`, before the search box. */
   countLine: string;
@@ -60,6 +109,8 @@ export interface ScopeRailModel {
   rows: ScopeRow[];
   /** `{n} hidden`, or null while nothing is hidden. */
   hiddenLine: string | null;
+  /** The Citation hops block, or null on a seedless graph. */
+  hops: ScopeHopsBlock | null;
 }
 
 export interface ScopeRailInput {
@@ -73,6 +124,8 @@ export interface ScopeRailInput {
   regions: readonly number[];
   /** Each selected folder's colour, by collection ID. */
   regionColors: ReadonlyMap<number, string>;
+  /** The Citation hops block's input, or null/undefined on a seedless graph. */
+  hops?: ScopeHopsInput | null;
 }
 
 export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
@@ -155,6 +208,56 @@ function descendantsOf(collection: LibraryCollectionFilter): number[] {
   );
 }
 
+export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
+  const rows: ScopeHopRow[] = [];
+  for (let hop = 0; hop <= MAX_HOP_DEPTH; hop += 1) {
+    const opened = hop <= input.depth;
+    const enabled = hop === 0 ? true : input.enabled[hop] !== false;
+    const shown = input.shownByHop[hop] ?? 0;
+    const available = input.availableByHop[hop] ?? 0;
+    const reported = input.reportedByHop[hop] ?? null;
+    rows.push({
+      hop,
+      label: hop === 0 ? "Seeds" : `Hop ${hop}`,
+      count:
+        hop === 0
+          ? COUNT_FORMAT.format(shown)
+          : opened
+            ? `${COUNT_FORMAT.format(shown)}/${COUNT_FORMAT.format(available)}`
+            : "not fetched",
+      reported:
+        opened && hop > 0 && reported !== null && reported > available
+          ? `of ${COUNT_FORMAT.format(reported)}`
+          : null,
+      fetchButton: hop === input.depth + 1,
+      checkbox: hop > 0,
+      enabled,
+      dimmed: !opened || !enabled,
+      opened,
+      swatch: input.colours ? (input.colours[hop] ?? null) : null,
+    });
+  }
+  const fill = input.fill;
+  let progress: ScopeHopsProgress | null = null;
+  if (fill && (fill.remaining > 0 || fill.waiting > 0)) {
+    progress =
+      fill.remaining === 0
+        ? {
+            afterHop: input.depth,
+            text: `${COUNT_FORMAT.format(HOP_EXPANSION_CAP)} expanded · ${COUNT_FORMAT.format(fill.waiting)} waiting`,
+            action: "more",
+            actionLabel: "Fetch more",
+          }
+        : {
+            afterHop: input.depth,
+            text: `expanding · ${COUNT_FORMAT.format(fill.remaining)} left`,
+            action: fill.paused ? "resume" : "stop",
+            actionLabel: fill.paused ? "Resume" : "Stop",
+          };
+  }
+  return { direction: input.direction, rows, progress };
+}
+
 export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
   const rows: ScopeRow[] = input.collections.map((collection) => {
     const descendants = descendantsOf(collection);
@@ -203,5 +306,6 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
     hiddenLine: input.scope.hiddenCount
       ? `${COUNT_FORMAT.format(input.scope.hiddenCount)} hidden`
       : null,
+    hops: input.hops ? buildScopeHopsBlock(input.hops) : null,
   };
 }

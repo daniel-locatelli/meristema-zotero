@@ -19,8 +19,12 @@
 import { element, text } from "./graphViewControls";
 import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
+import type { HopDirection } from "./graphHopModel";
 import {
   scopeSquare,
+  type ScopeHopRow,
+  type ScopeHopsBlock,
+  type ScopeHopsProgress,
   type ScopeRailModel,
   type ScopeRow,
   type ScopeSeedRow,
@@ -144,6 +148,14 @@ export interface ScopeRailHandlers {
   /** The reader asked for the seed search panel; the anchor is the link. */
   addSeed(anchor: HTMLElement): void;
   showAllHidden(): void;
+  /** The Citers | References switch. */
+  setHopDirection(direction: HopDirection): void;
+  /** Fetch hop N: opens the hop and starts the fill. */
+  fetchHop(hop: number): void;
+  /** A hop row's checkbox. Inert past the depth: the rail never calls it there. */
+  toggleHop(hop: number, enabled: boolean): void;
+  /** Stop, Resume or Fetch more on the progress line. */
+  fillControl(action: "stop" | "resume" | "more"): void;
 }
 
 export interface KeyRailOptions {
@@ -497,6 +509,117 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     return wrapper;
   }
 
+  function hopsBlockElement(block: ScopeHopsBlock): HTMLElement {
+    const host = element(document, "div", "cm-scope-hops");
+    host.appendChild(
+      text(document, "h3", "Citation hops", "cm-scope-hops-heading"),
+    );
+    const segmented = element(document, "div", "cm-segmented");
+    segmented.setAttribute("role", "radiogroup");
+    segmented.setAttribute("aria-label", "Hop direction");
+    for (const [value, label] of [
+      ["cited-by", "Citers"],
+      ["references", "References"],
+    ] as const) {
+      const cell = element(document, "button", "cm-segmented-cell");
+      cell.type = "button";
+      cell.textContent = label;
+      cell.setAttribute("role", "radio");
+      const active = block.direction === value;
+      cell.setAttribute("aria-checked", String(active));
+      if (active) cell.classList.add("cm-segmented-cell-active");
+      cell.addEventListener("click", () => {
+        if (!active) options.onScope.setHopDirection(value);
+      });
+      segmented.appendChild(cell);
+    }
+    host.appendChild(segmented);
+    const rows = element(document, "div", "cm-scope-hop-rows");
+    for (const row of block.rows) {
+      rows.appendChild(hopRowElement(row));
+      if (block.progress && block.progress.afterHop === row.hop) {
+        rows.appendChild(progressLine(block.progress));
+      }
+    }
+    host.appendChild(rows);
+    return host;
+  }
+
+  function hopRowElement(row: ScopeHopRow): HTMLElement {
+    const wrapper = element(document, "div", "cm-scope-row cm-scope-hop-row");
+    wrapper.dataset.hop = String(row.hop);
+    if (row.dimmed) wrapper.classList.add("cm-scope-hop-row-dimmed");
+    if (row.checkbox) {
+      const boxLabel = element(document, "label", "cm-scope-check-label");
+      const box = element(
+        document,
+        "input",
+        "cm-scope-check",
+      ) as HTMLInputElement;
+      box.type = "checkbox";
+      box.checked = row.enabled;
+      // Past the depth the tick is inert: only Fetch hop N opens a hop.
+      box.disabled = !row.opened;
+      box.title = row.opened
+        ? `Show ${row.label} on the plot`
+        : `${row.label} is not fetched yet`;
+      boxLabel.title = box.title;
+      box.addEventListener("change", () =>
+        options.onScope.toggleHop(row.hop, box.checked),
+      );
+      const square = element(document, "span", "cm-scope-square");
+      square.setAttribute("aria-hidden", "true");
+      square.classList.add(
+        row.enabled ? "cm-scope-square-on" : "cm-scope-square-off",
+      );
+      boxLabel.append(box, square);
+      wrapper.appendChild(boxLabel);
+    } else {
+      wrapper.appendChild(element(document, "span", "cm-scope-hop-spacer"));
+    }
+    const swatch = element(document, "span", "cm-scope-hop-swatch");
+    swatch.setAttribute("aria-hidden", "true");
+    if (row.swatch) swatch.style.setProperty("--cm-hop-swatch", row.swatch);
+    else swatch.classList.add("cm-scope-hop-swatch-neutral");
+    wrapper.appendChild(swatch);
+    const body = element(
+      document,
+      "div",
+      "cm-scope-row-body cm-scope-hop-body",
+    );
+    body.appendChild(text(document, "span", row.label, "cm-scope-row-label"));
+    if (row.fetchButton) {
+      const fetch = element(document, "button", "cm-scope-hop-fetch");
+      fetch.type = "button";
+      fetch.textContent = `Fetch ${row.label.toLowerCase()}`;
+      fetch.addEventListener("click", () => options.onScope.fetchHop(row.hop));
+      body.appendChild(fetch);
+    } else {
+      const count = text(document, "span", row.count, "cm-scope-row-count");
+      body.appendChild(count);
+      if (row.reported) {
+        body.appendChild(
+          text(document, "span", row.reported, "cm-scope-hop-reported"),
+        );
+      }
+    }
+    wrapper.appendChild(body);
+    return wrapper;
+  }
+
+  function progressLine(progress: ScopeHopsProgress): HTMLElement {
+    const line = element(document, "p", "cm-scope-hop-progress");
+    line.append(text(document, "span", progress.text));
+    const control = element(document, "button", "cm-scope-show-all");
+    control.type = "button";
+    control.textContent = progress.actionLabel;
+    control.addEventListener("click", () =>
+      options.onScope.fillControl(progress.action),
+    );
+    line.append(text(document, "span", " · "), control);
+    return line;
+  }
+
   function sectionElement(section: KeySection): HTMLElement {
     const node = element(document, "section", "cm-key-section");
     // The heading is set in sentence case and uppercased by CSS, so a screen
@@ -563,6 +686,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       const rows = element(document, "div", "cm-scope-rows");
       for (const row of model.rows) rows.appendChild(scopeRowElement(row));
       scopeHost.appendChild(rows);
+      if (model.hops) scopeHost.appendChild(hopsBlockElement(model.hops));
       if (model.hiddenLine) {
         const hidden = element(document, "p", "cm-scope-hidden");
         hidden.append(text(document, "span", model.hiddenLine));
