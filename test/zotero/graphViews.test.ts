@@ -200,7 +200,7 @@ describe("Graph views (D4)", function () {
     );
     // The seam goes in before the graph is built: `renderGraphView` reads
     // its options once, so a picker installed later would never be seen.
-    (globalThis as any).__meristemaGraphViewOptions = {
+    (Zotero as any).__meristemaGraphViewOptions = {
       pickViewFile: async () => importPath,
     };
     const libraryID = Zotero.Libraries.userLibraryID;
@@ -283,7 +283,7 @@ describe("Graph views (D4)", function () {
     } catch (error) {
       record(error);
     }
-    delete (globalThis as any).__meristemaGraphViewOptions;
+    delete (Zotero as any).__meristemaGraphViewOptions;
     try {
       if (importPath) await IOUtils.remove(importPath, { ignoreAbsent: true });
     } catch (error) {

@@ -679,16 +679,23 @@ function viewStateOptions(
 }
 
 /**
- * The Zotero suite's seam: it stashes `__meristemaGraphViewOptions` on
- * `globalThis` to inject a stub (e.g. `pickViewFile`) into a rendered graph
- * view. Empty in production. It is spread first at every render site, so it
- * supplies test-only options and can never shadow a real one such as
- * `initialState`.
+ * The Zotero suite's seam: it stashes `__meristemaGraphViewOptions` to inject
+ * a stub (e.g. `pickViewFile`) into a rendered graph view. Empty in
+ * production. It is spread first at every render site, so it supplies
+ * test-only options and can never shadow a real one such as `initialState`.
+ *
+ * `Zotero` carries it, not `globalThis`: the test bundle is a second copy of
+ * the plugin in a sandbox of its own, so the two copies share no global but
+ * do share this object.
  */
 function testGraphViewOptions(): Partial<GraphViewOptions> {
+  const host = Zotero as unknown as Record<string, unknown>;
   return (
+    (host.__meristemaGraphViewOptions as
+      Partial<GraphViewOptions> | undefined) ??
     ((globalThis as Record<string, unknown>).__meristemaGraphViewOptions as
-      Partial<GraphViewOptions> | undefined) ?? {}
+      Partial<GraphViewOptions> | undefined) ??
+    {}
   );
 }
 
