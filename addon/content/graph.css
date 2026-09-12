@@ -625,6 +625,292 @@
   text-transform: uppercase;
   opacity: 0.7;
 }
+/*
+ * D4, views. The chip and its menu are the File menu's siblings and take its
+ * popup; the rows are two-line so a name and its one-liner read together.
+ */
+.cm-view-menu {
+  right: auto;
+  left: 0;
+  min-width: 320px;
+  max-width: 380px;
+}
+.cm-view-chip-name {
+  font-weight: 600;
+}
+.cm-view-chip-name[hidden] {
+  display: none;
+}
+.cm-view-chip-caret {
+  color: var(--cm-muted);
+  font-size: 10px;
+}
+.cm-view-row-wrap {
+  display: flex;
+  align-items: stretch;
+}
+.cm-view-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 4px 10px;
+  align-items: start;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  border-color: transparent;
+}
+.cm-view-row-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cm-view-row-summary,
+.cm-view-row-note {
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.cm-view-row-note {
+  grid-column: 3;
+  white-space: nowrap;
+}
+.cm-view-row-tick {
+  grid-column: 3;
+  color: var(--cm-accent);
+}
+.cm-view-row--unavailable {
+  opacity: 0.55;
+  cursor: default;
+}
+.cm-view-row-edit {
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border-color: transparent;
+  color: var(--cm-link);
+  font-size: 11px;
+}
+.cm-view-menu-rule {
+  margin: 4px 6px 0;
+  padding: 0;
+}
+.cm-view-action {
+  justify-content: flex-start;
+  border-color: transparent;
+}
+.cm-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cm-link);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+/* The tutorial card, in the plot's corner, under popovers and above the canvas. */
+.cm-view-card {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 6;
+  width: 300px;
+  max-width: calc(100% - 28px);
+  padding: 12px 14px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, Canvas 92%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px color-mix(in srgb, black 18%, transparent);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.cm-view-card[hidden] {
+  display: none;
+}
+.cm-view-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+.cm-view-card-close {
+  border: 0;
+  background: none;
+  color: var(--cm-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.cm-view-card-body,
+.cm-view-card-foot {
+  margin: 6px 0 0;
+}
+.cm-view-card-foot {
+  color: var(--cm-muted);
+}
+.cm-view-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.cm-view-chip-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 4px;
+  font-size: 10.5px;
+}
+.cm-view-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+/* The gallery: a non-modal inset; the toolbar and the rail stay live behind it. */
+.cm-view-gallery {
+  position: absolute;
+  inset: 24px;
+  z-index: 5;
+  overflow: auto;
+  padding: 18px 20px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, Canvas 94%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 32px color-mix(in srgb, black 28%, transparent);
+}
+.cm-view-gallery[hidden] {
+  display: none;
+}
+.cm-view-gallery-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.cm-view-gallery-sub {
+  margin: 4px 0 14px;
+  color: var(--cm-muted);
+  font-size: 11.5px;
+}
+.cm-view-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.cm-view-gallery-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 10px;
+  background: var(--cm-surface-raised);
+  font: inherit;
+  cursor: pointer;
+}
+.cm-view-gallery-card:hover:not([aria-disabled="true"]) {
+  border-color: var(--cm-accent);
+}
+.cm-view-gallery-card--unavailable {
+  opacity: 0.5;
+  cursor: default;
+}
+.cm-view-gallery-name {
+  font-weight: 600;
+}
+.cm-view-gallery-para,
+.cm-view-gallery-note {
+  color: var(--cm-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.cm-view-gallery-last {
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  cursor: default;
+}
+/* The save panel: an in-page dialog centred over the plot. */
+.cm-view-save {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  width: min(440px, calc(100% - 40px));
+  transform: translate(-50%, -50%);
+  padding: 16px 18px;
+  border: 1px solid var(--cm-border);
+  border-radius: 10px;
+  background: Canvas;
+  box-shadow: 0 12px 32px color-mix(in srgb, black 28%, transparent);
+  font-size: 12px;
+}
+.cm-view-save[hidden] {
+  display: none;
+}
+.cm-view-save-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cm-view-save-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cm-view-save-input,
+.cm-view-save-textarea {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--cm-border);
+  border-radius: 4px;
+  background: var(--cm-surface-raised);
+  color: CanvasText;
+}
+.cm-view-save-error {
+  margin: -6px 0 8px;
+  color: var(--cm-state-retracted, #a44c00);
+  font-size: 11px;
+}
+.cm-view-save-error[hidden] {
+  display: none;
+}
+.cm-view-save-captures-title {
+  margin: 0 0 4px;
+  color: var(--cm-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cm-view-save-captures {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.cm-view-save-capture {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cm-view-save-capture--never {
+  color: var(--cm-muted);
+  text-decoration: line-through;
+  text-decoration-style: dashed;
+}
+.cm-view-save-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-view-save-note {
+  flex: 1 1 auto;
+  color: var(--cm-muted);
+  font-size: 11px;
+}
+.cm-view-save-delete[hidden] {
+  display: none;
+}
 .cm-graph-menu-list {
   display: grid;
   max-height: 280px;
