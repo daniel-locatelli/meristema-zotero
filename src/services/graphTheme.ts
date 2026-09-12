@@ -214,11 +214,9 @@ export function graphThemeCustomProperties(
 ): ReadonlyArray<readonly [string, string]> {
   const properties: Array<readonly [string, string]> = [
     ["--cm-surface-panel", theme.surfaces.panel],
-    ["--cm-surface-paper", theme.surfaces.paper],
     ["--cm-surface-hairline", theme.surfaces.hairline],
     ["--cm-surface-grid", theme.surfaces.grid],
     ["--cm-ink-primary", theme.inks.primary],
-    ["--cm-ink-muted", theme.inks.muted],
     ["--cm-ink-emphasis", theme.inks.emphasis],
     ["--cm-category-other", theme.categorical.other],
     ["--cm-category-no-value", theme.categorical.noValue],
