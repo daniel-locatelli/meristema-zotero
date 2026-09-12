@@ -5,7 +5,11 @@ import type {
   CitationGraphNode,
   GraphLayoutOptions,
 } from "../domain/graphTypes";
-import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
+import type {
+  LibraryCollectionFilter,
+  LibrarySnapshot,
+  ZoteroPaper,
+} from "../domain/types";
 import {
   buildCitationGraph,
   getCitationGraphSnapshot,
@@ -69,9 +73,11 @@ import {
   describeExternalWork,
   describeZoteroPaper,
   type PaperListDescriptor,
+  type PaperListFilterState,
 } from "./paperListViewService";
 import {
   allCollectionsTicked,
+  collectionTickState,
   computeGraphScope,
   expandTicksThroughDescendants,
   onlyCollectionsTicked,
@@ -93,6 +99,34 @@ import {
   exportGraphJSON,
   exportGraphPNG,
 } from "./exportService";
+import {
+  captureGraphView,
+  draftParagraph,
+  encodeGraphView,
+  graphViewIsEdited,
+  isShippedViewName,
+  planGraphView,
+  SHIPPED_GRAPH_VIEWS,
+  tutorialChips,
+  tutorialFootnote,
+  type decodeGraphView,
+  type GraphViewDefinition,
+  type ViewFolder,
+} from "./graphViews";
+import {
+  deleteGraphView,
+  dismissTutorial,
+  isTutorialDismissed,
+  listSavedGraphViews,
+  saveGraphView,
+} from "./graphViewsStore";
+import {
+  createGraphViewsMenu,
+  createSavePanel,
+  createTutorialCard,
+  createViewGallery,
+} from "./graphViewsMenu";
+import type { GraphViewRef } from "./graphViewState";
 import {
   libraryPaperID,
   seedPaperID,
@@ -387,6 +421,8 @@ export function renderGraphView(
   let regions: number[] = options.initialCollectionIDs?.length
     ? [...options.initialCollectionIDs]
     : [];
+  /** D4: the view this graph is on; null shows the gallery once. */
+  let view: GraphViewRef = null;
   /** Which swatch each region's folder holds. Never dealt by rank; see B12. */
   const swatches = createSwatchLedgerStore();
   /** Which seed-palette index each seed key holds. */
@@ -526,6 +562,21 @@ export function renderGraphView(
   let refreshKeyRail = (): void => undefined;
   /** Rebuild the Scope rows and hand the renderer their regions. Assigned once the rail exists. */
   let refreshScopeRail: () => void = () => undefined;
+  /*
+   * D4's five verbs. The View chip's DOM is built with the toolbar, long
+   * before the appearance controller and the swatch ledger these need, so
+   * they follow the same pattern as `applyFilters` above: declared here,
+   * assigned once everything they close over exists.
+   */
+  let applyGraphView: (chosen: GraphViewDefinition) => void = () => undefined;
+  let openSavePanel: (existing: GraphViewDefinition | null) => void = () =>
+    undefined;
+  let importView: () => Promise<void> = () => Promise.resolve();
+  let showGallery: () => void = () => undefined;
+  /** Put the active view's name, and its "(edited)", on the chip. */
+  let refreshViewChip: () => void = () => undefined;
+  /** Show the gallery if this graph has never chosen a view and has papers. */
+  let maybeShowGallery: () => void = () => undefined;
   /**
    * The regions the renderer should draw, coloured from the swatch ledger.
    * Assigned once the plot model exists; `toggleRow`/`selectRow` close over
@@ -712,6 +763,57 @@ export function renderGraphView(
     saveAsButton,
   );
   graphWrap.append(graphButton, graphMenu);
+  // D4: the View chip, File's sibling. It sits after File (B21: File leads
+  // the bar) and before Filter, the first control on the document.
+  const collectionTickStateOf = (
+    collection: LibraryCollectionFilter,
+  ): "on" | "off" | "mixed" =>
+    collectionTickState(
+      collectionTicks,
+      collection.collectionID,
+      collection.includedCollectionIDs.filter(
+        (id) => id !== collection.collectionID,
+      ),
+    );
+  const viewFolders = (): ViewFolder[] =>
+    snapshot.collections.map((c) => ({
+      collectionID: c.collectionID,
+      name: c.name,
+      parentCollectionID: c.parentCollectionID,
+      orderIndex: c.orderIndex,
+      ticked: collectionTickStateOf(c),
+    }));
+  const allViews = (): GraphViewDefinition[] => [
+    ...SHIPPED_GRAPH_VIEWS,
+    ...listSavedGraphViews(),
+  ];
+  const viewByID = (id: string): GraphViewDefinition | null =>
+    allViews().find((v) => v.id === id) ?? null;
+  const viewsMenu = createGraphViewsMenu({
+    document,
+    shipped: SHIPPED_GRAPH_VIEWS,
+    listSaved: listSavedGraphViews,
+    onChoose: (chosen) => applyGraphView(chosen),
+    onEdit: (chosen) => openSavePanel(chosen),
+    onSaveCurrent: () => openSavePanel(null),
+    onImport: () => void importView(),
+    onOpenGallery: () => showGallery(),
+  });
+  const tutorialCard = createTutorialCard(document, (id) =>
+    dismissTutorial(id),
+  );
+  const viewGallery = createViewGallery(document, {
+    shipped: SHIPPED_GRAPH_VIEWS,
+    onChoose: (chosen) => applyGraphView(chosen),
+    onBlank: () => {
+      view = "blank";
+      viewGallery.hide();
+      refreshViewChip();
+      notifyStateChange();
+    },
+    onImport: () => void importView(),
+  });
+  const savePanel = createSavePanel(document);
   if (!options.savedGraphs) {
     graphButton.disabled = true;
     graphButton.title = "Saved graphs are not available in this view.";
@@ -814,6 +916,7 @@ export function renderGraphView(
   // search box stays at the far right as the bar's one elastic item.
   toolbar.append(
     graphWrap,
+    viewsMenu.wrap,
     graphFilter.root,
     similarButton,
     exportWrap,
@@ -881,6 +984,7 @@ export function renderGraphView(
   const emptyStateBody = text(document, "p", "", "cm-empty-state-body");
   emptyState.append(emptyStateTitle, emptyStateBody);
   graphArea.appendChild(emptyState);
+  graphArea.append(tutorialCard.root, viewGallery.root, savePanel.root);
 
   // The node's right-click menu. Two items: the seed toggle and Explore-from.
   // It lives in the graph area so it is clamped to the plot, not the window.
@@ -1023,6 +1127,7 @@ export function renderGraphView(
       renderer?.setLayout(layout);
       fitCurrentGraph();
       refreshSourceMetricsForLayout(layout);
+      refreshViewChip();
     },
     (layout) => {
       if (focusProjection) setFocusGraphAppearance(layout);
@@ -1376,6 +1481,9 @@ export function renderGraphView(
       renderer?.getVisibleEdgeCount() ?? 0,
     )} links`;
     summary.textContent = base;
+    // Every filter and layout change ends here, so the chip's "(edited)"
+    // follows the gear and the popover without a second subscription.
+    refreshViewChip();
   };
 
   const focusStateFromControls = (seedKeys: string[]): GraphFocusState => ({
@@ -1849,6 +1957,183 @@ export function renderGraphView(
       focusProjection?.state.seedKeys ?? [],
       theme.seeds.length,
     );
+  };
+
+  /*
+   * D4: the five verbs of the View chip. They live here, after the swatch
+   * ledger's allocator and the appearance controller they close over, and
+   * are assigned to the bindings the toolbar's callbacks already hold.
+   */
+  /** The "shown" number the Scope rail prints: the scope, before the search box. */
+  const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
+  const activeView = (): GraphViewDefinition | null =>
+    view && view !== "blank" ? viewByID(view.id) : null;
+  refreshViewChip = (): void => {
+    const active = activeView();
+    if (!active) {
+      viewsMenu.setLabel(null, false);
+      viewsMenu.refresh(null);
+      return;
+    }
+    const edited = graphViewIsEdited(active, {
+      nodes: model.nodes,
+      layout: appearance.getLayout(),
+      regions,
+      filters: graphFilter.state(),
+      folders: viewFolders(),
+    });
+    viewsMenu.setLabel(active.name, edited);
+    viewsMenu.refresh(active.id);
+  };
+  /** The gallery shows once, for a graph that has never chosen and has papers. */
+  maybeShowGallery = (): void => {
+    if (view !== null) return viewGallery.hide();
+    const shown = visibleNodeCount();
+    if (shown > 0) viewGallery.show(shown);
+    else viewGallery.hide();
+  };
+  showGallery = (): void => viewGallery.show(visibleNodeCount());
+
+  applyGraphView = (chosen: GraphViewDefinition): void => {
+    const plan = planGraphView(chosen, {
+      nodes: model.nodes,
+      layout: appearance.getLayout(),
+      filters: graphFilter.state(),
+      folders: viewFolders(),
+    });
+    // Appearance goes through the gear's own controller, so its selects, the
+    // instance's live layout and the preference all move together.
+    appearance.setLayout(plan.layout);
+    if (plan.regions !== null) {
+      regions = [...plan.regions];
+      ensureSwatchesFor();
+    }
+    graphFilter.setState({ ...plan.filters, collectionIDs: [] });
+    view = { id: chosen.id };
+    viewGallery.hide();
+    applyFilters();
+    notifyStateChange();
+    refreshScopeRail();
+    refreshViewChip();
+    if (!isTutorialDismissed(chosen.id)) {
+      const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
+        .categorical.swatches.length;
+      tutorialCard.show(
+        chosen,
+        tutorialChips(chosen, plan, swatchCount),
+        tutorialFootnote(plan),
+      );
+    }
+  };
+
+  const nameTaken = (
+    name: string,
+    except: GraphViewDefinition | null,
+  ): boolean => {
+    const wanted = name.trim().toLowerCase();
+    if (isShippedViewName(wanted)) return true;
+    return listSavedGraphViews().some(
+      (v) => v.id !== except?.id && v.name.toLowerCase() === wanted,
+    );
+  };
+  const copyText = (value: string): void => {
+    (
+      Zotero.Utilities.Internal as unknown as {
+        copyTextToClipboard: (text: string) => void;
+      }
+    ).copyTextToClipboard(value);
+    setStatus("Copied");
+  };
+  /** Scope and the selection-relative relation never travel on a view. */
+  const stripForDraft = (
+    filters: PaperListFilterState,
+  ): Omit<PaperListFilterState, "collectionIDs" | "relation"> => {
+    const { collectionIDs: _c, relation: _r, ...rest } = filters;
+    return rest;
+  };
+  openSavePanel = (existing: GraphViewDefinition | null): void => {
+    const layout = appearance.getLayout();
+    const filters = graphFilter.state();
+    const folders = viewFolders();
+    const capture = (r: {
+      name: string;
+      paragraph: string;
+    }): GraphViewDefinition => {
+      const captured = captureGraphView({
+        name: r.name,
+        paragraph: r.paragraph,
+        layout,
+        regions,
+        filters,
+        folders,
+      });
+      return existing ? { ...captured, id: existing.id } : captured;
+    };
+    savePanel.open({
+      name: existing?.name ?? "",
+      paragraph:
+        existing?.paragraph ??
+        draftParagraph(layout, regions.length, stripForDraft(filters)),
+      captures: { regions: regions.length, filters: true },
+      existing,
+      nameTaken: (name) => nameTaken(name, existing),
+      onCopyJSON: (r) => copyText(encodeGraphView(capture(r))),
+      onSave: (r) => {
+        const saved = capture(r);
+        saveGraphView(saved);
+        view = { id: saved.id };
+        viewGallery.hide();
+        notifyStateChange();
+        refreshViewChip();
+        const plan = planGraphView(saved, {
+          nodes: model.nodes,
+          layout,
+          filters,
+          folders,
+        });
+        const swatchCount = (renderer?.getTheme() ?? graphThemeFor("light"))
+          .categorical.swatches.length;
+        tutorialCard.show(
+          saved,
+          tutorialChips(saved, plan, swatchCount),
+          tutorialFootnote(plan),
+        );
+      },
+      onDelete: existing
+        ? (): void => {
+            deleteGraphView(existing.id);
+            if (view && view !== "blank" && view.id === existing.id) {
+              view = "blank";
+              notifyStateChange();
+            }
+            refreshViewChip();
+          }
+        : null,
+    });
+  };
+  // D4: replaced by exportService.importGraphViewFile in Task 8.
+  const importGraphViewFile = async (
+    _document: Document,
+  ): Promise<ReturnType<typeof decodeGraphView> | null> => null;
+  importView = async (): Promise<void> => {
+    const decoded = await importGraphViewFile(document);
+    if (!decoded) return;
+    if (!decoded.ok) {
+      Services.prompt.alert(
+        document.defaultView as unknown as mozIDOMWindowProxy,
+        "Import view",
+        `This file is not a Meristema view: the field "${decoded.field}" is missing or invalid.`,
+      );
+      return;
+    }
+    let imported = decoded.view;
+    if (nameTaken(imported.name, null)) {
+      let n = 2;
+      while (nameTaken(`${imported.name} (${n})`, null)) n += 1;
+      imported = { ...imported, name: `${imported.name} (${n})` };
+    }
+    saveGraphView(imported);
+    applyGraphView(imported);
   };
 
   /** Reached papers the library already holds; they wear the thin ring. */
@@ -3497,6 +3782,7 @@ export function renderGraphView(
     renderer?.setSearchMatches(matches);
     updateSummary();
     refreshKeyRail();
+    maybeShowGallery();
   };
   search.addEventListener("input", applyFilters);
   for (const control of [focusDirection, focusLocality]) {
@@ -3529,6 +3815,7 @@ export function renderGraphView(
   };
   exportButton.addEventListener("click", () => {
     closeGraphMenu();
+    viewsMenu.close();
     exportMenu.hidden = !exportMenu.hidden;
     exportButton.setAttribute("aria-expanded", String(!exportMenu.hidden));
   });
@@ -3666,6 +3953,7 @@ export function renderGraphView(
   };
   const openGraphMenu = (): void => {
     closeExportMenu();
+    viewsMenu.close();
     graphMenu.hidden = false;
     graphButton.setAttribute("aria-expanded", "true");
     setGraphMenuMessage("Loading…");
@@ -3693,6 +3981,33 @@ export function renderGraphView(
     true,
   );
   document.addEventListener("keydown", closeGraphMenuOnEscape, true);
+  // D4: the views menu behaves like File's and Export's — one open popup at a
+  // time, dismissed by any pointer landing outside it or by Escape.
+  const closeViewsMenuOnOutsidePointer = (event: Event): void => {
+    if (viewsMenu.menu.hidden) return;
+    const target = event.target as Node | null;
+    if (target && viewsMenu.wrap.contains(target)) return;
+    viewsMenu.close();
+  };
+  const closeViewsMenuOnEscape = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || viewsMenu.menu.hidden) return;
+    viewsMenu.close();
+    viewsMenu.button.focus();
+  };
+  document.addEventListener(
+    "pointerdown",
+    closeViewsMenuOnOutsidePointer,
+    true,
+  );
+  document.addEventListener("keydown", closeViewsMenuOnEscape, true);
+  viewsMenu.button.addEventListener(
+    "click",
+    () => {
+      closeGraphMenu();
+      closeExportMenu();
+    },
+    true,
+  );
   let graphMenuBusy = false;
   graphMenu.addEventListener("click", (event) => {
     const host = options.savedGraphs;
@@ -4075,6 +4390,7 @@ export function renderGraphView(
       categorySwatches: renderer?.getCategorySwatchLedger() ?? categorySwatches,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
+      view,
     };
   };
 
@@ -4099,10 +4415,10 @@ export function renderGraphView(
       : (setTimeout(run, 0) as unknown as number);
   };
 
-  const applyState = (state: GraphViewState): GraphFocusResult =>
+  const applyState = (state: GraphViewState): GraphFocusResult => {
     // Opening a saved graph, or restoring a tab, selects a seed of its own
     // accord; Zotero's list must not follow that.
-    withoutSelectionReport(() => {
+    const result = withoutSelectionReport(() => {
       focusDirection.value = state.explore.direction;
       focusLocality.value = state.explore.locality;
       if (focusProjection) clearSeeds();
@@ -4125,6 +4441,9 @@ export function renderGraphView(
       swatches.restore(state.swatches);
       seedSwatches.restore(state.seedSwatches);
       categorySwatches = state.categorySwatches;
+      // Reopening a saved graph restores the chip's label only: nothing
+      // reapplies the view, because the state already carries what it did.
+      view = state.view;
       renderer?.setCategorySwatchLedger(categorySwatches);
       applyFilters();
       const nodeForItemKey = (itemKey: string): CitationGraphNode | null => {
@@ -4156,6 +4475,10 @@ export function renderGraphView(
       }
       return "selected";
     });
+    refreshViewChip();
+    maybeShowGallery();
+    return result;
+  };
 
   /**
    * An external seed became a library item. Its registry node learns the
@@ -4310,6 +4633,7 @@ export function renderGraphView(
           ...options.initialState.filters,
           collectionIDs: [],
         });
+        view = options.initialState.view;
         if (focusProjection) scheduleFocusRebuild();
       } else {
         applyState(options.initialState);
@@ -4317,6 +4641,8 @@ export function renderGraphView(
     }
   });
   updateSummary();
+  refreshViewChip();
+  maybeShowGallery();
   const localCitationWarmupItemIDs = [
     ...(options.initialFocusItemIDs ?? []),
   ].filter((itemID, index, values) => values.indexOf(itemID) === index);
@@ -4359,6 +4685,12 @@ export function renderGraphView(
       true,
     );
     document.removeEventListener("keydown", closeGraphMenuOnEscape, true);
+    document.removeEventListener(
+      "pointerdown",
+      closeViewsMenuOnOutsidePointer,
+      true,
+    );
+    document.removeEventListener("keydown", closeViewsMenuOnEscape, true);
     if (statusTimer) {
       const view = document.defaultView;
       if (view) view.clearTimeout(statusTimer);
