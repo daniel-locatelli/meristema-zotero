@@ -783,12 +783,14 @@ export function renderGraphView(
       orderIndex: c.orderIndex,
       ticked: collectionTickStateOf(c),
     }));
-  const allViews = (): GraphViewDefinition[] => [
-    ...SHIPPED_GRAPH_VIEWS,
-    ...listSavedGraphViews(),
-  ];
+  /**
+   * The shipped list first: it is in memory, and a saved view's id is always
+   * `user:`-prefixed, so a shipped id never reaches the preference read.
+   */
   const viewByID = (id: string): GraphViewDefinition | null =>
-    allViews().find((v) => v.id === id) ?? null;
+    SHIPPED_GRAPH_VIEWS.find((v) => v.id === id) ??
+    listSavedGraphViews().find((v) => v.id === id) ??
+    null;
   const viewsMenu = createGraphViewsMenu({
     document,
     shipped: SHIPPED_GRAPH_VIEWS,
@@ -1301,6 +1303,9 @@ export function renderGraphView(
         // hands the result to renderer.setRegions — a direct call here
         // would just repeat that work with the same answer.
         refreshScopeRail();
+        // Regions are a field a view owns, and this path does not go through
+        // `applyFilters`, so the chip's "(edited)" is refreshed by hand.
+        refreshViewChip();
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
       addSeed: (anchor) => openFocusSeedPopover(anchor),
@@ -1968,11 +1973,16 @@ export function renderGraphView(
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
   const activeView = (): GraphViewDefinition | null =>
     view && view !== "blank" ? viewByID(view.id) : null;
+  /*
+   * The label only: this runs from `updateSummary`, so on every keystroke in
+   * the search box and on every background refresh. The dropdown's rows are
+   * rebuilt when it opens, which is the only moment they are looked at.
+   */
   refreshViewChip = (): void => {
     const active = activeView();
     if (!active) {
       viewsMenu.setLabel(null, false);
-      viewsMenu.refresh(null);
+      viewsMenu.setActive(null);
       return;
     }
     const edited = graphViewIsEdited(active, {
@@ -1983,7 +1993,7 @@ export function renderGraphView(
       folders: viewFolders(),
     });
     viewsMenu.setLabel(active.name, edited);
-    viewsMenu.refresh(active.id);
+    viewsMenu.setActive(active.id);
   };
   /** The gallery shows once, for a graph that has never chosen and has papers. */
   maybeShowGallery = (): void => {
@@ -2008,10 +2018,12 @@ export function renderGraphView(
       regions = [...plan.regions];
       ensureSwatchesFor();
     }
-    graphFilter.setState({ ...plan.filters, collectionIDs: [] });
+    // The view is on the graph before the filters move: `setState` fires the
+    // controller's `onChange`, which runs `applyFilters` and with it
+    // `maybeShowGallery`, and that must not flash the gallery on its way out.
     view = { id: chosen.id };
     viewGallery.hide();
-    applyFilters();
+    graphFilter.setState({ ...plan.filters, collectionIDs: [] });
     notifyStateChange();
     refreshScopeRail();
     refreshViewChip();
@@ -2085,6 +2097,9 @@ export function renderGraphView(
         viewGallery.hide();
         notifyStateChange();
         refreshViewChip();
+        // Editing a view whose card was dismissed does not bring it back,
+        // the same rule `applyGraphView` follows.
+        if (isTutorialDismissed(saved.id)) return;
         const plan = planGraphView(saved, {
           nodes: model.nodes,
           layout,
@@ -4641,6 +4656,8 @@ export function renderGraphView(
     }
   });
   updateSummary();
+  // Populate the dropdown once; from here on it redraws as it opens.
+  viewsMenu.refresh(null);
   refreshViewChip();
   maybeShowGallery();
   const localCitationWarmupItemIDs = [

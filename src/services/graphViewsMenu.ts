@@ -29,6 +29,8 @@ export interface GraphViewsMenu {
   button: HTMLButtonElement;
   menu: HTMLElement;
   setLabel(name: string | null, edited: boolean): void;
+  /** Which row wears the tick next time the menu is drawn. Draws nothing now. */
+  setActive(id: string | null): void;
   close(): void;
   open(): void;
   refresh(activeID: string | null): void;
@@ -100,7 +102,15 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
   menu.hidden = true;
   wrap.append(button, menu);
 
-  const refresh = (activeID: string | null): void => {
+  /*
+   * The rows are rebuilt when the menu opens, not on every change behind it:
+   * a `replaceChildren` under an open menu drops focus, forgets the hover and
+   * swallows the click whose `pointerdown` landed on a row. The tick's owner
+   * is kept here so opening can redraw from it.
+   */
+  let activeID: string | null = null;
+  const refresh = (nextActiveID: string | null): void => {
+    activeID = nextActiveID;
     menu.replaceChildren();
     for (const view of o.shipped) {
       menu.append(
@@ -163,6 +173,9 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     button.setAttribute("aria-expanded", "false");
   };
   const open = (): void => {
+    // Saved views, their names and the tick are as of this moment, and the
+    // reader cannot be mid-click on a row that is about to be replaced.
+    refresh(activeID);
     menu.hidden = false;
     button.setAttribute("aria-expanded", "true");
   };
@@ -184,6 +197,9 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
         "aria-label",
         viewName ? `View: ${viewName}${edited ? ", edited" : ""}` : "View",
       );
+    },
+    setActive(id) {
+      activeID = id;
     },
     close,
     open,
