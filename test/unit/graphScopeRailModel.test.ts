@@ -77,6 +77,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     // `x` is external and nothing reaches it, so no admission rule covers it:
     // `computeGraphScope` shows 3 of the 4 papers (see graphScopeModel's own
@@ -96,6 +97,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     // The indent is the row's padding now (B31), not spaces in the label.
     expect(model.rows.map((row) => row.label)).to.deep.equal([
@@ -125,6 +127,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     const phd = model.rows[0];
     expect(phd.kind).to.equal("collection");
@@ -144,6 +147,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [11],
       regionColors: new Map([[11, "#123456"]]),
+      hops: null,
     });
     const phd = model.rows[0];
     const reading = model.rows[1];
@@ -168,6 +172,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     expect(model.rows[0].state).to.equal("mixed");
     expect(model.rows[1].state).to.equal("off");
@@ -184,6 +189,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     expect(model.rows[0].state).to.equal("off");
     expect(model.rows[3].state).to.equal("on");
@@ -215,6 +221,7 @@ describe("buildScopeRailModel", function () {
       scope,
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     expect(model.hiddenLine).to.equal("1 hidden");
     expect(model.countLine).to.equal("1 of 2 papers");
@@ -245,6 +252,7 @@ describe("buildScopeRailModel", function () {
       scope: emptyScope(),
       regions: [],
       regionColors: new Map(),
+      hops: null,
     });
     expect(model.seedsHeading).to.equal("Seeds · 2");
     expect(model.seeds.map((seed) => seed.key)).to.deep.equal(["s1", "s2"]);
@@ -299,6 +307,7 @@ describe("scopeSquare", function () {
       scope: emptyScope(),
       regions,
       regionColors: new Map(regions.map((id) => [id, "#abcdef"])),
+      hops: null,
     }).rows;
   }
 
@@ -345,6 +354,13 @@ describe("scopeSquare", function () {
 });
 
 import type { ScopeHopsInput } from "../../src/services/graphScopeRailModel";
+
+// Mirrors COUNT_FORMAT in graphScopeRailModel.ts: the grouping separator is
+// locale-dependent (e.g. "1,200" vs "1'200"), so assertions derive the digits
+// from the same formatter instead of hard-coding a comma.
+function count(n: number): string {
+  return new Intl.NumberFormat(undefined, { useGrouping: true }).format(n);
+}
 
 function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
   return {
@@ -399,7 +415,7 @@ describe("the Citation hops block", function () {
     });
     expect(block.rows[1]).to.include({
       count: "4/5",
-      reported: "of 1,200",
+      reported: `of ${count(1200)}`,
       checkbox: true,
     });
     expect(block.rows[2]).to.include({ count: "9/12", reported: null });
@@ -466,7 +482,7 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(capped.progress).to.deep.equal({
       afterHop: 2,
-      text: "500 expanded · 1,800 waiting",
+      text: `${count(500)} expanded · ${count(1800)} waiting`,
       action: "more",
       actionLabel: "Fetch more",
     });

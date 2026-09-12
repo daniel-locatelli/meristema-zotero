@@ -124,8 +124,8 @@ export interface ScopeRailInput {
   regions: readonly number[];
   /** Each selected folder's colour, by collection ID. */
   regionColors: ReadonlyMap<number, string>;
-  /** The Citation hops block's input, or null/undefined on a seedless graph. */
-  hops?: ScopeHopsInput | null;
+  /** The Citation hops block's input, or null on a seedless graph. */
+  hops: ScopeHopsInput | null;
 }
 
 export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
