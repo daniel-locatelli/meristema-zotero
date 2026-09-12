@@ -1,8 +1,9 @@
 # Graph Views: Five Named Ways to Look at the Same Graph
 
 **Date:** 2026-09-12
-**Status:** Approved in conversation 2026-09-12; revised the same day after an
-adversarial review (18 findings, folded in below); awaiting the user's read
+**Status:** Built 2026-09-12; manual checks queued (revised the same day
+before the build, after an adversarial review of 18 findings, folded in
+below)
 
 Backlog entry D4 ("graph templates"). The design is section F of the Claude
 Design project "Zotero Citation Network Plugin", handoff package
