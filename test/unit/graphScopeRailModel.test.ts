@@ -6,8 +6,10 @@ import {
   computeGraphScope,
   onlyCollectionsTicked,
   setCollectionTicks,
+  type GraphScopeHops,
   type GraphScopeResult,
 } from "../../src/services/graphScopeModel";
+
 import {
   buildScopeRailModel,
   nextRegionSelection,
@@ -15,6 +17,10 @@ import {
   seedRowLabel,
   scopeSquare,
 } from "../../src/services/graphScopeRailModel";
+
+function noHops(): GraphScopeHops {
+  return { entries: new Map(), depth: 1, enabled: [true, true] };
+}
 
 function collection(
   collectionID: number,
@@ -51,7 +57,7 @@ function emptyScope(): GraphScopeResult {
       { key: "x", collectionIDs: [], inLibrary: false },
     ],
     seedKeys: new Set(),
-    reachedKeys: new Set(),
+    hops: noHops(),
     ticks: allCollectionsTicked(),
     includeUnfiled: true,
     includeExternal: true,
@@ -193,7 +199,7 @@ describe("buildScopeRailModel", function () {
         { key: "b", collectionIDs: [1], inLibrary: true },
       ],
       seedKeys: new Set(),
-      reachedKeys: new Set(),
+      hops: noHops(),
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
       includeExternal: true,

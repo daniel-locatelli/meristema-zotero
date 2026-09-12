@@ -11,10 +11,15 @@ import {
   setCollectionTicks,
 } from "../../src/services/graphScopeModel";
 import type {
+  GraphScopeHops,
   GraphScopeInput,
   GraphScopeResult,
   ScopePaper,
 } from "../../src/services/graphScopeModel";
+
+function noHops(): GraphScopeHops {
+  return { entries: new Map(), depth: 1, enabled: [true, true] };
+}
 
 describe("collection ticks", function () {
   it("ticks every folder under the all base, including one made later", function () {
@@ -79,7 +84,7 @@ function scope(overrides: Partial<GraphScopeInput> = {}): GraphScopeResult {
   return computeGraphScope({
     papers: [],
     seedKeys: new Set(),
-    reachedKeys: new Set(),
+    hops: noHops(),
     ticks: allCollectionsTicked(),
     includeUnfiled: true,
     includeExternal: true,
@@ -95,7 +100,14 @@ describe("computeGraphScope", function () {
     const result = scope({
       papers: [paper("a", [1]), paper("b", [2])],
       seedKeys: new Set(["a"]),
-      reachedKeys: new Set(["b"]),
+      hops: {
+        entries: new Map([
+          ["a", { hop: 0, parents: [] }],
+          ["b", { hop: 1, parents: ["a"] }],
+        ]),
+        depth: 1,
+        enabled: [true, true],
+      },
       ticks: onlyCollectionsTicked([1]),
     });
     expect([...result.visibleKeys].sort()).to.deep.equal(["a", "b"]);
@@ -134,7 +146,11 @@ describe("computeGraphScope", function () {
     const result = scope({
       papers: [paper("s", [], false), paper("x", [], false)],
       seedKeys: new Set(["s"]),
-      reachedKeys: new Set(["x"]),
+      hops: {
+        entries: new Map([["x", { hop: 1, parents: ["s"] }]]),
+        depth: 1,
+        enabled: [true, true],
+      },
       includeExternal: false,
     });
     expect([...result.visibleKeys]).to.deep.equal(["s"]);
@@ -166,7 +182,15 @@ describe("computeGraphScope", function () {
     const result = scope({
       papers: [paper("s", [1]), paper("old", [2]), paper("new", [2])],
       seedKeys: new Set(["s"]),
-      reachedKeys: new Set(["old", "new"]),
+      hops: {
+        entries: new Map([
+          ["s", { hop: 0, parents: [] }],
+          ["old", { hop: 1, parents: ["s"] }],
+          ["new", { hop: 1, parents: ["s"] }],
+        ]),
+        depth: 1,
+        enabled: [true, true],
+      },
       ticks: onlyCollectionsTicked([1]),
       facetAdmits: (key) => key !== "old",
     });
@@ -207,5 +231,136 @@ describe("purgeHiddenKeys", function () {
   it("leaves the set alone when no seed was hidden", function () {
     const purged = purgeHiddenKeys(new Set(["a"]), ["b"]);
     expect([...purged]).to.deep.equal(["a"]);
+  });
+});
+
+function hops(
+  spec: Record<string, [number, string[]]>,
+  depth: number,
+  enabled: boolean[] = [true, true, true, true, true, true, true],
+): GraphScopeHops {
+  return {
+    entries: new Map(
+      Object.entries(spec).map(([key, [hop, parents]]) => [
+        key,
+        { hop, parents },
+      ]),
+    ),
+    depth,
+    enabled,
+  };
+}
+
+describe("computeGraphScope with hops", function () {
+  // s → a (hop 1) → b (hop 2) → c (hop 3); every paper external, no folders.
+  const chain = hops(
+    { s: [0, []], a: [1, ["s"]], b: [2, ["a"]], c: [3, ["b"]] },
+    3,
+  );
+  const external = [
+    paper("s"),
+    paper("a", [], false),
+    paper("b", [], false),
+    paper("c", [], false),
+  ];
+
+  it("disabling hop 2 hides a hop-3 external paper through its parent", function () {
+    const result = scope({
+      papers: external,
+      seedKeys: new Set(["s"]),
+      hops: { ...chain, enabled: [true, true, false, true] },
+    });
+    expect([...result.visibleKeys].sort()).to.deep.equal(["a", "s"]);
+    expect(result.shownByHop).to.deep.equal([1, 1, 0, 0]);
+    expect(result.availableByHop).to.deep.equal([1, 1, 1, 1]);
+  });
+
+  it("keeps a folder-admitted hop-3 library paper and its child when hop 2 is unticked", function () {
+    const result = scope({
+      papers: [
+        paper("s"),
+        paper("a", [], false),
+        paper("b", [], false),
+        paper("c", [1]),
+        paper("d", [], false),
+      ],
+      seedKeys: new Set(["s"]),
+      hops: hops(
+        {
+          s: [0, []],
+          a: [1, ["s"]],
+          b: [2, ["a"]],
+          c: [3, ["b"]],
+          d: [4, ["c"]],
+        },
+        4,
+        [true, true, false, true, true],
+      ),
+    });
+    // c is filed in a ticked folder: a seed only ever adds, a hop toggle never
+    // removes it. d hangs off c, which is visible, so d stays too.
+    expect([...result.visibleKeys].sort()).to.deep.equal(["a", "c", "d", "s"]);
+  });
+
+  it("hides the child when the folder holding its only parent is unticked", function () {
+    const result = scope({
+      papers: [paper("s"), paper("p", [7]), paper("q", [], false)],
+      seedKeys: new Set(["s"]),
+      ticks: setCollectionTicks(allCollectionsTicked(), [7], false),
+      includeUnfiled: false,
+      hops: hops({ s: [0, []], p: [1, ["s"]], q: [2, ["p"]] }, 2),
+    });
+    // p is reached by hop 1, so the hop rule admits it whatever the folder;
+    // that is today's "unticking a folder never removes what a seed brought".
+    expect(result.visibleKeys.has("p")).to.equal(true);
+    const unreached = scope({
+      papers: [paper("s"), paper("p", [7]), paper("q", [], false)],
+      seedKeys: new Set(["s"]),
+      ticks: setCollectionTicks(allCollectionsTicked(), [7], false),
+      includeUnfiled: false,
+      hops: hops({ s: [0, []], q: [2, ["p"]] }, 2),
+    });
+    // p has no hop entry here (its list is what made q hop 2 in another
+    // direction); with its folder unticked it is gone, and so is q.
+    expect(unreached.visibleKeys.has("p")).to.equal(false);
+    expect(unreached.visibleKeys.has("q")).to.equal(false);
+  });
+
+  it("keeps a paper with one visible parent among two", function () {
+    const result = scope({
+      papers: [
+        paper("s"),
+        paper("a", [], false),
+        paper("b", [], false),
+        paper("c", [], false),
+      ],
+      seedKeys: new Set(["s"]),
+      hiddenKeys: new Set(["a"]),
+      hops: hops(
+        { s: [0, []], a: [1, ["s"]], b: [1, ["s"]], c: [2, ["a", "b"]] },
+        2,
+      ),
+    });
+    expect(result.visibleKeys.has("c")).to.equal(true);
+  });
+
+  it("does not admit a hop past the depth", function () {
+    const result = scope({
+      papers: external,
+      seedKeys: new Set(["s"]),
+      hops: { ...chain, depth: 2 },
+    });
+    expect(result.visibleKeys.has("c")).to.equal(false);
+    expect(result.availableByHop).to.deep.equal([1, 1, 1]);
+  });
+
+  it("leaves a library paper no hop reaches to the folder rule", function () {
+    const result = scope({
+      papers: [paper("s"), paper("lib", [3])],
+      seedKeys: new Set(["s"]),
+      ticks: setCollectionTicks(allCollectionsTicked(), [3], false),
+      hops: hops({ s: [0, []] }, 3, [true, false, false, false]),
+    });
+    expect(result.visibleKeys.has("lib")).to.equal(false);
   });
 });

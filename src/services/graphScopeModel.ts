@@ -1,10 +1,10 @@
 /**
  * Which papers a graph draws, and what the Scope rail counts.
  *
- * DOM-free and pure on purpose. Stages 3 and 4 insert the hop toggles, the
- * citation floor and the shared-citer filter into the same order, so this is
- * one function with tests rather than a sequence of early returns inside
- * `applyFilters`.
+ * DOM-free and pure on purpose. Stage 3 has inserted the hop rule; Stage 4
+ * inserts the citation floor and the shared-citer filter into the same
+ * order, so this is one function with tests rather than a sequence of early
+ * returns inside `applyFilters`.
  */
 
 /**
@@ -120,12 +120,26 @@ export interface ScopePaper {
   inLibrary: boolean;
 }
 
+/** What the hop rule needs of an entry; structurally `HopEntry` from graphHopModel.ts. */
+export interface ScopeHopEntry {
+  hop: number;
+  parents: readonly string[];
+}
+
+export interface GraphScopeHops {
+  entries: ReadonlyMap<string, ScopeHopEntry>;
+  /** The deepest hop opened, 1..6. */
+  depth: number;
+  /** By hop; index 0 is the seeds and is always treated as true. */
+  enabled: readonly boolean[];
+}
+
 export interface GraphScopeInput {
   /** Every paper the graph holds, library and external together. */
   papers: readonly ScopePaper[];
   seedKeys: ReadonlySet<string>;
-  /** Every paper some seed reached, unioned across the seeds. */
-  reachedKeys: ReadonlySet<string>;
+  /** The hop model's entries, depth and per-hop toggles; empty when seedless. */
+  hops: GraphScopeHops;
   ticks: GraphViewCollectionTicks;
   includeUnfiled: boolean;
   includeExternal: boolean;
@@ -149,20 +163,29 @@ export interface GraphScopeResult {
   unfiledCount: number;
   externalCount: number;
   hiddenCount: number;
+  /** Papers that survived every rule at each hop; index 0 is the seeds. */
+  shownByHop: number[];
+  /** Papers the walk reached at each hop, whatever the rules said. */
+  availableByHop: number[];
 }
 
 /**
  * The spec's order, and the reason it is an order rather than a conjunction.
  *
  * A seed is visible, always, and no later rule can hide one. Every other paper
- * is admitted by rule 1 or rule 2 and can then be removed by rules 3 to 5.
+ * is admitted by the folder rule or by the hop rule and can then be removed by
+ * the rules after them.
  *
- * Rule 1 sits *beside* rule 2 rather than under it: adding a seed only ever
- * adds papers, and unticking a folder never removes a paper a seed brought in.
- * Folder ticks are a fact about how you filed a paper, so they say nothing
- * about one you have never filed; a year, an item type, a retraction and being
- * outside Zotero are facts about the paper itself, so they are true of a
- * citer exactly as they are of anything else.
+ * The two admitting rules sit *beside* each other: adding a seed only ever
+ * adds papers, unticking a folder never removes a paper a hop brought in, and
+ * unticking a hop never removes a paper you filed and ticked. Folder ticks are
+ * a fact about how you filed a paper, so they say nothing about one you have
+ * never filed; a year, an item type, a retraction and being outside Zotero
+ * are facts about the paper itself, so they are true of a citer exactly as
+ * they are of anything else.
+ *
+ * The hop rule reads a parent's visibility, so papers are walked in hop
+ * order: a parent is settled before its children ask about it.
  */
 export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   const visibleKeys = new Set<string>();
@@ -170,8 +193,15 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   let unfiledCount = 0;
   let externalCount = 0;
   let hiddenCount = 0;
+  const depth = input.hops.depth;
+  const shownByHop = Array.from({ length: depth + 1 }, () => 0);
+  const availableByHop = Array.from({ length: depth + 1 }, () => 0);
 
-  for (const paper of input.papers) {
+  const hopOf = (key: string): number =>
+    input.hops.entries.get(key)?.hop ?? Number.POSITIVE_INFINITY;
+  const ordered = [...input.papers].sort((a, b) => hopOf(a.key) - hopOf(b.key));
+
+  for (const paper of ordered) {
     if (!paper.inLibrary) externalCount += 1;
     else if (!paper.collectionIDs.length) unfiledCount += 1;
     for (const collectionID of paper.collectionIDs) {
@@ -181,24 +211,32 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
       );
     }
     if (input.hiddenKeys.has(paper.key)) hiddenCount += 1;
+    const entry = input.hops.entries.get(paper.key);
+    if (entry && entry.hop <= depth) availableByHop[entry.hop] += 1;
 
     if (input.seedKeys.has(paper.key)) {
       visibleKeys.add(paper.key);
+      shownByHop[0] += 1;
       continue;
     }
-    const admitted =
-      input.reachedKeys.has(paper.key) ||
-      (paper.inLibrary &&
-        (paper.collectionIDs.length
-          ? paper.collectionIDs.some((collectionID) =>
-              isCollectionTicked(input.ticks, collectionID),
-            )
-          : input.includeUnfiled));
-    if (!admitted) continue;
+    const folderAdmitted =
+      paper.inLibrary &&
+      (paper.collectionIDs.length
+        ? paper.collectionIDs.some((collectionID) =>
+            isCollectionTicked(input.ticks, collectionID),
+          )
+        : input.includeUnfiled);
+    const hopAdmitted =
+      entry !== undefined &&
+      entry.hop <= depth &&
+      input.hops.enabled[entry.hop] !== false &&
+      entry.parents.some((parent) => visibleKeys.has(parent));
+    if (!folderAdmitted && !hopAdmitted) continue;
     if (!paper.inLibrary && !input.includeExternal) continue;
     if (input.hiddenKeys.has(paper.key)) continue;
     if (!input.facetAdmits(paper.key)) continue;
     visibleKeys.add(paper.key);
+    if (entry && entry.hop <= depth) shownByHop[entry.hop] += 1;
   }
 
   return {
@@ -209,6 +247,8 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     unfiledCount,
     externalCount,
     hiddenCount,
+    shownByHop,
+    availableByHop,
   };
 }
 
