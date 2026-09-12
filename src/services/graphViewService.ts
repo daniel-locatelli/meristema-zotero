@@ -64,6 +64,8 @@ import {
   type RelationshipMutationEvent,
 } from "./relationshipViewService";
 import {
+  flushCoalescedPresentationRefresh,
+  HOP_FILL_REFRESH_COALESCE_MS,
   notifyManualRelationChange,
   subscribeRelationshipPublications,
   type RelationshipPublicationEvent,
@@ -143,7 +145,7 @@ import { updateCitationDataForItems } from "./citationUpdateService";
 import { createUpdateProgress } from "./updateProgressService";
 import { SerializedTaskQueue } from "./serializedTaskQueue";
 import { mapCooperatively } from "./backgroundTaskService";
-import { automaticFocusSeedRefreshPlan } from "./relationshipRefreshPolicy";
+import { AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT } from "./relationshipRefreshPolicy";
 import {
   ensureSourceMetricsForNodes,
   graphLayoutUsesSourceMetrics,
@@ -209,6 +211,8 @@ import {
   type GraphFocusState,
   type LocalWorkIndexes,
 } from "./graphFocusService";
+import { HOP_EXPANSION_CAP, planHopFill } from "./graphHopFillModel";
+import { projectToScreen } from "./graphViewport";
 import {
   buildGraphHopModel,
   clampHopDepth,
@@ -303,7 +307,6 @@ export interface GraphViewController {
 const FOCUS_RELATIONSHIP_CACHE_LIMIT = 200;
 const LIBRARY_SEARCH_DEBOUNCE_MS = 180;
 const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
-const AUTOMATIC_FOCUS_REFRESH = automaticFocusSeedRefreshPlan();
 /**
  * A collapsed detail pane: the resizer is hidden and the shell drops its
  * track, so all 36px are a single strip wide enough for the toolbar's toggle.
@@ -525,9 +528,41 @@ export function renderGraphView(
   let hopDirection: HopDirection = "cited-by";
   let hopDepth = 1;
   let hopEnabled: boolean[] = defaultHopEnabled();
+  /** The current seeds' keys, in the hop model's own order; empty with no model. */
+  const seedKeysOf = (): string[] =>
+    hopModel?.seeds.map((seed) => seed.key) ?? [];
+
+  // ---- the hop runner: one request in flight, its own queue, epoch and
+  // counter, so the seed Refresh button and a seed change never touch it.
+  const hopFillQueue = new SerializedTaskQueue();
+  let hopFillEpoch = 0;
+  let hopFillInFlight: string | null = null;
+  let hopFillPaused = false;
+  let hopFillFrame = 0;
+  const hopFailedKeys = new Set<string>();
+  /** Landed expansions this session, by direction then hop. */
+  const hopExpandedByHop: Record<HopDirection, number[]> = {
+    "cited-by": [],
+    references: [],
+  };
+  const hopCapByHop: Record<HopDirection, number[]> = {
+    "cited-by": [],
+    references: [],
+  };
+  /** The reported total each expanded paper returned, by direction. */
+  const hopReported: Record<HopDirection, Map<string, number>> = {
+    "cited-by": new Map(),
+    references: new Map(),
+  };
+  let lastHopPlan: ReturnType<typeof planHopFill> | null = null;
+  /** Coalesced library-snapshot invalidation while the runner fills. */
+  let hopSnapshotTimer = 0;
+  let hopSnapshotPending = false;
+
+  const capFor = (hop: number): number =>
+    hopCapByHop[hopDirection][hop] ?? HOP_EXPANSION_CAP;
   const focusSeedRegistry = new Map<string, CitationGraphNode>();
   const focusRefreshInFlight = new Map<string, Promise<void>>();
-  const focusRefreshTimers = new Map<string, number>();
   const focusRefreshQueue = new SerializedTaskQueue();
   let focusRefreshEpoch = 0;
   let focusRefreshCount = 0;
@@ -1008,6 +1043,16 @@ export function renderGraphView(
   let restoredCamera: GraphViewTransform | null = null;
   let focusFitGeneration = 0;
   const focusPostRefreshFitSeeds = new Set<string>();
+  /**
+   * A seed the runner has just expanded. The initial seed-only fit is useful
+   * for immediate feedback, but once every newly introduced seed has reported
+   * its own list the complete node cloud is fitted exactly once.
+   */
+  const onSeedExpanded = (key: string): void => {
+    if (!focusPostRefreshFitSeeds.delete(key)) return;
+    if (focusPostRefreshFitSeeds.size || !hopModel) return;
+    rebuildCurrentFocus({ fit: true });
+  };
   const cancelCameraFrame = (): void => {
     if (!cameraFrame) return;
     const view = document.defaultView;
@@ -1240,13 +1285,11 @@ export function renderGraphView(
         .map((node) => node.key),
     );
   };
-  // Task 12's runner reassigns both. Until it lands, Fetch hop N just opens
-  // the hop and the existing seed path fills it; there is no fill to control.
-  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  // Both are the runner's, assigned where it is built: Fetch hop N raises the
+  // depth and starts the fill, and the progress line controls it.
   let fetchHop = (hop: number): void => {
     setHopDepth(hop);
   };
-  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
   let fillControl = (_action: "stop" | "resume" | "more"): void => undefined;
   const keyRail = createKeyRail({
     document,
@@ -1890,10 +1933,7 @@ export function renderGraphView(
       regions.map((id) => String(id)),
       theme.categorical.swatches.length,
     );
-    seedSwatches.ensure(
-      hopModel?.seeds.map((seed) => seed.key) ?? [],
-      theme.seeds.length,
-    );
+    seedSwatches.ensure(seedKeysOf(), theme.seeds.length);
   };
 
   /*
@@ -2178,10 +2218,19 @@ ${error instanceof Error ? error.message : String(error)}`,
       libraryGraphIndex,
     );
   };
+  /**
+   * The merged model by key. A linear scan per lookup was quadratic on the UI
+   * thread: the walk at depth 2 asks for a subject once per hop-1 paper.
+   * Rebuilt wherever the merged model's nodes are replaced.
+   */
+  let modelNodeByKey = new Map<string, CitationGraphNode>();
+  const refreshModelNodeIndex = (): void => {
+    modelNodeByKey = new Map(model.nodes.map((node) => [node.key, node]));
+  };
   const hopSubject = (key: string): CitationGraphNode | null =>
     focusSeedRegistry.get(key) ??
     libraryGraphIndex.nodeByKey.get(key) ??
-    model.nodes.find((node) => node.key === key) ??
+    modelNodeByKey.get(key) ??
     null;
   const hopNeighbourhood = (
     key: string,
@@ -2287,6 +2336,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     const merged = additiveGraphModel(libraryModel, next);
     model.nodes.splice(0, model.nodes.length, ...merged.nodes);
     model.edges.splice(0, model.edges.length, ...merged.edges);
+    refreshModelNodeIndex();
     model.statistics.nodes = merged.nodes.length;
     model.statistics.edges = merged.edges.length;
     model.statistics.resolvedNodes = merged.nodes.filter(
@@ -2324,9 +2374,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       inactiveRelationshipDirty = true;
       return true;
     }
-    const projection = hopModelForSeeds(
-      seedState(hopModel.seeds.map((seed) => seed.key)),
-    );
+    const projection = hopModelForSeeds(seedState(seedKeysOf()));
     if (!projection) return false;
     applyHopModel(projection, options);
     return true;
@@ -2370,7 +2418,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     refreshButton.disabled = focusLoadActive;
     refreshButton.title = focusLoadActive
       ? `Updating connections for ${focusRefreshCount} seed${focusRefreshCount === 1 ? "" : "s"}…`
-      : "Refresh references and citing papers for the current Explore seeds.";
+      : "Refresh the seeds' lists in the current direction.";
     refreshButton.setAttribute("aria-busy", String(focusLoadActive));
   };
 
@@ -2386,10 +2434,6 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const resetFocusRefreshTracking = (shutdown = false): void => {
     focusRefreshEpoch += 1;
-    for (const timer of focusRefreshTimers.values()) {
-      clearFocusTask(timer);
-    }
-    focusRefreshTimers.clear();
     focusRefreshInFlight.clear();
     focusPostRefreshFitSeeds.clear();
     // Keep one serial queue across focus changes. Replacing the queue while a
@@ -2399,16 +2443,20 @@ ${error instanceof Error ? error.message : String(error)}`,
     updateFocusRefreshState();
   };
 
+  /**
+   * The seeds' own lists, in the current direction, behind the toolbar's
+   * Refresh button. Manual only: the runner is the one automatic fetcher now
+   * (spec, "The fill"), and it has its own queue, epoch and counters.
+   */
   const refreshFocusSeedConnections = (
     seed: CitationGraphNode,
     forceRefresh: boolean,
     epoch: number,
-    mode: "automatic" | "manual",
   ): Promise<void> => {
     const existing = focusRefreshInFlight.get(seed.key);
     if (existing) return existing;
 
-    const directions = (["references", "cited-by"] as const).filter(
+    const directions = [hopDirection].filter(
       (direction) =>
         forceRefresh || !selectedRelationshipCacheIsFresh(seed, direction),
     );
@@ -2431,20 +2479,14 @@ ${error instanceof Error ? error.message : String(error)}`,
               libraryModel.nodes,
               direction,
               {
-                maximum:
-                  mode === "automatic"
-                    ? AUTOMATIC_FOCUS_REFRESH.membershipLimit
-                    : FOCUS_RELATIONSHIP_CACHE_LIMIT,
+                maximum: FOCUS_RELATIONSHIP_CACHE_LIMIT,
                 refreshMembership: true,
                 // Provider I/O is asynchronous, but the singleton progress popup
                 // remains visible while cooperative background processing runs.
                 silent: false,
                 queueBackgroundHydration: true,
-                showBackgroundProgress:
-                  mode === "automatic"
-                    ? AUTOMATIC_FOCUS_REFRESH.showBackgroundProgress
-                    : true,
-                mode,
+                showBackgroundProgress: true,
+                mode: "manual",
                 ...(seed.itemID <= 0
                   ? {
                       providerLimit: 3,
@@ -2514,11 +2556,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     seeds: CitationGraphNode[],
     options: {
       forceRefresh?: boolean;
-      mode?: "automatic" | "manual";
     } = {},
   ): Promise<void> => {
     const forceRefresh = options.forceRefresh === true;
-    const mode = options.mode ?? "automatic";
     const uniqueSeeds = [
       ...new Map(seeds.map((seed) => [seed.key, seed])).values(),
     ];
@@ -2526,7 +2566,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     const epoch = focusRefreshEpoch;
     return Promise.all(
       uniqueSeeds.map((seed) =>
-        refreshFocusSeedConnections(seed, forceRefresh, epoch, mode),
+        refreshFocusSeedConnections(seed, forceRefresh, epoch),
       ),
     ).then(() => {
       if (cleaned || epoch !== focusRefreshEpoch || !hopModel) return;
@@ -2534,45 +2574,6 @@ ${error instanceof Error ? error.message : String(error)}`,
         rebuildCurrentFocus();
       }
     });
-  };
-
-  const queueAutomaticFocusConnectionUpdate = (
-    seed: CitationGraphNode,
-    forceRefresh: boolean = AUTOMATIC_FOCUS_REFRESH.forceRefresh,
-    fitAfterRefresh = false,
-  ): void => {
-    if (fitAfterRefresh) focusPostRefreshFitSeeds.add(seed.key);
-    const previous = focusRefreshTimers.get(seed.key);
-    if (previous !== undefined) {
-      clearFocusTask(previous);
-    }
-    const epoch = focusRefreshEpoch;
-    const timer = scheduleFocusTask(() => {
-      focusRefreshTimers.delete(seed.key);
-      if (
-        cleaned ||
-        epoch !== focusRefreshEpoch ||
-        !hopModel?.seedKeys.has(seed.key)
-      ) {
-        focusPostRefreshFitSeeds.delete(seed.key);
-        // `restoredCamera` stays armed here; the next fit consumes it.
-        return;
-      }
-      void loadFocusConnections([seed], {
-        mode: "automatic",
-        forceRefresh,
-      }).finally(() => {
-        if (cleaned || epoch !== focusRefreshEpoch) return;
-        focusPostRefreshFitSeeds.delete(seed.key);
-        if (!focusPostRefreshFitSeeds.size && hopModel) {
-          // The initial seed-only fit is useful for immediate feedback, but
-          // once all newly introduced seeds have published their relationship
-          // membership the complete node cloud must be fitted exactly once.
-          rebuildCurrentFocus({ fit: true });
-        }
-      });
-    }, AUTOMATIC_FOCUS_REFRESH.startDelayMs);
-    focusRefreshTimers.set(seed.key, timer);
   };
 
   const enterFocusSeeds = (
@@ -2612,9 +2613,10 @@ ${error instanceof Error ? error.message : String(error)}`,
       return false;
     }
     scheduleFocusFit();
-    for (const seed of seeds) {
-      queueAutomaticFocusConnectionUpdate(seed, false, true);
-    }
+    // The runner expands every seed (hop 0 is below every depth); its
+    // `onSeedExpanded` consumes these and fits the cloud once they are all in.
+    for (const seed of seeds) focusPostRefreshFitSeeds.add(seed.key);
+    scheduleHopFill();
     return true;
   };
 
@@ -2643,10 +2645,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     for (const key of purged) hiddenKeys.add(key);
 
     const state = seedState([
-      ...new Set([
-        ...hopModel.seeds.map((seed) => seed.key),
-        ...missingSeeds.map((seed) => seed.key),
-      ]),
+      ...new Set([...seedKeysOf(), ...missingSeeds.map((seed) => seed.key)]),
     ]);
     if (
       !activateFocusState(state, {
@@ -2656,9 +2655,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     ) {
       return false;
     }
-    for (const seed of missingSeeds) {
-      queueAutomaticFocusConnectionUpdate(seed, false, true);
-    }
+    for (const seed of missingSeeds) focusPostRefreshFitSeeds.add(seed.key);
+    scheduleHopFill();
     return true;
   };
 
@@ -2667,9 +2665,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   removeFocusSeed = (key: string): void => {
     if (!hopModel || !hopModel.seedKeys.has(key)) return;
-    const remaining = hopModel.seeds
-      .map((seed) => seed.key)
-      .filter((seedKey) => seedKey !== key);
+    const remaining = seedKeysOf().filter((seedKey) => seedKey !== key);
     if (!remaining.length) {
       clearSeeds();
       return;
@@ -2699,6 +2695,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
     model.nodes.splice(0, model.nodes.length, ...libraryModel.nodes);
     model.edges.splice(0, model.edges.length, ...libraryModel.edges);
+    refreshModelNodeIndex();
     Object.assign(model.statistics, libraryModel.statistics);
     rebuildGraphFilterDescriptors();
     renderer?.syncModel();
@@ -2707,12 +2704,19 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const clearSeeds = (): void => {
     resetFocusRefreshTracking();
+    // The runner's own reset: a closed graph drops its in-flight callbacks,
+    // its failures and its plan. The counts and caps are per session.
+    hopFillEpoch += 1;
+    hopFillInFlight = null;
+    hopFailedKeys.clear();
+    lastHopPlan = null;
     hopModel = null;
     setSeeded(false);
     focusSeedRegistry.clear();
     restoredCamera = null;
     model.nodes.splice(0, model.nodes.length, ...libraryModel.nodes);
     model.edges.splice(0, model.edges.length, ...libraryModel.edges);
+    refreshModelNodeIndex();
     Object.assign(model.statistics, libraryModel.statistics);
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
@@ -2810,11 +2814,14 @@ ${error instanceof Error ? error.message : String(error)}`,
     let shouldRebuildFocus = false;
 
     if (hopModel && !focusLoadActive) {
-      for (const seed of hopModel.seeds) {
-        if (seed.itemKey !== event.subjectItemKey) continue;
+      // Any paper the walk reached, not only a seed, as the publication and
+      // detail-pane sites already test: the walk reads a hop paper's stored
+      // list the same way, so a manual mutation on one drops its fragment too.
+      for (const key of hopModel.entries.keys()) {
+        if (hopSubject(key)?.itemKey !== event.subjectItemKey) continue;
         // The mutation is in the store; the walk re-reads this paper's list
         // through the fragment cache rather than being patched here.
-        invalidateHopFragment(snapshot.libraryID, seed.key);
+        invalidateHopFragment(snapshot.libraryID, key);
         shouldRebuildFocus = true;
       }
     }
@@ -2965,10 +2972,23 @@ ${error instanceof Error ? error.message : String(error)}`,
     event: RelationshipPublicationEvent,
   ): void => {
     if (event.phase === "membership-published") {
-      invalidateCitationGraphSnapshot(event.libraryID);
+      if (event.source === "hop-fill") {
+        // One snapshot invalidation per coalescing window while the runner
+        // fills, and one more when its plan empties (spec, "The fill").
+        hopSnapshotPending = true;
+        if (!hopSnapshotTimer) {
+          hopSnapshotTimer = scheduleFocusTask(
+            flushHopSnapshot,
+            HOP_FILL_REFRESH_COALESCE_MS,
+          );
+        }
+      } else {
+        invalidateCitationGraphSnapshot(event.libraryID);
+      }
     }
-    // Either phase changes what this paper's stored list reads as, so the
-    // memo of it goes on both (spec, "The hop model").
+    // The memo under the item's own key, before the nodes are resolved: an
+    // external node's key is not its item key, and the block below drops that
+    // one (spec, "The hop model").
     if (
       event.phase === "membership-published" ||
       event.phase === "metadata-published"
@@ -2984,15 +3004,16 @@ ${error instanceof Error ? error.message : String(error)}`,
       affected.find((node) => model.nodes.includes(node)) ?? affected[0];
     if (!subject) return;
 
-    if (event.phase === "membership-published") {
-      // Any paper the walk reached, not only a seed: the walk reads a hop
-      // paper's list too, so its landing changes the graph the same way.
-      if (hopModel?.entries.has(subject.key)) {
-        invalidateHopFragment(snapshot.libraryID, subject.key);
-        scheduleFocusRebuild();
-      } else {
-        scheduleRelationshipGraphRefresh();
-      }
+    // Either phase changes what this paper's stored list reads as, so the
+    // memo of it goes on both — a paper expanded a second time would
+    // otherwise walk on its stale list.
+    invalidateHopFragment(event.libraryID, subject.key);
+    // Any paper the walk reached, not only a seed: the walk reads a hop
+    // paper's list too, so its landing changes the graph the same way.
+    if (hopModel?.entries.has(subject.key)) {
+      scheduleFocusRebuild();
+    } else if (event.phase === "membership-published") {
+      scheduleRelationshipGraphRefresh();
     }
 
     // Summary hydration does not change graph membership or topology. A full
@@ -3570,6 +3591,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
     closeNodeMenu();
     renderOverview(node);
+    // The selected paper goes to the head of the runner's plan.
+    scheduleHopFill();
     if (suppressSelectionReport) return;
     if (libraryEmphasisKeys) {
       libraryEmphasisKeys = null;
@@ -3587,6 +3610,10 @@ ${error instanceof Error ? error.message : String(error)}`,
     layout: currentLayout,
     collectionLabels,
     onSelectionChange: handleGraphSelection,
+    // Hover and the camera re-order the runner's plan; neither changes what
+    // is in it (spec, "The fill").
+    onHoverChange: () => scheduleHopFill(),
+    onViewChange: () => scheduleHopFill(),
     onOpenNode: (node) => {
       if (node.kind === "external" && node.externalWork) {
         const url = externalWorkURL(node.externalWork as ExternalWork);
@@ -3612,7 +3639,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     const colors = hopModel
       ? seedColorsFor(hopModel)
       : new Map<string, string>();
-    return (hopModel?.seeds.map((seed) => seed.key) ?? []).map((key) => {
+    return seedKeysOf().map((key) => {
       const node =
         focusSeedRegistry.get(key) ??
         model.nodes.find((candidate) => candidate.key === key) ??
@@ -3695,12 +3722,214 @@ ${error instanceof Error ? error.message : String(error)}`,
       fill: hopFillState(),
     };
   };
-  // Both are the runner's (Task 12), which reassigns them; until then the
-  // rail prints no reported totals and no progress line.
-  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  /** What the rail's hop rows print as "of {reported}", by hop. */
   let hopReportedByHop = (): (number | null)[] => [];
-  // eslint-disable-next-line prefer-const -- Task 12's runner reassigns it.
+  /** The rail's progress line, or null when the plan is empty. */
   let hopFillState = (): ScopeHopsInput["fill"] => null;
+
+  // The camera's contents, in the canvas's own device pixels: the transform
+  // maps world positions to device pixels (graphViewport.ts, projectToScreen),
+  // so the bound is the canvas's width and height, not its CSS box.
+  const onScreenKeys = (): Set<string> => {
+    const active = renderer;
+    if (!active) return new Set();
+    const canvas = active.getCanvas();
+    const transform = active.getViewTransform();
+    const keys = new Set<string>();
+    for (const node of active.getScopeNodes()) {
+      const position = active.positionOf(node.key);
+      if (!position) continue;
+      const { x, y } = projectToScreen(position, transform);
+      if (x >= 0 && y >= 0 && x <= canvas.width && y <= canvas.height) {
+        keys.add(node.key);
+      }
+    }
+    return keys;
+  };
+
+  const currentHopPlan = (): ReturnType<typeof planHopFill> | null => {
+    if (!hopModel || !lastScope) return null;
+    return planHopFill({
+      entries: hopModel.entries,
+      visibleKeys: lastScope.visibleKeys,
+      depth: hopDepth,
+      selectedKey: selectedNode?.key ?? null,
+      hoveredKey: renderer?.getHoverKey() ?? null,
+      onScreenKeys: onScreenKeys(),
+      failedKeys: hopFailedKeys,
+      expandedByHop: hopExpandedByHop[hopDirection],
+      capByHop: Array.from({ length: hopDepth + 1 }, (_, hop) => capFor(hop)),
+      reportedCountOf: (key) => {
+        const reported = hopReported[hopDirection].get(key);
+        if (reported !== undefined) return reported;
+        const node = hopSubject(key);
+        if (!node) return null;
+        return hopDirection === "references"
+          ? node.referenceCount
+          : node.citationCount;
+      },
+    });
+  };
+
+  /** Fire the held snapshot invalidation now; the runner calls it when its plan empties. */
+  const flushHopSnapshot = (): void => {
+    if (hopSnapshotTimer) clearFocusTask(hopSnapshotTimer);
+    hopSnapshotTimer = 0;
+    if (!hopSnapshotPending) return;
+    hopSnapshotPending = false;
+    invalidateCitationGraphSnapshot(snapshot.libraryID);
+  };
+
+  /**
+   * One shown paper's own list, in the current direction: automatic mode, one
+   * page, one provider. Marks the paper expanded or failed by the definitions
+   * in the spec's "Vocabulary", then re-plans on the way out.
+   */
+  const expandHopPaper = (key: string, epoch: number): Promise<void> => {
+    const subject = hopSubject(key);
+    if (!subject) return Promise.resolve();
+    const direction = hopDirection;
+    hopFillInFlight = key;
+    return hopFillQueue
+      .enqueue(async () => {
+        if (cleaned || epoch !== hopFillEpoch) return;
+        if (subject.itemID <= 0)
+          await prepareExternalFocusSeedForRefresh(subject);
+        if (cleaned || epoch !== hopFillEpoch) return;
+        try {
+          await refreshExternalRelationships(
+            subject,
+            libraryModel.nodes,
+            direction,
+            {
+              maximum: AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT,
+              refreshMembership: true,
+              silent: true,
+              mode: "automatic",
+              providerStrategy: "native-first",
+              providerLimit: 1,
+              queueBackgroundHydration: true,
+              showBackgroundProgress: false,
+              metadataHydrationLimit: 0,
+              summaryLookupLimit: 0,
+              publicationSource: "hop-fill",
+              ...(subject.itemID <= 0 &&
+              subject.provider &&
+              subject.providerWorkID
+                ? {
+                    providerWorkIDs: {
+                      [subject.provider]: subject.providerWorkID,
+                    },
+                  }
+                : {}),
+              onMembershipResolved: (resolution) => {
+                if (resolution.reportedCount !== null) {
+                  hopReported[direction].set(key, resolution.reportedCount);
+                }
+              },
+            },
+          );
+        } catch (error) {
+          Zotero.logError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
+        if (cleaned || epoch !== hopFillEpoch) return;
+        // Expanded means a stored summary exists now; anything else failed
+        // for the session — a refresh that returned without storing included
+        // (spec, "Vocabulary"). Nothing else leaves the plan, so a paper the
+        // provider cannot answer for would be asked again every landing.
+        const stored =
+          getStoredRelationshipSummary(subject, direction) !== null;
+        if (stored) {
+          const entry = hopModel?.entries.get(key);
+          const hop = entry?.hop ?? 0;
+          const counts = hopExpandedByHop[direction];
+          counts[hop] = (counts[hop] ?? 0) + 1;
+        } else {
+          hopFailedKeys.add(key);
+        }
+        invalidateHopFragment(snapshot.libraryID, key);
+        if (hopModel?.seedKeys.has(key)) onSeedExpanded(key);
+      })
+      .finally(() => {
+        if (epoch !== hopFillEpoch) return;
+        hopFillInFlight = null;
+        // The rebuild re-reads one fragment and recomputes the scope, which
+        // re-plans through applyFilters, and so schedules the next fill.
+        if (!cleaned) rebuildCurrentFocus();
+      });
+  };
+
+  /**
+   * Re-plan on the next frame and, when the plan names a paper and nothing is
+   * in flight, expand it. One expansion at a time; every landing re-plans.
+   */
+  const scheduleHopFill = (): void => {
+    if (cleaned || hopFillFrame) return;
+    const view = document.defaultView;
+    const run = (): void => {
+      hopFillFrame = 0;
+      if (cleaned) return;
+      lastHopPlan = currentHopPlan();
+      refreshScopeRail();
+      if (!hopModel || !lastHopPlan || hopFillPaused || !viewActive) return;
+      if (hopFillInFlight) return;
+      const next = lastHopPlan.order[0];
+      if (!next) {
+        flushCoalescedPresentationRefresh();
+        flushHopSnapshot();
+        return;
+      }
+      void expandHopPaper(next, hopFillEpoch);
+    };
+    hopFillFrame = view
+      ? view.requestAnimationFrame(run)
+      : (setTimeout(run, 0) as unknown as number);
+  };
+
+  hopFillState = () => {
+    if (!lastHopPlan) return null;
+    const remaining = lastHopPlan.remainingByHop.reduce((sum, n) => sum + n, 0);
+    const waiting = lastHopPlan.waitingByHop.reduce((sum, n) => sum + n, 0);
+    if (!remaining && !waiting) return null;
+    return { remaining: remaining - waiting, waiting, paused: hopFillPaused };
+  };
+  hopReportedByHop = () => {
+    if (!hopModel) return [];
+    const totals: (number | null)[] = Array.from(
+      { length: hopDepth + 1 },
+      () => null,
+    );
+    for (const entry of hopModel.entries.values()) {
+      const reported = hopReported[hopDirection].get(entry.key);
+      if (reported === undefined || entry.hop >= hopDepth) continue;
+      const hop = entry.hop + 1;
+      totals[hop] = (totals[hop] ?? 0) + reported;
+    }
+    return totals;
+  };
+  fetchHop = (hop: number): void => {
+    hopFillPaused = false;
+    hopEnabled = hopEnabled.map((value, index) =>
+      index === hop ? true : value,
+    );
+    setHopDepth(hop);
+    scheduleHopFill();
+  };
+  fillControl = (action) => {
+    if (action === "stop") hopFillPaused = true;
+    else if (action === "resume") hopFillPaused = false;
+    else {
+      hopFillPaused = false;
+      const caps = hopCapByHop[hopDirection];
+      for (let hop = 0; hop < hopDepth; hop += 1) {
+        if ((lastHopPlan?.waitingByHop[hop] ?? 0) > 0)
+          caps[hop] = capFor(hop) + HOP_EXPANSION_CAP;
+      }
+    }
+    scheduleHopFill();
+  };
 
   refreshScopeRail = (): void => {
     if (!lastScope) return;
@@ -3742,9 +3971,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         edgeCount: active.getVisibleEdgeCount(),
         states: {
           selectedKey: selectedNode?.key ?? null,
-          seedKeys: hopModel
-            ? new Set(hopModel.seeds.map((seed) => seed.key))
-            : new Set<string>(),
+          seedKeys: new Set(seedKeysOf()),
           searchMatches: searchMatchKeys,
           visibleKeys:
             visibleKeys.size === model.nodes.length ? null : visibleKeys,
@@ -3823,10 +4050,15 @@ ${error instanceof Error ? error.message : String(error)}`,
     updateSummary();
     refreshKeyRail();
     maybeShowGallery();
+    scheduleHopFill();
   };
   const setHopDirection = (direction: HopDirection): void => {
     if (direction === hopDirection) return;
     hopDirection = direction;
+    // A request in flight still stores; only its callbacks are dropped, and
+    // the counts and caps are kept per direction (spec, "Direction switch").
+    hopFillEpoch += 1;
+    hopFillInFlight = null;
     if (hopModel) rebuildCurrentFocus();
     notifyStateChange();
   };
@@ -4139,7 +4371,6 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (hopModel) {
       void loadFocusConnections(hopModel.seeds, {
         forceRefresh: true,
-        mode: "manual",
       }).catch((error: unknown) => {
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
@@ -4374,11 +4605,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (!inactiveRelationshipDirty || cleaned) return;
     inactiveRelationshipDirty = false;
     if (hopModel) {
-      // Whatever landed while the tab was away is in the store; the walk
-      // re-reads every seed's list on the rebuild below.
-      for (const seed of hopModel.seeds) {
-        invalidateHopFragment(snapshot.libraryID, seed.key);
-      }
+      // Whatever landed while the tab was away already dropped its own
+      // fragment, publication by publication; the walk re-reads those.
       rebuildCurrentFocus();
     } else {
       replaceLibraryGraph(buildCitationGraph(snapshot));
@@ -4658,6 +4886,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       }
       renderer?.resizeViewport();
       reconcileInactiveView();
+      // The runner starts no request while its tab is away; the plan resumes
+      // on return (spec, "The fill" — "Inactive tab").
+      scheduleHopFill();
     },
   };
   controllerByMount.set(mount, controller);
@@ -4782,6 +5013,19 @@ ${error instanceof Error ? error.message : String(error)}`,
       librarySearchTimer = null;
     }
     resetFocusRefreshTracking(true);
+    // The runner's own shutdown: its epoch, its frame, its queue and the
+    // snapshot invalidation it was holding.
+    hopFillEpoch += 1;
+    hopFillInFlight = null;
+    if (hopFillFrame) {
+      document.defaultView?.cancelAnimationFrame(hopFillFrame);
+      clearTimeout(hopFillFrame);
+      hopFillFrame = 0;
+    }
+    // The landings are in the store either way, so the held invalidation is
+    // fired rather than dropped.
+    flushHopSnapshot();
+    hopFillQueue.close();
     cancelCameraFrame();
     if (focusRebuildFrame) {
       document.defaultView?.cancelAnimationFrame(focusRebuildFrame);

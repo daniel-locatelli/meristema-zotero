@@ -181,3 +181,81 @@ describe("CitationGraphRenderer hops", function () {
     expect(hop2Label!.globalAlpha, "hop-2 node's label alpha").to.equal(0.8);
   });
 });
+
+/**
+ * What the hop runner reads off the renderer to order its plan: the paper
+ * under the pointer, a paper's world position (which it projects into the
+ * camera itself), and the two notifications that tell it to re-plan.
+ */
+describe("CitationGraphRenderer plan hooks", function () {
+  function makeRenderer(options: {
+    onHoverChange?: (key: string | null) => void;
+    onViewChange?: () => void;
+  }): { renderer: CitationGraphRenderer; canvas: FakeCanvas } {
+    const canvas = new FakeCanvas();
+    const renderer = new CitationGraphRenderer({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      model: model([node("n1"), node("n2")]),
+      layout: FREE_LAYOUT,
+      collectionLabels: new Map(),
+      onSelectionChange: () => undefined,
+      onOpenNode: () => undefined,
+      ...options,
+    });
+    renderer.setNodePositions(
+      new Map([
+        ["n1", { x: 200, y: 200 }],
+        ["n2", { x: 640, y: 480 }],
+      ]),
+    );
+    return { renderer, canvas };
+  }
+
+  it("reports the hovered key and announces every change of it", function () {
+    const hovered: (string | null)[] = [];
+    const { renderer, canvas } = makeRenderer({
+      onHoverChange: (key) => hovered.push(key),
+    });
+    expect(renderer.getHoverKey(), "nothing is hovered yet").to.equal(null);
+
+    canvas.fire("pointermove", { clientX: 200, clientY: 200 });
+    expect(
+      renderer.getHoverKey(),
+      `after a pointermove over n1, hover was ${String(renderer.getHoverKey())}`,
+    ).to.equal("n1");
+
+    canvas.fire("pointerleave", {});
+    expect(renderer.getHoverKey(), "the pointer left the canvas").to.equal(
+      null,
+    );
+    expect(hovered, "one notification per change, in order").to.deep.equal([
+      "n1",
+      null,
+    ]);
+  });
+
+  it("hands out a node's world position and null for a key it has none for", function () {
+    const { renderer } = makeRenderer({});
+    expect(renderer.positionOf("n1")).to.deep.equal({ x: 200, y: 200 });
+    expect(
+      renderer.positionOf("absent"),
+      "no position for an absent key",
+    ).to.equal(null);
+  });
+
+  it("announces a camera change, which re-orders the plan", function () {
+    let views = 0;
+    const { renderer } = makeRenderer({
+      onViewChange: () => {
+        views += 1;
+      },
+    });
+    renderer.setViewTransform({ x: 10, y: 20, scale: 2 });
+    expect(views, `onViewChange fired ${views} time(s)`).to.be.greaterThan(0);
+    expect(renderer.getViewTransform()).to.deep.equal({
+      x: 10,
+      y: 20,
+      scale: 2,
+    });
+  });
+});

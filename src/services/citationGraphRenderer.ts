@@ -91,7 +91,7 @@ import {
 } from "./graphEdgeStyle";
 import { isContextMenuKey } from "./nodeMenu";
 
-interface Position {
+export interface Position {
   x: number;
   y: number;
 }
@@ -122,6 +122,10 @@ export interface CitationGraphRendererOptions {
   onSelectionChange: (node: CitationGraphNode | null) => void;
   onOpenNode: (node: CitationGraphNode) => void;
   onBackgroundInteraction?: () => void;
+  /** The node under the pointer changed, or left. */
+  onHoverChange?: (key: string | null) => void;
+  /** The camera moved: a pan, a zoom, a fit or a transform set from outside. */
+  onViewChange?: () => void;
   /**
    * A right-click, Shift+F10 or the ContextMenu key on a node, after the node
    * has been selected. Client coordinates, so the caller can place a menu
@@ -215,6 +219,8 @@ export class CitationGraphRenderer {
   private readonly onSelectionChange: (node: CitationGraphNode | null) => void;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
+  private readonly onHoverChange: (key: string | null) => void;
+  private readonly onViewChange: () => void;
   private readonly onNodeContextMenu: (
     node: CitationGraphNode,
     clientX: number,
@@ -317,6 +323,8 @@ export class CitationGraphRenderer {
     this.onOpenNode = options.onOpenNode;
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
+    this.onHoverChange = options.onHoverChange ?? (() => undefined);
+    this.onViewChange = options.onViewChange ?? (() => undefined);
     this.onNodeContextMenu = options.onNodeContextMenu ?? (() => undefined);
     this.onThemeChange = options.onThemeChange ?? (() => undefined);
     this.visibleKeys = new Set(this.model.nodes.map((node) => node.key));
@@ -469,6 +477,7 @@ export class CitationGraphRenderer {
 
   private markViewAdjusted(): void {
     this.initialFitComplete = true;
+    this.onViewChange();
     if (this.initialFitFrame !== null) {
       this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
         this.initialFitFrame,
@@ -718,6 +727,7 @@ export class CitationGraphRenderer {
     const key = node?.key ?? null;
     if (key !== this.hoverKey) {
       this.hoverKey = key;
+      this.onHoverChange(key);
       this.canvas.style.cursor = node
         ? this.layout.xMetric === "free" || this.layout.yMetric === "free"
           ? "move"
@@ -754,6 +764,7 @@ export class CitationGraphRenderer {
   private onPointerLeave = (): void => {
     if (!this.pointer.down) {
       this.hoverKey = null;
+      this.onHoverChange(null);
       this.canvas.title = "";
       this.draw();
     }
@@ -2098,6 +2109,16 @@ export class CitationGraphRenderer {
 
   public getViewTransform(): GraphViewTransform {
     return { ...this.transform };
+  }
+
+  /** The node under the pointer, or null. */
+  public getHoverKey(): string | null {
+    return this.hoverKey;
+  }
+
+  /** A node's world position, or null when the renderer holds none for it. */
+  public positionOf(key: string): Position | null {
+    return this.positions.get(key) ?? null;
   }
 
   public setViewTransform(transform: GraphViewTransform, draw = true): void {
