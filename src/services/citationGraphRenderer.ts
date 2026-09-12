@@ -911,6 +911,10 @@ export class CitationGraphRenderer {
    * metric, the node set or the scheme actually changes.
    */
   private categories(): CategoryAssignment {
+    // The raw U+001F (unit separator) delimiters between the five parts
+    // matter: without them two adjacent plain-decimal counters
+    // (`scopeRevision`, `hopsRevision`) could concatenate into an
+    // ambiguous key.
     const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.hopsRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(

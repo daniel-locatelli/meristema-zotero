@@ -48,6 +48,7 @@ export interface RecordedCall {
   args: unknown[];
   fillStyle: string;
   strokeStyle: string;
+  globalAlpha: number;
 }
 
 export class FakeContext2D {
@@ -70,6 +71,7 @@ export class FakeContext2D {
       args,
       fillStyle: this.fillStyle,
       strokeStyle: this.strokeStyle,
+      globalAlpha: this.globalAlpha,
     });
   }
 
@@ -90,7 +92,15 @@ export class FakeContext2D {
   rotate(): void {}
   translate(): void {}
   setLineDash(): void {}
-  fillText(): void {}
+  fillText(...args: unknown[]): void {
+    this.record("fillText", args);
+  }
+  // A fixed per-character width is enough for `createTextWidthCache` (the
+  // renderer's only caller) to place labels deterministically; no test
+  // asserts on the actual pixel width it returns.
+  measureText(text: string): { width: number } {
+    return { width: text.length * 6 };
+  }
   drawImage(...args: unknown[]): void {
     this.record("drawImage", args);
   }
