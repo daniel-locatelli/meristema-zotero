@@ -900,6 +900,12 @@ describe("Citation hops (Stage 3)", function () {
         `reopened as ${ladder()}`,
     ).to.not.contain("not fetched");
     expect(
+      hopCountText(2),
+      `hop 2 shows a Fetch button instead of a count; it was saved as ` +
+        `${savedLadder}, reopened as ${ladder()}; hop 2 read ` +
+        `"${hopRowText(2)}", count "${hopCountText(2)}"`,
+    ).to.not.be.null;
+    expect(
       hopRowText(1),
       `hop 1 came back unfetched; it was saved as ${savedLadder}, ` +
         `reopened as ${ladder()}`,
