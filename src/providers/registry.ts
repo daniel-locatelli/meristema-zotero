@@ -144,6 +144,24 @@ function providerSupportsOperation(
 }
 
 /**
+ * Whether the provider can page the direction's own list. A provider without
+ * the direction's fetcher answers a relationship request only from the
+ * embedded list on its offset-0 work record (Crossref's `reference` array):
+ * a contribution to a merge, never an answer on its own.
+ */
+export function providerPagesRelationships(
+  providerID: CitationProviderID,
+  direction: "references" | "cited-by",
+): boolean {
+  const provider = PROVIDERS[providerID];
+  return Boolean(
+    direction === "references"
+      ? provider.fetchReferencedWorks
+      : provider.fetchCitingWorks,
+  );
+}
+
+/**
  * Return the central provider policy used by field updates, relationship
  * discovery, Similar, and incomplete-metadata resolution. Concrete
  * preferences never fall through to another provider. Automatic mode returns

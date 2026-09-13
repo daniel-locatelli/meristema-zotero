@@ -166,6 +166,32 @@ export function orderRelationshipProviders(
 }
 
 /**
+ * Truncate an ordered relationship plan to `maximum` providers, keeping at
+ * least one that can page the direction whenever the plan holds one.
+ *
+ * A merged plan may carry a provider that only reads an embedded list off its
+ * work record — Crossref's reference array is a legitimate references source
+ * beside the others. Truncated to a single provider it is not: a hop
+ * expansion that asks Crossref alone gets an empty or DOI-less list, stores
+ * nothing, and the paper is marked failed for the session. The head is left
+ * exactly as it was ordered whenever it already contains a paging provider,
+ * so a wider plan keeps its native-first order and its metadata source.
+ */
+export function limitRelationshipProviders(
+  ordered: readonly CitationProviderID[],
+  maximum: number,
+  canPage: (providerID: CitationProviderID) => boolean,
+): CitationProviderID[] {
+  if (!Number.isFinite(maximum)) return [...ordered];
+  const limit = Math.max(0, Math.floor(maximum));
+  const head = ordered.slice(0, limit);
+  if (!limit || head.some(canPage)) return head;
+  const promoted = ordered.slice(limit).find(canPage);
+  if (!promoted) return head;
+  return [promoted, ...head.slice(0, limit - 1)];
+}
+
+/**
  * Keep a stable display/progress order without excluding any enabled
  * provider. Aggregate refreshes consume the complete available list.
  */

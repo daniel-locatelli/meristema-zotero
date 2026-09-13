@@ -9,7 +9,11 @@ import { workIdentifiersForGraphNode } from "../domain/workIdentifiers";
 import type { RelationshipProviderSnapshot } from "../providers/relationshipPolicy";
 import { isCitationRequestCancellationRequested } from "../providers/http";
 import type { ProviderRequestOptions } from "../providers/types";
-import { getCitationProvider, getProviderPlan } from "../providers/registry";
+import {
+  getCitationProvider,
+  getProviderPlan,
+  providerPagesRelationships,
+} from "../providers/registry";
 import { resolveRelatedWorksMetadata } from "../providers/relatedWorkResolutionService";
 import {
   externalWorkLookupIdentity,
@@ -72,6 +76,7 @@ import {
 } from "./externalWorkMetadataService";
 import { stampProviderWorks } from "./providerWorkMetadata";
 import {
+  limitRelationshipProviders,
   orderRelationshipProviders,
   preferredRelationshipProviders,
   relationshipForegroundMetadataLimit,
@@ -1523,7 +1528,7 @@ function relationshipProviders(
     direction === "references"
       ? node.referenceCountProvider
       : node.citationCountProvider;
-  return orderRelationshipProviders(
+  const ordered = orderRelationshipProviders(
     enabledProviders,
     preferredRelationshipProviders(
       direction,
@@ -1533,7 +1538,10 @@ function relationshipProviders(
       Boolean(normalizeDOI(node.doi)),
     ),
     strategy,
-    maximum,
+    Number.POSITIVE_INFINITY,
+  );
+  return limitRelationshipProviders(ordered, maximum, (provider) =>
+    providerPagesRelationships(provider, direction),
   );
 }
 
