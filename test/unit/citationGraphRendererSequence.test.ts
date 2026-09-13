@@ -12,6 +12,7 @@ import {
   model,
   node,
 } from "./graphRendererDoubles";
+import { EMPTY_SEED_MARKS } from "../../src/services/graphHopModel";
 
 /**
  * The seeded graph's citation sequence arrives by map, like hops (ADR 0008).
@@ -42,11 +43,14 @@ describe("CitationGraphRenderer citation sequence", function () {
 
   it("reads the map over the node's own field while a sequence is set", function () {
     const renderer = makeRenderer([library, external]);
-    renderer.setCitationSequence(
-      new Map([
-        ["lib", -2],
-        ["ext", 3],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        citationSequence: new Map([
+          ["lib", -2],
+          ["ext", 3],
+        ]),
+      },
       false,
     );
     expect(renderer.metricNumber(library, "citation-sequence")).to.equal(-2);
@@ -55,20 +59,29 @@ describe("CitationGraphRenderer citation sequence", function () {
 
   it("reports no value for a paper the map does not name", function () {
     const renderer = makeRenderer([library, external]);
-    renderer.setCitationSequence(new Map([["ext", 3]]), false);
+    renderer.setSeedMarks(
+      { ...EMPTY_SEED_MARKS, citationSequence: new Map([["ext", 3]]) },
+      false,
+    );
     expect(renderer.metricNumber(library, "citation-sequence")).to.equal(null);
   });
 
   it("falls back to the node field once the sequence is cleared", function () {
     const renderer = makeRenderer([library]);
-    renderer.setCitationSequence(new Map([["lib", -2]]), false);
-    renderer.setCitationSequence(null, false);
+    renderer.setSeedMarks(
+      { ...EMPTY_SEED_MARKS, citationSequence: new Map([["lib", -2]]) },
+      false,
+    );
+    renderer.setSeedMarks(null, false);
     expect(renderer.metricNumber(library, "citation-sequence")).to.equal(5);
   });
 
   it("leaves every other metric on the node field", function () {
     const renderer = makeRenderer([node("lib", { citationCount: 7 })]);
-    renderer.setCitationSequence(new Map([["lib", -2]]), false);
+    renderer.setSeedMarks(
+      { ...EMPTY_SEED_MARKS, citationSequence: new Map([["lib", -2]]) },
+      false,
+    );
     expect(
       renderer.metricNumber(node("lib", { citationCount: 7 }), "citations"),
     ).to.equal(7);
@@ -80,11 +93,14 @@ describe("CitationGraphRenderer citation sequence", function () {
     const a = node("a", { citationSequence: 5 });
     const b = node("b", { citationSequence: 6 });
     const renderer = makeRenderer([a, b], { xMetric: "citation-sequence" });
-    renderer.setCitationSequence(
-      new Map([
-        ["a", -3],
-        ["b", 3],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        citationSequence: new Map([
+          ["a", -3],
+          ["b", 3],
+        ]),
+      },
       false,
     );
     const scale = renderer.axisScale([a, b], "x");

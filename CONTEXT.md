@@ -78,6 +78,13 @@ A tinted outline drawn around the papers of a ticked folder, one per subtree
 top.
 _Avoid_: hull, halo, cluster, contour (the curve that draws it)
 
+**Seed marks**:
+What a seeded graph adds to the plot per paper: the seed's bullseye in its own
+colour, the thin ring on a reached paper the library holds, the paper's hop and
+its seed-relative citation sequence. One record by paper, never a field on a
+node (ADR 0008); a library graph has none.
+_Avoid_: overlay, decorations, hop map (one part of it)
+
 **Saved graph**:
 A graph kept by name in the reader's profile as a recipe (seeds, ticks,
 settings, camera) that reopens the same graph later.

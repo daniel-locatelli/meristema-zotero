@@ -2,6 +2,7 @@
 
 import type { ExternalWork } from "../domain/externalWork";
 import type {
+  CitationGraphEdge,
   CitationGraphNode,
   GraphLayoutOptions,
 } from "../domain/graphTypes";
@@ -216,8 +217,8 @@ import { projectToScreen } from "./graphViewport";
 import {
   buildGraphHopModel,
   clampHopDepth,
-  citationSequenceByKey,
-  hopByKey,
+  seedMarks,
+  type SeedMarks,
   reachedFromSeed,
   type GraphHopModel,
   type HopDirection,
@@ -2399,14 +2400,22 @@ ${error instanceof Error ? error.message : String(error)}`,
     });
   };
 
-  /** Hop papers the library already holds; they wear the thin ring. */
-  const inLibraryHopKeys = (next: GraphHopModel): Set<string> =>
-    new Set(
-      [...next.entries.keys()].filter(
-        (key) =>
-          !next.seedKeys.has(key) && libraryGraphIndex.nodeByKey.has(key),
-      ),
-    );
+  /**
+   * What the seeds put on the plot, built from the walk and the merged graph
+   * (graphHopModel.ts, `SeedMarks`): the one record the renderer takes, so
+   * ADR 0008 lives here and not once per value.
+   */
+  const seedMarksFor = (
+    next: GraphHopModel,
+    merged: {
+      nodes: readonly CitationGraphNode[];
+      edges: readonly CitationGraphEdge[];
+    } = model,
+  ): SeedMarks =>
+    seedMarks(next, merged, {
+      seedColors: seedColorsFor(next),
+      isLibraryPaper: (key) => libraryGraphIndex.nodeByKey.has(key),
+    });
 
   const applyHopModel = (
     next: GraphHopModel,
@@ -2438,15 +2447,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     ).length;
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
-    renderer?.setSeedKeys(next.seedKeys, false);
     ensureSwatchesFor();
-    renderer?.setSeedColors(seedColorsFor(next), false);
-    renderer?.setInLibraryReachedKeys(inLibraryHopKeys(next), false);
-    // The hop map and the sequence map, not node fields: the merge above kept
-    // the library's own node objects, which carry no hop and whose
-    // citationSequence is the graph-wide ordinal (ADR 0008).
-    renderer?.setHops(hopByKey(next), false);
-    renderer?.setCitationSequence(citationSequenceByKey(next, merged), false);
+    renderer?.setSeedMarks(seedMarksFor(next, merged), false);
     appearance.setColourOptionAvailable("citation-hop", true);
     applyFilters();
     if (options.fit) scheduleFocusFit();
@@ -2826,11 +2828,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     Object.assign(model.statistics, libraryModel.statistics);
     rebuildGraphFilterDescriptors();
     renderer?.syncModel({ draw: false });
-    renderer?.setSeedKeys(new Set(), false);
-    renderer?.setSeedColors(new Map(), false);
-    renderer?.setInLibraryReachedKeys(new Set(), false);
-    renderer?.setHops(new Map(), false);
-    renderer?.setCitationSequence(null, false);
+    renderer?.setSeedMarks(null, false);
     appearance.setColourOptionAvailable("citation-hop", false);
     ensureSwatchesFor();
     updateFocusBar();
@@ -3742,7 +3740,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     onThemeChange: () => {
       refreshScopeRail();
       if (hopModel) {
-        renderer?.setSeedColors(seedColorsFor(hopModel), false);
+        renderer?.setSeedMarks(seedMarksFor(hopModel), false);
       }
     },
   });

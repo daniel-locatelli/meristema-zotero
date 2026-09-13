@@ -91,6 +91,7 @@ import {
   EDGE_CURVE_APEX_CSS,
 } from "./graphEdgeStyle";
 import { isContextMenuKey } from "./nodeMenu";
+import { seedMarksWithin, type SeedMarks } from "./graphHopModel";
 
 export interface Position {
   x: number;
@@ -246,9 +247,14 @@ export class CitationGraphRenderer {
   private layout: GraphLayoutOptions;
   private selectedKey: string | null = null;
   private pinnedKeys = new Set<string>();
-  private seedKeys = new Set<string>();
-  /** Each seed's own colour, so the rail's bullseye and the plot's agree. */
-  private seedColors = new Map<string, string>();
+  /**
+   * What the seeds put on the plot (graphHopModel.ts, `SeedMarks`), or null
+   * on a library graph. One record by paper key, never node fields (ADR
+   * 0008); replaced whole by `setSeedMarks` after every rebuild of the walk.
+   */
+  private seedMarks: SeedMarks | null = null;
+  /** Bumped by `setSeedMarks`, so the category assignment rebuilds. */
+  private seedMarksRevision = 0;
   /** The folders drawn as regions, with the papers each one holds. */
   private regions: ReadonlyArray<{
     collectionID: number;
@@ -279,17 +285,6 @@ export class CitationGraphRenderer {
    * pointer releases, the same way pan and zoom already ask nothing of it.
    */
   private layoutRevision = 0;
-  /** Papers a seed reached that the library already holds. */
-  private inLibraryReachedKeys = new Set<string>();
-  /** Each reached paper's hop; absent means a library paper no hop reached. */
-  private hops = new Map<string, number>();
-  /**
-   * The seeded graph's seed-relative citation sequence, or null on a library
-   * graph. A map, not a node field, for the reason `hops` is (ADR 0008).
-   */
-  private citationSequence: ReadonlyMap<string, number> | null = null;
-  /** Bumped by `setHops`, so the category assignment rebuilds for the new map. */
-  private hopsRevision = 0;
   private hoverKey: string | null = null;
   private ghostPreview: GhostPreview | null = null;
   private transform = { x: 0, y: 0, scale: 1 };
@@ -940,7 +935,7 @@ export class CitationGraphRenderer {
     // matter: without them two adjacent plain-decimal counters
     // (`scopeRevision`, `hopsRevision`) could concatenate into an
     // ambiguous key.
-    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.hopsRevision}`;
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.seedMarksRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(
         this.getScopeNodes(),
@@ -949,7 +944,7 @@ export class CitationGraphRenderer {
         {
           labels: { labelFor: (id) => this.collectionLabels.get(id) ?? null },
           ledger: this.categorySwatchLedger,
-          hopOf: (nodeKey) => this.hops.get(nodeKey),
+          hopOf: (nodeKey) => this.seedMarks?.hops.get(nodeKey),
         },
       );
       this.categorySwatchLedger = this.categoryAssignment.ledger;
@@ -965,7 +960,7 @@ export class CitationGraphRenderer {
     // A seed is always its own colour, whatever the colour metric. Seeds are
     // the anchor set the reader navigates by; their metric values are read in
     // the rail and the detail pane, not off the plot.
-    const seed = this.seedColors.get(node.key);
+    const seed = this.seedMarks?.seedColors.get(node.key);
     if (seed) return seed;
     const metric = this.layout.nodeColorMetric;
     if (metric === "uniform") return this.theme.states.uniformFill;
@@ -1011,9 +1006,11 @@ export class CitationGraphRenderer {
       context.strokeStyle = this.theme.states.searchMatch;
       context.stroke();
     }
+    const marks = this.seedMarks;
     if (
-      this.inLibraryReachedKeys.has(node.key) &&
-      !this.seedKeys.has(node.key)
+      marks &&
+      marks.inLibraryReachedKeys.has(node.key) &&
+      !marks.seedKeys.has(node.key)
     ) {
       // A result you already own, told from one you do not. Thin, and a tint
       // of the node's own fill: stage 4 reserves unfilled outlines for papers
@@ -1027,14 +1024,14 @@ export class CitationGraphRenderer {
       context.stroke();
       context.restore();
     }
-    if (this.seedKeys.has(node.key)) {
+    if (marks?.seedKeys.has(node.key)) {
       context.save();
       context.beginPath();
       context.arc(position.x, position.y, radius + 4 * ratio, 0, Math.PI * 2);
       context.lineWidth = 2.4 * ratio;
       if (ghosted) context.setLineDash([5 * ratio, 3 * ratio]);
       context.strokeStyle =
-        this.seedColors.get(node.key) ?? this.theme.states.seed;
+        marks.seedColors.get(node.key) ?? this.theme.states.seed;
       context.stroke();
       context.restore();
     }
@@ -1794,44 +1791,14 @@ export class CitationGraphRenderer {
     if (draw) this.draw();
   }
 
-  public setSeedKeys(keys: ReadonlySet<string>, draw = true): void {
-    this.seedKeys = new Set(keys);
-    if (draw) this.draw();
-  }
-
-  public setSeedColors(colors: ReadonlyMap<string, string>, draw = true): void {
-    this.seedColors = new Map(colors);
-    if (draw) this.draw();
-  }
-
-  public setInLibraryReachedKeys(keys: ReadonlySet<string>, draw = true): void {
-    this.inLibraryReachedKeys = new Set(keys);
-    if (draw) this.draw();
-  }
-
   /**
-   * The hop of every paper the walk reached. A map, not a node field: the
-   * model's library nodes are the library's own objects, which no walk
-   * stamps. Re-sent after every rebuild of the walk and every
-   * `replaceLibraryGraph`.
+   * What the seeds put on the plot, whole, or null for a library graph.
+   * Re-sent after every rebuild of the walk and every `replaceLibraryGraph`;
+   * the record is taken as given, so the caller builds a fresh one.
    */
-  public setHops(hops: ReadonlyMap<string, number>, draw = true): void {
-    this.hops = new Map(hops);
-    this.hopsRevision += 1;
-    this.categoryAssignment = null;
-    if (draw) this.draw();
-  }
-
-  /**
-   * The seed-relative citation sequence of the merged graph, or null once
-   * the graph has no seed and the node field (the graph-wide ordinal) is the
-   * truth again. Re-sent after every rebuild of the walk.
-   */
-  public setCitationSequence(
-    sequence: ReadonlyMap<string, number> | null,
-    draw = true,
-  ): void {
-    this.citationSequence = sequence ? new Map(sequence) : null;
+  public setSeedMarks(marks: SeedMarks | null, draw = true): void {
+    this.seedMarks = marks;
+    this.seedMarksRevision += 1;
     this.categoryAssignment = null;
     if (draw) this.draw();
   }
@@ -1839,19 +1806,19 @@ export class CitationGraphRenderer {
   /**
    * The one reader every axis, size, colour and Key read goes through: the
    * node's own field, except that `citation-sequence` on a seeded graph is
-   * the map. An arrow property, so it can be handed to the scene and the Key
-   * model unbound.
+   * the marks' map. An arrow property, so it can be handed to the scene and
+   * the Key model unbound.
    */
   public metricNumber: MetricReader = (node, metric) => {
-    if (metric === "citation-sequence" && this.citationSequence) {
-      return this.citationSequence.get(node.key) ?? null;
+    if (metric === "citation-sequence" && this.seedMarks) {
+      return this.seedMarks.citationSequence.get(node.key) ?? null;
     }
     return metricNumber(node, metric);
   };
 
   /** The hop opacity ramp for a node; 1 for a node no hop reached. */
   public hopAlphaFor(key: string): number {
-    return hopOpacity(this.hops.get(key));
+    return hopOpacity(this.seedMarks?.hops.get(key));
   }
 
   public syncModel(options: { project?: boolean; draw?: boolean } = {}): void {
@@ -1872,20 +1839,8 @@ export class CitationGraphRenderer {
     this.pinnedKeys = new Set(
       [...this.pinnedKeys].filter((key) => validKeys.has(key)),
     );
-    this.seedKeys = new Set(
-      [...this.seedKeys].filter((key) => validKeys.has(key)),
-    );
-    this.seedColors = new Map(
-      [...this.seedColors].filter(([key]) => validKeys.has(key)),
-    );
-    this.inLibraryReachedKeys = new Set(
-      [...this.inLibraryReachedKeys].filter((key) => validKeys.has(key)),
-    );
-    this.hops = new Map([...this.hops].filter(([key]) => validKeys.has(key)));
-    if (this.citationSequence) {
-      this.citationSequence = new Map(
-        [...this.citationSequence].filter(([key]) => validKeys.has(key)),
-      );
+    if (this.seedMarks) {
+      this.seedMarks = seedMarksWithin(this.seedMarks, validKeys);
     }
     if (this.selectedKey && !validKeys.has(this.selectedKey)) {
       this.selectedKey = null;

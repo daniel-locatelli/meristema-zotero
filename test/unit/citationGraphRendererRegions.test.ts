@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
+import { EMPTY_SEED_MARKS } from "../../src/services/graphHopModel";
 import type { GraphLayoutOptions } from "../../src/domain/graphTypes";
 import { CitationGraphRenderer } from "../../src/services/citationGraphRenderer";
 import {
@@ -148,7 +149,11 @@ describe("CitationGraphRenderer regions", function () {
         onOpenNode: () => undefined,
       });
 
-      renderer.setSeedColors(new Map([["seedling", "#ff00aa"]]));
+      renderer.setSeedMarks({
+        ...EMPTY_SEED_MARKS,
+        seedKeys: new Set(["seedling"]),
+        seedColors: new Map([["seedling", "#ff00aa"]]),
+      });
 
       const fills = canvas.context.calls.filter(
         (call) => call.method === "fill" && call.args.length === 0,

@@ -222,6 +222,75 @@ export function hopByKey(model: GraphHopModel): Map<string, number> {
 }
 
 /**
+ * What a seeded graph adds to the plot, per paper: the seeds and their
+ * colours, the thin ring on a reached paper the library holds, each paper's
+ * hop, and the seed-relative citation sequence. One record, keyed by paper,
+ * because the merge keeps the library's own node objects and nothing stamped
+ * on the walk's clones reaches them (ADR 0008). `null` on the renderer means
+ * a library graph: no seed, and the node fields are the truth.
+ */
+export interface SeedMarks {
+  seedKeys: ReadonlySet<string>;
+  /** Each seed's own colour, so the rail's bullseye and the plot's agree. */
+  seedColors: ReadonlyMap<string, string>;
+  /** Papers a seed reached that the library already holds; not the seeds. */
+  inLibraryReachedKeys: ReadonlySet<string>;
+  /** Each reached paper's hop; absent means a library paper no hop reached. */
+  hops: ReadonlyMap<string, number>;
+  citationSequence: ReadonlyMap<string, number>;
+}
+
+/** A seeded graph with nothing on it yet; tests spread one field over it. */
+export const EMPTY_SEED_MARKS: SeedMarks = {
+  seedKeys: new Set(),
+  seedColors: new Map(),
+  inLibraryReachedKeys: new Set(),
+  hops: new Map(),
+  citationSequence: new Map(),
+};
+
+export function seedMarks(
+  model: GraphHopModel,
+  merged: {
+    nodes: readonly CitationGraphNode[];
+    edges: readonly CitationGraphEdge[];
+  },
+  input: {
+    seedColors: ReadonlyMap<string, string>;
+    isLibraryPaper: (key: string) => boolean;
+  },
+): SeedMarks {
+  return {
+    seedKeys: new Set(model.seedKeys),
+    seedColors: new Map(input.seedColors),
+    inLibraryReachedKeys: new Set(
+      [...model.entries.keys()].filter(
+        (key) => !model.seedKeys.has(key) && input.isLibraryPaper(key),
+      ),
+    ),
+    hops: hopByKey(model),
+    citationSequence: citationSequenceByKey(model, merged),
+  };
+}
+
+/** The marks for the papers still in the model, after nodes left it. */
+export function seedMarksWithin(
+  marks: SeedMarks,
+  keys: ReadonlySet<string>,
+): SeedMarks {
+  const keep = (key: string): boolean => keys.has(key);
+  return {
+    seedKeys: new Set([...marks.seedKeys].filter(keep)),
+    seedColors: new Map([...marks.seedColors].filter(([key]) => keep(key))),
+    inLibraryReachedKeys: new Set([...marks.inLibraryReachedKeys].filter(keep)),
+    hops: new Map([...marks.hops].filter(([key]) => keep(key))),
+    citationSequence: new Map(
+      [...marks.citationSequence].filter(([key]) => keep(key)),
+    ),
+  };
+}
+
+/**
  * The seeded graph's default X axis: the seed-relative citation sequence of
  * the merged graph (library papers included), for the renderer. A map, not a
  * field on the walk's clones, because the merge keeps the library's own node

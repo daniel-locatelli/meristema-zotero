@@ -13,6 +13,7 @@ import {
   model,
   node,
 } from "./graphRendererDoubles";
+import { EMPTY_SEED_MARKS } from "../../src/services/graphHopModel";
 
 /**
  * Hops arrive by map, never as a node field (`additiveGraphModel` keeps the
@@ -41,15 +42,18 @@ describe("CitationGraphRenderer hops", function () {
     return model(nodes);
   }
 
-  it("feeds the Citation hop assignment from setHops, not from the node", function () {
+  it("feeds the Citation hop assignment from the seed marks, not from the node", function () {
     const renderer = makeRenderer([node("s"), node("a")], {
       nodeColorMetric: "citation-hop",
     });
-    renderer.setHops(
-      new Map([
-        ["s", 0],
-        ["a", 2],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        hops: new Map([
+          ["s", 0],
+          ["a", 2],
+        ]),
+      },
       false,
     );
     const assignment = renderer.getCategoryAssignment();
@@ -59,11 +63,14 @@ describe("CitationGraphRenderer hops", function () {
 
   it("fades a node's alpha by hop and leaves unmapped nodes whole", function () {
     const renderer = makeRenderer([node("s"), node("a"), node("lib")], {});
-    renderer.setHops(
-      new Map([
-        ["s", 0],
-        ["a", 3],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        hops: new Map([
+          ["s", 0],
+          ["a", 3],
+        ]),
+      },
       false,
     );
     expect(renderer.hopAlphaFor("s")).to.equal(1);
@@ -74,11 +81,14 @@ describe("CitationGraphRenderer hops", function () {
   it("drops hops for nodes that left the model on syncModel", function () {
     const graphModel = modelOf([node("s"), node("a")]);
     const renderer = makeRenderer(graphModel.nodes, {});
-    renderer.setHops(
-      new Map([
-        ["s", 0],
-        ["a", 1],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        hops: new Map([
+          ["s", 0],
+          ["a", 1],
+        ]),
+      },
       false,
     );
     graphModel.nodes.splice(1, 1);
@@ -136,16 +146,19 @@ describe("CitationGraphRenderer hops", function () {
         ["b", { x: 600, y: 300 }],
       ]),
     );
-    renderer.setHops(
-      new Map([
-        ["s", 0],
-        ["a", 1],
-        ["b", 2],
-      ]),
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        hops: new Map([
+          ["s", 0],
+          ["a", 1],
+          ["b", 2],
+        ]),
+      },
       false,
     );
     // `setNodePositions` above already triggered its own draw, at a point
-    // where `setHops` had not run yet; clear it so only the draw that
+    // where `setSeedMarks` had not run yet; clear it so only the draw that
     // actually paints the hop alphas is inspected below.
     canvas.context.calls = [];
     // Forces "b"'s label past the label budget, and triggers the draw that

@@ -7,6 +7,8 @@ import {
   citationSequenceByKey,
   clampHopDepth,
   hopByKey,
+  seedMarks,
+  seedMarksWithin,
   reachedFromSeed,
   type HopNeighbourLookup,
   type HopNeighbourhood,
@@ -242,6 +244,39 @@ describe("buildGraphHopModel", function () {
     expect(refs.nodes.find((n) => n.key === "a")!.focusRole).to.equal(
       "reference",
     );
+  });
+
+  it("builds the seed marks as one record over the merged graph", function () {
+    // ADR 0008 in one place: the seeds, their colours, the in-library ring,
+    // the hops and the sequence, all by key, so the renderer takes one value
+    // and the service has one thing to clear.
+    const seed = node("s", { year: 2015 });
+    const held = node("a", { year: 2018 });
+    const walk = buildGraphHopModel({
+      seeds: [seed],
+      direction: "cited-by",
+      depth: 2,
+      neighbours: lookup({ s: ["a", "x"], a: ["b"] }),
+    })!;
+    const merged = additiveGraphModel({ nodes: [seed, held], edges: [] }, walk);
+    const marks = seedMarks(walk, merged, {
+      seedColors: new Map([["s", "#123456"]]),
+      isLibraryPaper: (key) => key === "a" || key === "s",
+    });
+    expect([...marks.seedKeys]).to.deep.equal(["s"]);
+    expect(marks.seedColors.get("s")).to.equal("#123456");
+    // The seed is never ringed, and "x" is external.
+    expect([...marks.inLibraryReachedKeys]).to.deep.equal(["a"]);
+    expect(marks.hops.get("b")).to.equal(2);
+    expect(marks.citationSequence.get("s")).to.equal(0);
+    expect(marks.citationSequence.size).to.equal(merged.nodes.length);
+
+    const within = seedMarksWithin(marks, new Set(["s", "b"]));
+    expect(within.hops.has("a")).to.equal(false);
+    expect(within.hops.get("b")).to.equal(2);
+    expect(within.inLibraryReachedKeys.size).to.equal(0);
+    expect(within.citationSequence.has("a")).to.equal(false);
+    expect(within.seedKeys.has("s")).to.equal(true);
   });
 
   it("reads each non-leaf list once and never reads a leaf's", function () {
