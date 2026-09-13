@@ -223,6 +223,11 @@ import {
   type HopNeighbourhood,
 } from "./graphHopModel";
 import {
+  hopLandingEffects,
+  hopRejectionEffects,
+  planHopExploreChange,
+} from "./graphHopRunnerModel";
+import {
   getHopFragment,
   invalidateHopFragment,
   setHopFragment,
@@ -539,7 +544,15 @@ export function renderGraphView(
   let hopFillInFlight: string | null = null;
   let hopFillPaused = false;
   let hopFillFrame = 0;
-  const hopFailedKeys = new Set<string>();
+  /**
+   * Failure is a property of a paper's list *in one direction*: Crossref
+   * pages a paper's references but not its citations. A hiccup under Citers
+   * must not remove the paper from the References plan (spec, "Vocabulary").
+   */
+  const hopFailedKeys: Record<HopDirection, Set<string>> = {
+    "cited-by": new Set(),
+    references: new Set(),
+  };
   /** Landed expansions this session, by direction then hop. */
   const hopExpandedByHop: Record<HopDirection, number[]> = {
     "cited-by": [],
@@ -2055,22 +2068,18 @@ export function renderGraphView(
       // writes, the direction-change epoch bump and in-flight reset, and the
       // state notification) but folds them into one rebuild instead of the
       // setters' three, and skips it entirely when nothing would change.
-      const nextDirection = chosen.explore.direction;
-      const nextDepth = clampHopDepth(chosen.explore.hops);
-      const nextEnabled = hopEnabled.map((value, hop) =>
-        hop <= chosen.explore!.hops ? true : value,
-      );
-      const directionChanged = nextDirection !== hopDirection;
-      const depthChanged = nextDepth !== hopDepth;
-      const enabledChanged = nextEnabled.some(
-        (value, hop) => value !== hopEnabled[hop],
+      // Which fields move, and whether the epoch bumps, is
+      // `planHopExploreChange` (graphHopRunnerModel.ts).
+      const change = planHopExploreChange(
+        { direction: hopDirection, depth: hopDepth, enabled: hopEnabled },
+        chosen.explore,
       );
       hopFillPaused = false;
-      if (directionChanged || depthChanged || enabledChanged) {
-        hopDirection = nextDirection;
-        hopDepth = nextDepth;
-        hopEnabled = nextEnabled;
-        if (directionChanged) {
+      if (change.changed) {
+        hopDirection = change.direction;
+        hopDepth = change.depth;
+        hopEnabled = [...change.enabled];
+        if (change.bumpEpoch) {
           // A request in flight still stores; only its callbacks are
           // dropped, same as `setHopDirection` (spec, "Direction switch").
           hopFillEpoch += 1;
@@ -2789,10 +2798,17 @@ ${error instanceof Error ? error.message : String(error)}`,
   const clearSeeds = (): void => {
     resetFocusRefreshTracking();
     // The runner's own reset: a closed graph drops its in-flight callbacks,
-    // its failures and its plan. The counts and caps are per session.
+    // its failures, its counts, its caps and its plan. "Session" means the
+    // seeded graph — the spec's failed papers "come back after a reopen" —
+    // so all of the fill's state goes at once, or a fresh graph in the same
+    // tab would start with the previous graph's cap partly spent.
     hopFillEpoch += 1;
     hopFillInFlight = null;
-    hopFailedKeys.clear();
+    for (const direction of ["cited-by", "references"] as const) {
+      hopFailedKeys[direction].clear();
+      hopExpandedByHop[direction] = [];
+      hopCapByHop[direction] = [];
+    }
     lastHopPlan = null;
     hopModel = null;
     setSeeded(false);
@@ -3844,7 +3860,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       selectedKey: selectedNode?.key ?? null,
       hoveredKey: renderer?.getHoverKey() ?? null,
       onScreenKeys: onScreenKeys(),
-      failedKeys: hopFailedKeys,
+      failedKeys: hopFailedKeys[hopDirection],
       expandedByHop: hopExpandedByHop[hopDirection],
       capByHop: Array.from({ length: hopDepth + 1 }, (_, hop) => capFor(hop)),
       reportedCountOf: (key) => {
@@ -3926,21 +3942,23 @@ ${error instanceof Error ? error.message : String(error)}`,
             error instanceof Error ? error : new Error(String(error)),
           );
         }
-        if (cleaned || epoch !== hopFillEpoch) return;
-        // Expanded means a stored summary exists now; anything else failed
-        // for the session — a refresh that returned without storing included
-        // (spec, "Vocabulary"). Nothing else leaves the plan, so a paper the
-        // provider cannot answer for would be asked again every landing.
-        const stored =
-          getStoredRelationshipSummary(subject, direction) !== null;
-        if (stored) {
+        // What the landing means is decided by `hopLandingEffects`
+        // (graphHopRunnerModel.ts): expanded is a stored summary, anything
+        // else failed for the session, and a stale epoch drops both.
+        const effects = hopLandingEffects({
+          epoch,
+          currentEpoch: hopFillEpoch,
+          cleaned,
+          stored: getStoredRelationshipSummary(subject, direction) !== null,
+        });
+        if (!effects.applyToModel) return;
+        if (effects.countExpanded) {
           const entry = hopModel?.entries.get(key);
           const hop = entry?.hop ?? 0;
           const counts = hopExpandedByHop[direction];
           counts[hop] = (counts[hop] ?? 0) + 1;
-        } else {
-          hopFailedKeys.add(key);
         }
+        if (effects.markFailed) hopFailedKeys[direction].add(key);
         invalidateHopFragment(snapshot.libraryID, key);
         if (hopModel?.seedKeys.has(key)) onSeedExpanded(key);
       })
@@ -3948,7 +3966,10 @@ ${error instanceof Error ? error.message : String(error)}`,
         // Nothing else may escape the enqueued body, but if it does the paper
         // still leaves the plan: an unhandled rejection here would otherwise
         // re-open the hot-retry loop the guard above closes.
-        if (epoch === hopFillEpoch) hopFailedKeys.add(key);
+        if (
+          hopRejectionEffects({ epoch, currentEpoch: hopFillEpoch }).markFailed
+        )
+          hopFailedKeys[direction].add(key);
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
         );
