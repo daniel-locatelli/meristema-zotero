@@ -80,23 +80,31 @@ export function inverseScaleValue(
   return domain[0] + t * (domain[1] - domain[0]);
 }
 
-export function metricNumber(
+/**
+ * A node's numeric value for a metric, or null when it has none. The plain
+ * reader below reads the node's field; the renderer supplies its own, which
+ * answers `citation-sequence` from the seeded graph's map (ADR 0008).
+ */
+export type MetricReader = (
   node: CitationGraphNode,
   metric: GraphAxisMetric | MetricID | string,
-): number | null {
+) => number | null;
+
+export const metricNumber: MetricReader = (node, metric) => {
   if (metric === "free") return null;
   const value = metricValue(node, metric as MetricID);
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
+};
 
 export function metricExtent(
   nodes: CitationGraphNode[],
   metric: GraphAxisMetric | MetricID | string,
   scale: GraphScaleType = "linear",
+  read: MetricReader = metricNumber,
 ): [number, number] | null {
   if (metric === "free") return null;
   const values = nodes
-    .map((node) => metricNumber(node, metric))
+    .map((node) => read(node, metric))
     .filter(
       (value): value is number =>
         value !== null && (scale !== "log" || value > 0),
@@ -195,10 +203,11 @@ export function axisScaleForNodes(
   metric: GraphAxisMetric,
   scale: GraphScaleType,
   target: number,
+  read: MetricReader = metricNumber,
 ): AxisScale | null {
   if (metric === "free") return null;
   const values = nodes
-    .map((node) => metricNumber(node, metric))
+    .map((node) => read(node, metric))
     .filter(
       (value): value is number =>
         value !== null && (scale !== "log" || value > 0),

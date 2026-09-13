@@ -14,7 +14,7 @@ import {
   clamp,
   hashString,
   metricExtent,
-  metricNumber,
+  type MetricReader,
   numericColor,
   scaleValue,
 } from "./graphMetricScale";
@@ -72,6 +72,8 @@ export interface RendererSceneContext {
     ticks: number[];
   } | null;
   nodeRadius(node: CitationGraphNode, domain?: [number, number] | null): number;
+  /** The renderer's metric reader; see CitationGraphRenderer.metricNumber. */
+  metricNumber: MetricReader;
   isDarkMode(): boolean;
   getTheme(): GraphTheme;
   draw(): void;
@@ -212,7 +214,9 @@ function relaxAnchoredNodes(
     renderer.layout.nodeSizeMetric === "uniform"
       ? []
       : ordered
-          .map((node) => metricNumber(node, renderer.layout.nodeSizeMetric))
+          .map((node) =>
+            renderer.metricNumber(node, renderer.layout.nodeSizeMetric),
+          )
           .filter((value): value is number => value !== null);
   const sizeDomain: [number, number] | null = sizeValues.length
     ? [Math.min(...sizeValues), Math.max(...sizeValues)]
@@ -455,7 +459,7 @@ export function projectRendererPositions(
           WORLD_WIDTH / 2 + Math.cos(angle) * (60 + Math.sqrt(index + 1) * 18);
       }
     } else if (xScale) {
-      const value = metricNumber(node, renderer.layout.xMetric);
+      const value = renderer.metricNumber(node, renderer.layout.xMetric);
       x =
         value === null || (renderer.layout.xScale === "log" && value <= 0)
           ? MISSING_X
@@ -480,7 +484,7 @@ export function projectRendererPositions(
           WORLD_HEIGHT / 2 + Math.sin(angle) * (60 + Math.sqrt(index + 1) * 18);
       }
     } else if (yScale) {
-      const value = metricNumber(node, renderer.layout.yMetric);
+      const value = renderer.metricNumber(node, renderer.layout.yMetric);
       y =
         value === null || (renderer.layout.yScale === "log" && value <= 0)
           ? MISSING_Y
@@ -522,7 +526,9 @@ export function hitTestRenderer(
       ? []
       : renderer
           .layoutNodes()
-          .map((node) => metricNumber(node, renderer.layout.nodeSizeMetric))
+          .map((node) =>
+            renderer.metricNumber(node, renderer.layout.nodeSizeMetric),
+          )
           .filter((value): value is number => value !== null);
   const sizeDomain: [number, number] | null = sizeValues.length
     ? [Math.min(...sizeValues), Math.max(...sizeValues)]

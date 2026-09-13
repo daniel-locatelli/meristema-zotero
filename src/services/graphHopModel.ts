@@ -7,7 +7,10 @@ import type {
   CitationGraphEdge,
   CitationGraphNode,
 } from "../domain/graphTypes";
-import { assignFocusCitationSequence } from "./citationSequenceService";
+import {
+  seedRelativeCitationSequence,
+  type CitationSide,
+} from "./citationSequenceService";
 
 export type HopDirection = "cited-by" | "references";
 
@@ -193,19 +196,17 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
   const availableByHop = Array.from({ length: depth + 1 }, () => 0);
   for (const entry of entries.values()) availableByHop[entry.hop] += 1;
 
-  const projectedNodes = [...nodes.values()];
-  const projectedEdges = [...edges.values()];
-  assignFocusCitationSequence(projectedNodes, projectedEdges, seeds[0].key);
+  const reachedNodes = [...nodes.values()];
   return {
     direction: input.direction,
     depth,
     seeds,
     seedKeys,
     entries,
-    nodes: projectedNodes,
-    edges: projectedEdges,
+    nodes: reachedNodes,
+    edges: [...edges.values()],
     externalKeys: new Set(
-      projectedNodes
+      reachedNodes
         .filter((node) => node.kind === "external")
         .map((node) => node.key),
     ),
@@ -217,6 +218,30 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
 export function hopByKey(model: GraphHopModel): Map<string, number> {
   return new Map(
     [...model.entries.values()].map((entry) => [entry.key, entry.hop]),
+  );
+}
+
+/**
+ * The seeded graph's default X axis: the seed-relative citation sequence of
+ * the merged graph (library papers included), for the renderer. A map, not a
+ * field on the walk's clones, because the merge keeps the library's own node
+ * objects (ADR 0008). A paper the walk reached sits on the direction's side
+ * of the primary seed; one it did not is placed by its date.
+ */
+export function citationSequenceByKey(
+  model: GraphHopModel,
+  merged: {
+    nodes: readonly CitationGraphNode[];
+    edges: readonly CitationGraphEdge[];
+  },
+): Map<string, number> {
+  const side: CitationSide =
+    model.direction === "references" ? "reference" : "cited-by";
+  return seedRelativeCitationSequence(
+    merged.nodes,
+    merged.edges,
+    model.seeds[0].key,
+    (key) => (model.entries.has(key) && !model.seedKeys.has(key) ? side : null),
   );
 }
 

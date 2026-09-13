@@ -104,7 +104,7 @@ export function assignGraphCitationSequence(nodes: CitationGraphNode[]): void {
 function relationToAnchor(
   key: string,
   anchorKey: string,
-  edges: CitationGraphEdge[],
+  edges: readonly CitationGraphEdge[],
 ): "reference" | "cited-by" | null {
   const anchorReferencesNode = edges.some(
     (edge) => edge.source === anchorKey && edge.target === key,
@@ -117,48 +117,49 @@ function relationToAnchor(
   return null;
 }
 
+export type CitationSide = "reference" | "cited-by";
+
 /**
- * Assign seed-relative citation steps for Focus View. The primary seed is 0;
- * its references are -1, -2, ... from newest to oldest, while citing papers
- * are +1, +2, ... from earliest to latest. Exact dates are used when known;
- * year-only ties remain deterministic but should be interpreted as uncertain.
+ * The seed-relative citation sequence of a seeded graph, as a map (ADR 0008):
+ * the primary seed is 0, its references are -1, -2, ... from newest to
+ * oldest, citing papers are +1, +2, ... from earliest to latest. A paper with
+ * no direct link to the seed takes the side `sideOf` reports (the walk's
+ * direction for a paper it reached) and otherwise the side its date puts it
+ * on, so a folder paper the walk never reached still has a position. Without
+ * the anchor the map is the graph-wide ordinal. Every node is named.
  */
-export function assignFocusCitationSequence(
-  nodes: CitationGraphNode[],
-  edges: CitationGraphEdge[],
+export function seedRelativeCitationSequence(
+  nodes: readonly CitationGraphNode[],
+  edges: readonly CitationGraphEdge[],
   primarySeedKey: string,
-): void {
-  for (const node of nodes) node.citationSequence = null;
+  sideOf: (key: string) => CitationSide | null,
+): Map<string, number> {
+  const sequence = new Map<string, number>();
   const anchor = nodes.find((node) => node.key === primarySeedKey);
   if (!anchor) {
-    assignGraphCitationSequence(nodes);
-    return;
+    const ordered = nodes
+      .filter((node) => nodeOrder(node) !== null)
+      .sort((left, right) => compareChronologically(left, right, true));
+    ordered.forEach((node, index) => sequence.set(node.key, index));
+    return sequence;
   }
-  anchor.citationSequence = 0;
+  sequence.set(anchor.key, 0);
   const anchorOrder = nodeOrder(anchor);
   const references: CitationGraphNode[] = [];
   const citedBy: CitationGraphNode[] = [];
 
   for (const node of nodes) {
     if (node.key === primarySeedKey) continue;
-    const direct = relationToAnchor(node.key, primarySeedKey, edges);
-    if (direct === "reference") {
+    const side =
+      relationToAnchor(node.key, primarySeedKey, edges) ?? sideOf(node.key);
+    if (side === "reference") {
       references.push(node);
       continue;
     }
-    if (direct === "cited-by") {
+    if (side === "cited-by") {
       citedBy.push(node);
       continue;
     }
-    if (node.focusRole === "reference") {
-      references.push(node);
-      continue;
-    }
-    if (node.focusRole === "cited-by") {
-      citedBy.push(node);
-      continue;
-    }
-
     const order = nodeOrder(node);
     if (anchorOrder && order && order.value < anchorOrder.value) {
       references.push(node);
@@ -169,12 +170,33 @@ export function assignFocusCitationSequence(
 
   references
     .sort((left, right) => compareChronologically(left, right, false))
-    .forEach((node, index) => {
-      node.citationSequence = -(index + 1);
-    });
+    .forEach((node, index) => sequence.set(node.key, -(index + 1)));
   citedBy
     .sort((left, right) => compareChronologically(left, right, true))
-    .forEach((node, index) => {
-      node.citationSequence = index + 1;
-    });
+    .forEach((node, index) => sequence.set(node.key, index + 1));
+  return sequence;
+}
+
+/**
+ * Stamp the seed-relative sequence on the nodes themselves, reading a paper's
+ * side off its `focusRole`. Kept for callers that own their node objects; the
+ * plot reads the map form through the renderer instead.
+ */
+export function assignFocusCitationSequence(
+  nodes: CitationGraphNode[],
+  edges: CitationGraphEdge[],
+  primarySeedKey: string,
+): void {
+  const byKey = new Map(nodes.map((node) => [node.key, node]));
+  const sequence = seedRelativeCitationSequence(
+    nodes,
+    edges,
+    primarySeedKey,
+    (key) => {
+      const role = byKey.get(key)?.focusRole;
+      return role === "reference" || role === "cited-by" ? role : null;
+    },
+  );
+  for (const node of nodes)
+    node.citationSequence = sequence.get(node.key) ?? null;
 }

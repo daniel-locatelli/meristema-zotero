@@ -131,6 +131,14 @@ stamps `focusRole` on the nodes it clones, `"seed"` for a seed and
 that service reads for a paper not directly linked to the primary seed. The
 role `"both"` can no longer occur and `mergeRole` goes with the projection.
 
+_Amended 2026-09-13 (final review M14)._ A value stamped on the model's clones
+never reached a library paper, since the merge keeps the library's own node
+objects. The sequence is now computed over the merged graph by
+`citationSequenceByKey` and handed to the renderer as a map, the way hops are
+(ADR 0008); a paper the walk reached sits on the direction's side of the
+primary seed, and a folder paper it never reached is placed by its date. The
+clones still carry `focusRole`.
+
 **How `hop` reaches the plot.** `additiveGraphModel` keeps the library's own
 node object and drops the hop model's copy, so a value stamped on the model's
 node never reaches a library paper (today's `focusRole` is lost the same way).

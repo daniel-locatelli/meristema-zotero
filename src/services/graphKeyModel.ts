@@ -21,7 +21,11 @@ import type {
 } from "../domain/graphTypes";
 import type { CategoryAssignment } from "./graphCategoryAssignment";
 import { formatMetricValue, getMetricDefinition } from "./metricRegistry";
-import { metricExtent, metricNumber } from "./graphMetricScale";
+import {
+  metricExtent,
+  metricNumber,
+  type MetricReader,
+} from "./graphMetricScale";
 import type { GraphTheme } from "./graphTheme";
 
 /**
@@ -118,6 +122,11 @@ export interface KeyModelInput {
    * have a value is a fact about the scope.
    */
   scaleNodes?: CitationGraphNode[];
+  /**
+   * The renderer's metric reader, so the Key counts what the plot draws: on
+   * a seeded graph `citation-sequence` is a map, not the node field.
+   */
+  metricNumber?: MetricReader;
   theme: GraphTheme;
   /** How many links are drawn. Zero means there is no link encoding to name. */
   edgeCount: number;
@@ -140,10 +149,16 @@ function extentDetail(
   input: KeyModelInput,
   metric: MetricID,
 ): { detail: string; count: number } | null {
-  const extent = metricExtent(input.scaleNodes ?? input.nodes, metric);
+  const read = input.metricNumber ?? metricNumber;
+  const extent = metricExtent(
+    input.scaleNodes ?? input.nodes,
+    metric,
+    "linear",
+    read,
+  );
   if (!extent) return null;
   const count = input.nodes.filter(
-    (node) => metricNumber(node, metric) !== null,
+    (node) => read(node, metric) !== null,
   ).length;
   return {
     detail: `${formatMetricValue(metric, extent[0])} – ${formatMetricValue(metric, extent[1])}`,
@@ -197,8 +212,9 @@ function colorSection(input: KeyModelInput): KeySection {
       // A position on a ramp is not a group of papers.
       matches: null,
     });
+    const read = input.metricNumber ?? metricNumber;
     const missing = nodes.filter(
-      (node) => metricNumber(node, metric as MetricID) === null,
+      (node) => read(node, metric as MetricID) === null,
     );
     if (missing.length) {
       entries.push({
@@ -211,7 +227,7 @@ function colorSection(input: KeyModelInput): KeySection {
           colors: [theme.categorical.noValue],
           dashed: true,
         },
-        matches: (node) => metricNumber(node, metric as MetricID) === null,
+        matches: (node) => read(node, metric as MetricID) === null,
       });
     }
     return { kind: "color", heading, subheading, entries, note: null };
@@ -341,10 +357,11 @@ function linkSection(input: KeyModelInput): KeySection | null {
 function hasNoAxisValue(
   node: CitationGraphNode,
   layout: GraphLayoutOptions,
+  read: MetricReader,
 ): boolean {
   for (const axis of [layout.xMetric, layout.yMetric]) {
     if (axis === "free") continue;
-    if (metricNumber(node, axis) === null) return true;
+    if (read(node, axis) === null) return true;
   }
   return false;
 }
@@ -424,7 +441,8 @@ function stateSection(input: KeyModelInput): KeySection | null {
     }
   }
 
-  const parked = nodes.filter((node) => hasNoAxisValue(node, layout));
+  const read = input.metricNumber ?? metricNumber;
+  const parked = nodes.filter((node) => hasNoAxisValue(node, layout, read));
   if (parked.length) {
     entries.push({
       id: "no-data",
@@ -432,7 +450,7 @@ function stateSection(input: KeyModelInput): KeySection | null {
       count: parked.length,
       detail: null,
       mark: ring(theme.categorical.noValue, true),
-      matches: (node) => hasNoAxisValue(node, layout),
+      matches: (node) => hasNoAxisValue(node, layout, read),
     });
   }
 

@@ -1,8 +1,10 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { CitationGraphNode } from "../../src/domain/graphTypes";
+import { additiveGraphModel } from "../../src/services/graphFocusService";
 import {
   buildGraphHopModel,
+  citationSequenceByKey,
   clampHopDepth,
   hopByKey,
   reachedFromSeed,
@@ -198,30 +200,45 @@ describe("buildGraphHopModel", function () {
     expect([...reachedFromSeed(model, "t")]).to.deep.equal(["b"]);
   });
 
-  it("assigns the seed-relative citation sequence, the seeded graph's default X axis", function () {
-    // The projection was the only caller of assignFocusCitationSequence; the
-    // model takes that over. Citers sit after the seed, references before it.
+  it("hands the seed-relative sequence to the plot as a map over the merged graph", function () {
+    // ADR 0008: the merge keeps the library's own node objects, so a value
+    // stamped on the walk's clones never reached a library paper. The map
+    // covers every merged node: the seed at 0, a reached paper on the
+    // direction's side, a folder paper the walk never reached by its date.
+    const seed = node("s", { year: 2015 });
+    const reached = node("a", { year: 2012 });
+    const stranger = node("lib", { year: 2020 });
     const citers = buildGraphHopModel({
-      seeds: [node("s")],
+      seeds: [seed],
       direction: "cited-by",
       depth: 1,
       neighbours: lookup({ s: ["a"] }),
     })!;
-    expect(citers.nodes.find((n) => n.key === "s")!.citationSequence).to.equal(
-      0,
+    const merged = additiveGraphModel(
+      { nodes: [seed, reached, stranger], edges: [] },
+      citers,
     );
+    const sequence = citationSequenceByKey(citers, merged);
+    expect(sequence.get("s")).to.equal(0);
+    // A citer older than the seed (a preprint) still sits after it.
+    expect(sequence.get("a")).to.equal(1);
+    expect(sequence.get("lib")).to.equal(2);
+    // The clones carry no sequence: the map is the only source.
     expect(
-      citers.nodes.find((n) => n.key === "a")!.citationSequence,
-    ).to.be.greaterThan(0);
+      citers.nodes.find((n) => n.key === "a")!.citationSequence ?? null,
+    ).to.equal(null);
     const refs = buildGraphHopModel({
-      seeds: [node("s")],
+      seeds: [seed],
       direction: "references",
       depth: 1,
       neighbours: lookup({ s: ["a"] }),
     })!;
     expect(
-      refs.nodes.find((n) => n.key === "a")!.citationSequence,
-    ).to.be.lessThan(0);
+      citationSequenceByKey(
+        refs,
+        additiveGraphModel({ nodes: [seed], edges: [] }, refs),
+      ).get("a"),
+    ).to.equal(-1);
     expect(refs.nodes.find((n) => n.key === "a")!.focusRole).to.equal(
       "reference",
     );

@@ -31,6 +31,7 @@ import {
   axisScaleForNodes,
   clamp,
   metricExtent,
+  type MetricReader,
   metricNumber,
   numericColor,
   scaleValue,
@@ -282,6 +283,11 @@ export class CitationGraphRenderer {
   private inLibraryReachedKeys = new Set<string>();
   /** Each reached paper's hop; absent means a library paper no hop reached. */
   private hops = new Map<string, number>();
+  /**
+   * The seeded graph's seed-relative citation sequence, or null on a library
+   * graph. A map, not a node field, for the reason `hops` is (ADR 0008).
+   */
+  private citationSequence: ReadonlyMap<string, number> | null = null;
   /** Bumped by `setHops`, so the category assignment rebuilds for the new map. */
   private hopsRevision = 0;
   private hoverKey: string | null = null;
@@ -393,13 +399,13 @@ export class CitationGraphRenderer {
     };
   }
 
-  private axisScale(
+  public axisScale(
     nodes: CitationGraphNode[],
     axis: "x" | "y",
   ): AxisScale | null {
     const metric = axis === "x" ? this.layout.xMetric : this.layout.yMetric;
     const scale = axis === "x" ? this.layout.xScale : this.layout.yScale;
-    const base = axisScaleForNodes(nodes, metric, scale, 6);
+    const base = axisScaleForNodes(nodes, metric, scale, 6, this.metricNumber);
     if (!base) return null;
     if (metric === "free") return base;
     const visibleDomain = visibleMetricDomain(
@@ -614,14 +620,15 @@ export class CitationGraphRenderer {
   ): number {
     const metric = this.layout.nodeSizeMetric;
     if (metric === "uniform") return this.baseNodeRadius();
-    const value = metricNumber(node, metric);
+    const value = this.metricNumber(node, metric);
     if (value === null) return MIN_NODE_RADIUS;
     const metricNodes = this.layoutNodes();
-    const resolved = domain ?? metricExtent(metricNodes, metric);
+    const resolved =
+      domain ?? metricExtent(metricNodes, metric, "linear", this.metricNumber);
     if (!resolved) return this.baseNodeRadius();
     if (resolved[0] === resolved[1]) {
       const hasMissingValues = metricNodes.some(
-        (visibleNode) => metricNumber(visibleNode, metric) === null,
+        (visibleNode) => this.metricNumber(visibleNode, metric) === null,
       );
       return hasMissingValues
         ? MAX_NODE_RADIUS
@@ -963,7 +970,7 @@ export class CitationGraphRenderer {
     const metric = this.layout.nodeColorMetric;
     if (metric === "uniform") return this.theme.states.uniformFill;
     if (!isMetricID(metric)) return this.categories().colorFor(node);
-    const value = metricNumber(node, metric);
+    const value = this.metricNumber(node, metric);
     if (value === null || !colorDomain) return this.theme.categorical.noValue;
     return numericColor(
       scaleValue(value, colorDomain[0], colorDomain[1], "linear"),
@@ -1176,7 +1183,7 @@ export class CitationGraphRenderer {
     if (metric === "free") return false;
     const scale = axis === "x" ? this.layout.xScale : this.layout.yScale;
     return nodes.some((node) => {
-      const value = metricNumber(node, metric);
+      const value = this.metricNumber(node, metric);
       return value === null || (scale === "log" && value <= 0);
     });
   }
@@ -1655,9 +1662,19 @@ export class CitationGraphRenderer {
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
           ? null
-          : metricExtent(metricNodes, this.layout.nodeSizeMetric);
+          : metricExtent(
+              metricNodes,
+              this.layout.nodeSizeMetric,
+              "linear",
+              this.metricNumber,
+            );
       const colorDomain = isMetricID(this.layout.nodeColorMetric)
-        ? metricExtent(metricNodes, this.layout.nodeColorMetric)
+        ? metricExtent(
+            metricNodes,
+            this.layout.nodeColorMetric,
+            "linear",
+            this.metricNumber,
+          )
         : null;
       // Radii are device pixels from here down, so a node keeps its size as the
       // view zooms.
@@ -1805,6 +1822,33 @@ export class CitationGraphRenderer {
     if (draw) this.draw();
   }
 
+  /**
+   * The seed-relative citation sequence of the merged graph, or null once
+   * the graph has no seed and the node field (the graph-wide ordinal) is the
+   * truth again. Re-sent after every rebuild of the walk.
+   */
+  public setCitationSequence(
+    sequence: ReadonlyMap<string, number> | null,
+    draw = true,
+  ): void {
+    this.citationSequence = sequence ? new Map(sequence) : null;
+    this.categoryAssignment = null;
+    if (draw) this.draw();
+  }
+
+  /**
+   * The one reader every axis, size, colour and Key read goes through: the
+   * node's own field, except that `citation-sequence` on a seeded graph is
+   * the map. An arrow property, so it can be handed to the scene and the Key
+   * model unbound.
+   */
+  public metricNumber: MetricReader = (node, metric) => {
+    if (metric === "citation-sequence" && this.citationSequence) {
+      return this.citationSequence.get(node.key) ?? null;
+    }
+    return metricNumber(node, metric);
+  };
+
   /** The hop opacity ramp for a node; 1 for a node no hop reached. */
   public hopAlphaFor(key: string): number {
     return hopOpacity(this.hops.get(key));
@@ -1838,6 +1882,11 @@ export class CitationGraphRenderer {
       [...this.inLibraryReachedKeys].filter((key) => validKeys.has(key)),
     );
     this.hops = new Map([...this.hops].filter(([key]) => validKeys.has(key)));
+    if (this.citationSequence) {
+      this.citationSequence = new Map(
+        [...this.citationSequence].filter(([key]) => validKeys.has(key)),
+      );
+    }
     if (this.selectedKey && !validKeys.has(this.selectedKey)) {
       this.selectedKey = null;
       this.onSelectionChange(null);

@@ -17,9 +17,9 @@ export function metricHasData(
   nodes: readonly CitationGraphNode[],
   metric: MetricID,
 ): boolean {
-  // Focus projections derive this metric after the appearance controls are
-  // created, so it must remain selectable even when the initial library graph
-  // has no precise publication dates.
+  // A seeded graph's sequence is a map on the renderer, computed after the
+  // appearance controls are created (ADR 0008), so the option stays
+  // selectable even when the library graph has no precise publication dates.
   if (metric === "citation-sequence") return true;
   return nodes.some((node) => {
     const value = metricValue(node, metric);

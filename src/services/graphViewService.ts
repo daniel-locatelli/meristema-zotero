@@ -216,6 +216,7 @@ import { projectToScreen } from "./graphViewport";
 import {
   buildGraphHopModel,
   clampHopDepth,
+  citationSequenceByKey,
   hopByKey,
   reachedFromSeed,
   type GraphHopModel,
@@ -2447,9 +2448,11 @@ ${error instanceof Error ? error.message : String(error)}`,
     ensureSwatchesFor();
     renderer?.setSeedColors(seedColorsFor(next), false);
     renderer?.setInLibraryReachedKeys(inLibraryHopKeys(next), false);
-    // The hop map, not a node field: the merge above kept the library's own
-    // node objects, which carry no hop.
+    // The hop map and the sequence map, not node fields: the merge above kept
+    // the library's own node objects, which carry no hop and whose
+    // citationSequence is the graph-wide ordinal (ADR 0008).
     renderer?.setHops(hopByKey(next), false);
+    renderer?.setCitationSequence(citationSequenceByKey(next, merged), false);
     appearance.setColourOptionAvailable("citation-hop", true);
     applyFilters();
     if (projectionOptions.fit) scheduleFocusFit();
@@ -2835,6 +2838,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     renderer?.setSeedColors(new Map(), false);
     renderer?.setInLibraryReachedKeys(new Set(), false);
     renderer?.setHops(new Map(), false);
+    renderer?.setCitationSequence(null, false);
     appearance.setColourOptionAvailable("citation-hop", false);
     ensureSwatchesFor();
     updateFocusBar();
@@ -4095,6 +4099,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       buildKeyModel({
         layout: active.getLayout(),
         assignment: active.getCategoryAssignment(),
+        metricNumber: active.metricNumber,
         // What the filter admits — not the whole library. A graph opened on a
         // folder is the library with a filter over it, so handing the Key every
         // node made it name folders whose papers are nowhere on screen.
