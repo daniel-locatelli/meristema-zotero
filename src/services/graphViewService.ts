@@ -2025,6 +2025,7 @@ export function renderGraphView(
   };
   showGallery = (): void => viewGallery.show(visibleNodeCount());
 
+  let queuedView: GraphViewDefinition | null = null;
   applyGraphView = (chosen: GraphViewDefinition): void => {
     const plan = planGraphView(chosen, {
       nodes: model.nodes,
@@ -2033,6 +2034,28 @@ export function renderGraphView(
       folders: viewFolders(),
       hops: liveHops(),
     });
+    const seedCount = hopModel?.seeds.length ?? 0;
+    const needs =
+      chosen.requires === "seed" ? 1 : chosen.requires === "two-seeds" ? 2 : 0;
+    if (seedCount < needs) {
+      // The view waits for its seed: the Add seed panel opens with the view
+      // queued, and the view is applied when the seed lands.
+      queuedView = chosen;
+      openFocusSeedPopover(keyRail.addSeedAnchor());
+      setStatus(
+        `${chosen.name} needs ${needs === 1 ? "a seed" : "2 seeds"}; add one to apply it`,
+      );
+      return;
+    }
+    if (chosen.explore) {
+      hopDirection = chosen.explore.direction;
+      hopDepth = chosen.explore.hops;
+      hopEnabled = hopEnabled.map((value, hop) =>
+        hop <= chosen.explore!.hops ? true : value,
+      );
+      hopFillPaused = false;
+      if (hopModel) rebuildCurrentFocus();
+    }
     // Appearance goes through the gear's own controller, so its selects, the
     // instance's live layout and the preference all move together.
     appearance.setLayout(plan.layout);
@@ -2643,6 +2666,11 @@ ${error instanceof Error ? error.message : String(error)}`,
     // has not seen them: the seeds already expanded leave again here.
     drainExpandedFitSeeds();
     scheduleHopFill();
+    if (queuedView) {
+      const view = queuedView;
+      queuedView = null;
+      applyGraphView(view);
+    }
     return true;
   };
 
@@ -2684,6 +2712,11 @@ ${error instanceof Error ? error.message : String(error)}`,
     for (const seed of missingSeeds) focusPostRefreshFitSeeds.add(seed.key);
     drainExpandedFitSeeds();
     scheduleHopFill();
+    if (queuedView) {
+      const view = queuedView;
+      queuedView = null;
+      applyGraphView(view);
+    }
     return true;
   };
 
