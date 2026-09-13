@@ -168,6 +168,34 @@ describe("Citation hops (Stage 3)", function () {
     return line ? normalize(line.textContent) : "no progress line";
   }
 
+  /** The progress line while the runner has work in hand: `expanding · {n} left`. */
+  function isExpanding(line: string): boolean {
+    return /^expanding · \d+ left/.test(line);
+  }
+
+  /**
+   * Press Refresh and wait for its whole cycle: it must report busy (or have
+   * finished before the first sample) and come back pressable. Without this
+   * the assertions after a Refresh read the ladder the Refresh has not
+   * touched yet, and pass whether or not it did anything.
+   */
+  async function refreshCycle(): Promise<string> {
+    await pressRefresh();
+    const busy = await waitFor(
+      () =>
+        refreshButton().disabled ||
+        refreshButton().getAttribute("aria-busy") === "true",
+      10_000,
+    );
+    const free = await waitFor(
+      () =>
+        !refreshButton().disabled &&
+        refreshButton().getAttribute("aria-busy") !== "true",
+      150_000,
+    );
+    return `refresh went busy: ${Boolean(busy)}, came back: ${Boolean(free)}`;
+  }
+
   /** The `Fetch hop N` button, which sits in the first row past the depth. */
   function fetchButton(hop: number): HTMLButtonElement | null {
     const button = hopRow(hop)?.querySelector(
@@ -720,43 +748,71 @@ describe("Citation hops (Stage 3)", function () {
   });
 
   it("keeps Refresh pressable while the fill runs", async function () {
-    this.timeout(30_000);
-    const button = refreshButton();
+    // The guard is only worth anything at a moment the runner is actually
+    // filling: reading an idle graph's Refresh button proves nothing. So the
+    // case first establishes a fill — case 2's may already have drained, and
+    // a Refresh starts a fresh one by widening the seed's own list — and
+    // then reads the button and the progress line in the same tick.
+    this.timeout(180_000);
+    if (!isExpanding(progressText())) await pressRefresh();
+    let seenWhileBusy = "none";
+    const moment = await waitFor(() => {
+      const line = progressText();
+      if (!isExpanding(line)) return null;
+      const live = refreshButton();
+      if (live.disabled || live.getAttribute("aria-busy") === "true") {
+        // The reader's own Refresh is allowed to hold its button while it
+        // runs; what must not happen is the runner holding it.
+        seenWhileBusy = `${line} (Refresh busy)`;
+        return null;
+      }
+      return `${line} | Refresh enabled, aria-busy ${live.getAttribute("aria-busy")}`;
+    }, 120_000);
     expect(
-      button.disabled,
-      `Refresh was disabled during the fill; aria-busy ` +
-        `${button.getAttribute("aria-busy")}; title "${button.title}"; ` +
-        `progress: ${progressText()}; ladder ${ladder()}`,
-    ).to.equal(false);
+      moment,
+      `never saw the runner filling with Refresh free; the last fill seen ` +
+        `while Refresh was held was "${seenWhileBusy}"; progress now ` +
+        `"${progressText()}"; Refresh disabled=${refreshButton().disabled} ` +
+        `aria-busy ${refreshButton().getAttribute("aria-busy")}; ` +
+        `ladder ${ladder()}`,
+    ).to.exist;
     expect(
-      button.getAttribute("aria-busy"),
-      `Refresh reported busy; title "${button.title}"; ` +
-        `progress: ${progressText()}`,
-    ).to.not.equal("true");
+      moment,
+      "the moment read must carry the fill's own progress line",
+    ).to.match(/^expanding · \d+ left/);
   });
 
   it("fills hop 2 again after a Refresh", async function () {
     // The timing-shaped case, run a second time: the ladder must reach the
     // same place from a seed whose lists are refetched under it.
-    this.timeout(180_000);
-    const before = hopCountText(2);
-    await pressRefresh();
+    this.timeout(240_000);
+    const before = hopCounts(2);
+    const beforeText = hopCountText(2);
+    // `hopCounts(2).available > 0` is already true on entry, so a wait for it
+    // returns on its first tick and proves nothing. Wait for the Refresh's
+    // own cycle instead, then hold the ladder to what it read before it.
+    const cycle = await refreshCycle();
     await waitFor(() => {
       const counts = hopCounts(2);
-      return counts !== null && counts.available > 0;
+      return (
+        counts !== null &&
+        counts.available >= (before?.available ?? 1) &&
+        counts.available > 0
+      );
     }, 120_000);
     const counts = hopCounts(2);
     expect(
       counts,
-      `hop 2 lost its count across a Refresh; it read "${before}" before ` +
+      `hop 2 lost its count across a Refresh; it read "${beforeText}" before ` +
         `and "${hopRowText(2)}" after; hop 1 read "${hopCountText(1)}"; ` +
-        `progress: ${progressText()}`,
+        `${cycle}; progress: ${progressText()}`,
     ).to.not.equal(null);
     expect(
       counts!.available,
-      `hop 2 read "${before}" before the Refresh and ` +
-        `"${hopCountText(2)}" after; progress: ${progressText()}`,
-    ).to.be.greaterThan(0);
+      `hop 2 read "${beforeText}" before the Refresh and ` +
+        `"${hopCountText(2)}" after: the Refresh cost it papers. ${cycle}; ` +
+        `progress: ${progressText()}`,
+    ).to.be.at.least(Math.max(1, before?.available ?? 1));
   });
 
   it("hides the hop 2 papers when hop 1 is unticked, and brings them back", async function () {
@@ -791,6 +847,15 @@ describe("Citation hops (Stage 3)", function () {
     this.timeout(180_000);
     const before = ladder();
     directionCell("References").click();
+    // The Citers ladder is still in the DOM when the click returns, and its
+    // hop 1 already reads a count — so waiting only for "hop 1 has a count"
+    // is satisfied by the stale one. Wait for the rebuild first.
+    const rebuildTrace = await traceUntil(() => ladder() !== before, 60_000);
+    expect(
+      ladder(),
+      `the ladder never left its Citers shape after the switch; it read ` +
+        `${before}; ${directionState()}; trace: ${rebuildTrace}`,
+    ).to.not.equal(before);
     const trace = await traceUntil(() => {
       const counts = hopCounts(1);
       return counts !== null && counts.available > 0;
@@ -817,26 +882,34 @@ describe("Citation hops (Stage 3)", function () {
   });
 
   it("fills References hop 1 again after a Refresh", async function () {
-    // The second timing-shaped case, repeated as the first one is.
-    this.timeout(180_000);
-    const before = hopCountText(1);
-    await pressRefresh();
+    // The second timing-shaped case, repeated as the first one is, and held
+    // to the count it read before the Refresh rather than to "more than 0",
+    // which was already true when the case started.
+    this.timeout(240_000);
+    const before = hopCounts(1);
+    const beforeText = hopCountText(1);
+    const cycle = await refreshCycle();
     await waitFor(() => {
       const counts = hopCounts(1);
-      return counts !== null && counts.available > 0;
+      return (
+        counts !== null &&
+        counts.available >= (before?.available ?? 1) &&
+        counts.available > 0
+      );
     }, 120_000);
     const counts = hopCounts(1);
     expect(
       counts,
-      `References hop 1 lost its count across a Refresh; it read "${before}" ` +
-        `before and "${hopRowText(1)}" after; ${directionState()}; ` +
-        `progress: ${progressText()}`,
+      `References hop 1 lost its count across a Refresh; it read ` +
+        `"${beforeText}" before and "${hopRowText(1)}" after; ` +
+        `${directionState()}; ${cycle}; progress: ${progressText()}`,
     ).to.not.equal(null);
     expect(
       counts!.available,
-      `hop 1 read "${before}" before the Refresh and "${hopCountText(1)}" ` +
-        `after; ${directionState()}; progress: ${progressText()}`,
-    ).to.be.greaterThan(0);
+      `hop 1 read "${beforeText}" before the Refresh and ` +
+        `"${hopCountText(1)}" after: the Refresh cost it papers. ` +
+        `${directionState()}; ${cycle}; progress: ${progressText()}`,
+    ).to.be.at.least(Math.max(1, before?.available ?? 1));
   });
 
   it("saves the graph and finds its direction and depth on reopening", async function () {
