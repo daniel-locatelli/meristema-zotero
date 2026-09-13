@@ -1,8 +1,8 @@
 # Citation Hops: One Direction, Fetched Lazily
 
 **Date:** 2026-09-12
-**Status:** Approved in the brainstorm of 2026-09-12; revised the same day
-after an adversarial review of 24 findings, folded in below; not yet planned
+**Status:** Built 2026-09-13; manual checks queued (revised 2026-09-12 after
+an adversarial review of 24 findings, folded in below)
 
 Stage 3 of `docs/superpowers/handoffs/2026-09-08-roadmap.md`, layer 2 of the
 citation chain depth design
