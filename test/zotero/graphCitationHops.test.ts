@@ -1023,13 +1023,26 @@ describe("Citation hops (Stage 3)", function () {
     // not exclusive ownership of the bar for three seconds. Accept the
     // notice or any other non-empty status, and fail only on the empty
     // string that a timed-out non-sticky message would leave behind.
-    await delay(2800);
-    const seen = statusText(v4TabID);
+    // So the case records every text the bar shows over the next 2.8 s
+    // (the auto-clear is 2.5 s) and fails only on the notice going straight
+    // to "": an empty bar after some *other* message is that message's own
+    // timeout, which the contract allows (the 2026-09-13 suite run saw
+    // exactly that once; the sample at 2.8 s alone could not tell the two
+    // apart).
+    const shown: string[] = [BOTH_NOTICE];
+    for (let tick = 0; tick < 28; tick += 1) {
+      await delay(100);
+      const text = statusText(v4TabID);
+      if (text !== shown[shown.length - 1]) shown.push(text);
+    }
+    const emptiedFrom = shown.findIndex(
+      (text, index) =>
+        index > 0 && text === "" && shown[index - 1] === BOTH_NOTICE,
+    );
     expect(
-      seen,
-      `the status bar read "${seen}" 2.8s after the sticky migration ` +
-        `notice; it should still carry the notice or some other non-empty ` +
-        `status, not have gone empty (auto-cleared)`,
-    ).to.not.equal("");
+      emptiedFrom,
+      `the sticky migration notice went straight to "" (auto-cleared); the ` +
+        `bar showed ${JSON.stringify(shown)} over 2.8s`,
+    ).to.equal(-1);
   });
 });
