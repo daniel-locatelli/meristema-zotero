@@ -461,8 +461,8 @@ function migrateFromVersion1(
  *
  * Which field is authoritative is decided by `version`, not by which key
  * happens to be present: a version 4 fixture built by spreading
- * `emptyGraphViewState()` carries a default `hops` alongside its `explore`
- * override, and the `explore` override must still win.
+ * `emptyGraphViewState()` carries the current default `hops`, and its own
+ * `explore` override must still win.
  */
 function parseHops(
   raw: Record<string, unknown>,

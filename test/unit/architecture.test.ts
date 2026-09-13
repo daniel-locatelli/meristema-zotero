@@ -69,7 +69,6 @@ import {
   scaleValue,
 } from "../../src/services/graphMetricScale";
 import {
-  automaticFocusSeedRefreshPlan,
   orderRelationshipProviders,
   preferredRelationshipProviders,
   relationshipForegroundMetadataLimit,
@@ -776,15 +775,6 @@ describe("Architecture foundations", function () {
       "rejected",
       "fulfilled",
     ]);
-  });
-
-  it("reuses fresh Focus membership without foreground metadata hydration", function () {
-    const plan = automaticFocusSeedRefreshPlan();
-    expect(plan.forceRefresh).to.equal(false);
-    expect(plan.membershipLimit).to.equal(50);
-    expect(plan.foregroundMetadataLimit).to.equal(0);
-    expect(plan.showBackgroundProgress).to.equal(true);
-    expect(plan.startDelayMs).to.be.greaterThan(0);
   });
 
   it("keeps every enabled relationship provider in automatic refreshes", function () {

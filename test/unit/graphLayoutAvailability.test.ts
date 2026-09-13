@@ -85,6 +85,15 @@ describe("normaliseLayoutFor", function () {
 
 describe("colourOptionHasData for citation-hop", function () {
   it("is always true: the gear enables the option by seededness instead", function () {
+    // A hop belongs to the walk, not to a node — `additiveGraphModel` keeps
+    // the library's own node objects, which carry no `hop` — so the data
+    // probe cannot answer this one. Seededness does, at three points in
+    // graphViewService.ts: off at setup, on in `applyHopModel`, off again in
+    // `clearSeeds`. This test pins the division of labour, not a preference.
     expect(colourOptionHasData([], "citation-hop")).to.equal(true);
+    expect(
+      colourOptionHasData([node({ citationCount: 3 })], "citation-hop"),
+      "a graph with nodes but no hops says the same: the probe abstains",
+    ).to.equal(true);
   });
 });

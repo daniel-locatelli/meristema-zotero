@@ -1210,6 +1210,17 @@ export function renderGraphView(
         : resetGraphAppearance(),
   );
   currentLayout = appearance.getLayout();
+  // Citation hop is "available while the graph has a seed" (spec, "The
+  // plot"). A graph opens seedless, so the entry starts off and is turned on
+  // by `applyHopModel` and off again by `clearSeeds`; without this the gear
+  // offered it on a plain library graph, where choosing it greys every node.
+  // Not when the restored layout already is Citation hop: a saved seeded
+  // graph arrives with the colouring chosen and its seeds a moment behind,
+  // and disabling a selected option knocks it back to Uniform and persists
+  // that.
+  if (currentLayout.nodeColorMetric !== "citation-hop") {
+    appearance.setColourOptionAvailable("citation-hop", false);
+  }
   /*
    * Both of these panels used to close only by pressing their own button
    * again, which is not how a menu behaves anywhere else in Zotero. The
@@ -5147,9 +5158,12 @@ ${error instanceof Error ? error.message : String(error)}`,
       clearTimeout(hopFillFrame);
       hopFillFrame = 0;
     }
-    // The landings are in the store either way, so the held invalidation is
-    // fired rather than dropped.
+    // The landings are in the store either way, so the held invalidation and
+    // the held column refresh are fired rather than dropped: the coalescing
+    // timer is module-global, and an unflushed one would fire up to ten
+    // seconds after this graph is gone.
     flushHopSnapshot();
+    flushCoalescedPresentationRefresh();
     hopFillQueue.close();
     cancelCameraFrame();
     if (focusRebuildFrame) {

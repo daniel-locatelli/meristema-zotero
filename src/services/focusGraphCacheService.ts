@@ -89,13 +89,6 @@ export function invalidateHopFragment(libraryID: number, key: string): void {
   fragments.delete(fragmentKey(libraryID, key, "references"));
 }
 
-export function clearFocusGraphCachesForLibrary(libraryID: number): void {
-  const prefix = `${libraryID}:`;
-  for (const key of [...fragments.keys()]) {
-    if (key.startsWith(prefix)) fragments.delete(key);
-  }
-}
-
 export function clearFocusGraphCaches(): void {
   fragments.clear();
 }

@@ -90,28 +90,6 @@ export function relationshipForegroundMetadataLimit(
     : Math.max(0, relationshipCount);
 }
 
-export interface AutomaticFocusSeedRefreshPlan {
-  /** A newly introduced seed always verifies its current membership. */
-  forceRefresh: false;
-  /** Delay long enough for the seed graph and progress popup to paint first. */
-  startDelayMs: number;
-  membershipLimit: number;
-  /** Optional summaries are deferred to the cooperative background queue. */
-  foregroundMetadataLimit: 0;
-  showBackgroundProgress: true;
-}
-
-export function automaticFocusSeedRefreshPlan(): AutomaticFocusSeedRefreshPlan {
-  const policy = relationshipRefreshPolicy("automatic");
-  return {
-    forceRefresh: false,
-    startDelayMs: 80,
-    membershipLimit: policy.membershipLimit,
-    foregroundMetadataLimit: 0,
-    showBackgroundProgress: true,
-  };
-}
-
 export function relationshipSnapshotIsFresh(
   fetchedAt: string | null | undefined,
   maxAgeMs = RELATIONSHIP_CACHE_MAX_AGE_MS,

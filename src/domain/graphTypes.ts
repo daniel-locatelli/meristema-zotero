@@ -51,7 +51,7 @@ export type GraphNodeColorMetric =
 export type GraphNodeLabelMode = "title" | "author-year" | "none";
 
 export type CitationGraphNodeKind = "local" | "external";
-export type CitationGraphFocusRole = "seed" | "reference" | "cited-by" | "both";
+export type CitationGraphFocusRole = "seed" | "reference" | "cited-by";
 
 export interface CitationGraphNode {
   key: string;

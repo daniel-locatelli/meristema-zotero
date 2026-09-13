@@ -1037,7 +1037,7 @@
   right: 0;
   left: auto;
 }
-/* Both panels' rows, so an Explore select matches an appearance one. */
+/* Both panels' rows, so a seed popover select matches an appearance one. */
 .cm-appearance-row .cm-select {
   min-height: 28px;
 }

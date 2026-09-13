@@ -83,6 +83,19 @@ describe("limitRelationshipProviders", function () {
     ).to.deep.equal(["semantic-scholar", "crossref", "inspire"]);
   });
 
+  it("leaves a limit-1 head alone when that one provider already pages", function () {
+    // The hop runner's own case: `providerLimit: 1`. Nothing is promoted
+    // when the single provider the order picked can page the direction, so
+    // native-first survives the truncation.
+    expect(
+      limitRelationshipProviders(
+        ["semantic-scholar", "crossref", "opencitations"],
+        1,
+        pages,
+      ),
+    ).to.deep.equal(["semantic-scholar"]);
+  });
+
   it("promotes a paging provider into a head that has none", function () {
     expect(
       limitRelationshipProviders(

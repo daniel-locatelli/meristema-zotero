@@ -389,7 +389,7 @@ describe("version 3", function () {
     expect(parsed?.view).to.equal(null);
   });
 
-  it("round-trips the active view in version 4", function () {
+  it("round-trips the active view", function () {
     for (const view of [null, "blank", { id: "overview" }] as const) {
       const state = { ...emptyGraphViewState(), view };
       const parsed = parseGraphViewState(serializeGraphViewState(state));
