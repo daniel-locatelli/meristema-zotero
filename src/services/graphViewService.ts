@@ -1541,8 +1541,8 @@ export function renderGraphView(
   }
 
   const updateEmptyState = (visibleCount: number): void => {
-    // A seeded view fetches its own neighbours, so an empty projection there
-    // is a transient loading state rather than a misunderstanding worth
+    // A seeded view fetches its own neighbours, so an empty plot there is a
+    // transient loading state rather than a misunderstanding worth
     // explaining.
     if (hopModel || visibleCount > 1) {
       emptyState.hidden = true;
@@ -1800,8 +1800,8 @@ export function renderGraphView(
         if (!node) return;
         if (isSeed) removeFocusSeed(node.key);
         else addFocusSeed(node);
-        // The projection change re-rendered the list; the box keeps the query
-        // and the focus so the next seed is one keystroke away.
+        // The seed change re-rendered the list; the box keeps the query and
+        // the focus so the next seed is one keystroke away.
         focusSeedSearch.focus();
       });
       row.appendChild(toggle);
@@ -1955,9 +1955,9 @@ export function renderGraphView(
    * sees the same colours because allocation is deterministic, and leaves
    * the saved ledger exactly as it found it.
    */
-  const seedColorsFor = (projection: GraphHopModel): Map<string, string> => {
+  const seedColorsFor = (hops: GraphHopModel): Map<string, string> => {
     const theme = renderer?.getTheme() ?? graphThemeFor("light");
-    const keys = projection.seeds.map((seed) => seed.key);
+    const keys = hops.seeds.map((seed) => seed.key);
     const ledger = seedSwatches.peek(keys, theme.seeds.length);
     return new Map(
       keys.map((key) => [
@@ -2379,13 +2379,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const seedsForState = (state: GraphFocusState): CitationGraphNode[] =>
     state.seedKeys
-      .map(
-        (key) =>
-          focusSeedRegistry.get(key) ??
-          libraryModel.nodes.find((node) => node.key === key) ??
-          model.nodes.find((node) => node.key === key) ??
-          null,
-      )
+      .map((key) => hopSubject(key))
       .filter((node): node is CitationGraphNode => Boolean(node))
       .map(resolveFocusSeed);
 
@@ -2416,7 +2410,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   const applyHopModel = (
     next: GraphHopModel,
-    projectionOptions: { fit?: boolean } = {},
+    options: { fit?: boolean } = {},
   ): void => {
     setSeeded(true);
     hopModel = next;
@@ -2455,7 +2449,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     renderer?.setCitationSequence(citationSequenceByKey(next, merged), false);
     appearance.setColourOptionAvailable("citation-hop", true);
     applyFilters();
-    if (projectionOptions.fit) scheduleFocusFit();
+    if (options.fit) scheduleFocusFit();
     drainExpandedFitSeeds();
     updateFocusBar();
     notifyStateChange();
@@ -2467,9 +2461,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       inactiveRelationshipDirty = true;
       return true;
     }
-    const projection = hopModelForSeeds(seedState(seedKeysOf()));
-    if (!projection) return false;
-    applyHopModel(projection, options);
+    const next = hopModelForSeeds(seedState(seedKeysOf()));
+    if (!next) return false;
+    applyHopModel(next, options);
     return true;
   };
 
@@ -2493,13 +2487,13 @@ ${error instanceof Error ? error.message : String(error)}`,
     state: GraphFocusState,
     options: { fit?: boolean; selectKey?: string } = {},
   ): boolean => {
-    const projection = hopModelForSeeds(state);
-    if (!projection) return false;
-    applyHopModel(projection, { fit: options.fit });
-    const selectedKey = options.selectKey ?? projection.seeds[0].key;
+    const next = hopModelForSeeds(state);
+    if (!next) return false;
+    applyHopModel(next, { fit: options.fit });
+    const selectedKey = options.selectKey ?? next.seeds[0].key;
     if (visibleKeys.has(selectedKey)) {
-      // The seed the projection lands on is the view's own choice, not a
-      // click: Zotero's list must not follow it.
+      // The seed the walk lands on is the view's own choice, not a click:
+      // Zotero's list must not follow it.
       withoutSelectionReport(() => renderer?.selectNode(selectedKey, false));
     }
     return true;
@@ -2669,6 +2663,15 @@ ${error instanceof Error ? error.message : String(error)}`,
     });
   };
 
+  /** A seed is never hidden: seeding a hidden paper unhides it. */
+  const unhideSeeds = (seeds: readonly CitationGraphNode[]): void => {
+    const purged = purgeHiddenKeys(
+      hiddenKeys,
+      seeds.map((seed) => seed.key),
+    );
+    hiddenKeys.clear();
+    for (const key of purged) hiddenKeys.add(key);
+  };
   const enterFocusSeeds = (
     seedCandidates: readonly CitationGraphNode[],
     options: { state?: GraphFocusState } = {},
@@ -2682,12 +2685,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       ).values(),
     ];
     if (!seeds.length) return false;
-    const purged = purgeHiddenKeys(
-      hiddenKeys,
-      seeds.map((seed) => seed.key),
-    );
-    hiddenKeys.clear();
-    for (const key of purged) hiddenKeys.add(key);
+    unhideSeeds(seeds);
     const enteringFromLibrary = !hopModel;
     if (!enteringFromLibrary) resetFocusRefreshTracking();
     const state = options.state ?? seedState(seeds.map((seed) => seed.key));
@@ -2737,13 +2735,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       (seed) => !hopModel?.seedKeys.has(seed.key),
     );
     if (!missingSeeds.length) return true;
-
-    const purged = purgeHiddenKeys(
-      hiddenKeys,
-      missingSeeds.map((seed) => seed.key),
-    );
-    hiddenKeys.clear();
-    for (const key of purged) hiddenKeys.add(key);
+    unhideSeeds(missingSeeds);
 
     const state = seedState([
       ...new Set([...seedKeysOf(), ...missingSeeds.map((seed) => seed.key)]),
@@ -3760,9 +3752,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       : new Map<string, string>();
     return seedKeysOf().map((key) => {
       const node =
-        focusSeedRegistry.get(key) ??
-        model.nodes.find((candidate) => candidate.key === key) ??
-        null;
+        focusSeedRegistry.get(key) ?? modelNodeByKey.get(key) ?? null;
       return {
         key,
         label: node
@@ -4035,6 +4025,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (!remaining && !waiting) return null;
     return { remaining: remaining - waiting, waiting, paused: hopFillPaused };
   };
+  // A heuristic on purpose: a hop-k paper reached from two parents is counted
+  // under both, so "of {reported}" can over-report (review M11). The exact
+  // figure would need the union of the parents' lists, which is the fetch.
   hopReportedByHop = () => {
     if (!hopModel) return [];
     const totals: (number | null)[] = Array.from(
@@ -4828,6 +4821,14 @@ ${error instanceof Error ? error.message : String(error)}`,
       : (setTimeout(run, 0) as unknown as number);
   };
 
+  /**
+   * A saved graph whose seeds do not resolve opens on the library graph, and
+   * a Citation hop colouring it carried would name hops no paper has: the
+   * option closes, the way `clearSeeds` closes it (re-review N4).
+   */
+  const seedlessColouring = (): void => {
+    if (!hopModel) appearance.setColourOptionAvailable("citation-hop", false);
+  };
   const applyState = (state: GraphViewState): GraphFocusResult => {
     // Opening a saved graph, or restoring a tab, selects a seed of its own
     // accord; Zotero's list must not follow that.
@@ -4882,13 +4883,15 @@ ${error instanceof Error ? error.message : String(error)}`,
         restoredCamera = state.camera;
         if (!addFocusSeeds(nodes)) {
           restoredCamera = null;
+          seedlessColouring();
           return "not-found";
         }
         return "selected";
       }
       if (state.seeds.length) {
-        // That camera framed a projection that no longer resolves; pointing the
+        // That camera framed a walk that no longer resolves; pointing the
         // library graph at it would land on nothing.
+        seedlessColouring();
         return "not-found";
       }
       if (state.camera) {

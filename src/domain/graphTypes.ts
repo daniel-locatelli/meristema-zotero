@@ -153,7 +153,7 @@ export interface CitationGraphModel {
 
 /**
  * Read-only lookup indexes derived from a graph snapshot. Views may keep their
- * own mutable model while sharing these compact indexes for projection work.
+ * own mutable model while sharing these compact indexes for the hop walk.
  */
 export interface CitationGraphIndex {
   nodeByKey: ReadonlyMap<string, CitationGraphNode>;

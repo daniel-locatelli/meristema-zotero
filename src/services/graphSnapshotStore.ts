@@ -14,7 +14,7 @@ export interface CitationGraphSnapshot {
   libraryID: number;
   /** Stable input signature used to decide whether the snapshot is reusable. */
   sourceSignature: string;
-  /** Unique graph revision used by dependent projection caches. */
+  /** Unique graph revision used by the caches derived from the snapshot. */
   signature: string;
   model: CitationGraphModel;
   index: CitationGraphIndex;

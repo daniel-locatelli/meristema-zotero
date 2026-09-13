@@ -138,9 +138,9 @@ export function externalWorkToFocusNode(
 }
 
 /**
- * Enrich an existing external Focus seed in place without changing its graph
- * key. Focus projection and selection use `key`, while relationship persistence
- * may safely promote a provisional candidate `itemKey` to a stable external
+ * Enrich an existing external seed in place without changing its graph key.
+ * The hop model and selection use `key`, while relationship persistence may
+ * safely promote a provisional candidate `itemKey` to a stable external
  * identity once one becomes available.
  */
 export function synchronizeExternalFocusNode(
@@ -232,22 +232,22 @@ export function additiveGraphModel(
     nodes: readonly CitationGraphNode[];
     edges: readonly CitationGraphEdge[];
   },
-  projection: {
+  hops: {
     nodes: readonly CitationGraphNode[];
     edges: readonly CitationGraphEdge[];
   } | null,
 ): { nodes: CitationGraphNode[]; edges: CitationGraphEdge[] } {
   const nodes = [...base.nodes];
   const edges = [...base.edges];
-  if (!projection) return { nodes, edges };
+  if (!hops) return { nodes, edges };
   const nodeKeys = new Set(nodes.map((node) => node.key));
-  for (const node of projection.nodes) {
+  for (const node of hops.nodes) {
     if (nodeKeys.has(node.key)) continue;
     nodeKeys.add(node.key);
     nodes.push(node);
   }
   const edgeKeys = new Set(edges.map((edge) => edge.key));
-  for (const edge of projection.edges) {
+  for (const edge of hops.edges) {
     if (edgeKeys.has(edge.key)) continue;
     edgeKeys.add(edge.key);
     edges.push(edge);

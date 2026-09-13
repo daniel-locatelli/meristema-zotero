@@ -26,11 +26,11 @@ export interface HopFillInput {
 
 export interface HopFillPlan {
   /** Keys to expand, first first. */
-  order: string[];
+  readonly order: readonly string[];
   /** Qualifying papers not yet expanded, by hop, cap or no cap. */
-  remainingByHop: number[];
+  readonly remainingByHop: readonly number[];
   /** Qualifying papers a hop's cap holds back, by hop. */
-  waitingByHop: number[];
+  readonly waitingByHop: readonly number[];
 }
 
 function rank(key: string, entry: HopEntry, input: HopFillInput): number {

@@ -197,8 +197,11 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   const shownByHop = Array.from({ length: depth + 1 }, () => 0);
   const availableByHop = Array.from({ length: depth + 1 }, () => 0);
 
+  // A finite sentinel past the depth: Infinity - Infinity is NaN, which the
+  // sort treats as equal by accident rather than by contract (review M8).
+  const unreached = depth + 1;
   const hopOf = (key: string): number =>
-    input.hops.entries.get(key)?.hop ?? Number.POSITIVE_INFINITY;
+    input.hops.entries.get(key)?.hop ?? unreached;
   const ordered = [...input.papers].sort((a, b) => hopOf(a.key) - hopOf(b.key));
 
   for (const paper of ordered) {
