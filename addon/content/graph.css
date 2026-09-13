@@ -1572,7 +1572,18 @@
 .cm-scope-row-selected .cm-scope-check:focus-visible + .cm-scope-square {
   outline-color: currentColor;
 }
-.cm-scope-row-body {
+/*
+ * `button.` and the root prefix are both load-bearing, the way they are on
+ * `.cm-scope-seed-remove` just above. The base rule in paperDetail.css is
+ * `.meristema-root button`, at (0,1,1); a bare `.cm-scope-row-body` is (0,1,0)
+ * and loses to it, so this row kept the base rule's raised surface — opaque,
+ * and drawn over the selected row's accent fill, so the blue appeared around
+ * the label rather than behind it — and the base rule's accent hover where
+ * this one asks for a neutral 8% tint (B59). The hover pair below ties the
+ * base rule's (0,3,1) and wins on sheet order, since graph.css's link is kept
+ * after paperDetail.css's.
+ */
+.meristema-root button.cm-scope-row-body {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1586,11 +1597,11 @@
   text-align: start;
   cursor: pointer;
 }
-.cm-scope-row-body:hover {
+.meristema-root button.cm-scope-row-body:hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
   border-radius: 4px;
 }
-.cm-scope-row-selected .cm-scope-row-body:hover {
+.meristema-root .cm-scope-row-selected button.cm-scope-row-body:hover {
   background: color-mix(in srgb, white 12%, transparent);
 }
 .cm-scope-row-label {

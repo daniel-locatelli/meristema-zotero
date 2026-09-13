@@ -57,6 +57,22 @@
 .cm-export-menu button,
 .cm-detail-tabs button,
 .cm-collection-choice {
+  /*
+   * `height` is not redundant beside `min-height`. Zotero's main window ships
+   *   :is(button:where(:not(.btn, [type=checkbox], [type=radio])), …)
+   *     { height: 28px }
+   * in chrome://zotero-platform/content/zotero.css, and `:where()` costs
+   * nothing, so that selector weighs a single type selector — which loses to
+   * every rule here, but only for the properties those rules declare. Nothing
+   * declared `height`, so every plugin button in a tab was pinned to 28px no
+   * matter what it held: the view gallery's cards and the View dropdown's rows
+   * painted their text below a 28px box and the rows' hit areas drifted a row
+   * out of step with what was drawn (B44). `min-height` still holds the 28px
+   * floor a one-line button wants. The graph's own window never loaded that
+   * sheet, which is why the whole visual suite stayed green while a graph in a
+   * tab was broken.
+   */
+  height: auto;
   min-height: 28px;
   padding: 4px 9px;
   border: 1px solid var(--cm-border);
