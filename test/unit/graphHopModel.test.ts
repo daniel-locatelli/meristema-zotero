@@ -115,7 +115,9 @@ describe("buildGraphHopModel", function () {
       neighbours: lookup({ s: ["a"], a: ["b"] }),
     })!;
     expect(model.entries.has("b")).to.equal(false);
-    expect(model.entries.get("a")!.expanded).to.equal(true);
+    // "a" sits at the depth, so its list is never read: `expanded` is "not
+    // asked" there, and no consumer reads it (see HopEntry.expanded).
+    expect(model.entries.get("a")!.expanded).to.equal(false);
     const unexpanded = buildGraphHopModel({
       seeds: [node("s")],
       direction: "cited-by",
@@ -222,6 +224,50 @@ describe("buildGraphHopModel", function () {
     ).to.be.lessThan(0);
     expect(refs.nodes.find((n) => n.key === "a")!.focusRole).to.equal(
       "reference",
+    );
+  });
+
+  it("reads each non-leaf list once and never reads a leaf's", function () {
+    // Reading a list is a store lookup and a fragment clone. A non-leaf key
+    // used to be read twice (its entry's `expanded`, then as a frontier
+    // parent) and every leaf at the depth was read once — which at depth 2 is
+    // tens of thousands of reads that nothing consumes.
+    const lists: Record<string, string[]> = {
+      s: ["a1", "a2"],
+      a1: ["b1"],
+      a2: ["b1", "b2"],
+      b1: ["c1"],
+      b2: ["c1"],
+      c1: ["d1"],
+    };
+    const calls = new Map<string, number>();
+    const model = buildGraphHopModel({
+      seeds: [node("s")],
+      direction: "cited-by",
+      depth: 3,
+      neighbours: (key, direction) => {
+        calls.set(key, (calls.get(key) ?? 0) + 1);
+        return lookup(lists)(key, direction);
+      },
+    })!;
+    expect([...model.entries.keys()].sort()).to.deep.equal([
+      "a1",
+      "a2",
+      "b1",
+      "b2",
+      "c1",
+      "s",
+    ]);
+    const counts = Object.fromEntries([...calls].sort());
+    expect(counts, `lookups: ${JSON.stringify(counts)}`).to.deep.equal({
+      s: 1,
+      a1: 1,
+      a2: 1,
+      b1: 1,
+      b2: 1,
+    });
+    expect(calls.has("c1"), "a leaf at the depth is never read").to.equal(
+      false,
     );
   });
 

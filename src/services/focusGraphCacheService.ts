@@ -9,18 +9,19 @@ import type { ExternalWork } from "../domain/externalWork";
 import type { HopDirection } from "./graphHopModel";
 
 /** Thousands of hop papers at 50 works each is the working set now. */
-const MAX_FRAGMENT_ENTRIES = 4096;
+export const MAX_FRAGMENT_ENTRIES = 4096;
 
 export interface HopFragment {
   expanded: boolean;
   works: ExternalWork[];
 }
 
-interface CachedFragment extends HopFragment {
-  touchedAt: number;
-}
-
-const fragments = new Map<string, CachedFragment>();
+/**
+ * The Map's own insertion order is the LRU order: a read re-inserts its entry
+ * at the back, so the front is always the least recently used. Eviction is a
+ * single `delete` instead of the full scan per insertion it used to be.
+ */
+const fragments = new Map<string, HopFragment>();
 
 function fragmentKey(
   libraryID: number,
@@ -47,16 +48,9 @@ function cloneWork(work: ExternalWork): ExternalWork {
 
 function evictOldest(): void {
   while (fragments.size > MAX_FRAGMENT_ENTRIES) {
-    let oldestKey: string | null = null;
-    let oldest = Infinity;
-    for (const [key, value] of fragments) {
-      if (value.touchedAt < oldest) {
-        oldest = value.touchedAt;
-        oldestKey = key;
-      }
-    }
-    if (oldestKey === null) return;
-    fragments.delete(oldestKey);
+    const oldest = fragments.keys().next();
+    if (oldest.done) return;
+    fragments.delete(oldest.value);
   }
 }
 
@@ -65,9 +59,12 @@ export function getHopFragment(
   key: string,
   direction: HopDirection,
 ): HopFragment | null {
-  const cached = fragments.get(fragmentKey(libraryID, key, direction));
+  const id = fragmentKey(libraryID, key, direction);
+  const cached = fragments.get(id);
   if (!cached) return null;
-  cached.touchedAt = Date.now();
+  // Move to the back: this is the read that makes it recently used.
+  fragments.delete(id);
+  fragments.set(id, cached);
   return { expanded: cached.expanded, works: cached.works.map(cloneWork) };
 }
 
@@ -77,10 +74,11 @@ export function setHopFragment(
   direction: HopDirection,
   fragment: HopFragment,
 ): void {
-  fragments.set(fragmentKey(libraryID, key, direction), {
+  const id = fragmentKey(libraryID, key, direction);
+  fragments.delete(id);
+  fragments.set(id, {
     expanded: fragment.expanded,
     works: fragment.works.map(cloneWork),
-    touchedAt: Date.now(),
   });
   evictOldest();
 }

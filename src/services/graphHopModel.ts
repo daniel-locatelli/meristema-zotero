@@ -19,7 +19,16 @@ export interface HopEntry {
   hop: number;
   /** Every paper one hop shallower that links here. */
   parents: string[];
-  /** Its own list in this direction is stored. */
+  /**
+   * Its own list in this direction is stored.
+   *
+   * Only meaningful below the walk's depth. At `hop === depth` the walk never
+   * asks — reading a leaf's list is the expensive part of a deep fill and no
+   * consumer needs the answer there: `planHopFill` skips `hop >= depth`
+   * (graphHopFillModel.ts) and `drainExpandedFitSeeds` reads seeds, which are
+   * always hop 0 (graphViewService.ts). So `false` at the depth means "not
+   * asked", not "no stored list".
+   */
   expanded: boolean;
 }
 
@@ -112,6 +121,20 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
   const seedKeys = new Set(seeds.map((seed) => seed.key));
   const role = input.direction === "references" ? "reference" : "cited-by";
 
+  /**
+   * One lookup per key per walk. A non-leaf key used to be read twice — once
+   * for its entry's `expanded`, once as a frontier parent — and each read is a
+   * store lookup and a fragment clone.
+   */
+  const neighbourhoods = new Map<string, HopNeighbourhood>();
+  const neighbourhoodOf = (key: string): HopNeighbourhood => {
+    const memo = neighbourhoods.get(key);
+    if (memo) return memo;
+    const fresh = input.neighbours(key, input.direction);
+    neighbourhoods.set(key, fresh);
+    return fresh;
+  };
+
   const entries = new Map<string, HopEntry>();
   const nodes = new Map<string, CitationGraphNode>();
   const edges = new Map<string, CitationGraphEdge>();
@@ -126,7 +149,7 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
       key: seed.key,
       hop: 0,
       parents: [],
-      expanded: input.neighbours(seed.key, input.direction).expanded,
+      expanded: neighbourhoodOf(seed.key).expanded,
     });
   }
 
@@ -134,7 +157,7 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
   for (let hop = 1; hop <= depth && frontier.length; hop += 1) {
     const next: string[] = [];
     for (const parentKey of frontier) {
-      const neighbourhood = input.neighbours(parentKey, input.direction);
+      const neighbourhood = neighbourhoodOf(parentKey);
       for (const neighbour of neighbourhood.neighbours) {
         const key = neighbour.node.key;
         if (key === parentKey) continue;
@@ -156,7 +179,9 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
           key,
           hop,
           parents: [parentKey],
-          expanded: input.neighbours(key, input.direction).expanded,
+          // At the depth this paper is a leaf: nobody reads its `expanded`,
+          // and asking would read every leaf's list (see HopEntry.expanded).
+          expanded: hop < depth ? neighbourhoodOf(key).expanded : false,
         });
         nodes.set(key, cloneNode(neighbour.node, role, hop));
         next.push(key);

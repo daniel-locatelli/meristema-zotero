@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { ExternalWork } from "../../src/domain/externalWork";
 import {
+  MAX_FRAGMENT_ENTRIES,
   clearFocusGraphCaches,
   focusGraphCacheStats,
   getHopFragment,
@@ -44,5 +45,42 @@ describe("the hop fragment cache", function () {
     expect(getHopFragment(1, "p", "cited-by")).to.equal(null);
     expect(getHopFragment(1, "p", "references")).to.equal(null);
     expect(getHopFragment(1, "q", "cited-by")).to.not.equal(null);
+  });
+
+  it("evicts the earliest unread fragment once the ceiling is passed", function () {
+    // A hop-2 fill inserts far more fragments than the ceiling holds. What
+    // must survive is what the walk keeps reading — the expanded parents —
+    // not whatever happened to be written last.
+    clearFocusGraphCaches();
+    for (let index = 0; index < MAX_FRAGMENT_ENTRIES; index += 1) {
+      setHopFragment(1, `f${index}`, "cited-by", {
+        expanded: true,
+        works: [work],
+      });
+    }
+    expect(focusGraphCacheStats().fragments).to.equal(MAX_FRAGMENT_ENTRIES);
+    // f0 is the oldest by insertion, but reading it makes it the newest.
+    expect(getHopFragment(1, "f0", "cited-by")).to.not.equal(null);
+    for (let index = 0; index < 100; index += 1) {
+      setHopFragment(1, `g${index}`, "cited-by", {
+        expanded: true,
+        works: [work],
+      });
+    }
+    expect(focusGraphCacheStats().fragments).to.equal(MAX_FRAGMENT_ENTRIES);
+    expect(
+      getHopFragment(1, "f0", "cited-by"),
+      "the read fragment survives 100 later insertions",
+    ).to.not.equal(null);
+    expect(
+      getHopFragment(1, "f1", "cited-by"),
+      "the earliest unread fragment is the one evicted",
+    ).to.equal(null);
+    expect(
+      getHopFragment(1, "f100", "cited-by"),
+      "exactly 100 fragments were evicted",
+    ).to.equal(null);
+    expect(getHopFragment(1, "f101", "cited-by")).to.not.equal(null);
+    expect(getHopFragment(1, "g99", "cited-by")).to.not.equal(null);
   });
 });
