@@ -246,7 +246,6 @@ export class CitationGraphRenderer {
   private readonly hiddenEdgeKeys = new Set<string>();
   private layout: GraphLayoutOptions;
   private selectedKey: string | null = null;
-  private pinnedKeys = new Set<string>();
   /**
    * What the seeds put on the plot (graphHopModel.ts, `SeedMarks`), or null
    * on a library graph. One record by paper key, never node fields (ADR
@@ -521,11 +520,7 @@ export class CitationGraphRenderer {
   }
 
   private renderedKeys(): Set<string> {
-    return renderedGraphKeys(
-      this.visibleKeys,
-      this.selectedKey,
-      this.pinnedKeys,
-    );
+    return renderedGraphKeys(this.visibleKeys, this.selectedKey);
   }
 
   private visibleNodes(): CitationGraphNode[] {
@@ -538,7 +533,6 @@ export class CitationGraphRenderer {
       node.key,
       this.visibleKeys,
       this.selectedKey,
-      this.pinnedKeys,
     );
   }
 
@@ -1786,11 +1780,6 @@ export class CitationGraphRenderer {
       .join("\n");
   }
 
-  public setPinnedKeys(keys: ReadonlySet<string>, draw = true): void {
-    this.pinnedKeys = new Set(keys);
-    if (draw) this.draw();
-  }
-
   /**
    * What the seeds put on the plot, whole, or null for a library graph.
    * Re-sent after every rebuild of the walk and every `replaceLibraryGraph`;
@@ -1835,9 +1824,6 @@ export class CitationGraphRenderer {
     );
     this.setScopeKeys(
       new Set([...this.scopeKeys].filter((key) => validKeys.has(key))),
-    );
-    this.pinnedKeys = new Set(
-      [...this.pinnedKeys].filter((key) => validKeys.has(key)),
     );
     if (this.seedMarks) {
       this.seedMarks = seedMarksWithin(this.seedMarks, validKeys);
@@ -2002,37 +1988,13 @@ export class CitationGraphRenderer {
    * has no position. The inverse of `screenToWorld`, for a menu that opens
    * from the keyboard and has no pointer to sit under.
    */
-  public nodeClientPosition(key: string): { x: number; y: number } | null {
+  private nodeClientPosition(key: string): { x: number; y: number } | null {
     const position = this.positions.get(key);
     if (!position) return null;
     const rect = this.canvas.getBoundingClientRect();
     const ratio = devicePixelScale(this.canvas.width, rect.width);
     const screen = this.projectToScreen(position);
     return { x: rect.left + screen.x / ratio, y: rect.top + screen.y / ratio };
-  }
-
-  /**
-   * Add a local Zotero node discovered after this graph snapshot was opened.
-   * It remains outside the filter result until the view is refreshed, but can
-   * immediately be selected and rendered through the same filtered-selection
-   * path as every other local node.
-   */
-  public addNode(node: CitationGraphNode): CitationGraphNode {
-    const existing = this.model.nodes.find(
-      (candidate) => candidate.key === node.key,
-    );
-    if (existing) {
-      Object.assign(existing, node);
-      return existing;
-    }
-    this.model.nodes.push(node);
-    this.initializeNodePosition(node, this.model.nodes.length - 1);
-    this.projectPositionsToLayout(
-      this.layout.xMetric === "free",
-      this.layout.yMetric === "free",
-    );
-    this.draw();
-    return node;
   }
 
   public setLayout(layout: GraphLayoutOptions): void {
@@ -2210,54 +2172,6 @@ export class CitationGraphRenderer {
   /** Fit the currently rendered paper cloud without fitting the full axes. */
   public fitVisibleNodes(): void {
     this.fitView({ includeAxisBounds: false, maxScale: 3.25 });
-  }
-
-  /** Fit a specific set of rendered papers without changing visibility. */
-  public fitKeys(keys: ReadonlySet<string>, maxScale = 3.25): void {
-    this.markViewAdjusted();
-    this.resizeViewport();
-    const positions = this.model.nodes
-      .filter((node) => keys.has(node.key))
-      .map((node) => this.positions.get(node.key))
-      .filter((position): position is Position => Boolean(position));
-    if (!positions.length) return;
-
-    const leftPadding = MAX_NODE_RADIUS + 48;
-    const rightPadding = MAX_NODE_RADIUS + 185;
-    const topPadding = MAX_NODE_RADIUS + 46;
-    const bottomPadding = MAX_NODE_RADIUS + 62;
-    const minX =
-      Math.min(...positions.map((position) => position.x)) - leftPadding;
-    const maxX =
-      Math.max(...positions.map((position) => position.x)) + rightPadding;
-    const minY =
-      Math.min(...positions.map((position) => position.y)) - topPadding;
-    const maxY =
-      Math.max(...positions.map((position) => position.y)) + bottomPadding;
-    const width = Math.max(1, maxX - minX);
-    const height = Math.max(1, maxY - minY);
-    // Ratio-scaled, and defined as the axis furniture plus a margin, so a
-    // fitted node can never land beneath a tick label on a scaled display.
-    const gutters = fitInsets(this.pixelRatio(), this.axesState());
-    const availableWidth = Math.max(
-      1,
-      this.canvas.width - gutters.left - gutters.right,
-    );
-    const availableHeight = Math.max(
-      1,
-      this.canvas.height - gutters.top - gutters.bottom,
-    );
-    const scale = clamp(
-      Math.min(availableWidth / width, availableHeight / height),
-      0.15,
-      maxScale,
-    );
-    this.transform.scale = scale;
-    this.transform.x =
-      gutters.left + (availableWidth - width * scale) / 2 - minX * scale;
-    this.transform.y =
-      gutters.top + (availableHeight - height * scale) / 2 - minY * scale;
-    this.draw();
   }
 
   public getCanvas(): HTMLCanvasElement {
