@@ -743,6 +743,12 @@ export class CitationGraphRenderer {
     const wasBackgroundClick =
       this.pointer.down && this.pointer.panning && !this.pointer.moved;
     const wasNodeDrag = this.pointer.down && Boolean(this.pointer.draggedKey);
+    // A drag-pan moves the camera without a wheel or a fit, and only
+    // `pointerdown` had notified — so "the camera orders" (spec, "The fill")
+    // never held for pans. One notification when the drag ends, not one per
+    // frame: the reader's hand is on the plot for the whole gesture.
+    const wasPan =
+      this.pointer.down && this.pointer.panning && this.pointer.moved;
     this.pointer.down = false;
     this.pointer.panning = false;
     this.pointer.draggedKey = null;
@@ -752,6 +758,7 @@ export class CitationGraphRenderer {
       this.layoutRevision += 1;
       this.draw();
     }
+    if (wasPan) this.markViewAdjusted();
     if (wasBackgroundClick) {
       const world = this.screenToWorld(event.clientX, event.clientY);
       if (!this.hitTest(world.x, world.y)) {

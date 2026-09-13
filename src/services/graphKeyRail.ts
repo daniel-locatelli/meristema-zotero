@@ -227,6 +227,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   toolbar.append(toggle);
   const body = element(document, "div", "cm-key-body");
   const scopeHost = element(document, "section", "cm-scope-section");
+  /** The last Scope model actually drawn, serialised; null before the first. */
+  let lastScopeSignature: string | null = null;
   scopeHost.setAttribute("aria-label", "Scope");
   scopeHost.hidden = true;
   const keyHost = element(document, "div", "cm-key-sections");
@@ -669,6 +671,13 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       body.hidden = model.sections.length === 0 && scopeHost.hidden;
     },
     renderScope(model: ScopeRailModel | null): void {
+      // The Scope section is rebuilt from a hover and from every camera move
+      // (the hop runner re-plans there), and the rebuild would take keyboard
+      // focus off the Stop button the reader is reaching for. The model is
+      // plain data, so an unchanged model is not a render at all.
+      const signature = model === null ? "" : JSON.stringify(model);
+      if (signature === lastScopeSignature) return;
+      lastScopeSignature = signature;
       scopeHost.replaceChildren();
       scopeHost.hidden = model === null;
       if (!model) {
@@ -708,6 +717,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     release,
     destroy(): void {
       root.removeEventListener("keydown", onKeyDown);
+      lastScopeSignature = null;
       scopeHost.replaceChildren();
       keyHost.replaceChildren();
       root.remove();
