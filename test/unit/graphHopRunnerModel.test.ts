@@ -170,6 +170,43 @@ describe("planHopExploreChange", function () {
     ).to.equal(1);
   });
 
+  it("enables hops up to the clamped depth, not the unclamped request", function () {
+    const allOff = {
+      direction: "cited-by" as const,
+      depth: 1,
+      enabled: [true, false, false, false, false, false, false],
+    };
+    const zero = planHopExploreChange(allOff, {
+      direction: "cited-by",
+      hops: 0,
+    });
+    expect(zero.depth).to.equal(1);
+    expect(zero.enabled).to.deep.equal([
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+
+    const nine = planHopExploreChange(allOff, {
+      direction: "cited-by",
+      hops: 9,
+    });
+    expect(nine.depth).to.equal(6);
+    expect(nine.enabled).to.deep.equal([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+  });
+
   it("changes nothing, and bumps no epoch, for a view already applied", function () {
     const change = planHopExploreChange(current, {
       direction: "cited-by",

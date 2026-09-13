@@ -105,7 +105,7 @@ export function planHopExploreChange(
 ): HopExploreChange {
   const depth = clampHopDepth(request.hops);
   const enabled = current.enabled.map((value, hop) =>
-    hop <= request.hops ? true : value,
+    hop <= depth ? true : value,
   );
   const directionChanged = request.direction !== current.direction;
   const depthChanged = depth !== current.depth;
