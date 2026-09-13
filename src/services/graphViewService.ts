@@ -2034,6 +2034,9 @@ export function renderGraphView(
       folders: viewFolders(),
       hops: liveHops(),
     });
+    // The most recent apply always owns the queue: a ready view here must
+    // not leave a stale queued view for the next seed drain to replay.
+    queuedView = null;
     const seedCount = hopModel?.seeds.length ?? 0;
     const needs =
       chosen.requires === "seed" ? 1 : chosen.requires === "two-seeds" ? 2 : 0;
@@ -2048,13 +2051,34 @@ export function renderGraphView(
       return;
     }
     if (chosen.explore) {
-      hopDirection = chosen.explore.direction;
-      hopDepth = chosen.explore.hops;
-      hopEnabled = hopEnabled.map((value, hop) =>
+      // Mirrors `setHopDirection`/`setHopDepth`/`setHopEnabled` (the field
+      // writes, the direction-change epoch bump and in-flight reset, and the
+      // state notification) but folds them into one rebuild instead of the
+      // setters' three, and skips it entirely when nothing would change.
+      const nextDirection = chosen.explore.direction;
+      const nextDepth = clampHopDepth(chosen.explore.hops);
+      const nextEnabled = hopEnabled.map((value, hop) =>
         hop <= chosen.explore!.hops ? true : value,
       );
+      const directionChanged = nextDirection !== hopDirection;
+      const depthChanged = nextDepth !== hopDepth;
+      const enabledChanged = nextEnabled.some(
+        (value, hop) => value !== hopEnabled[hop],
+      );
       hopFillPaused = false;
-      if (hopModel) rebuildCurrentFocus();
+      if (directionChanged || depthChanged || enabledChanged) {
+        hopDirection = nextDirection;
+        hopDepth = nextDepth;
+        hopEnabled = nextEnabled;
+        if (directionChanged) {
+          // A request in flight still stores; only its callbacks are
+          // dropped, same as `setHopDirection` (spec, "Direction switch").
+          hopFillEpoch += 1;
+          hopFillInFlight = null;
+        }
+        if (hopModel) rebuildCurrentFocus();
+        notifyStateChange();
+      }
     }
     // Appearance goes through the gear's own controller, so its selects, the
     // instance's live layout and the preference all move together.
