@@ -1044,5 +1044,29 @@ describe("Citation hops (Stage 3)", function () {
       `the sticky migration notice went straight to "" (auto-cleared); the ` +
         `bar showed ${JSON.stringify(shown)} over 2.8s`,
     ).to.equal(-1);
+
+    // A refresh of the open graphs remounts the tab: erasing any item makes
+    // the plugin re-render every open graph 250 ms later. The notice is for
+    // this open of the graph, not for its first render, so it has to come
+    // back on the remounted view. It used to be lost for good, which is how
+    // a citation update landing just after the tab opened failed this case.
+    const rootBefore = tabContent(v4TabID)?.querySelector(".meristema-root");
+    const scratch = new Zotero.Item("journalArticle");
+    scratch.libraryID = Zotero.Libraries.userLibraryID;
+    scratch.setField("title", "Stage 3 v4 remount scratch");
+    await Zotero.Items.erase(await scratch.saveTx());
+    const remounted = await waitFor(() => {
+      const root = tabContent(v4TabID)?.querySelector(".meristema-root");
+      return root && root !== rootBefore ? root : null;
+    }, 10_000);
+    expect(remounted, "the erase remounted the version 4 graph").to.exist;
+    const back = await waitFor(
+      () => (statusText(v4TabID) === BOTH_NOTICE ? BOTH_NOTICE : null),
+      5_000,
+    );
+    expect(
+      back,
+      `after the remount the toolbar read "${statusText(v4TabID)}"`,
+    ).to.equal(BOTH_NOTICE);
   });
 });
