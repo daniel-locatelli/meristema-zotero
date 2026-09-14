@@ -1367,10 +1367,21 @@
 .cm-key-entry:not(.cm-key-entry-static) {
   cursor: pointer;
 }
-.cm-key-entry:not(.cm-key-entry-static):hover {
+/*
+ * Prefixed for the reason the Scope row's hover is (B59): a bare hover here is
+ * (0,3,0) and loses to the base rule's `.meristema-root button:hover` at
+ * (0,3,1), which painted the base rule's accent surface over this neutral
+ * tint (B61).
+ */
+.meristema-root button.cm-key-entry:not(.cm-key-entry-static):hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
 }
-.cm-key-entry[aria-pressed="true"] {
+/*
+ * The prefixed reset above clears the background at (0,2,1), which a bare
+ * `.cm-key-entry[aria-pressed="true"]` at (0,2,0) lost to, so a pinned entry
+ * painted nothing (B61).
+ */
+.meristema-root button.cm-key-entry[aria-pressed="true"] {
   background: color-mix(in srgb, var(--cm-accent) 18%, transparent);
 }
 .cm-key-entry svg {
