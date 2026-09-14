@@ -113,6 +113,31 @@ export function nextGraphViewTitle(
 }
 
 /**
+ * The title a folder graph's tab moves to once its folders have changed (B58),
+ * or null to keep the one it has. `base` is what the folders make now, from
+ * `multiCollectionGraphTitle`. A tab already on that base, numbered or not,
+ * is left alone, so a change to some other folder never renumbers it.
+ * Otherwise the tab takes the base the way a new graph would, numbered past
+ * the other tabs' titles.
+ */
+export function folderGraphRetitle(
+  currentTitle: string,
+  base: string | null,
+  otherTitles: readonly string[],
+): string | null {
+  if (!base) return null;
+  const current = currentTitle.trim();
+  if (current === base) return null;
+  if (
+    current.startsWith(`${base} `) &&
+    /^\d+$/.test(current.slice(base.length + 1))
+  ) {
+    return null;
+  }
+  return nextGraphViewTitle(otherTitles, base);
+}
+
+/**
  * Route ordinary commands to the selected graph view when possible,
  * otherwise to the most recently activated live instance.
  */
