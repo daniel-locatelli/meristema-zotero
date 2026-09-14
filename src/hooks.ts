@@ -44,10 +44,13 @@ import {
 import { clearCitationGraphSnapshots } from "./services/graphSnapshotStore";
 import { clearFocusGraphCaches } from "./services/focusGraphCacheService";
 import {
+  cachedWholeLibrarySnapshots,
   clearWholeLibrarySnapshotCache,
   invalidateWholeLibrarySnapshot,
   markWholeLibraryMetricsDirty,
 } from "./services/zoteroLibraryService";
+import { refreshSnapshotFolders } from "./services/libraryFolders";
+import { publishLibraryFoldersChanged } from "./services/libraryFolderEvents";
 import {
   clearLocalCitationExtractionCache,
   invalidateLocalCitationExtractionCache,
@@ -60,6 +63,7 @@ import {
   flushSavedGraphWrites,
   installGraphTabHooks,
   refreshOpenGraphViews,
+  retitleFolderGraphs,
 } from "./services/windowService";
 import {
   PAPER_DETAIL_STYLESHEET_HREF,
@@ -163,6 +167,23 @@ function scheduleRemovalRefresh(): void {
   }, REMOVAL_REFRESH_DELAY_MS);
 }
 
+/**
+ * A folder added, renamed, moved, trashed or deleted (B58). Only folder lists
+ * are rebuilt: a folder change moves no paper and no citation, so the library
+ * snapshot and the citation caches stand. Every cached snapshot is refreshed
+ * rather than the folder's own library, because a deleted folder may no longer
+ * be there to ask, and the cache holds at most two. Open graphs refresh their
+ * own snapshots on the event, and a folder graph's default tab title follows.
+ * Not in automaticUpdateCoordinator: that observer queues citation fetches.
+ */
+function refreshLibraryFolders(): void {
+  for (const snapshot of cachedWholeLibrarySnapshots()) {
+    refreshSnapshotFolders(snapshot);
+  }
+  publishLibraryFoldersChanged();
+  retitleFolderGraphs();
+}
+
 function registerLibrarySnapshotInvalidation(): void {
   if (librarySnapshotNotifierID) return;
   const observer = {
@@ -172,6 +193,10 @@ function registerLibrarySnapshotInvalidation(): void {
       ids: Array<number | string>,
       extraData?: Record<string, { libraryID?: number }>,
     ): void {
+      if (type === "collection") {
+        refreshLibraryFolders();
+        return;
+      }
       if (type !== "item") return;
       if (event === "delete" || event === "trash") scheduleRemovalRefresh();
       const libraryIDs = new Set<number>();
@@ -205,7 +230,7 @@ function registerLibrarySnapshotInvalidation(): void {
   };
   librarySnapshotNotifierID = Zotero.Notifier.registerObserver(
     observer,
-    ["item"],
+    ["item", "collection"],
     "meristema-library-snapshot-cache",
   );
 }

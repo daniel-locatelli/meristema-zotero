@@ -71,6 +71,8 @@ import {
   subscribeRelationshipPublications,
   type RelationshipPublicationEvent,
 } from "./relationshipEvents";
+import { subscribeLibraryFoldersChanged } from "./libraryFolderEvents";
+import { refreshSnapshotFolders } from "./libraryFolders";
 import {
   collectionScopeIDs,
   createPaperFilterController,
@@ -405,14 +407,22 @@ export function renderGraphView(
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
   /** What the filter admits, before the search box. See `applyFilters`. */
   let scopeKeys = new Set(visibleKeys);
-  /** Folder tree lookups, built once: the snapshot's folders never move. */
-  const descendantsByID = new Map<number, readonly number[]>(
+  /** Each folder's descendants, excluding itself, from the snapshot's list. */
+  const folderDescendants = (): Array<[number, readonly number[]]> =>
     snapshot.collections.map((collection) => [
       collection.collectionID,
       collection.includedCollectionIDs.filter(
         (id) => id !== collection.collectionID,
       ),
-    ]),
+    ]);
+  /**
+   * Folder tree lookups. A folder change refills these and `collectionLabels`
+   * in place (B58) rather than replacing them, because the renderer holds
+   * `collectionLabels` by reference for region legends and sees the new
+   * labels without being told.
+   */
+  const descendantsByID = new Map<number, readonly number[]>(
+    folderDescendants(),
   );
   /**
    * A graph opened on folders is `none`, so a folder made later does not
@@ -4588,6 +4598,27 @@ ${error instanceof Error ? error.message : String(error)}`,
       applyRelationshipPublication(event);
     },
   );
+  // B58: a folder was added, renamed, moved, trashed or deleted. This graph's
+  // snapshot may be older than the cached one (an item change since mount
+  // rebuilt the cache), so it is refreshed here rather than trusted. A gone
+  // folder's region goes at once, as B23 does on reopen; ticks stay as stored.
+  // Never a remount: a remount is a reopen, and a reopen restarts a stopped
+  // fill (B55). Done whether or not the view is active; it is a rail redraw.
+  const unsubscribeLibraryFolders = subscribeLibraryFoldersChanged(() => {
+    if (cleaned) return;
+    refreshSnapshotFolders(snapshot);
+    collectionLabels.clear();
+    for (const [id, label] of collectionLabelsByID(snapshot)) {
+      collectionLabels.set(id, label);
+    }
+    descendantsByID.clear();
+    for (const [id, descendants] of folderDescendants()) {
+      descendantsByID.set(id, descendants);
+    }
+    regions = regionsStillInLibrary(regions, snapshot.collections);
+    applyFilters();
+    refreshScopeRail();
+  });
 
   const libraryNodeForItem = (itemID: number): CitationGraphNode | null => {
     let node = libraryModel.nodes.find(
@@ -5059,6 +5090,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     controllerByMount.delete(mount);
     unsubscribeRelationshipMutations();
     unsubscribeRelationshipPublications();
+    unsubscribeLibraryFolders();
     graphFilter.destroy();
     document.removeEventListener(
       "pointerdown",

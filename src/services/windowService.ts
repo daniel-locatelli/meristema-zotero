@@ -35,6 +35,7 @@ import {
 } from "./dataSourceTooltipService";
 import {
   GRAPH_VIEW_BASE_TITLE,
+  folderGraphRetitle,
   graphInstanceShouldRender,
   isGraphTabDescriptor,
   isLegacyDefaultTitle,
@@ -76,6 +77,12 @@ interface GraphInstanceState {
   libraryID: number | null;
   pendingFocusItemIDs: number[];
   pendingCollectionIDs: number[];
+  /**
+   * The folders this view's default title was taken from, so a folder rename
+   * can retitle the tab (B58). Null for a view not titled after folders, and
+   * ignored once `customTitle` is set.
+   */
+  titleCollectionIDs: number[] | null;
   /**
    * The graph as a recipe, kept across renders. A refresh rebuilds the view
    * from this rather than from nothing, and the view reports every change
@@ -148,6 +155,7 @@ function createGraphInstance(
     libraryID,
     pendingFocusItemIDs: [],
     pendingCollectionIDs: [],
+    titleCollectionIDs: null,
     viewState: null,
     discardViewState: false,
     savedGraphID: null,
@@ -1373,6 +1381,8 @@ interface OpenGraphOptions {
    * re-scoping a graph does not rename the tab out from under the user.
    */
   titleBase?: string;
+  /** The folders `titleBase` names; kept on a newly created view (B58). */
+  titleCollectionIDs?: readonly number[];
   /**
    * Opens a saved graph into the new instance: its name becomes the tab
    * title, its recipe the initial state, and the instance autosaves to it.
@@ -1453,6 +1463,9 @@ export async function openGraphWindow(
   let instance = requestedInstance(win, options);
   if (!instance) {
     instance = createGraphInstance(win, targetLibraryID, options.titleBase);
+    instance.titleCollectionIDs = options.titleCollectionIDs
+      ? [...options.titleCollectionIDs]
+      : null;
   }
   if (options.savedGraph && options.newInstance) {
     const { id, name, state, readOnly } = options.savedGraph;
@@ -1808,11 +1821,49 @@ export async function openGraphForCollections(
       multiCollectionGraphTitle(
         collections.map((collection) => collection?.name),
       ) ?? undefined,
+    titleCollectionIDs: collectionIDs,
     request: {
       ...emptyRequest(),
       collectionIDs: [...collectionIDs],
     },
   });
+}
+
+/**
+ * Retitles every folder graph whose tab still carries the default name taken
+ * from its folders, after a folder change (B58). A title the user typed, a
+ * saved graph's name and a restored tab's title are `customTitle` and never
+ * touched. A graph with one of its folders gone or in the trash keeps its
+ * title rather than being renamed after the folders that remain.
+ */
+export function retitleFolderGraphs(): void {
+  for (const [win, state] of graphStateByWindow) {
+    if (win.closed) continue;
+    const instances = [...state.instances.values()];
+    for (const instance of instances) {
+      if (instance.customTitle || !instance.titleCollectionIDs?.length) {
+        continue;
+      }
+      const collections = instance.titleCollectionIDs.map(
+        (id) => Zotero.Collections.get(id) as any,
+      );
+      if (collections.some((collection) => !collection || collection.deleted)) {
+        continue;
+      }
+      const title = folderGraphRetitle(
+        instance.title,
+        multiCollectionGraphTitle(
+          collections.map((collection) => collection.name),
+        ),
+        instances
+          .filter((other) => other !== instance)
+          .map((other) => other.title),
+      );
+      if (!title) continue;
+      instance.title = title;
+      syncInstanceTitle(win, instance);
+    }
+  }
 }
 
 export async function refreshOpenGraphViews(): Promise<void> {
