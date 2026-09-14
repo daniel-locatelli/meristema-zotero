@@ -11,6 +11,7 @@ import {
 import {
   destroyGraphView,
   getGraphViewController,
+  MIGRATED_FROM_BOTH_DIRECTIONS_STATUS,
   renderGraphView,
   type GraphViewController,
   type GraphViewOptions,
@@ -100,6 +101,14 @@ interface GraphInstanceState {
    */
   savedGraphReadOnly: boolean;
   /**
+   * The graph was opened from a version 4 record that asked for both
+   * directions. The notice saying so belongs to this open of the graph, not
+   * to its recipe: the view's state is replaced on every change and never
+   * carries the parse's flag, so a remount lost the notice for good (B62).
+   * A Save as gives the graph a version 5 row, and the notice is over.
+   */
+  migratedFromBothDirections: boolean;
+  /**
    * The recipe last written to that row, camera stripped, so an echo of the
    * same state (the view reports on open) is not a change to write.
    */
@@ -160,6 +169,7 @@ function createGraphInstance(
     discardViewState: false,
     savedGraphID: null,
     savedGraphReadOnly: false,
+    migratedFromBothDirections: false,
     savedGraphSerialized: null,
     autosaveTimer: null,
     pendingLibrarySelection: null,
@@ -502,6 +512,8 @@ function adoptSavedGraph(
   instance.customTitle = true;
   instance.viewState = { ...state, title: name };
   instance.savedGraphSerialized = comparableState(instance.viewState);
+  // A version 5 row of its own: the migration notice is over too.
+  instance.migratedFromBothDirections = false;
   if (instance.savedGraphReadOnly) {
     // The graph has a row of its own now, so the read-only notice is over.
     instance.savedGraphReadOnly = false;
@@ -519,6 +531,23 @@ function announceReadOnly(
   getGraphViewController(container)?.setStatus(SAVED_GRAPH_READ_ONLY_STATUS, {
     sticky: true,
   });
+}
+
+/**
+ * Puts the version 4 migration notice back on a freshly rendered view. The
+ * first render's view says it itself from the parsed state; every later
+ * render (a refresh remounts the tab) rebuilds from a state without the flag,
+ * so the instance says it instead (B62).
+ */
+function announceMigratedDirections(
+  instance: GraphInstanceState,
+  container: HTMLElement,
+): void {
+  if (!instance.migratedFromBothDirections) return;
+  getGraphViewController(container)?.setStatus(
+    MIGRATED_FROM_BOTH_DIRECTIONS_STATUS,
+    { sticky: true },
+  );
 }
 
 /** Back to scratch: the tab keeps its name and its graph, the row is left alone. */
@@ -1296,6 +1325,7 @@ function renderTab(
       tabs(win).selectedID === instance.tabID,
     );
     announceReadOnly(instance, container);
+    announceMigratedDirections(instance, container);
     installGraphLibraryFilter(
       win.document,
       container,
@@ -1472,6 +1502,8 @@ export async function openGraphWindow(
     instance.title = name;
     instance.customTitle = true;
     instance.viewState = { ...state, title: name };
+    instance.migratedFromBothDirections =
+      state.migratedFromBothDirections === true;
     if (readOnly) {
       // Not bound to the row: an autosave would replace a recipe this build
       // could not read with the blank one it shows instead.

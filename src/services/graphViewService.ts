@@ -309,6 +309,9 @@ export interface GraphViewController {
   setActive(active: boolean): void;
 }
 
+/** The toolbar status of a graph opened from a version 4 `both` record. */
+export const MIGRATED_FROM_BOTH_DIRECTIONS_STATUS =
+  "Directions are now one at a time; showing Citers";
 const FOCUS_RELATIONSHIP_CACHE_LIMIT = 200;
 const LIBRARY_SEARCH_DEBOUNCE_MS = 180;
 const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
@@ -4748,9 +4751,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       if (state.migratedFromBothDirections) {
         // A saved graph fetched both directions until Stage 3; say once
         // what it shows now, through the path B42's read-only notice uses.
-        setStatus("Directions are now one at a time; showing Citers", {
-          sticky: true,
-        });
+        setStatus(MIGRATED_FROM_BOTH_DIRECTIONS_STATUS, { sticky: true });
       }
       if (hopModel) clearSeeds();
       graphFilter.setState({ ...state.filters, collectionIDs: [] });
