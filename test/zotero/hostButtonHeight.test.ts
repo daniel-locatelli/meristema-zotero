@@ -359,6 +359,94 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
+   * B61: the Key rail's entries are `<button>`s whose hover rule
+   * `.cm-key-entry:not(.cm-key-entry-static):hover` is (0,3,0), so the base
+   * rule's `.meristema-root button:hover:not(:disabled)` at (0,3,1) paints its
+   * accent tint over the neutral 8% the rail asks for — the symptom B59 fixed
+   * on the Scope row. Measured against a swatch of the tint the rule names,
+   * resolved in the same mount.
+   */
+  it("tints a hovered Key entry neutral, not accent", async function () {
+    const measured = await inMainWindowStyled(
+      (document) => {
+        const column = document.createElementNS(HTML_NS, "div") as HTMLElement;
+        column.className = "cm-key";
+        const entry = document.createElementNS(
+          HTML_NS,
+          "button",
+        ) as HTMLButtonElement;
+        entry.className = "cm-key-entry";
+        entry.type = "button";
+        entry.setAttribute("aria-pressed", "false");
+        const label = document.createElementNS(HTML_NS, "span") as HTMLElement;
+        label.className = "cm-key-entry-label";
+        label.textContent = "Journal article";
+        entry.append(label);
+        const swatch = document.createElementNS(HTML_NS, "div") as HTMLElement;
+        swatch.className = "cm-test-swatch";
+        swatch.style.background =
+          "color-mix(in srgb, CanvasText 8%, transparent)";
+        column.append(entry, swatch);
+        return column;
+      },
+      (mount, host) => ({
+        hovered: hovered(host, mount.querySelector(".cm-key-entry")!)
+          .background,
+        wanted: host.getComputedStyle(mount.querySelector(".cm-test-swatch")!)!
+          .backgroundColor,
+      }),
+    );
+    expect(
+      measured.hovered,
+      `a hovered Key entry paints ${measured.hovered}; its rule asks ` +
+        `${measured.wanted}`,
+    ).to.equal(measured.wanted);
+  });
+
+  /**
+   * B61's other half: the prefixed reset `.meristema-root button.cm-key-entry`
+   * sets a transparent background at (0,2,1), which outranks the pinned rule
+   * `.cm-key-entry[aria-pressed="true"]` at (0,2,0) — so a pinned entry
+   * painted nothing, and a pin had no pressed look in the rail at all.
+   */
+  it("tints a pinned Key entry with the accent", async function () {
+    const measured = await inMainWindowStyled(
+      (document) => {
+        const column = document.createElementNS(HTML_NS, "div") as HTMLElement;
+        column.className = "cm-key";
+        const entry = document.createElementNS(
+          HTML_NS,
+          "button",
+        ) as HTMLButtonElement;
+        entry.className = "cm-key-entry";
+        entry.type = "button";
+        entry.setAttribute("aria-pressed", "true");
+        const label = document.createElementNS(HTML_NS, "span") as HTMLElement;
+        label.className = "cm-key-entry-label";
+        label.textContent = "Journal article";
+        entry.append(label);
+        const swatch = document.createElementNS(HTML_NS, "div") as HTMLElement;
+        swatch.className = "cm-test-swatch";
+        swatch.style.background =
+          "color-mix(in srgb, var(--cm-accent) 18%, transparent)";
+        column.append(entry, swatch);
+        return column;
+      },
+      (mount, host) => ({
+        pinned: host.getComputedStyle(mount.querySelector(".cm-key-entry")!)!
+          .backgroundColor,
+        wanted: host.getComputedStyle(mount.querySelector(".cm-test-swatch")!)!
+          .backgroundColor,
+      }),
+    );
+    expect(
+      measured.pinned,
+      `a pinned Key entry paints ${measured.pinned}; its rule asks ` +
+        `${measured.wanted}`,
+    ).to.equal(measured.wanted);
+  });
+
+  /**
    * B57: the save panel's refusal is the line between the reader and a
    * rejected save, and it was the least legible one there — 11px in a 12px
    * panel, in a colour token nothing defines, so the `#a44c00` fallback in
