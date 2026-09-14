@@ -56,6 +56,11 @@
    * readable contrast (B13). Dark gets its own link ink below.
    */
   --cm-link: var(--cm-accent);
+  /*
+   * The ink of a refusal the reader has to act on. Dark gets its own below:
+   * this amber is about 3:1 on the dark panel (B57).
+   */
+  --cm-warning-ink: #a44c00;
   --cm-icon-color: #3f4650;
   color-scheme: light dark;
   box-sizing: border-box;
@@ -901,10 +906,14 @@
   background: var(--cm-surface-raised);
   color: CanvasText;
 }
+/*
+ * The one line between the reader and a rejected save, so it is at the
+ * panel's own size rather than below it (B57).
+ */
 .cm-view-save-error {
   margin: -6px 0 8px;
-  color: var(--cm-state-retracted, #a44c00);
-  font-size: 11px;
+  color: var(--cm-warning-ink);
+  font-size: 12px;
 }
 .cm-view-save-error[hidden] {
   display: none;
@@ -1037,6 +1046,7 @@
  */
 .meristema-root[data-cm-scheme="dark"] {
   --cm-link: #8fb8ff;
+  --cm-warning-ink: #e8894a;
   --cm-icon-color: #f2f2f2;
   --cm-sidepane: var(--material-sidepane, #303030);
   --cm-toolbar: var(--material-toolbar, #272727);
@@ -1439,9 +1449,19 @@
   font-size: 11px;
   cursor: pointer;
 }
-.meristema-root .cm-scope-add-seed:hover,
-.meristema-root .cm-scope-hop-action:hover,
-.meristema-root .cm-scope-show-all:hover {
+/*
+ * A text link's hover is an underline and nothing else. The selectors carry
+ * the tag for the same reason the × below does: paperDetail.css tints every
+ * hovered button in the root at (0,3,1), and the class-only rule at (0,3,0)
+ * lost to it, so these links wore an accent box 28px tall on hover (B46).
+ * The tutorial card's dismiss link is the same kind of control.
+ */
+.meristema-root button.cm-scope-add-seed:hover:not(:disabled),
+.meristema-root button.cm-scope-hop-action:hover:not(:disabled),
+.meristema-root button.cm-scope-show-all:hover:not(:disabled),
+.meristema-root button.cm-link-button:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
   text-decoration: underline;
 }
 .cm-scope-seed {
