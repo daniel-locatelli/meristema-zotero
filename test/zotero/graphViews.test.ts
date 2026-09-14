@@ -429,6 +429,81 @@ describe("Graph views (D4)", function () {
     }, 5_000);
   });
 
+  /**
+   * B56: below a 328px plot the 300px card has no room, and it used to narrow
+   * with the plot until its text stood in a 142px column 364px tall. Now it
+   * goes compact: the view's name, the close button and the dismiss link.
+   * Measured in the graph's own tab, where Zotero's stylesheet applies too.
+   */
+  it("keeps the tutorial card compact on a plot narrower than 328px", async function () {
+    this.timeout(30_000);
+    const card = (): HTMLElement =>
+      graphRoot().querySelector(".cm-view-card") as HTMLElement;
+    if (!card() || card().hidden) {
+      await openChipMenu();
+      viewRow("overview").click();
+      await waitFor(() => card() && !card().hidden, 5_000);
+    }
+    expect(card()?.hidden, "the tutorial card is shown").to.equal(false);
+    const area = graphRoot().querySelector(".cm-graph-area") as HTMLElement;
+    const shown = (selector: string): boolean => {
+      const node = card().querySelector(selector) as HTMLElement | null;
+      return Boolean(node) && node!.getBoundingClientRect().height > 0;
+    };
+    const describeCard = (): string => {
+      const box = card().getBoundingClientRect();
+      return (
+        `plot ${area.getBoundingClientRect().width.toFixed(1)}px, card ` +
+        `${box.width.toFixed(1)}x${box.height.toFixed(1)}, body ${shown(".cm-view-card-body")}, ` +
+        `chips ${shown(".cm-view-card-chips")}, foot ${shown(".cm-view-card-foot")}, ` +
+        `Got it ${shown(".cm-secondary-button")}`
+      );
+    };
+    try {
+      area.style.maxWidth = "240px";
+      await delay(150);
+      expect(
+        area.getBoundingClientRect().width,
+        `the plot narrowed: ${describeCard()}`,
+      ).to.be.at.most(240);
+      expect(
+        shown(".cm-view-card-body") ||
+          shown(".cm-view-card-chips") ||
+          shown(".cm-view-card-foot"),
+        `the paragraph, chips and footnote stand down: ${describeCard()}`,
+      ).to.equal(false);
+      expect(
+        card().getBoundingClientRect().height,
+        `the compact card is short: ${describeCard()}`,
+      ).to.be.at.most(120);
+      const cardBox = card().getBoundingClientRect();
+      const link = card().querySelector(".cm-link-button") as HTMLElement;
+      const linkBox = link.getBoundingClientRect();
+      expect(
+        linkBox.height > 0 &&
+          linkBox.left >= cardBox.left &&
+          linkBox.right <= cardBox.right + 0.5 &&
+          linkBox.bottom <= cardBox.bottom + 0.5,
+        `"Don't show for this view again" stays inside the card: link ` +
+          `${linkBox.left.toFixed(1)}–${linkBox.right.toFixed(1)} x ` +
+          `${linkBox.top.toFixed(1)}–${linkBox.bottom.toFixed(1)}; ${describeCard()}`,
+      ).to.equal(true);
+
+      area.style.maxWidth = "400px";
+      await delay(150);
+      expect(
+        shown(".cm-view-card-body") && shown(".cm-secondary-button"),
+        `a 400px plot has the whole card back: ${describeCard()}`,
+      ).to.equal(true);
+      expect(
+        Math.round(card().getBoundingClientRect().width),
+        `a 400px plot gives the card its 300px: ${describeCard()}`,
+      ).to.equal(300);
+    } finally {
+      area.style.maxWidth = "";
+    }
+  });
+
   it("ignores a click on a greyed view", async function () {
     this.timeout(30_000);
     const before = chipName();
