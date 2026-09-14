@@ -195,6 +195,223 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
+   * The same mount, but measured only once both of the plugin's sheets have
+   * loaded: a `<link>` loads asynchronously, and a sheet the window has not
+   * seen yet is not applied when the next line reads a computed style.
+   */
+  async function inMainWindowStyled<T>(
+    build: (document: Document) => HTMLElement,
+    inspect: (mounted: HTMLElement, host: Window) => T,
+    rootAttributes: Record<string, string> = {},
+  ): Promise<T> {
+    const host = Zotero.getMainWindows()[0] as unknown as Window;
+    const document = host.document;
+    const links = ["paperDetail.css", "graph.css"].map((name) => {
+      const link = document.createElementNS(HTML_NS, "link") as HTMLLinkElement;
+      link.rel = "stylesheet";
+      link.href = `chrome://meristema/content/${name}`;
+      return link;
+    });
+    const loaded = Promise.all(
+      links.map(
+        (link) =>
+          new Promise<void>((resolve) => {
+            link.addEventListener("load", () => resolve(), { once: true });
+            link.addEventListener("error", () => resolve(), { once: true });
+          }),
+      ),
+    );
+    document.documentElement.append(...links);
+    const mount = document.createElementNS(HTML_NS, "div") as HTMLElement;
+    mount.className = "meristema-root";
+    mount.style.cssText =
+      "position:fixed; left:0; top:0; width:460px; z-index:9999;";
+    for (const [name, value] of Object.entries(rootAttributes)) {
+      if (name === "style") mount.style.cssText += value;
+      else mount.setAttribute(name, value);
+    }
+    mount.append(build(document));
+    document.documentElement.append(mount);
+    try {
+      await loaded;
+      return inspect(mount, host);
+    } finally {
+      mount.remove();
+      links.forEach((link) => link.remove());
+    }
+  }
+
+  /** `rgb(…)`, `rgba(…)` or `color(srgb …)`, as 0–1 channels and an alpha. */
+  function parseColor(value: string): [number, number, number, number] | null {
+    const srgb =
+      /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)/.exec(value);
+    if (srgb) {
+      return [
+        Number(srgb[1]),
+        Number(srgb[2]),
+        Number(srgb[3]),
+        srgb[4] === undefined ? 1 : Number(srgb[4]),
+      ];
+    }
+    const rgb = /rgba?\(([\d.]+), ([\d.]+), ([\d.]+)(?:, ([\d.]+))?\)/.exec(
+      value,
+    );
+    if (!rgb) return null;
+    return [
+      Number(rgb[1]) / 255,
+      Number(rgb[2]) / 255,
+      Number(rgb[3]) / 255,
+      rgb[4] === undefined ? 1 : Number(rgb[4]),
+    ];
+  }
+
+  /** WCAG contrast of an ink over an opaque ground, compositing the ink's alpha. */
+  function contrast(ink: string, ground: string): number {
+    const fg = parseColor(ink);
+    const bg = parseColor(ground);
+    if (!fg || !bg) return 0;
+    const mixed = [0, 1, 2].map((i) => fg[i] * fg[3] + bg[i] * (1 - fg[3]));
+    const luminance = (c: number[]): number => {
+      const [r, g, b] = c.map((v) =>
+        v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
+      );
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const a = luminance(mixed);
+    const b = luminance(bg.slice(0, 3));
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  /**
+   * B46: the plugin's text links wear the base rule's hover box. They are
+   * `<button>`s, and the base rule's `.meristema-root button:hover:not(:disabled)`
+   * at (0,3,1) outranks their own class-only hover at (0,3,0) — so "+ Add
+   * seed", Stop, Show all and the tutorial card's dismiss link all took an
+   * accent-tinted 28px box on hover, under the underline they asked for. The
+   * × beside them never did: its selectors carry the tag (B14).
+   */
+  const TEXT_LINKS = [
+    ["cm-scope-add-seed", "+ Add seed"],
+    ["cm-scope-hop-action", "Stop"],
+    ["cm-scope-show-all", "Show all"],
+    ["cm-link-button", "Don't show for this view again"],
+  ] as const;
+
+  function hovered(
+    host: Window,
+    button: HTMLElement,
+  ): { background: string; decoration: string } {
+    const inspector = (globalThis as any).InspectorUtils;
+    expect(inspector, "InspectorUtils, to hold the hover state").to.exist;
+    inspector.addPseudoClassLock(button, ":hover");
+    try {
+      const computed = host.getComputedStyle(button)!;
+      return {
+        background: computed.backgroundColor,
+        decoration: computed.textDecorationLine,
+      };
+    } finally {
+      inspector.removePseudoClassLock(button, ":hover");
+    }
+  }
+
+  function buildTextLinks(document: Document): HTMLElement {
+    const column = document.createElementNS(HTML_NS, "div") as HTMLElement;
+    for (const [cls, label] of TEXT_LINKS) {
+      const button = document.createElementNS(HTML_NS, "button") as HTMLElement;
+      button.className = cls;
+      button.textContent = label;
+      column.append(button);
+    }
+    return column;
+  }
+
+  it("paints no box behind a hovered text link", async function () {
+    const NEWLINE = String.fromCharCode(10);
+    const painted = await inMainWindowStyled(buildTextLinks, (mount, host) =>
+      TEXT_LINKS.map(([cls]) => {
+        const button = mount.querySelector(`.${cls}`) as HTMLElement;
+        return [cls, hovered(host, button).background] as const;
+      }).filter(
+        ([, background]) => !/rgba\(0, 0, 0, 0\)|transparent/.test(background),
+      ),
+    );
+    expect(
+      painted.length,
+      `every hovered text link paints nothing:${NEWLINE}  ` +
+        `${painted.map(([cls, bg]) => `${cls} painted ${bg}`).join(`${NEWLINE}  `)}${NEWLINE}`,
+    ).to.equal(0);
+  });
+
+  it("underlines a hovered text link", async function () {
+    const NEWLINE = String.fromCharCode(10);
+    const plain = await inMainWindowStyled(buildTextLinks, (mount, host) =>
+      TEXT_LINKS.map(([cls]) => {
+        const button = mount.querySelector(`.${cls}`) as HTMLElement;
+        return [cls, hovered(host, button).decoration] as const;
+      }).filter(([, decoration]) => decoration !== "underline"),
+    );
+    expect(
+      plain.length,
+      `every hovered text link is underlined:${NEWLINE}  ` +
+        `${plain.map(([cls, deco]) => `${cls} read "${deco}"`).join(`${NEWLINE}  `)}${NEWLINE}`,
+    ).to.equal(0);
+  });
+
+  /**
+   * B57: the save panel's refusal is the line between the reader and a
+   * rejected save, and it was the least legible one there — 11px in a 12px
+   * panel, in a colour token nothing defines, so the `#a44c00` fallback in
+   * both schemes, which reads on white and is about 3:1 on the dark panel.
+   */
+  function buildSaveWarning(document: Document): HTMLElement {
+    const panel = document.createElementNS(HTML_NS, "div") as HTMLElement;
+    panel.className = "cm-view-save";
+    panel.style.cssText = "position:static; transform:none;";
+    const error = document.createElementNS(HTML_NS, "p") as HTMLElement;
+    error.className = "cm-view-save-error";
+    error.textContent = "A view with that name already exists.";
+    panel.append(error);
+    return panel;
+  }
+
+  it("sets the save panel's name warning at the panel's own size", async function () {
+    const sizes = await inMainWindowStyled(buildSaveWarning, (mount, host) => ({
+      panel: host.getComputedStyle(mount.querySelector(".cm-view-save")!)!
+        .fontSize,
+      error: host.getComputedStyle(mount.querySelector(".cm-view-save-error")!)!
+        .fontSize,
+    }));
+    expect(
+      sizes.error,
+      `the warning is ${sizes.error} in a ${sizes.panel} panel`,
+    ).to.equal(sizes.panel);
+  });
+
+  for (const scheme of ["light", "dark"] as const) {
+    it(`keeps the save panel's name warning readable on the ${scheme} panel`, async function () {
+      const measured = await inMainWindowStyled(
+        buildSaveWarning,
+        (mount, host) => {
+          const ink = host.getComputedStyle(
+            mount.querySelector(".cm-view-save-error")!,
+          )!.color;
+          const ground = host.getComputedStyle(
+            mount.querySelector(".cm-view-save")!,
+          )!.backgroundColor;
+          return { ink, ground, ratio: contrast(ink, ground) };
+        },
+        { "data-cm-scheme": scheme, style: `color-scheme:${scheme};` },
+      );
+      expect(
+        measured.ratio,
+        `the warning ${measured.ink} on ${measured.ground} is ` +
+          `${measured.ratio.toFixed(2)}:1`,
+      ).to.be.at.least(4.5);
+    });
+  }
+
+  /**
    * The floor the base rule is there to hold. `height: auto` beat the host's
    * clamp; `min-height` still has to keep a one-line button at 28px, or every
    * toolbar in the plugin loses a few pixels.
