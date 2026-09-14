@@ -227,6 +227,17 @@ describe("Folder changes reach the graph (B58)", function () {
       if (tabID) win.Zotero_Tabs.close(tabID);
     }
     await delay(300);
+    // Opening the folder graph left Zotero's collection tree on a fixture
+    // folder that is about to be erased. Put it back on the library first, as
+    // graphSelectionOutsideFolder does, so the next suite starts from the
+    // library rather than from a pane still reselecting after a deletion.
+    try {
+      await win.ZoteroPane.collectionsView.selectLibrary(
+        Zotero.Libraries.userLibraryID,
+      );
+    } catch {
+      /* the pane may be mid-refresh; the fixtures go regardless */
+    }
     for (const id of fixtureIDs) await Zotero.Items.erase(id);
     fixtureIDs = [];
     for (const id of [folderID, doomedID, trashedID]) {
