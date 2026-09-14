@@ -707,12 +707,26 @@
   min-height: 0;
   cursor: pointer;
 }
-/* The tutorial card, in the plot's corner, under popovers and above the canvas. */
+/*
+ * The tutorial card's layer: the whole plot, click-through, under popovers and
+ * above the canvas. It is also the container the card's narrow rule measures.
+ * That container is this layer and not `.cm-graph-area` because
+ * `container-type` brings layout containment, which would make the plot a
+ * stacking context and flatten the node menu and popovers that share it.
+ */
+.cm-view-card-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  container: cm-plot / inline-size;
+}
+/* The tutorial card, in the plot's corner. */
 .cm-view-card {
   position: absolute;
   right: 14px;
   bottom: 14px;
-  z-index: 6;
+  pointer-events: auto;
   width: 300px;
   max-width: calc(100% - 28px);
   padding: 12px 14px;
@@ -765,6 +779,23 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 10px;
+}
+/*
+ * Below a 328px plot the 300px card has no room, and narrowing it with the
+ * plot stood its text in a column 142px wide and 364px tall (B56). So it goes
+ * compact instead: the view's name, × and the dismiss link. "Got it" goes too,
+ * since × does the same.
+ */
+@container cm-plot (width < 328px) {
+  .cm-view-card-body,
+  .cm-view-card-chips,
+  .cm-view-card-foot,
+  .cm-view-card-actions .cm-secondary-button {
+    display: none;
+  }
+  .cm-view-card-actions {
+    margin-top: 2px;
+  }
 }
 /* The gallery: a non-modal inset; the toolbar and the rail stay live behind it. */
 .cm-view-gallery {

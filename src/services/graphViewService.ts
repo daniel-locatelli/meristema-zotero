@@ -1000,7 +1000,10 @@ export function renderGraphView(
   const emptyStateBody = text(document, "p", "", "cm-empty-state-body");
   emptyState.append(emptyStateTitle, emptyStateBody);
   graphArea.appendChild(emptyState);
-  graphArea.append(tutorialCard.root, viewGallery.root, savePanel.root);
+  // The card sits in a layer of its own, which its narrow rule measures (B56).
+  const tutorialLayer = element(document, "div", "cm-view-card-layer");
+  tutorialLayer.append(tutorialCard.root);
+  graphArea.append(tutorialLayer, viewGallery.root, savePanel.root);
 
   // The node's right-click menu. Two items: the seed toggle and Explore-from.
   // It lives in the graph area so it is clamped to the plot, not the window.
