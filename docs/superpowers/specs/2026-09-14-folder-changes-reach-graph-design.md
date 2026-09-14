@@ -130,11 +130,30 @@ was given until it closes.
 
 Refresh is not changed. After this, a folder change no longer needs it.
 
+### The tab title
+
+Added at review on 2026-09-14: the user chose to fold this in rather than
+file it separately. A graph opened from folders is titled after them at open
+(`multiCollectionGraphTitle`, "PhD Graph"), and that title now follows a
+rename, unless the title is no longer the default one.
+
+- The window service records, on a view it creates from folders, which folder
+  IDs its title was taken from. A view reused by a later folder command keeps
+  its title, as it does today, and so keeps the IDs its title came from.
+- On a folder change, every such view whose title is not `customTitle` is
+  retitled from the folders' current names. A title the user typed, a saved
+  graph's name, and a tab restored across a restart are all `customTitle`,
+  so they are never touched.
+- A tab already on the new base title, numbered or not ("PhD Graph 2"), is
+  left alone, so a change elsewhere never renumbers it. Otherwise it takes
+  the base the way a new graph does, numbered past the other tabs' titles.
+- If any of its folders is gone or in the trash, the title is left as it
+  is, rather than renamed after the folders that remain.
+- The retitle goes through the path a rename already uses
+  (`syncInstanceTitle`), so a detached window's title follows too.
+
 ## Not in scope
 
-- **A folder graph's tab title** is taken from the folder name at open
-  (`multiCollectionGraphTitle`) and keeps the old name. Retitling a tab the
-  user may have renamed is a separate question; file it if it is wanted.
 - **A snapshot load in flight** during a folder change may resolve with the
   old folders. The build reads folders after every paper, so the window is
   a few milliseconds; the next folder change or item change corrects it.
@@ -178,7 +197,15 @@ plugin:
    root survives).
 5. Record whether the delete fired `item` notifications and whether a
    trashed folder is listed, in assertion messages.
+6. A graph opened from the folder's own context menu is retitled after the
+   rename.
+
+**Unit**, for the tab title: the pure retitle decision covers a renamed
+folder, an unchanged base, a numbered tab on the unchanged base, a collision
+with another tab's title, and no base at all.
 
 **Manual check** for the next batch: with a graph open on the real library,
 rename a folder in Zotero's collection tree. The rail shows the new name at
-once, a stopped fill stays stopped, and a new graph shows the new name.
+once, a stopped fill stays stopped, and a new graph shows the new name. A
+graph opened from that folder's context menu shows the new name in its tab;
+one whose tab you renamed yourself keeps your name.
