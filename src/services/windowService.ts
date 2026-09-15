@@ -536,8 +536,9 @@ function announceReadOnly(
 /**
  * Puts the version 4 migration notice back on a freshly rendered view. The
  * first render's view says it itself from the parsed state; every later
- * render (a refresh remounts the tab) rebuilds from a state without the flag,
- * so the instance says it instead (B62).
+ * render (a refresh remounts the tab or the detached window, and a move to a
+ * new window renders it afresh) rebuilds from a state without the flag, so
+ * the instance says it instead (B62).
  */
 function announceMigratedDirections(
   instance: GraphInstanceState,
@@ -829,6 +830,7 @@ function renderDetachedWindow(
     { adopt: true },
   );
   announceReadOnly(instance, mount);
+  announceMigratedDirections(instance, mount);
   installGraphLibraryFilter(
     popup.document,
     mount,
