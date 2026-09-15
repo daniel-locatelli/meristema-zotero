@@ -7,7 +7,12 @@ import { publicationYearOrNull } from "../domain/valueNormalization";
 import { normalizeDOI } from "../domain/workIdentity";
 import { requestJSON } from "./http";
 import type { CitationProvider, ProviderRequestOptions } from "./types";
-import { failureStatusFromHTTP, numberOrNull, stringOrNull } from "./types";
+import {
+  ProviderRefusedError,
+  failureStatusFromHTTP,
+  numberOrNull,
+  stringOrNull,
+} from "./types";
 
 const MAX_RELATION_RESULTS = 2500;
 
@@ -61,8 +66,9 @@ async function fetchLinks(
   const response = await requestJSON<OCLink[]>(
     "opencitations",
     `https://opencitations.net/index/coci/api/v1/${direction}/${encodeURIComponent(doi)}`,
-    { signal: options?.signal },
+    { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
+  if (response.status === 429) throw new ProviderRefusedError("opencitations");
   if (!response.ok || !Array.isArray(response.data)) return [];
   return response.data
     .slice(offset, offset + Math.min(MAX_RELATION_RESULTS, maximum))
@@ -105,7 +111,7 @@ export const openCitationsProvider: CitationProvider = {
     const response = await requestJSON<OCMetadata[]>(
       "opencitations",
       `https://opencitations.net/index/coci/api/v1/metadata/${encodeURIComponent(identifiers.doi)}`,
-      { signal: options?.signal },
+      { signal: options?.signal, retryRefusals: options?.retryRefusals },
     );
     const metadata = Array.isArray(response.data) ? response.data[0] : null;
     if (!response.ok || !metadata) {

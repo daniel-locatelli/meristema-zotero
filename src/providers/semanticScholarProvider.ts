@@ -14,7 +14,12 @@ import {
   type SemanticScholarPaper as S2Paper,
 } from "./semanticScholarMapper";
 import type { CitationProvider, ProviderRequestOptions } from "./types";
-import { failureStatusFromHTTP, numberOrNull, stringOrNull } from "./types";
+import {
+  ProviderRefusedError,
+  failureStatusFromHTTP,
+  numberOrNull,
+  stringOrNull,
+} from "./types";
 
 interface S2SearchResponse {
   data?: S2Paper[];
@@ -88,6 +93,7 @@ export async function fetchSemanticScholarPapersBatch(
       headers: { "Content-Type": "application/json" },
       body: { ids: identifiers },
       signal: options?.signal,
+      retryRefusals: options?.retryRefusals,
     },
   );
   if (!response.ok || !Array.isArray(response.data)) {
@@ -111,8 +117,10 @@ async function fetchRelations(
   const response = await requestJSON<S2RelationResponse>(
     "semantic-scholar",
     `https://api.semanticscholar.org/graph/v1/paper/${encodeURIComponent(paperID)}/${kind}?offset=${Math.max(0, offset)}&limit=${Math.min(MAX_RELATION_PAGE_SIZE, maximum)}&fields=${encodeURIComponent(RELATIONSHIP_FIELDS)}`,
-    { signal: options?.signal },
+    { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
+  if (response.status === 429)
+    throw new ProviderRefusedError("semantic-scholar");
   if (!response.ok || !response.data) return [];
   return (response.data.data ?? [])
     .map((entry) =>
@@ -211,7 +219,7 @@ async function lookupPaper(
   const response = await requestJSON<S2Paper>(
     "semantic-scholar",
     `https://api.semanticscholar.org/graph/v1/paper/${encodeURIComponent(selected.value)}?fields=${encodeURIComponent(BASIC_FIELDS)}`,
-    { signal: options?.signal },
+    { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
   if (!response.ok || !response.data?.paperId) {
     return {
@@ -271,33 +279,51 @@ function titleSimilarity(
   return (2 * overlap) / (leftTokens.size + rightTokens.size);
 }
 
-async function searchClosestTitle(
+interface ClosestTitle {
+  paper: S2Paper | null;
+  /** The match endpoint answered HTTP 429: no answer, which is not "no match". */
+  refused: boolean;
+}
+
+async function searchClosestTitleResult(
   identifiers: WorkIdentifiers,
   options?: ProviderRequestOptions,
-): Promise<S2Paper | null> {
+): Promise<ClosestTitle> {
   const title = String(identifiers.title ?? "").trim();
-  if (!title) return null;
+  if (!title) return { paper: null, refused: false };
   const response = await requestJSON<S2Paper>(
     "semantic-scholar",
     `https://api.semanticscholar.org/graph/v1/paper/search/match?query=${encodeURIComponent(title)}&fields=${encodeURIComponent(BASIC_FIELDS)}`,
-    { signal: options?.signal },
+    { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
-  if (!response.ok || !response.data?.paperId) return null;
+  if (response.status === 429) return { paper: null, refused: true };
+  if (!response.ok || !response.data?.paperId) {
+    return { paper: null, refused: false };
+  }
   const candidate = response.data;
   const similarity = titleSimilarity(title, candidate.title);
   const exact = similarity === 1;
   const matchScore = Number(candidate.matchScore);
   const scoreIsUseful = Number.isFinite(matchScore) && matchScore >= 0.7;
-  if (!exact && similarity < 0.72 && !scoreIsUseful) return null;
+  if (!exact && similarity < 0.72 && !scoreIsUseful) {
+    return { paper: null, refused: false };
+  }
   const candidateWork = toRelated(candidate);
   if (
     (identifiers.year !== null || identifiers.authors.length > 0) &&
     (!candidateWork ||
       matchWorkIdentifiers(identifiers, candidateWork).decision !== "same-work")
   ) {
-    return null;
+    return { paper: null, refused: false };
   }
-  return candidate;
+  return { paper: candidate, refused: false };
+}
+
+async function searchClosestTitle(
+  identifiers: WorkIdentifiers,
+  options?: ProviderRequestOptions,
+): Promise<S2Paper | null> {
+  return (await searchClosestTitleResult(identifiers, options)).paper;
 }
 
 async function searchExactTitle(
@@ -307,7 +333,7 @@ async function searchExactTitle(
   const response = await requestJSON<S2SearchResponse>(
     "semantic-scholar",
     `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(identifiers.title)}&limit=20&fields=${encodeURIComponent(BASIC_FIELDS)}`,
-    { signal: options?.signal },
+    { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
   if (!response.ok || !response.data) {
     return {
@@ -346,17 +372,25 @@ async function searchExactTitle(
   // Similar-paper discovery must also work for a title-only Zotero item. The
   // match endpoint supplies the closest paper even when punctuation, subtitle,
   // or indexing differences prevent strict normalized equality.
-  const closest = await searchClosestTitle(identifiers, options);
-  if (closest) {
+  const closest = await searchClosestTitleResult(identifiers, options);
+  if (closest.refused) {
+    return {
+      status: "rate-limited",
+      provider: "semantic-scholar",
+      message: "Semantic Scholar refused the title match (HTTP 429).",
+    };
+  }
+  if (closest.paper) {
+    const paper = closest.paper;
     const confidence = Math.max(
       0.75,
       Math.min(
         0.95,
-        Number(closest.matchScore) ||
-          titleSimilarity(identifiers.title, closest.title),
+        Number(paper.matchScore) ||
+          titleSimilarity(identifiers.title, paper.title),
       ),
     );
-    return successFromPaper(closest, "title", confidence, false, options);
+    return successFromPaper(paper, "title", confidence, false, options);
   }
 
   return {
@@ -378,7 +412,7 @@ export async function resolveSemanticScholarPaperID(
     const response = await requestJSON<S2Paper>(
       "semantic-scholar",
       `https://api.semanticscholar.org/graph/v1/paper/${encodeURIComponent(selected.value)}?fields=paperId,title,year,authors`,
-      { signal: options?.signal },
+      { signal: options?.signal, retryRefusals: options?.retryRefusals },
     );
     if (response.ok && response.data?.paperId) {
       return String(response.data.paperId);
@@ -413,6 +447,7 @@ export async function fetchSemanticScholarRecommendations(
       headers: { "Content-Type": "application/json" },
       body: { positivePaperIds, negativePaperIds: [] },
       signal: options?.signal,
+      retryRefusals: options?.retryRefusals,
     },
   );
   if (!response.ok || !response.data) return [];

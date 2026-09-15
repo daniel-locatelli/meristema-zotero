@@ -10,7 +10,10 @@ import {
   publicationYearOrNull,
 } from "../domain/valueNormalization";
 import { requestJSON } from "../providers/http";
-import type { ProviderRequestOptions } from "../providers/types";
+import {
+  ProviderRefusedError,
+  type ProviderRequestOptions,
+} from "../providers/types";
 import {
   openAlexIdentifierForWork,
   semanticScholarIdentifierForWork,
@@ -395,10 +398,12 @@ function openAlexPathURL(
   return url.toString();
 }
 
+/** `refusalsThrow` is set by a relationship page only; metadata hydration keeps swallowing a refused batch. */
 async function applyOpenAlexBatches(
   works: RelatedWorkMetadata[],
   indexes: number[],
   requestOptions?: ProviderRequestOptions,
+  refusalsThrow = false,
 ): Promise<Set<number>> {
   const resolved = new Set<number>();
   if (!getOpenAlexAPIKey()) return resolved;
@@ -431,8 +436,14 @@ async function applyOpenAlexBatches(
             per_page: batch.length,
             select: OPENALEX_SUMMARY_FIELDS,
           }),
-          { signal: requestOptions?.signal },
+          {
+            signal: requestOptions?.signal,
+            retryRefusals: requestOptions?.retryRefusals,
+          },
         );
+        if (refusalsThrow && response.status === 429) {
+          throw new ProviderRefusedError("openalex");
+        }
         if (!response.ok || !response.data) return;
         const byIdentity = new Map<string, RelatedWorkMetadata>();
         for (const entry of response.data.results ?? []) {
@@ -513,8 +524,14 @@ export async function fetchRelatedWorkSummaryPage(
     const response = await requestJSON<S2RelationResponse>(
       "semantic-scholar",
       `https://api.semanticscholar.org/graph/v1/paper/${encodeURIComponent(providerWorkID)}/${kind}?offset=${start}&limit=${Math.min(200, requested)}&fields=${encodeURIComponent(SEMANTIC_SCHOLAR_SUMMARY_FIELDS)}`,
-      { signal: requestOptions?.signal },
+      {
+        signal: requestOptions?.signal,
+        retryRefusals: requestOptions?.retryRefusals,
+      },
     );
+    if (response.status === 429) {
+      throw new ProviderRefusedError("semantic-scholar");
+    }
     if (!response.ok || !response.data) return [];
     return (response.data.data ?? [])
       .map((entry) =>
@@ -541,8 +558,12 @@ export async function fetchRelatedWorkSummaryPage(
         page,
         select: OPENALEX_SUMMARY_FIELDS,
       }),
-      { signal: requestOptions?.signal },
+      {
+        signal: requestOptions?.signal,
+        retryRefusals: requestOptions?.retryRefusals,
+      },
     );
+    if (response.status === 429) throw new ProviderRefusedError("openalex");
     if (!response.ok || !response.data) return [];
     return (response.data.results ?? [])
       .slice(withinPage, withinPage + requested)
@@ -557,8 +578,12 @@ export async function fetchRelatedWorkSummaryPage(
       openAlexPathURL(`/works/${encodeURIComponent(normalizedID)}`, {
         select: "referenced_works,referenced_works_count",
       }),
-      { signal: requestOptions?.signal },
+      {
+        signal: requestOptions?.signal,
+        retryRefusals: requestOptions?.retryRefusals,
+      },
     );
+    if (source.status === 429) throw new ProviderRefusedError("openalex");
     if (!source.ok || !source.data) return [];
     referenceIDs = (source.data.referenced_works ?? [])
       .map(shortOpenAlexID)
@@ -579,6 +604,7 @@ export async function fetchRelatedWorkSummaryPage(
     summaries,
     summaries.map((_, index) => index),
     requestOptions,
+    true,
   );
   return summaries.filter((work) => Boolean(work.title));
 }

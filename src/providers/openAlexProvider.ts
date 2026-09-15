@@ -59,6 +59,7 @@ async function requestOpenAlex<T>(
   }
   return requestJSON<T>("openalex", openAlexURL(path, parameters), {
     signal: options?.signal,
+    retryRefusals: options?.retryRefusals,
   });
 }
 
