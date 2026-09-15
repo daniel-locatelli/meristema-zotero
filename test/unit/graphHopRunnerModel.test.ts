@@ -41,6 +41,7 @@ function fillInput(failedKeys: Set<string>): HopFillInput {
     hoveredKey: null,
     onScreenKeys: new Set(),
     failedKeys,
+    deferredKeys: new Set(),
     expandedByHop: [0, 0, 0],
     capByHop: [HOP_EXPANSION_CAP, HOP_EXPANSION_CAP, HOP_EXPANSION_CAP],
     reportedCountOf: () => null,

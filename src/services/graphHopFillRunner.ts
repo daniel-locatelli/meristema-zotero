@@ -27,7 +27,11 @@ import { SerializedTaskQueue } from "./serializedTaskQueue";
 /** What the plan needs from the graph, read fresh on every re-plan. */
 export interface HopFillPlanInput extends Omit<
   HopFillInput,
-  "failedKeys" | "expandedByHop" | "capByHop" | "reportedCountOf"
+  | "failedKeys"
+  | "deferredKeys"
+  | "expandedByHop"
+  | "capByHop"
+  | "reportedCountOf"
 > {
   direction: HopDirection;
   /**
@@ -146,6 +150,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     return planHopFill({
       ...input,
       failedKeys: failed[direction],
+      deferredKeys: new Set<string>(),
       expandedByHop: expanded[direction],
       capByHop: Array.from({ length: input.depth + 1 }, (_, hop) =>
         capFor(direction, hop),

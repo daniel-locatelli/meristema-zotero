@@ -16,6 +16,11 @@ export interface HopFillInput {
   hoveredKey: string | null;
   onScreenKeys: ReadonlySet<string>;
   failedKeys: ReadonlySet<string>;
+  /**
+   * Refused papers whose deferral has not ended (ADR 0013): counted as left,
+   * never planned.
+   */
+  deferredKeys: ReadonlySet<string>;
   /** Expansions landed this session, by hop. */
   expandedByHop: readonly number[];
   /** The cap in force, by hop. */
@@ -31,6 +36,10 @@ export interface HopFillPlan {
   readonly remainingByHop: readonly number[];
   /** Qualifying papers a hop's cap holds back, by hop. */
   readonly waitingByHop: readonly number[];
+  /** Qualifying papers a refusal holds back, by hop; never waiting on the cap. */
+  readonly deferredByHop: readonly number[];
+  /** Those papers' keys, so the runner can tell when the first may be asked again. */
+  readonly deferred: readonly string[];
 }
 
 function rank(key: string, entry: HopEntry, input: HopFillInput): number {
@@ -53,12 +62,21 @@ function parentCount(entry: HopEntry, input: HopFillInput): number {
 export function planHopFill(input: HopFillInput): HopFillPlan {
   const remainingByHop = Array.from({ length: input.depth + 1 }, () => 0);
   const waitingByHop = Array.from({ length: input.depth + 1 }, () => 0);
+  const deferredByHop = Array.from({ length: input.depth + 1 }, () => 0);
+  const deferred: string[] = [];
   const candidates: Array<{ key: string; entry: HopEntry }> = [];
   for (const [key, entry] of input.entries) {
     if (entry.hop >= input.depth) continue;
     if (!input.visibleKeys.has(key)) continue;
     if (entry.expanded || input.failedKeys.has(key)) continue;
     remainingByHop[entry.hop] += 1;
+    // Before the cap: raising the cap would not bring a refused paper back
+    // any sooner, so it never reads as waiting for Fetch more.
+    if (input.deferredKeys.has(key)) {
+      deferredByHop[entry.hop] += 1;
+      deferred.push(key);
+      continue;
+    }
     const expanded = input.expandedByHop[entry.hop] ?? 0;
     const cap = input.capByHop[entry.hop] ?? HOP_EXPANSION_CAP;
     if (expanded >= cap) {
@@ -80,5 +98,7 @@ export function planHopFill(input: HopFillInput): HopFillPlan {
     order: candidates.map((candidate) => candidate.key),
     remainingByHop,
     waitingByHop,
+    deferredByHop,
+    deferred,
   };
 }

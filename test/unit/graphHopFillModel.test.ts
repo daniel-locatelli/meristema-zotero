@@ -31,6 +31,7 @@ function input(overrides: Partial<HopFillInput> = {}): HopFillInput {
     hoveredKey: null,
     onScreenKeys: new Set(),
     failedKeys: new Set(),
+    deferredKeys: new Set(),
     expandedByHop: [0, 0, 0],
     capByHop: [HOP_EXPANSION_CAP, HOP_EXPANSION_CAP, HOP_EXPANSION_CAP],
     reportedCountOf: () => null,
@@ -126,5 +127,26 @@ describe("planHopFill", function () {
   it("reports how many remain per hop", function () {
     const plan = planHopFill(input());
     expect(plan.remainingByHop).to.deep.equal([0, 4, 0]);
+  });
+
+  it("holds a deferred paper out of the order but counts it as left, not waiting", function () {
+    const plan = planHopFill(
+      input({
+        deferredKeys: new Set(["a"]),
+        expandedByHop: [0, 2, 0],
+        capByHop: [500, 2, 500],
+      }),
+    );
+    expect(plan.order).to.deep.equal([]);
+    expect(plan.remainingByHop).to.deep.equal([0, 4, 0]);
+    expect(plan.deferredByHop).to.deep.equal([0, 1, 0]);
+    expect(plan.waitingByHop, "even at a full cap").to.deep.equal([0, 3, 0]);
+    expect(plan.deferred).to.deep.equal(["a"]);
+  });
+
+  it("plans the rest while one paper is deferred", function () {
+    const plan = planHopFill(input({ deferredKeys: new Set(["b"]) }));
+    expect(plan.order).to.deep.equal(["a", "c", "d"]);
+    expect(plan.deferredByHop).to.deep.equal([0, 1, 0]);
   });
 });
