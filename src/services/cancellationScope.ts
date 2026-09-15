@@ -55,3 +55,36 @@ export function cancellationRequested(
 ): boolean {
   return signal?.cancelled === true;
 }
+
+/**
+ * Run `operation` under a scope that the timer, or the parent's cancel,
+ * cancels. Resolves the operation's value, or null once `ms` has passed; the
+ * timer cancels what it abandoned instead of leaving it retrying behind the
+ * caller (B50). A rejection passes through.
+ */
+export async function withTimeoutScope<T>(
+  operation: (signal: CancellationSignal) => Promise<T>,
+  ms: number,
+  parentSignal: CancellationSignal | undefined,
+  onTimeout: () => void,
+): Promise<T | null> {
+  const scope = createCancellationScope("timeout");
+  const unsubscribe = parentSignal?.subscribe(() => scope.cancel());
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      operation(scope.signal),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => {
+          timer = null;
+          scope.cancel();
+          onTimeout();
+          resolve(null);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+    unsubscribe?.();
+  }
+}
