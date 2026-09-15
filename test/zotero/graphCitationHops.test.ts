@@ -27,6 +27,16 @@ const SAVED_GRAPH_NAME = "Stage 3 hop graph";
 const V4_GRAPH_NAME = "Stage 3 v4 both";
 /** The one-time notice a version 4 `both` record earns on open. */
 const BOTH_NOTICE = "Directions are now one at a time; showing Citers";
+/**
+ * B50's paper: one the fill has never expanded, whose DOI OpenCitations
+ * indexes with citers (32 on 2026-09-15), so once the providers answer again
+ * hop 1 fills from whichever answers first.
+ */
+const REFUSAL_TITLE = "Stage 3 refusal fixture";
+const REFUSAL_DOI = "10.1371/journal.pone.0043136";
+/** Every provider a fill may ask. The wrapper answers these with HTTP 429. */
+const REFUSED_URL =
+  /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org)\//;
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -1145,5 +1155,180 @@ describe("Citation hops (Stage 3)", function () {
       back,
       `after the remount the detached toolbar read "${detachedStatus()}"`,
     ).to.equal(BOTH_NOTICE);
+  });
+
+  /**
+   * B50: a refusal is not a failure. Every provider the fill can ask answers
+   * HTTP 429 at once, through a wrapper on `Zotero.HTTP.request`, which
+   * `requestJSON` reads at call time. The seed must stay in the plan, the
+   * line must count down in place, Stop must pause it, and once the providers
+   * answer again Resume must fill hop 1 straight away.
+   *
+   * Its own tab and its own paper: the paper above is expanded already, and a
+   * fill never asks for a stored list again.
+   */
+  describe("under provider refusals (B50)", function () {
+    let refusalTabID: string | null = null;
+    let refusalItemID: number | null = null;
+    let realRequest: any = null;
+
+    function refuseProviders(): void {
+      if (realRequest) return;
+      realRequest = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) =>
+        REFUSED_URL.test(url)
+          ? { status: 429, responseText: "", getResponseHeader: () => null }
+          : realRequest.call(Zotero.HTTP, method, url, options);
+    }
+
+    function answerAgain(): void {
+      if (!realRequest) return;
+      (Zotero.HTTP as any).request = realRequest;
+      realRequest = null;
+    }
+
+    function countdownText(): string {
+      return normalize(
+        graphRoot().querySelector(".cm-scope-hop-countdown")?.textContent,
+      );
+    }
+
+    before(async function () {
+      this.timeout(90_000);
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", REFUSAL_TITLE);
+      item.setField("date", "2012");
+      item.setField("DOI", REFUSAL_DOI);
+      refusalItemID = await item.saveTx();
+
+      refusalTabID = await openNewGraphTab();
+      currentTabID = refusalTabID;
+      win.Zotero_Tabs.select(refusalTabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(refusalTabID)?.querySelector(
+            ".cm-scope-section .cm-scope-count",
+          ),
+        30_000,
+      );
+      expect(rail, "the refusal tab's Scope section").to.exist;
+      await dismissGallery(refusalTabID);
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the refusal tab's fit button").to.exist;
+      fit!.click();
+      await waitFor(() => {
+        const canvas = graphRoot().querySelector("canvas");
+        return canvas ? canvas.getBoundingClientRect().width > 10 : false;
+      }, 10_000);
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      let failure: unknown = null;
+      const record = (error: unknown): void => {
+        if (failure === null) failure = error;
+      };
+      try {
+        answerAgain();
+      } catch (error) {
+        record(error);
+      }
+      try {
+        if (refusalTabID) win.Zotero_Tabs.close(refusalTabID);
+        await delay(500);
+      } catch (error) {
+        record(error);
+      }
+      refusalTabID = null;
+      currentTabID = null;
+      try {
+        if (refusalItemID !== null) await Zotero.Items.erase(refusalItemID);
+        refusalItemID = null;
+      } catch (error) {
+        record(error);
+      }
+      if (failure !== null) throw failure;
+    });
+
+    it("keeps the seed in the plan while every provider refuses, and fills once they answer", async function () {
+      this.timeout(180_000);
+      refuseProviders();
+      try {
+        (await nodeMenuEntry("Add as seed", REFUSAL_TITLE)).click();
+
+        // 1. The refusal line, counting down in place.
+        const line = await waitFor(
+          () =>
+            /refusing · retry in \d+ (s|min)/.test(progressText())
+              ? graphRoot().querySelector(".cm-scope-hop-progress")
+              : null,
+          60_000,
+        );
+        expect(
+          line,
+          `the line never read "refusing"; it read "${progressText()}"; ` +
+            `hop 1 "${hopRowText(1)}"; recent Zotero errors: ${
+              (Zotero.getErrors(true) as string[]).slice(-3).join(" || ") ||
+              "none"
+            }`,
+        ).to.exist;
+        const first = countdownText();
+        const ticked = await waitFor(
+          () => (countdownText() !== first ? countdownText() : null),
+          5_000,
+        );
+        expect(ticked, `the countdown stayed at "${first}"`).to.exist;
+        expect(
+          graphRoot().querySelector(".cm-scope-hop-progress") === line,
+          `the line was rebuilt while counting down; it reads "${progressText()}"`,
+        ).to.equal(true);
+
+        // 2. Stop pauses it: the refused seed is still one paper left.
+        const stop = line!.querySelector(
+          ".cm-scope-hop-action",
+        ) as HTMLButtonElement | null;
+        expect(normalize(stop?.textContent), "the line's action").to.equal(
+          "Stop",
+        );
+        stop!.click();
+        const paused = await waitFor(
+          () =>
+            /1 left · Resume$/.test(progressText()) ? progressText() : null,
+          10_000,
+        );
+        expect(paused, `after Stop the line read "${progressText()}"`).to.exist;
+
+        // 3. The providers answer again; Resume fills hop 1 at once.
+        answerAgain();
+        const resume = graphRoot().querySelector(
+          ".cm-scope-hop-progress .cm-scope-hop-action",
+        ) as HTMLButtonElement | null;
+        expect(normalize(resume?.textContent), "the paused action").to.equal(
+          "Resume",
+        );
+        resume!.click();
+        const trace = await traceUntil(
+          () => (hopCounts(1)?.available ?? 0) > 0,
+          60_000,
+        );
+        expect(
+          hopCounts(1)?.available ?? 0,
+          `hop 1 never filled after Resume; trace: ${trace}`,
+        ).to.be.greaterThan(0);
+      } finally {
+        answerAgain();
+      }
+    });
   });
 });
