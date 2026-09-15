@@ -6,10 +6,20 @@ import {
   planHopFill,
   type HopFillInput,
 } from "../../src/services/graphHopFillModel";
+import type { CitationProviderID } from "../../src/domain/citationTypes";
 import {
+  COOL_DOWN_MS,
+  answer,
+  deferUntil,
+  endAll,
+  excluded,
+  hopCoolDown,
   hopLandingEffects,
   hopRejectionEffects,
+  outcomeRefused,
   planHopExploreChange,
+  refuse,
+  type ProviderWindows,
 } from "../../src/services/graphHopRunnerModel";
 
 function entry(
@@ -49,10 +59,12 @@ describe("the hop runner's landing", function () {
       currentEpoch: 3,
       cleaned: false,
       stored: false,
+      refused: false,
     });
     expect(effects).to.deep.equal({
       countExpanded: false,
       markFailed: true,
+      defer: false,
       applyToModel: true,
     });
     if (effects.markFailed) failedKeys.add("a");
@@ -69,10 +81,12 @@ describe("the hop runner's landing", function () {
         currentEpoch: 1,
         cleaned: false,
         stored: true,
+        refused: false,
       }),
     ).to.deep.equal({
       countExpanded: true,
       markFailed: false,
+      defer: false,
       applyToModel: true,
     });
   });
@@ -88,11 +102,13 @@ describe("the hop runner's landing", function () {
           currentEpoch: 5,
           cleaned: false,
           stored,
+          refused: false,
         }),
         `stale epoch, stored=${stored}`,
       ).to.deep.equal({
         countExpanded: false,
         markFailed: false,
+        defer: false,
         applyToModel: false,
       });
     }
@@ -102,11 +118,13 @@ describe("the hop runner's landing", function () {
         currentEpoch: 5,
         cleaned: true,
         stored: true,
+        refused: false,
       }),
       "a torn-down view lands nothing either",
     ).to.deep.equal({
       countExpanded: false,
       markFailed: false,
+      defer: false,
       applyToModel: false,
     });
   });
@@ -131,12 +149,166 @@ describe("the hop runner's landing", function () {
       currentEpoch: 1,
       cleaned: false,
       stored: true,
+      refused: false,
     });
     expect(Object.keys(effects).sort()).to.deep.equal([
       "applyToModel",
       "countExpanded",
+      "defer",
       "markFailed",
     ]);
+  });
+});
+
+describe("a refused landing", function () {
+  it("defers the paper: not counted, not failed, nothing applied", function () {
+    expect(
+      hopLandingEffects({
+        epoch: 1,
+        currentEpoch: 1,
+        cleaned: false,
+        stored: false,
+        refused: true,
+      }),
+    ).to.deep.equal({
+      countExpanded: false,
+      markFailed: false,
+      defer: true,
+      applyToModel: false,
+    });
+  });
+
+  it("lets a stored list win over a refusal on the way", function () {
+    expect(
+      hopLandingEffects({
+        epoch: 1,
+        currentEpoch: 1,
+        cleaned: false,
+        stored: true,
+        refused: true,
+      }),
+    ).to.include({ countExpanded: true, defer: false });
+  });
+
+  it("reads one refused and the next failed as refused, not failed", function () {
+    const S2: CitationProviderID = "semantic-scholar";
+    const OC: CitationProviderID = "opencitations";
+    const outcome = { refusedBy: [S2], skipped: [], answeredBy: null };
+    expect(outcomeRefused(outcome)).to.equal(true);
+    expect(
+      outcomeRefused({ refusedBy: [], skipped: [OC], answeredBy: null }),
+      "a provider sitting out a window",
+    ).to.equal(true);
+    expect(
+      outcomeRefused({ refusedBy: [], skipped: [], answeredBy: null }),
+    ).to.equal(false);
+  });
+});
+
+describe("provider windows", function () {
+  const S2: CitationProviderID = "semantic-scholar";
+  const OC: CitationProviderID = "opencitations";
+
+  it("wait 30 s, 1 min, 2 min, then every 5 min", function () {
+    let windows: ProviderWindows = new Map();
+    let now = 0;
+    const delays: number[] = [];
+    for (let refusal = 0; refusal < 5; refusal += 1) {
+      windows = refuse(windows, S2, now);
+      const endsAt = windows.get(S2)!.endsAt;
+      delays.push(endsAt - now);
+      now = endsAt;
+    }
+    expect(delays).to.deep.equal([30_000, 60_000, 120_000, 300_000, 300_000]);
+    expect(COOL_DOWN_MS).to.deep.equal([30_000, 60_000, 120_000, 300_000]);
+  });
+
+  it("start over after an answer", function () {
+    let windows = refuse(refuse(new Map(), S2, 0), S2, 30_000);
+    windows = answer(windows, S2);
+    expect(excluded(windows, 30_000)).to.deep.equal([]);
+    windows = refuse(windows, S2, 100_000);
+    expect(windows.get(S2)!.endsAt).to.equal(130_000);
+  });
+
+  it("end together on Resume, each keeping its step", function () {
+    let windows = refuse(refuse(new Map(), S2, 0), OC, 0);
+    windows = endAll(windows, 5_000);
+    expect(excluded(windows, 5_000)).to.deep.equal([]);
+    windows = refuse(windows, S2, 5_000);
+    expect(windows.get(S2)!.endsAt, "the second refusal waits 1 min").to.equal(
+      65_000,
+    );
+  });
+
+  it("exclude only the providers whose window is still running", function () {
+    const windows = refuse(refuse(refuse(new Map(), S2, 0), OC, 0), OC, 30_000);
+    expect(excluded(windows, 0)).to.deep.equal([S2, OC]);
+    expect(excluded(windows, 30_000)).to.deep.equal([OC]);
+    expect(excluded(windows, 90_000)).to.deep.equal([]);
+  });
+
+  it("defer a paper until the earliest of its providers' windows ends", function () {
+    const windows = refuse(refuse(refuse(new Map(), S2, 0), OC, 0), OC, 0);
+    // S2 ends at 30 s; OC, refused twice at 0, ends at 1 min.
+    expect(deferUntil(windows, [S2, OC], 0)).to.equal(30_000);
+    expect(deferUntil(windows, [S2, OC], 45_000)).to.equal(60_000);
+    expect(deferUntil(windows, [S2, OC], 60_000)).to.equal(null);
+    expect(deferUntil(windows, ["openalex"], 0)).to.equal(null);
+  });
+});
+
+describe("hopCoolDown", function () {
+  const S2: CitationProviderID = "semantic-scholar";
+  const OC: CitationProviderID = "opencitations";
+  const windows = refuse(refuse(new Map(), S2, 0), OC, 1_000);
+
+  it("waits for the earliest window when every paging provider is in one, however many papers wait", function () {
+    expect(
+      hopCoolDown({
+        windows,
+        now: 2_000,
+        pagingProviders: [S2, OC],
+        orderLength: 5,
+        deferralEnds: [],
+      }),
+    ).to.equal(30_000);
+  });
+
+  it("expands while one paging provider is free and a paper is planned", function () {
+    expect(
+      hopCoolDown({
+        windows,
+        now: 2_000,
+        pagingProviders: [S2, OC, "openalex"],
+        orderLength: 1,
+        deferralEnds: [30_000],
+      }),
+    ).to.equal(null);
+  });
+
+  it("waits for the earliest deferral when every paper left is deferred", function () {
+    expect(
+      hopCoolDown({
+        windows: new Map(),
+        now: 0,
+        pagingProviders: [S2, OC],
+        orderLength: 0,
+        deferralEnds: [45_000, 31_000],
+      }),
+    ).to.equal(31_000);
+  });
+
+  it("does not wait on nothing", function () {
+    expect(
+      hopCoolDown({
+        windows: new Map(),
+        now: 0,
+        pagingProviders: [],
+        orderLength: 0,
+        deferralEnds: [],
+      }),
+    ).to.equal(null);
   });
 });
 

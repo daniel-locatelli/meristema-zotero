@@ -178,6 +178,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
           currentEpoch: epoch,
           cleaned: disposed,
           stored: host.stored(key, direction),
+          refused: false,
         });
         if (!effects.applyToModel) return;
         if (effects.countExpanded) {
