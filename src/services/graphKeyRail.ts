@@ -21,6 +21,7 @@ import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
 import type { KeyEntry, KeyMark, KeyModel, KeySection } from "./graphKeyModel";
 import type { HopDirection } from "./graphHopModel";
 import {
+  formatRetryIn,
   scopeSquare,
   type ScopeHopRow,
   type ScopeHopsBlock,
@@ -171,6 +172,11 @@ export interface KeyRailOptions {
    * how the view tells the rail about a change that came from elsewhere.
    */
   onCollapsedChange?: (collapsed: boolean) => void;
+  /**
+   * The clock the refusal countdown reads (B50). Date.now unless a harness
+   * drives its own.
+   */
+  now?: () => number;
 }
 
 export interface KeyRail {
@@ -229,6 +235,14 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   const scopeHost = element(document, "section", "cm-scope-section");
   /** The last Scope model actually drawn, serialised; null before the first. */
   let lastScopeSignature: string | null = null;
+  /** The refusal countdown's one interval, while a countdown is drawn. */
+  let countdownTimer: number | null = null;
+  const now = options.now ?? (() => Date.now());
+  const clearCountdown = (): void => {
+    if (countdownTimer === null) return;
+    document.defaultView?.clearInterval(countdownTimer);
+    countdownTimer = null;
+  };
   scopeHost.setAttribute("aria-label", "Scope");
   scopeHost.hidden = true;
   const keyHost = element(document, "div", "cm-key-sections");
@@ -611,7 +625,27 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   function progressLine(progress: ScopeHopsProgress): HTMLElement {
     const line = element(document, "p", "cm-scope-hop-progress");
+    if (progress.title) line.title = progress.title;
     line.append(text(document, "span", progress.text));
+    const countdown = progress.countdown;
+    if (countdown) {
+      // Only this span changes each second. The model's `retryAt` is fixed,
+      // so its signature holds, the Scope section is not rebuilt, and focus
+      // stays on Stop while the countdown runs (B50).
+      const span = text(
+        document,
+        "span",
+        formatRetryIn(countdown.retryAt - now()),
+        "cm-scope-hop-countdown",
+      );
+      line.append(text(document, "span", " · "), span);
+      const view = document.defaultView;
+      if (view) {
+        countdownTimer = view.setInterval(() => {
+          span.textContent = formatRetryIn(countdown.retryAt - now());
+        }, 1000);
+      }
+    }
     // Its own class, not the hidden line's `cm-scope-show-all`: the two sit in
     // the same Scope section, and a `querySelector` for one must never answer
     // with the other (the progress line is rendered above it).
@@ -678,6 +712,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       const signature = model === null ? "" : JSON.stringify(model);
       if (signature === lastScopeSignature) return;
       lastScopeSignature = signature;
+      clearCountdown();
       scopeHost.replaceChildren();
       scopeHost.hidden = model === null;
       if (!model) {
@@ -716,6 +751,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     addSeedAnchor: () => addSeedLink,
     release,
     destroy(): void {
+      clearCountdown();
       root.removeEventListener("keydown", onKeyDown);
       lastScopeSignature = null;
       scopeHost.replaceChildren();
