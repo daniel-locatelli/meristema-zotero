@@ -8,7 +8,10 @@ import type { CitationGraphNode } from "../domain/graphTypes";
 import { workIdentifiersForGraphNode } from "../domain/workIdentifiers";
 import type { RelationshipProviderSnapshot } from "../providers/relationshipPolicy";
 import { isCitationRequestCancellationRequested } from "../providers/http";
-import type { ProviderRequestOptions } from "../providers/types";
+import {
+  ProviderRefusedError,
+  type ProviderRequestOptions,
+} from "../providers/types";
 import {
   getCitationProvider,
   getProviderPlan,
@@ -26,7 +29,11 @@ import {
 import { relatedWorkFromProviderLookup } from "../domain/relatedWorkMetadata";
 import { registerExternalWorkMetricBatch } from "./externalWorkMetricRegistry";
 import { richestCountAttribution } from "./citationCountPolicy";
-import { getEnabledProviders, isProviderEnabled } from "./citationPreferences";
+import {
+  getEnabledProviders,
+  getOpenAlexAPIKey,
+  isProviderEnabled,
+} from "./citationPreferences";
 import {
   getCitationMetricRecord,
   saveCitationMetricRecord,
@@ -76,14 +83,20 @@ import {
 } from "./externalWorkMetadataService";
 import { stampProviderWorks } from "./providerWorkMetadata";
 import {
+  fillRelationshipCandidates,
+  isPagingProvider,
   limitRelationshipProviders,
+  lookupStep,
+  nextFillProvider,
   orderRelationshipProviders,
   preferredRelationshipProviders,
+  refusedSnapshotState,
   relationshipForegroundMetadataLimit,
   relationshipProviderPolicyForSize,
   relationshipRefreshRequiresFollowUp,
   relationshipRefreshPolicy,
   relationshipSnapshotIsFresh,
+  unbackedEmptyList,
   type RelationshipProviderStrategy,
   type RelationshipRefreshMode,
 } from "./relationshipRefreshPolicy";
@@ -105,6 +118,7 @@ import {
 import {
   cancellationRequested,
   createCancellationScope,
+  withTimeoutScope,
   type CancellationSignal,
 } from "./cancellationScope";
 
@@ -537,6 +551,7 @@ export async function storeExternalRelationshipSnapshot(
         reportedCount: options.reportedCount ?? null,
         complete: options.complete === true,
         succeeded: true,
+        refused: false,
       },
     ],
     mergeRelatedWorkLists,
@@ -1181,12 +1196,19 @@ async function lookupProviderRecord(
   let match = provider.supports(identifiers)
     ? await lookup(identifiers, requestOptions)
     : null;
+  // A refusal is not "no match": a title search straight after it is a
+  // second request to a provider that just refused (B50).
+  const step = lookupStep(match?.status ?? null);
+  if (step === "refuse") throw new ProviderRefusedError(providerID);
   if (
-    (!match || match.status !== "success") &&
+    step === "search" &&
     provider.searchExactTitle &&
     identifiers.normalizedTitle
   ) {
     match = await provider.searchExactTitle(identifiers, requestOptions);
+    if (lookupStep(match.status) === "refuse") {
+      throw new ProviderRefusedError(providerID);
+    }
   }
   return match?.status === "success" &&
     matchWorkIdentifiers(identifiers, relatedWorkFromProviderLookup(match))
@@ -1195,27 +1217,25 @@ async function lookupProviderRecord(
     : null;
 }
 
+/**
+ * Race one provider request against the relationship timeout. The request
+ * runs under a scope the timeout cancels, so a request the refresh gave up on
+ * stops instead of retrying behind it. A timeout stays a failure, not a
+ * refusal.
+ */
 async function withProviderTimeout<T>(
   providerID: CitationProviderID,
   direction: "references" | "cited-by",
-  operation: Promise<T>,
+  requestOptions: ProviderRequestOptions | undefined,
+  operation: (options: ProviderRequestOptions) => Promise<T>,
 ): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<null>((resolve) => {
-        timer = setTimeout(() => {
-          Zotero.debug(
-            `Meristema: ${providerID} ${direction} lookup timed out`,
-          );
-          resolve(null);
-        }, RELATIONSHIP_PROVIDER_TIMEOUT_MS);
-      }),
-    ]);
-  } finally {
-    if (timer !== null) clearTimeout(timer);
-  }
+  return withTimeoutScope(
+    (signal) => operation({ ...requestOptions, signal }),
+    RELATIONSHIP_PROVIDER_TIMEOUT_MS,
+    requestOptions?.signal,
+    () =>
+      Zotero.debug(`Meristema: ${providerID} ${direction} lookup timed out`),
+  );
 }
 
 async function fetchProviderRelationshipSnapshot(
@@ -1232,7 +1252,12 @@ async function fetchProviderRelationshipSnapshot(
     reportedCount: null,
     complete: false,
     succeeded: false,
+    refused: false,
   });
+  // Outside the `try`, so a refusal part-way can still hand back what was
+  // collected before it (B50).
+  let knownReportedCount: number | null = null;
+  const collectedWorks: RelatedWorkMetadata[] = [];
   try {
     const checkpoint = createCooperativeCheckpoint();
     const identifiers = workIdentifiersForGraphNode(node);
@@ -1244,14 +1269,19 @@ async function fetchProviderRelationshipSnapshot(
     const hasSummaryFetcher =
       providerID === "semantic-scholar" || providerID === "openalex";
     const fetcher = hasSummaryFetcher
-      ? (id: string, requested: number, offset: number) =>
+      ? (
+          id: string,
+          requested: number,
+          offset: number,
+          options?: ProviderRequestOptions,
+        ) =>
           fetchRelatedWorkSummaryPage(
             providerID,
             id,
             direction,
             requested,
             offset,
-            requestOptions,
+            options,
           )
       : nativeFetcher;
     const hintedProviderWorkID =
@@ -1263,7 +1293,8 @@ async function fetchProviderRelationshipSnapshot(
       : await withProviderTimeout(
           providerID,
           direction,
-          lookupProviderRecord(providerID, identifiers, requestOptions),
+          requestOptions,
+          (options) => lookupProviderRecord(providerID, identifiers, options),
         );
     const reportedCount =
       direction === "references"
@@ -1275,6 +1306,7 @@ async function fetchProviderRelationshipSnapshot(
           (providerID === node.citationCountProvider
             ? node.citationCount
             : null));
+    knownReportedCount = reportedCount;
     let works =
       direction === "references" && match?.references?.length
         ? mergeRelatedWorkLists(
@@ -1289,6 +1321,7 @@ async function fetchProviderRelationshipSnapshot(
         reportedCount: 0,
         complete: true,
         succeeded: Boolean(match) || Boolean(fetcher),
+        refused: false,
       };
     }
 
@@ -1301,6 +1334,7 @@ async function fetchProviderRelationshipSnapshot(
           Boolean(match) &&
           (reportedCount === null || works.length >= reportedCount),
         succeeded: Boolean(match),
+        refused: false,
       };
     }
 
@@ -1324,7 +1358,7 @@ async function fetchProviderRelationshipSnapshot(
           Math.max(RELATIONSHIP_MAX_PAGES, Math.ceil(target / pageSize) + 1),
         )
       : RELATIONSHIP_ABSOLUTE_MAX_PAGES;
-    const collectedWorks = [...works];
+    collectedWorks.push(...works);
     const collectedIdentities = new Set(
       collectedWorks.map((work) => externalWorkLookupIdentity(work)),
     );
@@ -1339,17 +1373,27 @@ async function fetchProviderRelationshipSnapshot(
       const requested = Number.isFinite(target)
         ? Math.min(pageSize, Math.max(1, target - offset))
         : pageSize;
+      const pageOffset = offset;
       const pageResult = await withProviderTimeout(
         providerID,
         direction,
-        hasSummaryFetcher
-          ? fetcher(providerWorkID, requested, offset)
-          : nativeFetcher!(providerWorkID, requested, offset, requestOptions),
+        requestOptions,
+        (options) => fetcher(providerWorkID, requested, pageOffset, options),
       );
       if (!Array.isArray(pageResult)) return failed();
       const page = pageResult;
       pages += 1;
       if (!page.length) {
+        if (
+          unbackedEmptyList({
+            fill: requestOptions?.retryRefusals === false,
+            firstPageEmpty: pages === 1 && collectedWorks.length === 0,
+            matched: Boolean(match),
+            reportedCount,
+          })
+        ) {
+          return failed();
+        }
         endpointExhausted = true;
         break;
       }
@@ -1397,8 +1441,20 @@ async function fetchProviderRelationshipSnapshot(
           !Number.isFinite(boundedMaximum) ||
           reportedCount <= boundedMaximum),
       succeeded: true,
+      refused: false,
     };
   } catch (error) {
+    if (error instanceof ProviderRefusedError) {
+      const state = refusedSnapshotState(collectedWorks.length);
+      return {
+        provider: providerID,
+        works: state.succeeded ? mergeRelatedWorkLists(collectedWorks) : [],
+        reportedCount: knownReportedCount,
+        complete: state.complete,
+        succeeded: state.succeeded,
+        refused: true,
+      };
+    }
     Zotero.debug(
       `Meristema: ${providerID} ${direction} lookup failed: ${String(error)}`,
     );
@@ -1459,6 +1515,12 @@ export interface RelationshipRefreshResolution {
   provider: CitationProviderID | null;
   reportedCount: number | null;
   identifiedCount: number;
+  /** Providers whose snapshot in this refresh was refused (HTTP 429), in the order asked. */
+  refusedBy: CitationProviderID[];
+  /** Paging providers for the paper that `excludeProviders` left out. */
+  skipped: CitationProviderID[];
+  /** The one provider whose snapshot was stored; null when none was, or several were merged. */
+  answeredBy: CitationProviderID | null;
 }
 
 export interface ExternalRelationshipRefreshOptions {
@@ -1471,6 +1533,14 @@ export interface ExternalRelationshipRefreshOptions {
   mode?: RelationshipRefreshMode;
   providerStrategy?: RelationshipProviderStrategy;
   providerLimit?: number;
+  /**
+   * False for the hop fill (ADR 0013): a 429 is not retried, a refused
+   * provider moves the expansion to the next paging provider, and an empty
+   * first page needs a lookup match or a reported count behind it.
+   */
+  retryRefusals?: boolean;
+  /** Providers sitting out a window in the fill; never asked (ADR 0013). */
+  excludeProviders?: readonly CitationProviderID[];
   /** Set by the hop runner; marks publications for coalesced presentation refresh. */
   publicationSource?: "hop-fill";
   metadataHydrationLimit?: number;
@@ -1510,15 +1580,16 @@ function relationshipProgress(
   };
 }
 
-function relationshipProviders(
+function orderedRelationshipProviders(
   node: CitationGraphNode,
   direction: "references" | "cited-by",
   strategy: RelationshipProviderStrategy,
-  maximum: number,
+  ignoreHealth: boolean,
 ): CitationProviderID[] {
   const plan = getProviderPlan(
     direction === "references" ? "references" : "citations",
     "auto",
+    { ignoreHealth },
   );
   const enabledProviderSet = new Set(getEnabledProviders());
   const enabledProviders = plan.providers.filter((provider) =>
@@ -1528,7 +1599,7 @@ function relationshipProviders(
     direction === "references"
       ? node.referenceCountProvider
       : node.citationCountProvider;
-  const ordered = orderRelationshipProviders(
+  return orderRelationshipProviders(
     enabledProviders,
     preferredRelationshipProviders(
       direction,
@@ -1540,9 +1611,94 @@ function relationshipProviders(
     strategy,
     Number.POSITIVE_INFINITY,
   );
-  return limitRelationshipProviders(ordered, maximum, (provider) =>
-    providerPagesRelationships(provider, direction),
+}
+
+/** A paging provider for the direction (CONTEXT.md), read from settings now. */
+function pagingProviderTest(
+  direction: "references" | "cited-by",
+): (providerID: CitationProviderID) => boolean {
+  const enabled = new Set(getEnabledProviders());
+  const hasOpenAlexKey = Boolean(getOpenAlexAPIKey());
+  return (providerID) =>
+    isPagingProvider(providerID, {
+      enabled: enabled.has(providerID),
+      pagesDirection: providerPagesRelationships(providerID, direction),
+      hasOpenAlexKey,
+    });
+}
+
+function relationshipProviders(
+  node: CitationGraphNode,
+  direction: "references" | "cited-by",
+  strategy: RelationshipProviderStrategy,
+  maximum: number,
+): CitationProviderID[] {
+  return limitRelationshipProviders(
+    orderedRelationshipProviders(node, direction, strategy, false),
+    maximum,
+    pagingProviderTest(direction),
   );
+}
+
+/**
+ * The providers a hop fill can page the direction with, in the provider
+ * plan's order, register bypassed. The runner cools down when every one of
+ * them is sitting out a window, and the rail names them in this order.
+ */
+export function hopFillPagingProviders(
+  direction: "references" | "cited-by",
+): CitationProviderID[] {
+  const isPaging = pagingProviderTest(direction);
+  return getProviderPlan(
+    direction === "references" ? "references" : "citations",
+    "auto",
+    { ignoreHealth: true },
+  ).providers.filter(isPaging);
+}
+
+/**
+ * Whether a provider can be asked for this paper's list at all: it takes one
+ * of the paper's identifiers, holds a work ID for it, or can search its title.
+ */
+function providerSupportsPaper(
+  providerID: CitationProviderID,
+  node: CitationGraphNode,
+  providerWorkIDs: ProviderIdentityHints,
+): boolean {
+  const provider = getCitationProvider(providerID);
+  const identifiers = workIdentifiersForGraphNode(node);
+  return (
+    provider.supports(identifiers) ||
+    Boolean(providerWorkIDs[providerID]) ||
+    (providerID === node.provider && Boolean(node.providerWorkID?.trim())) ||
+    Boolean(provider.searchExactTitle && identifiers.normalizedTitle)
+  );
+}
+
+/**
+ * A fill expansion's candidates, asked one at a time until one does not
+ * refuse (ADR 0013). A refused snapshot moves the expansion straight on; the
+ * first answer or failure ends it.
+ */
+async function askUntilNotRefused(
+  candidates: readonly CitationProviderID[],
+  ask: (provider: CitationProviderID) => Promise<RelationshipProviderSnapshot>,
+  cancelled: () => boolean,
+): Promise<RelationshipProviderSnapshot[]> {
+  const results: RelationshipProviderSnapshot[] = [];
+  const refused: CitationProviderID[] = [];
+  for (
+    let provider = nextFillProvider(candidates, refused);
+    provider !== null;
+    provider = nextFillProvider(candidates, refused)
+  ) {
+    if (cancelled()) break;
+    const snapshot = await ask(provider);
+    results.push(snapshot);
+    if (!snapshot.refused) break;
+    refused.push(provider);
+  }
+  return results;
 }
 
 async function hydrateRelationshipSelectionInBatches(
@@ -1661,6 +1817,9 @@ async function runExternalRelationshipRefresh(
         provider: null,
         reportedCount: null,
         identifiedCount: cachedMembershipCount,
+        refusedBy: [],
+        skipped: [],
+        answeredBy: null,
       });
       if (!progress.isDismissed()) {
         progress.finish(`${output.length} ${relationshipLabel} ready`);
@@ -1680,12 +1839,51 @@ async function runExternalRelationshipRefresh(
         provider: null,
         reportedCount: null,
         identifiedCount: output.length,
+        refusedBy: [],
+        skipped: [],
+        answeredBy: null,
       });
       if (!progress.isDismissed()) {
         progress.finish(
           `Cannot update ${relationshipLabel}: no stable paper identifier`,
         );
       }
+      return output;
+    }
+
+    // A fill expansion asks paging providers only, one at a time, and never
+    // one sitting out a window (ADR 0013). When the windows leave nobody to
+    // ask, nothing is requested and nothing is published.
+    const fillCandidates =
+      options.retryRefusals === false
+        ? fillRelationshipCandidates({
+            ordered: orderedRelationshipProviders(
+              node,
+              direction,
+              "native-first",
+              true,
+            ),
+            isPaging: pagingProviderTest(direction),
+            supportsPaper: (provider) =>
+              providerSupportsPaper(
+                provider,
+                node,
+                options.providerWorkIDs ?? {},
+              ),
+            excluded: options.excludeProviders ?? [],
+          })
+        : null;
+    if (fillCandidates && !fillCandidates.candidates.length) {
+      const output = existingResult();
+      options.onMembershipResolved?.({
+        complete: false,
+        provider: null,
+        reportedCount: null,
+        identifiedCount: output.length,
+        refusedBy: [],
+        skipped: fillCandidates.skipped,
+        answeredBy: null,
+      });
       return output;
     }
 
@@ -1701,12 +1899,14 @@ async function runExternalRelationshipRefresh(
       storedRelationshipReportedCount(node, direction),
       options.publicationSource,
     );
-    const providers = relationshipProviders(
-      node,
-      direction,
-      policy.providerStrategy,
-      policy.providerLimit,
-    );
+    const providers =
+      fillCandidates?.candidates ??
+      relationshipProviders(
+        node,
+        direction,
+        policy.providerStrategy,
+        policy.providerLimit,
+      );
     progress.setProgress(
       1,
       4,
@@ -1716,34 +1916,53 @@ async function runExternalRelationshipRefresh(
     );
     const providerParallelism =
       mode === "automatic" ? 1 : RELATIONSHIP_PROVIDER_PARALLELISM;
-    const results = await mapBounded(
-      providers,
-      providerParallelism,
-      async (provider): Promise<RelationshipProviderSnapshot> => {
-        if (cancelled()) {
-          return {
-            provider,
-            works: [],
-            reportedCount: null,
-            complete: false,
-            succeeded: false,
-          };
-        }
-        return fetchProviderRelationshipSnapshot(
-          provider,
-          node,
-          direction,
-          maximum,
-          options.providerWorkIDs,
-          { signal: options.signal },
+    const results = fillCandidates
+      ? await askUntilNotRefused(
+          fillCandidates.candidates,
+          (provider) =>
+            fetchProviderRelationshipSnapshot(
+              provider,
+              node,
+              direction,
+              maximum,
+              options.providerWorkIDs,
+              { signal: options.signal, retryRefusals: false },
+            ),
+          cancelled,
+        )
+      : await mapBounded(
+          providers,
+          providerParallelism,
+          async (provider): Promise<RelationshipProviderSnapshot> => {
+            if (cancelled()) {
+              return {
+                provider,
+                works: [],
+                reportedCount: null,
+                complete: false,
+                succeeded: false,
+                refused: false,
+              };
+            }
+            return fetchProviderRelationshipSnapshot(
+              provider,
+              node,
+              direction,
+              maximum,
+              options.providerWorkIDs,
+              { signal: options.signal },
+            );
+          },
+          {
+            yieldAfterEach: true,
+            yieldDelayMs: mode === "automatic" ? 12 : 4,
+          },
         );
-      },
-      {
-        yieldAfterEach: true,
-        yieldDelayMs: mode === "automatic" ? 12 : 4,
-      },
-    );
     if (cancelled()) return existingResult();
+    const refusedBy = results
+      .filter((snapshot) => snapshot.refused)
+      .map((snapshot) => snapshot.provider);
+    const skipped = fillCandidates?.skipped ?? [];
 
     const prepared = prepareRelationshipSnapshots(
       results,
@@ -1769,6 +1988,9 @@ async function runExternalRelationshipRefresh(
         provider: null,
         reportedCount: null,
         identifiedCount: output.length,
+        refusedBy,
+        skipped,
+        answeredBy: null,
       });
       if (!progress.isDismissed()) {
         progress.finish(`No new ${relationshipLabel} were available`);
@@ -1818,6 +2040,9 @@ async function runExternalRelationshipRefresh(
       provider: publishedReported.provider,
       reportedCount: publishedReported.count,
       identifiedCount: committed.length,
+      refusedBy,
+      skipped,
+      answeredBy: usable.length === 1 ? usable[0].provider : null,
     });
 
     await checkpoint(true);

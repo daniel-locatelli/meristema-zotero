@@ -858,6 +858,7 @@ describe("Architecture foundations", function () {
           reportedCount: 1215,
           complete: true,
           succeeded: true,
+          refused: false,
         },
         {
           provider: "openalex",
@@ -865,6 +866,7 @@ describe("Architecture foundations", function () {
           reportedCount: 1221,
           complete: true,
           succeeded: true,
+          refused: false,
         },
       ],
       mergeRelatedWorkLists,
@@ -1056,6 +1058,7 @@ describe("Architecture foundations", function () {
           reportedCount: 2,
           complete: true,
           succeeded: true,
+          refused: false,
         },
       ],
       (...groups) => {

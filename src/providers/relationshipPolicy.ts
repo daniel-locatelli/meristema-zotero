@@ -56,6 +56,11 @@ export interface RelationshipProviderSnapshot {
   reportedCount: number | null;
   complete: boolean;
   succeeded: boolean;
+  /**
+   * The provider answered HTTP 429 during this snapshot. With no works
+   * collected it is never usable, so never stored (ADR 0013).
+   */
+  refused: boolean;
 }
 
 export interface PreparedRelationshipProviderSnapshot extends RelationshipProviderSnapshot {
