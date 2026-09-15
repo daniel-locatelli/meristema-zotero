@@ -16,6 +16,8 @@ import {
 } from "./graphScopeModel";
 import { HOP_EXPANSION_CAP } from "./graphHopFillModel";
 import { MAX_HOP_DEPTH, type HopDirection } from "./graphHopModel";
+import type { CitationProviderID } from "../domain/citationTypes";
+import { citationDataSourceLabel } from "./providerPresentation";
 
 export interface ScopeSeedRow {
   /** The seed's node key. */
@@ -65,7 +67,16 @@ export interface ScopeHopsInput {
   /** The hop category colours by hop while the colouring is Citation hop, else null. */
   colours: readonly (string | null)[] | null;
   /** The runner's state, or null while it has nothing to do and nothing waits. */
-  fill: { remaining: number; waiting: number; paused: boolean } | null;
+  fill: {
+    remaining: number;
+    waiting: number;
+    paused: boolean;
+    /** Set while the fill cools down: who is refusing, and when it tries again. */
+    refusal?: {
+      providers: readonly CitationProviderID[];
+      retryAt: number;
+    } | null;
+  } | null;
 }
 
 export interface ScopeHopRow {
@@ -93,6 +104,14 @@ export interface ScopeHopsProgress {
   text: string;
   action: "stop" | "resume" | "more";
   actionLabel: "Stop" | "Resume" | "Fetch more";
+  /**
+   * Set while the fill cools down. `retryAt` is fixed for the cool-down, so
+   * the model does not change from second to second; the rail counts down to
+   * it in place.
+   */
+  countdown: { retryAt: number } | null;
+  /** The refusing providers' names, when the line counts them. */
+  title: string | null;
 }
 
 export interface ScopeHopsBlock {
@@ -208,6 +227,13 @@ function descendantsOf(collection: LibraryCollectionFilter): number[] {
   );
 }
 
+/** The countdown's words: seconds below a minute, then minutes rounded up. */
+export function formatRetryIn(ms: number): string {
+  const seconds = Math.ceil(Math.max(0, ms) / 1000);
+  if (seconds < 60) return `retry in ${seconds} s`;
+  return `retry in ${Math.ceil(ms / 60_000)} min`;
+}
+
 export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
   const rows: ScopeHopRow[] = [];
   for (let hop = 0; hop <= MAX_HOP_DEPTH; hop += 1) {
@@ -238,8 +264,26 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
     });
   }
   const fill = input.fill;
+  const refusal = fill?.refusal ?? null;
   let progress: ScopeHopsProgress | null = null;
-  if (fill && (fill.remaining > 0 || fill.waiting > 0)) {
+  if (refusal && refusal.providers.length > 0) {
+    // While every candidate refuses, raising the cap would only defer more
+    // papers, so the refusal wins over Fetch more (ADR 0013).
+    const names = refusal.providers.map((provider) =>
+      citationDataSourceLabel(provider),
+    );
+    progress = {
+      afterHop: input.depth,
+      text:
+        names.length === 1
+          ? `${names[0]} refusing`
+          : `${COUNT_FORMAT.format(names.length)} providers refusing`,
+      action: "stop",
+      actionLabel: "Stop",
+      countdown: { retryAt: refusal.retryAt },
+      title: names.length === 1 ? null : names.join(", "),
+    };
+  } else if (fill && (fill.remaining > 0 || fill.waiting > 0)) {
     progress =
       fill.remaining === 0
         ? {
@@ -247,12 +291,16 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
             text: `${COUNT_FORMAT.format(HOP_EXPANSION_CAP)} expanded · ${COUNT_FORMAT.format(fill.waiting)} waiting`,
             action: "more",
             actionLabel: "Fetch more",
+            countdown: null,
+            title: null,
           }
         : {
             afterHop: input.depth,
             text: `expanding · ${COUNT_FORMAT.format(fill.remaining)} left`,
             action: fill.paused ? "resume" : "stop",
             actionLabel: fill.paused ? "Resume" : "Stop",
+            countdown: null,
+            title: null,
           };
   }
   return { direction: input.direction, rows, progress };

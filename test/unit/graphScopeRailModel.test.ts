@@ -353,7 +353,11 @@ describe("scopeSquare", function () {
   });
 });
 
-import type { ScopeHopsInput } from "../../src/services/graphScopeRailModel";
+import {
+  formatRetryIn,
+  type ScopeHopsInput,
+} from "../../src/services/graphScopeRailModel";
+import { citationDataSourceLabel } from "../../src/services/providerPresentation";
 
 // Mirrors COUNT_FORMAT in graphScopeRailModel.ts: the grouping separator is
 // locale-dependent (e.g. "1,200" vs "1'200"), so assertions derive the digits
@@ -469,13 +473,19 @@ describe("the Citation hops block", function () {
       text: "expanding · 7 left",
       action: "stop",
       actionLabel: "Stop",
+      countdown: null,
+      title: null,
     });
     const paused = railWithHops(
       hopsInput({ fill: { remaining: 7, waiting: 0, paused: true } }),
     )!.hops!;
-    expect(paused.progress).to.deep.include({
+    expect(paused.progress).to.deep.equal({
+      afterHop: 2,
+      text: "expanding · 7 left",
       action: "resume",
       actionLabel: "Resume",
+      countdown: null,
+      title: null,
     });
     const capped = railWithHops(
       hopsInput({ fill: { remaining: 0, waiting: 1800, paused: false } }),
@@ -485,9 +495,79 @@ describe("the Citation hops block", function () {
       text: `${count(500)} expanded · ${count(1800)} waiting`,
       action: "more",
       actionLabel: "Fetch more",
+      countdown: null,
+      title: null,
     });
     expect(railWithHops(hopsInput({ fill: null }))!.hops!.progress).to.equal(
       null,
     );
+  });
+
+  it("names the one provider refusing, with a countdown and Stop", function () {
+    const block = railWithHops(
+      hopsInput({
+        fill: {
+          remaining: 3,
+          waiting: 0,
+          paused: false,
+          refusal: { providers: ["semantic-scholar"], retryAt: 1_234 },
+        },
+      }),
+    )!.hops!;
+    expect(block.progress).to.deep.equal({
+      afterHop: 2,
+      text: `${citationDataSourceLabel("semantic-scholar")} refusing`,
+      action: "stop",
+      actionLabel: "Stop",
+      countdown: { retryAt: 1_234 },
+      title: null,
+    });
+  });
+
+  it("counts several refusing providers and names them in the title", function () {
+    const block = railWithHops(
+      hopsInput({
+        fill: {
+          remaining: 3,
+          waiting: 0,
+          paused: false,
+          refusal: {
+            providers: ["semantic-scholar", "opencitations"],
+            retryAt: 9_000,
+          },
+        },
+      }),
+    )!.hops!;
+    expect(block.progress).to.include({
+      text: `${count(2)} providers refusing`,
+      title: `${citationDataSourceLabel("semantic-scholar")}, ${citationDataSourceLabel("opencitations")}`,
+    });
+  });
+
+  it("lets a refusal win over Fetch more", function () {
+    const block = railWithHops(
+      hopsInput({
+        fill: {
+          remaining: 0,
+          waiting: 1800,
+          paused: false,
+          refusal: { providers: ["opencitations"], retryAt: 5_000 },
+        },
+      }),
+    )!.hops!;
+    expect(block.progress).to.include({ action: "stop" });
+    expect(block.progress!.text).to.match(/refusing$/);
+  });
+});
+
+describe("formatRetryIn", function () {
+  it("counts seconds below a minute, then whole minutes rounded up", function () {
+    expect(formatRetryIn(40_000)).to.equal("retry in 40 s");
+    expect(formatRetryIn(59_000)).to.equal("retry in 59 s");
+    expect(formatRetryIn(59_001)).to.equal("retry in 1 min");
+    expect(formatRetryIn(60_000)).to.equal("retry in 1 min");
+    expect(formatRetryIn(241_000)).to.equal("retry in 5 min");
+    expect(formatRetryIn(0)).to.equal("retry in 0 s");
+    expect(formatRetryIn(-500)).to.equal("retry in 0 s");
   });
 });
