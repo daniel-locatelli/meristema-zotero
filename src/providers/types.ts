@@ -9,6 +9,11 @@ import type { CancellationSignal } from "../services/cancellationScope";
 
 export interface ProviderRequestOptions {
   signal?: CancellationSignal;
+  /**
+   * Passed to `requestJSON`: false when the caller backs off from refusals
+   * itself (the hop fill, ADR 0013), so a 429 comes back at once.
+   */
+  retryRefusals?: boolean;
 }
 
 export interface ProviderCapabilities {
@@ -71,6 +76,21 @@ export function failureStatusFromHTTP(
   if (status === 429) return "rate-limited";
   if (status === 0 || status >= 500) return "network-error";
   return "provider-error";
+}
+
+/**
+ * A provider answered HTTP 429. A refusal is neither "no results" nor a
+ * failure (ADR 0013): page fetchers throw this so a relationship refresh can
+ * tell a refused page from an empty one.
+ */
+export class ProviderRefusedError extends Error {
+  readonly provider: CitationProviderID;
+
+  constructor(provider: CitationProviderID) {
+    super(`${provider} refused the request (HTTP 429)`);
+    this.name = "ProviderRefusedError";
+    this.provider = provider;
+  }
 }
 
 export function numberOrNull(value: unknown): number | null {

@@ -32,6 +32,13 @@ export interface JSONRequestOptions {
   signal?: CancellationSignal;
   /** Override the normal bounded retry count for latency-sensitive batches. */
   retryLimit?: number;
+  /**
+   * False when the caller backs off from refusals itself (the hop fill, ADR
+   * 0013): a 429 is returned at once instead of retried. The provider's queue
+   * is still postponed as a retry would postpone it, and 5xx and network
+   * errors keep their retries.
+   */
+  retryRefusals?: boolean;
 }
 
 interface ZoteroHTTPResponse {
@@ -407,6 +414,14 @@ export async function requestJSON<T>(
       );
       if (!response || requestWasCancelled(options.signal)) {
         return cancelledResult<T>();
+      }
+
+      if (response.status === 429 && options.retryRefusals === false) {
+        postponeProvider(
+          provider,
+          parseRetryAfter(response) ?? backoffDelayMs(attempt),
+        );
+        return parseJSON<T>(provider, response);
       }
 
       const retryable =
