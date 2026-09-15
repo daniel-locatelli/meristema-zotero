@@ -86,6 +86,8 @@ describe("Citation hops (Stage 3)", function () {
   let reopenedTabID: string | null = null;
   /** The version 4 record opened in case 7. */
   let v4TabID: string | null = null;
+  /** The window case 8 moves the version 4 graph into. */
+  let v4Window: Window | null = null;
   /** Whichever tab the rail helpers read: the main graph, then the reopened. */
   let currentTabID: string | null = null;
   let collectionID: number | null = null;
@@ -643,6 +645,7 @@ describe("Citation hops (Stage 3)", function () {
       record(error);
     }
     try {
+      if (v4Window && !v4Window.closed) v4Window.close();
       for (const id of [v4TabID, reopenedTabID, hostTabID, tabID]) {
         if (id) win.Zotero_Tabs.close(id);
       }
@@ -1067,6 +1070,80 @@ describe("Citation hops (Stage 3)", function () {
     expect(
       back,
       `after the remount the toolbar read "${statusText(v4TabID)}"`,
+    ).to.equal(BOTH_NOTICE);
+  });
+
+  it("keeps the version 4 notice in a detached window across a remount", async function () {
+    this.timeout(60_000);
+    expect(v4TabID, "case 7 left the version 4 graph open").to.exist;
+    const windowType = `${config.addonRef}:window`;
+    const graphWindows = (): Window[] =>
+      Array.from(Services.wm.getEnumerator(windowType) as any) as Window[];
+    const windowsBefore = new Set(graphWindows());
+
+    // Zotero's own tab menu, as a reader moves the tab: `_openMenu` builds the
+    // popup from the tab type's hooks, and Move › Move to New Window calls the
+    // plugin's `moveToNewWindow` hook.
+    const popupset = win.document.querySelector("popupset") as Element;
+    const popupsBefore = new Set(Array.from(popupset.children));
+    win.Zotero_Tabs._openMenu(0, 0, v4TabID);
+    const menu = Array.from(popupset.children).find(
+      (child) => !popupsBefore.has(child),
+    ) as any;
+    expect(menu, "the tab's context menu").to.exist;
+    const moveLabel = Zotero.getString("tabs.moveToWindow");
+    const moveItem = Array.from(menu.querySelectorAll("menuitem")).find(
+      (item: any) => item.getAttribute("label") === moveLabel,
+    ) as Element | undefined;
+    expect(moveItem, `the tab menu's "${moveLabel}"`).to.exist;
+    command(moveItem!);
+    menu.hidePopup?.();
+
+    const popup = await waitFor(
+      () => graphWindows().find((candidate) => !windowsBefore.has(candidate)),
+      20_000,
+    );
+    expect(popup, "the graph's detached window").to.exist;
+    v4Window = popup!;
+    v4TabID = null;
+    const detachedStatus = (): string =>
+      normalize(
+        popup!.document.querySelector(
+          "#meristema-window-root .cm-toolbar-status",
+        )?.textContent,
+      );
+    const detachedRoot = (): Element | null =>
+      popup!.document.querySelector("#meristema-window-root .meristema-root");
+    const rendered = await waitFor(detachedRoot, 20_000);
+    expect(rendered, "the detached window rendered the graph").to.exist;
+    const moved = await waitFor(
+      () => (detachedStatus() === BOTH_NOTICE ? BOTH_NOTICE : null),
+      5_000,
+    );
+    expect(
+      moved,
+      `after the move the detached toolbar read "${detachedStatus()}"`,
+    ).to.equal(BOTH_NOTICE);
+
+    // The same remount case 7 forces on a tab, now on the window: erasing an
+    // item re-renders every open graph, detached ones included.
+    const rootBefore = detachedRoot();
+    const scratch = new Zotero.Item("journalArticle");
+    scratch.libraryID = Zotero.Libraries.userLibraryID;
+    scratch.setField("title", "Stage 3 v4 detached remount scratch");
+    await Zotero.Items.erase(await scratch.saveTx());
+    const remounted = await waitFor(() => {
+      const root = detachedRoot();
+      return root && root !== rootBefore ? root : null;
+    }, 10_000);
+    expect(remounted, "the erase remounted the detached graph").to.exist;
+    const back = await waitFor(
+      () => (detachedStatus() === BOTH_NOTICE ? BOTH_NOTICE : null),
+      5_000,
+    );
+    expect(
+      back,
+      `after the remount the detached toolbar read "${detachedStatus()}"`,
     ).to.equal(BOTH_NOTICE);
   });
 });
