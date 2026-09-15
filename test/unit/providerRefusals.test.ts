@@ -10,12 +10,19 @@ import { ProviderRefusedError } from "../../src/providers/types";
 let attempts: Array<{ url: string; at: number }> = [];
 /** The statuses the fake answers with, in order; 200 once they run out. */
 let statuses: number[] = [];
+/**
+ * Response headers for each response in turn, keyed by lower-cased header
+ * name; a response with nothing queued (or an unqueried header) answers
+ * `null`, matching the existing fake's behaviour.
+ */
+let headers: Array<Record<string, string>> = [];
 let previousZotero: unknown;
 
 beforeEach(function () {
   previousZotero = (globalThis as Record<string, unknown>).Zotero;
   attempts = [];
   statuses = [];
+  headers = [];
   resetCitationRequestCancellation();
   (globalThis as Record<string, unknown>).Zotero = {
     Prefs: { get: () => undefined, set: () => undefined },
@@ -24,10 +31,12 @@ beforeEach(function () {
       request: async (_method: string, url: string) => {
         attempts.push({ url, at: Date.now() });
         const status = statuses.shift() ?? 200;
+        const responseHeaders = headers.shift() ?? {};
         return {
           status,
           responseText: status === 200 ? "[]" : "",
-          getResponseHeader: () => null,
+          getResponseHeader: (name: string) =>
+            responseHeaders[name.toLowerCase()] ?? null,
         };
       },
     },
@@ -75,6 +84,25 @@ describe("requestJSON with retryRefusals: false", function () {
     });
     expect(attempts.length).to.equal(2);
     expect(attempts[1].at - attempts[0].at).to.be.at.least(950);
+  });
+
+  it("postpones by the backoff, not by a Retry-After, on a refusal", async function () {
+    // A 20 s Retry-After is far past the 15 s the queue clamps to. If it were
+    // honoured, the second request would start ~15000 ms after the first
+    // (clamped) or ~20000 ms (unclamped); the backoff alone starts it well
+    // under 5000 ms after allowing for jitter.
+    statuses = [429, 200];
+    headers = [{ "retry-after": "20" }];
+    await requestJSON("opencitations", "https://example.test/first", {
+      retryRefusals: false,
+    });
+    await requestJSON("opencitations", "https://example.test/second", {
+      retryRefusals: false,
+    });
+    expect(attempts.length).to.equal(2);
+    const gap = attempts[1].at - attempts[0].at;
+    expect(gap, "queue still postponed by the backoff").to.be.at.least(950);
+    expect(gap, "Retry-After not honoured").to.be.below(5000);
   });
 
   it("keeps retrying a 503", async function () {

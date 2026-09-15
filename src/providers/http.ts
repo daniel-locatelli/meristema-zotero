@@ -35,8 +35,9 @@ export interface JSONRequestOptions {
   /**
    * False when the caller backs off from refusals itself (the hop fill, ADR
    * 0013): a 429 is returned at once instead of retried. The provider's queue
-   * is still postponed as a retry would postpone it, and 5xx and network
-   * errors keep their retries.
+   * is still postponed, by `backoffDelayMs(attempt)` alone — a Retry-After on
+   * a refusal is not honoured — and 5xx and network errors keep their
+   * retries.
    */
   retryRefusals?: boolean;
 }
@@ -417,10 +418,7 @@ export async function requestJSON<T>(
       }
 
       if (response.status === 429 && options.retryRefusals === false) {
-        postponeProvider(
-          provider,
-          parseRetryAfter(response) ?? backoffDelayMs(attempt),
-        );
+        postponeProvider(provider, backoffDelayMs(attempt));
         return parseJSON<T>(provider, response);
       }
 
