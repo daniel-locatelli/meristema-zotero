@@ -184,3 +184,116 @@ export function preferredRelationshipProviders(
   void hasDOI;
   return [nodeProvider, countProvider, ...available];
 }
+
+/** What a provider lookup's status means for a relationship refresh. */
+export type LookupStep = "accept" | "refuse" | "search";
+
+/**
+ * A match is used; a refusal (HTTP 429) ends the provider's part in the
+ * refresh, because a title search straight after it is a second request to a
+ * provider that just refused (B50); anything else may still be found by title.
+ */
+export function lookupStep(status: string | null): LookupStep {
+  if (status === "success") return "accept";
+  if (status === "rate-limited") return "refuse";
+  return "search";
+}
+
+export interface PagingProviderFacts {
+  enabled: boolean;
+  /** The provider has the direction's fetcher (`providerPagesRelationships`). */
+  pagesDirection: boolean;
+  hasOpenAlexKey: boolean;
+}
+
+/**
+ * A paging provider for a direction (CONTEXT.md): enabled, able to page the
+ * direction, and for OpenAlex holding a key, since keyless OpenAlex returns an
+ * empty page before making any request.
+ */
+export function isPagingProvider(
+  providerID: CitationProviderID,
+  facts: PagingProviderFacts,
+): boolean {
+  return (
+    facts.enabled &&
+    facts.pagesDirection &&
+    (providerID !== "openalex" || facts.hasOpenAlexKey)
+  );
+}
+
+export interface FillCandidateInput {
+  /** The native-first order over the provider plan, register bypassed. */
+  ordered: readonly CitationProviderID[];
+  isPaging: (providerID: CitationProviderID) => boolean;
+  supportsPaper: (providerID: CitationProviderID) => boolean;
+  /** Providers sitting out a window in this fill. */
+  excluded: readonly CitationProviderID[];
+}
+
+export interface FillCandidates {
+  /** Who a fill expansion may ask, first first. */
+  candidates: CitationProviderID[];
+  /** Paging providers for the paper that a window left out. */
+  skipped: CitationProviderID[];
+}
+
+/**
+ * Who a fill expansion asks (ADR 0013): paging providers that can take the
+ * paper, in the given order, never one sitting out a window. Only the refresh
+ * knows which paging providers apply to a paper, so it reports `skipped`.
+ */
+export function fillRelationshipCandidates(
+  input: FillCandidateInput,
+): FillCandidates {
+  const candidates: CitationProviderID[] = [];
+  const skipped: CitationProviderID[] = [];
+  for (const provider of input.ordered) {
+    if (!input.isPaging(provider) || !input.supportsPaper(provider)) continue;
+    if (input.excluded.includes(provider)) skipped.push(provider);
+    else candidates.push(provider);
+  }
+  return { candidates, skipped };
+}
+
+/** The next provider a fill expansion asks: the first not yet seen refusing. */
+export function nextFillProvider(
+  candidates: readonly CitationProviderID[],
+  refused: readonly CitationProviderID[],
+): CitationProviderID | null {
+  return candidates.find((provider) => !refused.includes(provider)) ?? null;
+}
+
+/**
+ * A snapshot a refusal cut short. Before any work was collected it is no
+ * answer at all and is never stored; after, the works already collected stand
+ * as a partial list.
+ */
+export function refusedSnapshotState(collectedCount: number): {
+  succeeded: boolean;
+  complete: false;
+} {
+  return { succeeded: collectedCount > 0, complete: false };
+}
+
+/**
+ * Whether an empty first page is a failure rather than an empty list. A fill
+ * trusts an empty list only when a lookup match or a reported count stands
+ * behind it: OpenCitations answers 200 with `[]` for a DOI it does not index,
+ * and its lookup no longer matches at all (410 Gone, B63), so its DOI fallback
+ * would otherwise store "no citers" for every paper it has never seen.
+ * Manual paths keep today's rule.
+ */
+export function unbackedEmptyList(input: {
+  fill: boolean;
+  firstPageEmpty: boolean;
+  matched: boolean;
+  reportedCount: number | null;
+}): boolean {
+  return (
+    input.fill &&
+    input.firstPageEmpty &&
+    !input.matched &&
+    input.reportedCount === null
+  );
+}

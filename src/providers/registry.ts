@@ -39,6 +39,11 @@ export interface ProviderPlan {
 interface ProviderPlanOptions {
   /** Relationship pages after the first require a true paginated endpoint. */
   offset?: number;
+  /**
+   * Bypass the 60 s health register. The hop fill keeps its own per-provider
+   * windows (ADR 0013), so the rail can always name who is refusing.
+   */
+  ignoreHealth?: boolean;
 }
 
 const AUTOMATIC_PROVIDER_ORDERS: Record<
@@ -189,7 +194,8 @@ export function getProviderPlan(
 
   const providers = AUTOMATIC_PROVIDER_ORDERS[operation].filter(
     (providerID) =>
-      automaticProviderIsAvailable(providerID) &&
+      (options.ignoreHealth === true ||
+        automaticProviderIsAvailable(providerID)) &&
       providerSupportsOperation(PROVIDERS[providerID], operation, offset),
   );
   return {
