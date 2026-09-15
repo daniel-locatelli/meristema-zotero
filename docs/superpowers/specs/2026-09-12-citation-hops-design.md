@@ -247,7 +247,9 @@ write. When a result lands the runner marks the paper expanded or failed by
 the definitions above, rebuilds the hop model, recomputes the scope and
 re-sorts the plan. A request already in flight for a paper that has left the
 plan finishes and stores; it is not cancelled. A thrown provider error is
-logged, marks the paper failed for the session, and the runner moves on.
+logged, marks the paper failed for the session, and the runner moves on. A
+refusal (HTTP 429) is not a failure: see
+`2026-09-15-hop-fill-refusals-design.md`.
 
 **Publications during a fill.** Each landing publishes `membership-published`
 for the expanded paper, which today refreshes every item-tree column and

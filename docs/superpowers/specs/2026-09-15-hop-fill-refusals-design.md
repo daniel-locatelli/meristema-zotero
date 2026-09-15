@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-15
 **Status:** Design approved 2026-09-15, revised the same day after an
-adversarial review of 21 findings (see "Review 2026-09-15"); not built
+adversarial review of 21 findings (see "Review 2026-09-15"); built 2026-09-15
+(plan `docs/superpowers/plans/2026-09-15-hop-fill-refusals.md`)
 
 B50 of `docs/superpowers/handoffs/2026-09-08-roadmap.md`. Amends one sentence
 of `2026-09-12-citation-hops-design.md` ("The fill", runner: a thrown provider

@@ -118,8 +118,15 @@ _Avoid_: fetched, loaded, resolved
 
 **Failed**:
 A paper whose expansion in the current direction returned nothing usable this
-session. It leaves the fill until the graph is reopened.
+session, and no provider refused or was skipped. It leaves the fill until the
+graph is reopened.
 _Avoid_: broken, stale, missing
+
+**Refused**:
+A paper whose expansion stored nothing because a provider answered "too many
+requests" or was sitting out its cool-down. Not failed: it stays in the fill
+and is asked again once that provider's cool-down ends.
+_Avoid_: rate-limited paper, throttled, blocked
 
 **Fill**:
 The background work that expands shown papers one at a time, in priority
