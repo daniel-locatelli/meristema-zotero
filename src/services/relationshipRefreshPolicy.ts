@@ -277,6 +277,19 @@ export function refusedSnapshotState(collectedCount: number): {
 }
 
 /**
+ * Whether a fill expansion stops at this snapshot (ADR 0013): an answer or a
+ * failure always ends it, and so does a refusal that still collected a
+ * usable partial list, keeping one answering provider per expansion. Only a
+ * refusal with nothing usable moves the expansion on to the next candidate.
+ */
+export function fillStopsAt(snapshot: {
+  refused: boolean;
+  succeeded: boolean;
+}): boolean {
+  return !snapshot.refused || snapshot.succeeded;
+}
+
+/**
  * Whether an empty first page is a failure rather than an empty list. A fill
  * trusts an empty list only when a lookup match or a reported count stands
  * behind it: OpenCitations answers 200 with `[]` for a DOI it does not index,

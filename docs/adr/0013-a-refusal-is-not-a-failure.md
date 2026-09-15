@@ -3,9 +3,12 @@
 A hop expansion whose provider answers HTTP 429 is refused, not failed: the
 paper stays in the plan and nothing is stored for it. The fill does not retry
 a 429. It moves the expansion at once to the next paging provider, still one
-answering provider per expansion. The refusing provider sits out a window of
-its own in that fill: 30 s, 1 min, 2 min, then every 5 min, reset by its next
-answer and ended early by Resume. The fill waits only when every paging
+answering provider per expansion. A provider that refuses after collecting
+works has answered with a partial list: the expansion stores it as incomplete
+and asks no one else, and the provider still sits out its window. The
+refusing provider sits out a window of its own in that fill: 30 s, 1 min,
+2 min, then every 5 min, reset by its next answer and ended early by Resume.
+The fill waits only when every paging
 provider is in a window, or every paper left is deferred behind one, with one
 timer and nothing in flight. A refused snapshot with nothing collected is
 never stored, on any path.

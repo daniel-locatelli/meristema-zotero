@@ -3,6 +3,7 @@ import { expect } from "chai";
 import type { CitationProviderID } from "../../src/domain/citationTypes";
 import {
   fillRelationshipCandidates,
+  fillStopsAt,
   isPagingProvider,
   limitRelationshipProviders,
   lookupStep,
@@ -237,6 +238,21 @@ describe("refusedSnapshotState", function () {
       succeeded: true,
       complete: false,
     });
+  });
+});
+
+describe("fillStopsAt", function () {
+  it("stops on an answer or a failure, today's rule", function () {
+    expect(fillStopsAt({ refused: false, succeeded: true })).to.equal(true);
+    expect(fillStopsAt({ refused: false, succeeded: false })).to.equal(true);
+  });
+
+  it("stops on a refusal that still collected a usable partial list", function () {
+    expect(fillStopsAt({ refused: true, succeeded: true })).to.equal(true);
+  });
+
+  it("does not stop on a refusal with nothing usable", function () {
+    expect(fillStopsAt({ refused: true, succeeded: false })).to.equal(false);
   });
 });
 

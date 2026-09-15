@@ -270,7 +270,15 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
           for (const provider of outcome.refusedBy) {
             windows = refuse(windows, provider, now);
           }
-          if (outcome.answeredBy) windows = answer(windows, outcome.answeredBy);
+          // A provider that refused in this expansion never answers it too
+          // (final review, Important 1): its window survives even when its
+          // partial list was the one stored.
+          if (
+            outcome.answeredBy &&
+            !outcome.refusedBy.includes(outcome.answeredBy)
+          ) {
+            windows = answer(windows, outcome.answeredBy);
+          }
         }
         // What the landing means is decided by `hopLandingEffects`
         // (graphHopRunnerModel.ts): expanded is a stored summary, refused is

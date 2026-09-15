@@ -476,6 +476,28 @@ describe("the fill under provider refusals", function () {
     expect(runner.state()?.refusal?.retryAt).to.equal(60_000);
   });
 
+  it("keeps the window of a provider that refused while its partial list was stored", async function () {
+    const fake = fakeHost();
+    const originalExpand = fake.host.expand;
+    let expandCalls = 0;
+    fake.host.expand = async (key, direction, control) => {
+      expandCalls += 1;
+      if (expandCalls === 1) {
+        fake.calls.expanded.push(key);
+        fake.calls.excludes.push([...control.excludeProviders]);
+        fake.stored.add(key);
+        control.reportCount(7);
+        fake.entries.set(key, { ...fake.entries.get(key)!, expanded: true });
+        return { refusedBy: [S2], skipped: [], answeredBy: S2 };
+      }
+      return originalExpand(key, direction, control);
+    };
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.excludes.at(-1)).to.include(S2);
+  });
+
   it("keeps the windows across invalidate and reset", async function () {
     const fake = fakeHost();
     fake.refusing.add(S2);

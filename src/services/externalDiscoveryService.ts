@@ -84,6 +84,7 @@ import {
 import { stampProviderWorks } from "./providerWorkMetadata";
 import {
   fillRelationshipCandidates,
+  fillStopsAt,
   isPagingProvider,
   limitRelationshipProviders,
   lookupStep,
@@ -1676,9 +1677,9 @@ function providerSupportsPaper(
 }
 
 /**
- * A fill expansion's candidates, asked one at a time until one does not
- * refuse (ADR 0013). A refused snapshot moves the expansion straight on; the
- * first answer or failure ends it.
+ * A fill expansion's candidates, asked one at a time until one answers,
+ * fails, or refuses with a usable partial list. A refusal with nothing
+ * usable moves the expansion straight on to the next candidate.
  */
 async function askUntilNotRefused(
   candidates: readonly CitationProviderID[],
@@ -1695,7 +1696,7 @@ async function askUntilNotRefused(
     if (cancelled()) break;
     const snapshot = await ask(provider);
     results.push(snapshot);
-    if (!snapshot.refused) break;
+    if (fillStopsAt(snapshot)) break;
     refused.push(provider);
   }
   return results;
