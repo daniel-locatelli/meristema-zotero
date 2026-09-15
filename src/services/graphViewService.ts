@@ -31,6 +31,7 @@ import {
   type LibrarySelectionResolution,
 } from "./librarySelection";
 import {
+  hopFillPagingProviders,
   hydrateExternalWorksMetadata,
   refreshExternalRelationships,
   selectedRelationshipCacheIsFresh,
@@ -226,7 +227,11 @@ import {
   type HopDirection,
   type HopNeighbourhood,
 } from "./graphHopModel";
-import { planHopExploreChange } from "./graphHopRunnerModel";
+import {
+  NO_OUTCOME,
+  planHopExploreChange,
+  type HopExpandOutcome,
+} from "./graphHopRunnerModel";
 import {
   getHopFragment,
   invalidateHopFragment,
@@ -3862,13 +3867,14 @@ ${error instanceof Error ? error.message : String(error)}`,
       const subject = hopSubject(key);
       // A paper the graph no longer names is failed by `stored`, so it
       // leaves the plan instead of stalling it.
-      if (!subject) return;
+      if (!subject) return NO_OUTCOME;
       // The seed preparation hydrates metadata over the network and can
       // reject too; the fill's guard catches it, so a paper is never left
       // neither expanded nor failed for the next plan to name again.
       if (subject.itemID <= 0)
         await prepareExternalFocusSeedForRefresh(subject);
-      if (control.stale()) return;
+      if (control.stale()) return NO_OUTCOME;
+      let outcome: HopExpandOutcome = NO_OUTCOME;
       await refreshExternalRelationships(
         subject,
         libraryModel.nodes,
@@ -3880,6 +3886,10 @@ ${error instanceof Error ? error.message : String(error)}`,
           mode: "automatic",
           providerStrategy: "native-first",
           providerLimit: 1,
+          // A refusal is not a failure (ADR 0013): no 429 retries, and the
+          // providers sitting out a window are not asked.
+          retryRefusals: false,
+          excludeProviders: control.excludeProviders,
           queueBackgroundHydration: true,
           showBackgroundProgress: false,
           metadataHydrationLimit: 0,
@@ -3895,9 +3905,15 @@ ${error instanceof Error ? error.message : String(error)}`,
           onMembershipResolved: (resolution) => {
             if (resolution.reportedCount !== null)
               control.reportCount(resolution.reportedCount);
+            outcome = {
+              refusedBy: resolution.refusedBy,
+              skipped: resolution.skipped,
+              answeredBy: resolution.answeredBy,
+            };
           },
         },
       );
+      return outcome;
     },
     stored: (key, direction) => {
       const subject = hopSubject(key);
@@ -3930,6 +3946,10 @@ ${error instanceof Error ? error.message : String(error)}`,
       document.defaultView?.cancelAnimationFrame(handle);
       clearTimeout(handle);
     },
+    now: () => Date.now(),
+    pagingProviders: (direction) => hopFillPagingProviders(direction),
+    after: (ms, run) => setTimeout(run, ms) as unknown as number,
+    cancelAfter: (handle) => clearTimeout(handle),
     logError: (error) =>
       Zotero.logError(
         error instanceof Error ? error : new Error(String(error)),
@@ -3951,8 +3971,12 @@ ${error instanceof Error ? error.message : String(error)}`,
   };
   fillControl = (action) => {
     if (action === "stop") hopFill.stop();
-    else if (action === "resume") hopFill.resume();
-    else hopFill.fetchMore();
+    else if (action === "resume") {
+      // Only the rail's Resume ends the windows; Fetch hop N and applying a
+      // view resume without retrying a refusing provider (ADR 0013).
+      hopFill.resume();
+      hopFill.retryNow();
+    } else hopFill.fetchMore();
     scheduleHopFill();
   };
 

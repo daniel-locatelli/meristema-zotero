@@ -11,9 +11,12 @@
  *
  * The rules it encodes are the ADRs: scope gates and the camera orders (0003,
  * through `planHopFill`), a cap of 500 per hop per direction (0005), its own
- * queue that never touches Refresh (0007), and a rebuild on every landing
- * (0010, through `settled`).
+ * queue that never touches Refresh (0007), a rebuild on every landing (0010,
+ * through `settled`), and a refusal that is not a failure (0013): a refused
+ * paper stays in the plan, the refusing provider sits out a window, and the
+ * fill cools down, with one timer, only when nothing can be asked.
  */
+import type { CitationProviderID } from "../domain/citationTypes";
 import {
   HOP_EXPANSION_CAP,
   planHopFill,
@@ -21,7 +24,20 @@ import {
   type HopFillPlan,
 } from "./graphHopFillModel";
 import type { HopDirection } from "./graphHopModel";
-import { hopLandingEffects, hopRejectionEffects } from "./graphHopRunnerModel";
+import {
+  NO_OUTCOME,
+  answer,
+  deferUntil,
+  endAll,
+  excluded,
+  hopCoolDown,
+  hopLandingEffects,
+  hopRejectionEffects,
+  outcomeRefused,
+  refuse,
+  type HopExpandOutcome,
+  type ProviderWindows,
+} from "./graphHopRunnerModel";
 import { SerializedTaskQueue } from "./serializedTaskQueue";
 
 /** What the plan needs from the graph, read fresh on every re-plan. */
@@ -48,16 +64,22 @@ export interface HopFillHost {
   canExpand(): boolean;
   /**
    * One shown paper's own list, in the direction: automatic mode, one page,
-   * one provider. `reportCount` takes the provider's reported total on the
-   * way; `stale()` says the fill moved on, for a check between two awaits.
-   * A rejection is caught and logged; the paper is then failed or not by
+   * one answering provider. `reportCount` takes the provider's reported total
+   * on the way; `stale()` says the fill moved on, for a check between two
+   * awaits; `excludeProviders` are the providers sitting out a window, never
+   * to be asked. Resolves who refused, who was skipped and who answered. A
+   * rejection is caught and logged; the paper is then failed or not by
    * `stored`.
    */
   expand(
     key: string,
     direction: HopDirection,
-    control: { reportCount: (count: number) => void; stale: () => boolean },
-  ): Promise<void>;
+    control: {
+      reportCount: (count: number) => void;
+      stale: () => boolean;
+      excludeProviders: readonly CitationProviderID[];
+    },
+  ): Promise<HopExpandOutcome>;
   /** A stored summary exists for the paper in the direction now. */
   stored(key: string, direction: HopDirection): boolean;
   /** The paper's hop in the current walk, or null when it left it. */
@@ -73,13 +95,29 @@ export interface HopFillHost {
   /** Schedule a re-plan on the next frame. */
   frame(run: () => void): number;
   cancelFrame(handle: number): void;
+  /** The clock windows and deferrals are measured on. */
+  now(): number;
+  /** The direction's paging providers, in the provider plan's order. */
+  pagingProviders(direction: HopDirection): readonly CitationProviderID[];
+  /** Run once after `ms`: the end of a cool-down. */
+  after(ms: number, run: () => void): number;
+  cancelAfter(handle: number): void;
   logError(error: unknown): void;
+}
+
+export interface HopFillRefusal {
+  /** The providers sitting out a window, in the provider plan's order. */
+  providers: CitationProviderID[];
+  /** When the fill tries again, on the host's clock; fixed for a cool-down. */
+  retryAt: number;
 }
 
 export interface HopFillState {
   remaining: number;
   waiting: number;
   paused: boolean;
+  /** Set only while the fill is cooling down and not paused. */
+  refusal: HopFillRefusal | null;
 }
 
 export interface HopFillRunner {
@@ -87,6 +125,12 @@ export interface HopFillRunner {
   wake(): void;
   stop(): void;
   resume(): void;
+  /**
+   * The rail's Resume, after `resume`: every window and deferral ends and the
+   * fill asks at once. Each provider keeps its step, so a fresh refusal waits
+   * longer. Fetch hop N and applying a view call `resume` alone.
+   */
+  retryNow(): void;
   /** Raise the cap by 500 for every hop whose papers wait on it. */
   fetchMore(): void;
   /**
@@ -95,9 +139,9 @@ export interface HopFillRunner {
    */
   invalidate(): void;
   /**
-   * The graph lost its seeds: counts, caps and failures go, since "session"
-   * means the seeded graph (ADR 0005). The reported totals are a cache and
-   * stay.
+   * The graph lost its seeds: counts, caps, failures and deferrals go, since
+   * "session" means the seeded graph (ADR 0005). The reported totals are a
+   * cache and stay, and so do the providers' windows.
    */
   reset(): void;
   /** The rail's progress line, or null when the plan is empty. */
@@ -108,7 +152,7 @@ export interface HopFillRunner {
     depth: number,
     direction: HopDirection,
   ): (number | null)[];
-  /** The view is torn down: the epoch moves, the frame and queue close. */
+  /** The view is torn down: the epoch moves, the frame, timer and queue close. */
   dispose(): void;
 }
 
@@ -136,21 +180,44 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
   const caps = perDirection<number[]>(() => []);
   /** The reported total each expanded paper returned, by direction. */
   const reported = perDirection(() => new Map<string, number>());
+  /**
+   * Each provider's cool-down in this fill. A window belongs to the provider,
+   * not to a direction or to the seeds, so it survives `invalidate` and
+   * `reset` (ADR 0013).
+   */
+  let windows: ProviderWindows = new Map();
+  /** A refused paper's key and when its deferral ends, by direction. */
+  const deferrals = perDirection(() => new Map<string, number>());
+  /** The one cool-down timer. */
+  let timer: number | null = null;
+  /** When the fill tries again, while the last plan found it cooling down. */
+  let coolingUntil: number | null = null;
   let lastPlan: HopFillPlan | null = null;
   let lastDirection: HopDirection = "cited-by";
 
   const capFor = (direction: HopDirection, hop: number): number =>
     caps[direction][hop] ?? HOP_EXPANSION_CAP;
 
+  const cancelTimer = (): void => {
+    if (timer === null) return;
+    host.cancelAfter(timer);
+    timer = null;
+  };
+
   const plan = (): HopFillPlan | null => {
     const input = host.planInput();
     if (!input) return null;
     const { direction } = input;
     lastDirection = direction;
+    const now = host.now();
+    const deferredKeys = new Set<string>();
+    for (const [key, until] of deferrals[direction]) {
+      if (until > now) deferredKeys.add(key);
+    }
     return planHopFill({
       ...input,
       failedKeys: failed[direction],
-      deferredKeys: new Set<string>(),
+      deferredKeys,
       expandedByHop: expanded[direction],
       capByHop: Array.from({ length: input.depth + 1 }, (_, hop) =>
         capFor(direction, hop),
@@ -160,32 +227,74 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     });
   };
 
+  /** When the plan can do nothing until a window or a deferral ends, or null. */
+  const coolDown = (current: HopFillPlan): number | null => {
+    const now = host.now();
+    const deferralEnds: number[] = [];
+    for (const key of current.deferred) {
+      const until = deferrals[lastDirection].get(key);
+      if (until !== undefined && until > now) deferralEnds.push(until);
+    }
+    return hopCoolDown({
+      windows,
+      now,
+      pagingProviders: host.pagingProviders(lastDirection),
+      orderLength: current.order.length,
+      deferralEnds,
+    });
+  };
+
   const expand = (key: string, startEpoch: number): Promise<void> => {
     const direction = lastDirection;
     inFlight = key;
     const stale = (): boolean => disposed || startEpoch !== epoch;
+    /** A refused landing changed nothing in the store, so nothing rebuilds. */
+    let refusedLanding = false;
     return queue
       .enqueue(async () => {
         if (stale()) return;
+        let outcome: HopExpandOutcome = NO_OUTCOME;
         try {
-          await host.expand(key, direction, {
+          outcome = await host.expand(key, direction, {
             reportCount: (count) => reported[direction].set(key, count),
             stale,
+            excludeProviders: excluded(windows, host.now()),
           });
         } catch (error) {
           host.logError(error);
         }
+        // A refusal is true of the provider whatever the epoch did, so the
+        // windows learn it even from a landing whose effects are dropped.
+        if (!disposed) {
+          const now = host.now();
+          for (const provider of outcome.refusedBy) {
+            windows = refuse(windows, provider, now);
+          }
+          if (outcome.answeredBy) windows = answer(windows, outcome.answeredBy);
+        }
         // What the landing means is decided by `hopLandingEffects`
-        // (graphHopRunnerModel.ts): expanded is a stored summary, anything
-        // else failed for the session, and a stale epoch drops both.
+        // (graphHopRunnerModel.ts): expanded is a stored summary, refused is
+        // deferred, anything else failed for the session, and a stale epoch
+        // drops all three.
         const effects = hopLandingEffects({
           epoch: startEpoch,
           currentEpoch: epoch,
           cleaned: disposed,
           stored: host.stored(key, direction),
-          refused: false,
+          refused: outcomeRefused(outcome),
         });
+        if (effects.defer) {
+          refusedLanding = true;
+          const until = deferUntil(
+            windows,
+            [...outcome.refusedBy, ...outcome.skipped],
+            host.now(),
+          );
+          if (until !== null) deferrals[direction].set(key, until);
+          return;
+        }
         if (!effects.applyToModel) return;
+        deferrals[direction].delete(key);
         if (effects.countExpanded) {
           const hop = host.hopOf(key) ?? 0;
           const counts = expanded[direction];
@@ -211,8 +320,9 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         if (disposed) return;
         // The rebuild re-reads one fragment and recomputes the scope, which
         // re-plans through the host — but it may return early, so the next
-        // fill is scheduled here whatever it did.
-        host.settled();
+        // fill is scheduled here whatever it did. A refused landing stored
+        // nothing, so there is nothing to rebuild.
+        if (!refusedLanding) host.settled();
         wake();
       });
   };
@@ -222,26 +332,49 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     frame = host.frame(() => {
       frame = 0;
       if (disposed) return;
+      // Every frame decides afresh whether to wait, so a wake never leaves a
+      // second timer behind.
+      cancelTimer();
       lastPlan = plan();
+      coolingUntil = lastPlan ? coolDown(lastPlan) : null;
       host.planned();
       if (!lastPlan || paused || !host.canExpand()) return;
       if (inFlight) return;
       const next = lastPlan.order[0];
-      if (!next) {
-        host.planEmpty();
+      if (!next) host.planEmpty();
+      if (coolingUntil !== null) {
+        timer = host.after(Math.max(0, coolingUntil - host.now()), () => {
+          timer = null;
+          wake();
+        });
         return;
       }
-      void expand(next, epoch);
+      if (next) void expand(next, epoch);
     });
+  };
+
+  /** The providers sitting out a window, in the provider plan's order. */
+  const refusingProviders = (): CitationProviderID[] => {
+    const sitting = new Set(excluded(windows, host.now()));
+    return host
+      .pagingProviders(lastDirection)
+      .filter((provider) => sitting.has(provider));
   };
 
   return {
     wake,
     stop: () => {
       paused = true;
+      cancelTimer();
     },
     resume: () => {
       paused = false;
+    },
+    retryNow: () => {
+      windows = endAll(windows, host.now());
+      for (const direction of DIRECTIONS) deferrals[direction].clear();
+      coolingUntil = null;
+      wake();
     },
     fetchMore: () => {
       paused = false;
@@ -255,23 +388,37 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     invalidate: () => {
       epoch += 1;
       inFlight = null;
+      cancelTimer();
     },
     reset: () => {
       epoch += 1;
       inFlight = null;
+      cancelTimer();
       for (const direction of DIRECTIONS) {
         failed[direction].clear();
+        deferrals[direction].clear();
         expanded[direction] = [];
         caps[direction] = [];
       }
       lastPlan = null;
+      coolingUntil = null;
     },
     state: () => {
       if (!lastPlan) return null;
       const remaining = lastPlan.remainingByHop.reduce((sum, n) => sum + n, 0);
       const waiting = lastPlan.waitingByHop.reduce((sum, n) => sum + n, 0);
       if (!remaining && !waiting) return null;
-      return { remaining: remaining - waiting, waiting, paused };
+      const providers =
+        coolingUntil !== null && !paused ? refusingProviders() : [];
+      return {
+        remaining: remaining - waiting,
+        waiting,
+        paused,
+        refusal:
+          coolingUntil !== null && providers.length
+            ? { providers, retryAt: coolingUntil }
+            : null,
+      };
     },
     // A heuristic on purpose: a hop-k paper reached from two parents is
     // counted under both, so "of {reported}" can over-report (review M11).
@@ -294,6 +441,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
       disposed = true;
       epoch += 1;
       inFlight = null;
+      cancelTimer();
       if (frame) {
         host.cancelFrame(frame);
         frame = 0;
