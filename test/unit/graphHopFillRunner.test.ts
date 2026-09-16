@@ -515,4 +515,106 @@ describe("the fill under provider refusals", function () {
     await fake.settle();
     expect(fake.calls.excludes.at(-1), "after reset").to.deep.equal([S2]);
   });
+
+  /*
+   * The four below close the coverage gaps the B50 final review triaged as
+   * follow-ups (Task 9, finding 4, and the `coolingUntil` note). They pin
+   * behaviour the runner already has, so they pass as written; they exist so
+   * a later change cannot quietly take any of it away.
+   */
+
+  it("cancels an armed cool-down timer on dispose", async function () {
+    const fake = fakeHost();
+    fake.refusing.add(S2);
+    fake.refusing.add(OC);
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(fake.timers.length, "armed").to.equal(1);
+    runner.dispose();
+    expect(fake.timers.length, "dispose").to.equal(0);
+  });
+
+  it("opens the refusing provider's window even when the landing's epoch moved", async function () {
+    const fake = fakeHost();
+    // Semantic Scholar refuses and OpenCitations answers, so the expansion
+    // lands a list under an epoch that has already moved on.
+    fake.refusing.add(S2);
+    const runner = createHopFillRunner(fake.host);
+    const original = fake.host.expand;
+    let first = true;
+    fake.host.expand = async (key, direction, control) => {
+      const outcome = await original(key, direction, control);
+      if (first) {
+        first = false;
+        runner.invalidate();
+      }
+      return outcome;
+    };
+    runner.wake();
+    await fake.settle();
+    runner.wake();
+    await fake.settle();
+    // The landing's effects were dropped, but a refusal is true of the
+    // provider whatever the epoch did, so the next ask still leaves it out.
+    expect(fake.calls.excludes.at(-1)).to.deep.equal([S2]);
+  });
+
+  it("ends the windows on retryNow while paused, but expands nothing until resume", async function () {
+    const fake = fakeHost();
+    fake.entries.delete("b");
+    fake.refusing.add(S2);
+    fake.refusing.add(OC);
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded).to.deep.equal(["a"]);
+    runner.stop();
+    runner.retryNow();
+    await fake.settle();
+    expect(fake.calls.expanded, "paused: nothing is asked").to.deep.equal([
+      "a",
+    ]);
+    fake.refusing.clear();
+    runner.resume();
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded, "resume asks at once").to.deep.equal([
+      "a",
+      "a",
+    ]);
+  });
+
+  it("waits on a deferral with no provider in a window, and shows no refusal line", async function () {
+    const fake = fakeHost();
+    let call = 0;
+    fake.host.expand = async (key, _direction, control) => {
+      call += 1;
+      fake.calls.expanded.push(key);
+      fake.calls.excludes.push([...control.excludeProviders]);
+      await Promise.resolve();
+      // "a" is refused by Semantic Scholar, which opens its window and defers
+      // the paper; "b" is then answered by Semantic Scholar, which ends that
+      // window again. The deferral outlives it, so the fill cools down with
+      // nobody refusing — the silent wait the review flagged.
+      if (call === 1) return { refusedBy: [S2], skipped: [], answeredBy: null };
+      fake.stored.add(key);
+      control.reportCount(7);
+      fake.entries.set(key, { ...fake.entries.get(key)!, expanded: true });
+      return { refusedBy: [], skipped: [], answeredBy: S2 };
+    };
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded).to.deep.equal(["a", "b"]);
+    const state = runner.state();
+    expect(
+      state?.refusal,
+      "no provider is refusing, so no refusal line",
+    ).to.equal(null);
+    // The paper still counts as left, and a timer holds the fill until its
+    // deferral ends (ADR 0013).
+    expect(state?.remaining).to.equal(1);
+    expect(fake.timers.map((timer) => timer.at)).to.deep.equal([30_000]);
+  });
 });
