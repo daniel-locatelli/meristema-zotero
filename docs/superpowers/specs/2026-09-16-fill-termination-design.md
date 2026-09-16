@@ -70,14 +70,15 @@ of the sit-out that pins the fill.
 
 ## Decisions taken in the brainstorm (2026-09-16)
 
-| question                                      | decision                                                                                                                                                                                  |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What D8's first spec covers                   | **Termination.** The breadth-first shape is kept; the fill is made able to finish. Shape, budgets and derived depth stay filed for D8's second session.                                   |
-| Whether a work-ID hint backs an empty list    | **Yes.** A hint the asking provider itself supplied is evidence that it indexes the DOI: it emitted it in one of its own citation links.                                                  |
-| Whether an empty answer ends the expansion    | **No, while a candidate remains.** An empty list is asked past; the last candidate's empty list stands and is stored as "no citers".                                                      |
-| Whether a paper can be deferred without end   | **No.** A paper deferred N times in a direction with nothing ever stored is failed for the session, so `markFailed` is reachable again. **N = 3.**                                        |
-| Whether a skipped provider is still a refusal | **Yes, unchanged.** Narrowing `outcomeRefused` would reverse ADR 0013 deliberately and, in a refusal storm, empty the plan — the failure mode 0013 rejected.                              |
-| What a stored empty list costs                | **A paper may read "no citers" on a provider's word while another sat out.** Accepted: it is what "one answering provider per expansion" already means, and a manual Refresh replaces it. |
+| question                                                  | decision                                                                                                                                                                                                       |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What D8's first spec covers                               | **Termination.** The breadth-first shape is kept; the fill is made able to finish. Shape, budgets and derived depth stay filed for D8's second session.                                                        |
+| Whether a work-ID hint backs an empty list                | **Yes.** A hint the asking provider itself supplied is evidence that it indexes the DOI: it emitted it in one of its own citation links.                                                                       |
+| Whether an empty answer ends the expansion                | **No, while a candidate remains.** An empty list is asked past; the last candidate's empty list stands and is stored as "no citers".                                                                           |
+| Whether a paper can be deferred without end               | **No.** A paper deferred N times in a direction with nothing ever stored is failed for the session, so `markFailed` is reachable again. **N = 3.**                                                             |
+| Whether a skipped provider is still a refusal             | **Yes, unchanged.** Narrowing `outcomeRefused` would reverse ADR 0013 deliberately and, in a refusal storm, empty the plan — the failure mode 0013 rejected.                                                   |
+| What a stored empty list costs                            | **A paper may read "no citers" on a provider's word while another sat out.** Accepted: it is what "one answering provider per expansion" already means, and a manual Refresh replaces it.                      |
+| Whether Resume recovers a paper the limit failed (review) | **Yes.** A paper failed for running out of patience is not a paper a provider answered nothing for; `retryNow` clears the limit's failures along with the deferrals, while genuine failures stay out as today. |
 
 ## Vocabulary
 
@@ -91,7 +92,11 @@ expansion only when no candidate is left to ask.
 **Deferral limit**: the number of times a paper may be deferred in one
 direction with nothing ever stored before it is failed for the session. Three.
 Cleared by Resume (`retryNow`), by `reset`, and by any landing that applies to
-the model.
+the model. Resume also undoes the failure the limit caused: the reader asking
+to try again now is exactly the case the limit should yield to, and nothing the
+reader can fix — a key, a network, a provider that came back — should leave a
+paper permanently out of the plan. A paper failed because a provider answered
+nothing usable stays out, as today.
 
 CONTEXT.md's **Failed** widens accordingly: "returned nothing usable this
 session, and no provider refused or was skipped" gains "or reached the deferral
@@ -137,6 +142,14 @@ becomes the provider of the last usable snapshot that contributed works, or,
 when every usable snapshot was empty, the last usable snapshot's provider — it
 did answer, so its window should clear. Null only when nothing was usable.
 
+Its documented contract moves with it: the field's comment
+(`externalDiscoveryService.ts:1523`), "the one provider whose snapshot was
+stored; null when none was, or several were merged", becomes "the provider
+whose window this landing clears". The field's only production consumer is the
+runner's window clearing (`graphHopFillRunner.ts:276-281`), and `identifiedCount`
+on the same resolution stays the record of how many works were stored — so an
+empty answer and a list of works remain distinguishable without a new field.
+
 ### 3. No paper is deferred without end
 
 `HopLandingInput` gains `deferrals: number`, the count for this paper in this
@@ -149,6 +162,22 @@ becomes `Map<string, { until: number; count: number }>`, incremented where the
 deferral is recorded (`:294-303`), cleared where deferrals are cleared today
 (`retryNow` `:381-386`, `reset` `:401-413`) and on any landing that applies to
 the model (`:305`). The plan reads `until` exactly as now.
+
+The count needs no direction in its key. `deferrals` is already
+`perDirection(() => new Map())` (`:190`), as `failed` is (`:177`), so a paper's
+budget under Citers is structurally separate from its budget under References.
+A composite `key:direction` would duplicate that split and let the two
+disagree.
+
+Resume must be able to undo a failure the limit caused, which `retryNow` cannot
+do today: it ends every window and clears both directions' deferrals, but never
+touches `failed`. So the runner keeps `limitFailed`, a per-direction set of the
+papers the limit failed, added to beside `failed[direction]` when
+`hopLandingEffects` fails a paper for the count. `retryNow` removes those keys
+from `failed[direction]` and empties the set, alongside the deferrals it
+already clears; `reset` clears it with everything else. Papers failed the
+ordinary way — a provider answered nothing usable, nobody refused — are not in
+the set and stay out, which is what `markFailed` is for.
 
 ### What does not change
 
@@ -168,8 +197,10 @@ Red first, in this order.
   failed; the second still defers; a stored landing takes the expanded branch
   whatever the count.
 - `test/unit/graphHopFillRunner.test.ts`: a paper refused on every landing
-  leaves the plan after three deferrals and the plan drains; `retryNow` clears
-  the count and the paper is planned again; the count survives a re-plan.
+  leaves the plan after three deferrals and the plan drains; the count survives
+  a re-plan; `retryNow` clears the count _and_ the failure the limit caused, so
+  the paper is planned again; a paper failed the ordinary way stays out across
+  `retryNow`.
 - `test/zotero/graphCitationHops.test.ts`: the case B72 says nobody built — one
   provider sitting out a window while another returns an empty first page
   against a hinted work ID. The fill drains to `0 left` instead of cycling.
