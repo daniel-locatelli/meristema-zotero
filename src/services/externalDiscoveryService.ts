@@ -1391,6 +1391,7 @@ async function fetchProviderRelationshipSnapshot(
             firstPageEmpty: pages === 1 && collectedWorks.length === 0,
             matched: Boolean(match),
             reportedCount,
+            hinted: Boolean(hintedProviderWorkID),
           })
         ) {
           return failed();

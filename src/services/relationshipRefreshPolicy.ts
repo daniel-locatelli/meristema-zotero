@@ -291,22 +291,27 @@ export function fillStopsAt(snapshot: {
 
 /**
  * Whether an empty first page is a failure rather than an empty list. A fill
- * trusts an empty list only when a lookup match or a reported count stands
- * behind it: OpenCitations answers 200 with `[]` for a DOI it does not index,
- * and its lookup no longer matches at all (410 Gone, B63), so its DOI fallback
- * would otherwise store "no citers" for every paper it has never seen.
- * Manual paths keep today's rule.
+ * trusts an empty list only when something stands behind it: a lookup match, a
+ * reported count, or a work-ID hint the asking provider itself supplied.
+ * OpenCitations answers 200 with `[]` for a DOI it does not index, and its
+ * lookup no longer matches at all (410 Gone, B63), so its DOI fallback would
+ * otherwise store "no citers" for every paper it has never seen. A hint is
+ * different in kind: the provider emitted that identifier in one of its own
+ * citation links, so it does index the paper, and the fill skips the lookup
+ * that would have matched it (B72). Manual paths keep today's rule.
  */
 export function unbackedEmptyList(input: {
   fill: boolean;
   firstPageEmpty: boolean;
   matched: boolean;
   reportedCount: number | null;
+  hinted: boolean;
 }): boolean {
   return (
     input.fill &&
     input.firstPageEmpty &&
     !input.matched &&
+    !input.hinted &&
     input.reportedCount === null
   );
 }

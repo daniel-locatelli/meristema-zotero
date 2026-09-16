@@ -262,6 +262,7 @@ describe("unbackedEmptyList", function () {
     firstPageEmpty: true,
     matched: false,
     reportedCount: null,
+    hinted: false,
   };
 
   it("fails a fill's empty first page with no match and no count behind it", function () {
@@ -275,6 +276,13 @@ describe("unbackedEmptyList", function () {
     expect(unbackedEmptyList({ ...empty, firstPageEmpty: false })).to.equal(
       false,
     );
+  });
+
+  // B72: the fill hints the work ID for every external paper, so the lookup
+  // that would supply a match is skipped on purpose. The hint is the backing:
+  // the provider emitted this DOI in one of its own citation links.
+  it("trusts it when the asking provider's own work-ID hint stands behind it", function () {
+    expect(unbackedEmptyList({ ...empty, hinted: true })).to.equal(false);
   });
 });
 
