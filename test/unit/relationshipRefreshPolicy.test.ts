@@ -242,17 +242,38 @@ describe("refusedSnapshotState", function () {
 });
 
 describe("fillStopsAt", function () {
-  it("stops on an answer or a failure, today's rule", function () {
-    expect(fillStopsAt({ refused: false, succeeded: true })).to.equal(true);
-    expect(fillStopsAt({ refused: false, succeeded: false })).to.equal(true);
+  it("stops on an answer with works, or a failure, today's rule", function () {
+    expect(
+      fillStopsAt({ refused: false, succeeded: true, empty: false }, true),
+    ).to.equal(true);
+    expect(
+      fillStopsAt({ refused: false, succeeded: false, empty: true }, true),
+    ).to.equal(true);
   });
 
   it("stops on a refusal that still collected a usable partial list", function () {
-    expect(fillStopsAt({ refused: true, succeeded: true })).to.equal(true);
+    expect(
+      fillStopsAt({ refused: true, succeeded: true, empty: false }, true),
+    ).to.equal(true);
   });
 
   it("does not stop on a refusal with nothing usable", function () {
-    expect(fillStopsAt({ refused: true, succeeded: false })).to.equal(false);
+    expect(
+      fillStopsAt({ refused: true, succeeded: false, empty: true }, true),
+    ).to.equal(false);
+  });
+
+  // B72: OpenCitations answering "no citers" ended the expansion, so OpenAlex
+  // was never asked for any of the frontier papers, though it was answering.
+  it("asks the next candidate past an empty answer, and stops at the last one", function () {
+    expect(
+      fillStopsAt({ refused: false, succeeded: true, empty: true }, true),
+      "a candidate is left to ask",
+    ).to.equal(false);
+    expect(
+      fillStopsAt({ refused: false, succeeded: true, empty: true }, false),
+      "nobody else can be asked, so the empty list stands",
+    ).to.equal(true);
   });
 });
 

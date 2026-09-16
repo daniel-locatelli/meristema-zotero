@@ -277,16 +277,20 @@ export function refusedSnapshotState(collectedCount: number): {
 }
 
 /**
- * Whether a fill expansion stops at this snapshot (ADR 0013): an answer or a
- * failure always ends it, and so does a refusal that still collected a
- * usable partial list, keeping one answering provider per expansion. Only a
- * refusal with nothing usable moves the expansion on to the next candidate.
+ * Whether a fill expansion stops at this snapshot (ADR 0013): an answer with
+ * works or a failure always ends it, and so does a refusal that still
+ * collected a usable partial list, keeping one answering provider per
+ * expansion. A refusal with nothing usable moves the expansion on to the next
+ * candidate, and so does an empty answer while a candidate is left to ask
+ * (B72) — only the last candidate's empty list stands as "no citers".
  */
-export function fillStopsAt(snapshot: {
-  refused: boolean;
-  succeeded: boolean;
-}): boolean {
-  return !snapshot.refused || snapshot.succeeded;
+export function fillStopsAt(
+  snapshot: { refused: boolean; succeeded: boolean; empty: boolean },
+  hasNextCandidate: boolean,
+): boolean {
+  if (snapshot.refused) return snapshot.succeeded;
+  if (snapshot.succeeded && snapshot.empty) return !hasNextCandidate;
+  return true;
 }
 
 /**

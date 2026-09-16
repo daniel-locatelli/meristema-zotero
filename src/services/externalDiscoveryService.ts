@@ -1521,7 +1521,7 @@ export interface RelationshipRefreshResolution {
   refusedBy: CitationProviderID[];
   /** Paging providers for the paper that `excludeProviders` left out. */
   skipped: CitationProviderID[];
-  /** The one provider whose snapshot was stored; null when none was, or several were merged. */
+  /** The provider whose window this landing clears: the last usable snapshot to contribute works, else the last usable one. */
   answeredBy: CitationProviderID | null;
 }
 
@@ -1678,9 +1678,11 @@ function providerSupportsPaper(
 }
 
 /**
- * A fill expansion's candidates, asked one at a time until one answers,
- * fails, or refuses with a usable partial list. A refusal with nothing
- * usable moves the expansion straight on to the next candidate.
+ * A fill expansion's candidates, asked one at a time until one answers with
+ * works, fails, or refuses with a usable partial list. A refusal with nothing
+ * usable moves the expansion straight on to the next candidate, and so does an
+ * empty answer while another candidate is left (B72); the last candidate's
+ * empty list stands. Each candidate is asked at most once.
  */
 async function askUntilNotRefused(
   candidates: readonly CitationProviderID[],
@@ -1688,17 +1690,24 @@ async function askUntilNotRefused(
   cancelled: () => boolean,
 ): Promise<RelationshipProviderSnapshot[]> {
   const results: RelationshipProviderSnapshot[] = [];
-  const refused: CitationProviderID[] = [];
+  const asked: CitationProviderID[] = [];
   for (
-    let provider = nextFillProvider(candidates, refused);
+    let provider = nextFillProvider(candidates, asked);
     provider !== null;
-    provider = nextFillProvider(candidates, refused)
+    provider = nextFillProvider(candidates, asked)
   ) {
     if (cancelled()) break;
     const snapshot = await ask(provider);
     results.push(snapshot);
-    if (fillStopsAt(snapshot)) break;
-    refused.push(provider);
+    asked.push(provider);
+    if (
+      fillStopsAt(
+        { ...snapshot, empty: snapshot.works.length === 0 },
+        nextFillProvider(candidates, asked) !== null,
+      )
+    ) {
+      break;
+    }
   }
   return results;
 }
@@ -2037,6 +2046,15 @@ async function runExternalRelationshipRefresh(
       publishedReported,
       options.publicationSource,
     );
+    // An expansion may now hold an empty answer and a later non-empty one
+    // (B72), so "exactly one usable snapshot" no longer identifies who
+    // answered. The window to clear belongs to whoever last gave us works, or,
+    // when every answer was empty, to the last provider that answered at all.
+    const answered =
+      [...usable]
+        .reverse()
+        .find((snapshot) => snapshot.identifiedWorks.length > 0) ??
+      usable[usable.length - 1];
     options.onMembershipResolved?.({
       complete: selection.complete,
       provider: publishedReported.provider,
@@ -2044,7 +2062,7 @@ async function runExternalRelationshipRefresh(
       identifiedCount: committed.length,
       refusedBy,
       skipped,
-      answeredBy: usable.length === 1 ? usable[0].provider : null,
+      answeredBy: answered.provider,
     });
 
     await checkpoint(true);
