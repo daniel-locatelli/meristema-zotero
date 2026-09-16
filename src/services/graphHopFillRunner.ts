@@ -296,12 +296,13 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         // deferred until the limit runs out, anything else failed for the
         // session, and a stale epoch drops all three.
         const deferred = deferrals[direction].get(key)?.count ?? 0;
+        const refused = outcomeRefused(outcome);
         const effects = hopLandingEffects({
           epoch: startEpoch,
           currentEpoch: epoch,
           cleaned: disposed,
           stored: host.stored(key, direction),
-          refused: outcomeRefused(outcome),
+          refused,
           deferrals: deferred,
         });
         if (effects.defer) {
@@ -328,8 +329,9 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         }
         if (effects.markFailed) {
           failed[direction].add(key);
-          // Only the limit's failures come back on Resume.
-          if (deferred >= DEFERRAL_LIMIT) limitFailed[direction].add(key);
+          // Only a refusal that ran out of deferrals is the limit's failure.
+          if (refused && deferred >= DEFERRAL_LIMIT)
+            limitFailed[direction].add(key);
         }
         host.landed(key);
       })

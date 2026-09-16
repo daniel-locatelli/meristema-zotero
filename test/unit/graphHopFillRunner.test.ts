@@ -379,6 +379,39 @@ describe("createHopFillRunner", function () {
       "a provider answered nothing usable: that is not the limit's failure",
     ).to.deep.equal(["a", "b"]);
   });
+
+  // B72 review, Important 1: the count alone does not tell the limit's
+  // failure from the ordinary one. A paper deferred to the limit that then
+  // lands with no provider refusing and nothing stored still failed the
+  // ordinary way — the limit did not cause it — so Resume must leave it out.
+  it("keeps a paper deferred to the limit but failed the ordinary way out across Resume", async function () {
+    const fake = fakeHost();
+    fake.entries.delete("b");
+    fake.refusing.add(S2);
+    fake.refusing.add(OC);
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    await fake.advance(30_000);
+    await fake.advance(60_000);
+    // Three deferrals climbed the ladder. Before the runner tries again,
+    // both providers stop refusing but answer with nothing usable: the
+    // fourth landing is the ordinary failure, not the limit's.
+    fake.refusing.clear();
+    fake.failing.add("a");
+    await fake.advance(120_000);
+    expect(
+      fake.calls.expanded,
+      "deferred three times, then failed the ordinary way",
+    ).to.deep.equal(["a", "a", "a", "a"]);
+    expect(runner.state(), "the plan drained").to.equal(null);
+    runner.retryNow();
+    await fake.settle();
+    expect(
+      fake.calls.expanded,
+      "the ordinary failure is not the limit's, so Resume must not bring it back",
+    ).to.deep.equal(["a", "a", "a", "a"]);
+  });
 });
 
 describe("the fill under provider refusals", function () {
