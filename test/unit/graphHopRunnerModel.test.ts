@@ -9,6 +9,7 @@ import {
 import type { CitationProviderID } from "../../src/domain/citationTypes";
 import {
   COOL_DOWN_MS,
+  DEFERRAL_LIMIT,
   answer,
   deferUntil,
   endAll,
@@ -61,6 +62,7 @@ describe("the hop runner's landing", function () {
       cleaned: false,
       stored: false,
       refused: false,
+      deferrals: 0,
     });
     expect(effects).to.deep.equal({
       countExpanded: false,
@@ -83,6 +85,7 @@ describe("the hop runner's landing", function () {
         cleaned: false,
         stored: true,
         refused: false,
+        deferrals: 0,
       }),
     ).to.deep.equal({
       countExpanded: true,
@@ -104,6 +107,7 @@ describe("the hop runner's landing", function () {
           cleaned: false,
           stored,
           refused: false,
+          deferrals: 0,
         }),
         `stale epoch, stored=${stored}`,
       ).to.deep.equal({
@@ -120,6 +124,7 @@ describe("the hop runner's landing", function () {
         cleaned: true,
         stored: true,
         refused: false,
+        deferrals: 0,
       }),
       "a torn-down view lands nothing either",
     ).to.deep.equal({
@@ -151,6 +156,7 @@ describe("the hop runner's landing", function () {
       cleaned: false,
       stored: true,
       refused: false,
+      deferrals: 0,
     });
     expect(Object.keys(effects).sort()).to.deep.equal([
       "applyToModel",
@@ -170,6 +176,7 @@ describe("a refused landing", function () {
         cleaned: false,
         stored: false,
         refused: true,
+        deferrals: 0,
       }),
     ).to.deep.equal({
       countExpanded: false,
@@ -187,6 +194,7 @@ describe("a refused landing", function () {
         cleaned: false,
         stored: true,
         refused: true,
+        deferrals: 0,
       }),
     ).to.include({ countExpanded: true, defer: false });
   });
@@ -203,6 +211,50 @@ describe("a refused landing", function () {
     expect(
       outcomeRefused({ refusedBy: [], skipped: [], answeredBy: null }),
     ).to.equal(false);
+  });
+
+  // B72: a provider that refuses for good pins every paper it was eligible
+  // for, because a merely skipped provider makes the landing refused and
+  // `markFailed` is only reached when it is not. The count is what makes that
+  // branch reachable again, so the plan can drain.
+  it("fails a paper the deferral limit has run out for", function () {
+    const refused = {
+      epoch: 1,
+      currentEpoch: 1,
+      cleaned: false,
+      stored: false,
+      refused: true,
+    };
+    expect(
+      hopLandingEffects({ ...refused, deferrals: DEFERRAL_LIMIT - 1 }).defer,
+      "one deferral short of the limit still waits",
+    ).to.equal(true);
+    expect(
+      hopLandingEffects({ ...refused, deferrals: DEFERRAL_LIMIT }),
+    ).to.deep.equal({
+      countExpanded: false,
+      markFailed: true,
+      defer: false,
+      applyToModel: true,
+    });
+  });
+
+  it("counts a stored summary as expanded however often it was deferred", function () {
+    expect(
+      hopLandingEffects({
+        epoch: 1,
+        currentEpoch: 1,
+        cleaned: false,
+        stored: true,
+        refused: true,
+        deferrals: DEFERRAL_LIMIT + 5,
+      }),
+    ).to.deep.equal({
+      countExpanded: true,
+      markFailed: false,
+      defer: false,
+      applyToModel: true,
+    });
   });
 });
 

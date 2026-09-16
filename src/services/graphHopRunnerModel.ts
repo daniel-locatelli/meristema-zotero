@@ -33,6 +33,11 @@ export interface HopLandingInput {
    * (`outcomeRefused`). Read only when nothing was stored.
    */
   refused: boolean;
+  /**
+   * How many times this paper has already been deferred in this direction
+   * with nothing ever stored. Read only when the landing is refused.
+   */
+  deferrals: number;
 }
 
 export interface HopLandingEffects {
@@ -57,6 +62,14 @@ const NOTHING: HopLandingEffects = {
 };
 
 /**
+ * How many times a paper may be deferred with nothing stored before it fails
+ * for the session. Without it a provider that refuses for good pins every
+ * paper it was eligible for, because a skipped provider makes every landing
+ * refused and `markFailed` is only reached when it is not (B72).
+ */
+export const DEFERRAL_LIMIT = 3;
+
+/**
  * What a landed expansion does. A stale epoch drops every effect: the request
  * still stored its list, but the model it would have counted against is gone
  * (spec, "Direction switch").
@@ -72,8 +85,10 @@ export function hopLandingEffects(input: HopLandingInput): HopLandingEffects {
     };
   }
   // A refusal is not a failure (ADR 0013): the paper stays in the plan, and
-  // nothing in the store changed, so there is nothing to apply.
-  if (input.refused) {
+  // nothing in the store changed, so there is nothing to apply. But it may not
+  // stay for ever: at the limit it falls through and fails, so the plan can
+  // drain while a provider refuses for good (B72). Resume brings it back.
+  if (input.refused && input.deferrals < DEFERRAL_LIMIT) {
     return {
       countExpanded: false,
       markFailed: false,

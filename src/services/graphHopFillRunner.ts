@@ -290,6 +290,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
           cleaned: disposed,
           stored: host.stored(key, direction),
           refused: outcomeRefused(outcome),
+          deferrals: 0,
         });
         if (effects.defer) {
           refusedLanding = true;
