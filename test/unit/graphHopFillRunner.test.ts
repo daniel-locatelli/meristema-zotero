@@ -333,6 +333,52 @@ describe("createHopFillRunner", function () {
     expect(fake.calls.planned).to.equal(0);
     expect(fake.calls.expanded).to.deep.equal([]);
   });
+
+  // B72: both providers refuse for good. The paper is deferred while the
+  // ladder climbs, then fails, so the plan drains instead of re-asking it for
+  // ever — and Resume, which is the reader saying "try again now", brings it
+  // back.
+  it("fails a paper the deferral limit ran out for, and Resume brings it back", async function () {
+    const fake = fakeHost();
+    fake.entries.delete("b");
+    fake.refusing.add(S2);
+    fake.refusing.add(OC);
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    await fake.advance(30_000);
+    await fake.advance(60_000);
+    await fake.advance(120_000);
+    expect(
+      fake.calls.expanded,
+      "deferred three times, then asked once more and failed",
+    ).to.deep.equal(["a", "a", "a", "a"]);
+    await fake.advance(300_000);
+    expect(
+      fake.calls.expanded,
+      "the limit failed it, so no later window asks it again",
+    ).to.deep.equal(["a", "a", "a", "a"]);
+    expect(runner.state(), "the plan drained").to.equal(null);
+    fake.refusing.clear();
+    runner.retryNow();
+    await fake.settle();
+    expect(fake.calls.expanded.slice(4)).to.deep.equal(["a"]);
+  });
+
+  it("keeps a paper failed the ordinary way out across Resume", async function () {
+    const fake = fakeHost();
+    fake.failing.add("a");
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded).to.deep.equal(["a", "b"]);
+    runner.retryNow();
+    await fake.settle();
+    expect(
+      fake.calls.expanded,
+      "a provider answered nothing usable: that is not the limit's failure",
+    ).to.deep.equal(["a", "b"]);
+  });
 });
 
 describe("the fill under provider refusals", function () {

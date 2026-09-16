@@ -25,6 +25,7 @@ import {
 } from "./graphHopFillModel";
 import type { HopDirection } from "./graphHopModel";
 import {
+  DEFERRAL_LIMIT,
   NO_OUTCOME,
   answer,
   deferUntil,
@@ -186,8 +187,18 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
    * `reset` (ADR 0013).
    */
   let windows: ProviderWindows = new Map();
-  /** A refused paper's key and when its deferral ends, by direction. */
-  const deferrals = perDirection(() => new Map<string, number>());
+  /**
+   * A refused paper's key, when its deferral ends, and how many times it has
+   * been deferred with nothing stored, by direction.
+   */
+  const deferrals = perDirection(
+    () => new Map<string, { until: number; count: number }>(),
+  );
+  /**
+   * The papers the deferral limit failed, by direction. Resume brings these
+   * back; a paper a provider answered nothing usable for stays out (B72).
+   */
+  const limitFailed = perDirection(() => new Set<string>());
   /** The one cool-down timer. */
   let timer: number | null = null;
   /** When the fill tries again, while the last plan found it cooling down. */
@@ -211,7 +222,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     lastDirection = direction;
     const now = host.now();
     const deferredKeys = new Set<string>();
-    for (const [key, until] of deferrals[direction]) {
+    for (const [key, { until }] of deferrals[direction]) {
       if (until > now) deferredKeys.add(key);
     }
     return planHopFill({
@@ -232,7 +243,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     const now = host.now();
     const deferralEnds: number[] = [];
     for (const key of current.deferred) {
-      const until = deferrals[lastDirection].get(key);
+      const until = deferrals[lastDirection].get(key)?.until;
       if (until !== undefined && until > now) deferralEnds.push(until);
     }
     return hopCoolDown({
@@ -282,15 +293,16 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         }
         // What the landing means is decided by `hopLandingEffects`
         // (graphHopRunnerModel.ts): expanded is a stored summary, refused is
-        // deferred, anything else failed for the session, and a stale epoch
-        // drops all three.
+        // deferred until the limit runs out, anything else failed for the
+        // session, and a stale epoch drops all three.
+        const deferred = deferrals[direction].get(key)?.count ?? 0;
         const effects = hopLandingEffects({
           epoch: startEpoch,
           currentEpoch: epoch,
           cleaned: disposed,
           stored: host.stored(key, direction),
           refused: outcomeRefused(outcome),
-          deferrals: 0,
+          deferrals: deferred,
         });
         if (effects.defer) {
           refusedLanding = true;
@@ -299,7 +311,12 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
             [...outcome.refusedBy, ...outcome.skipped],
             host.now(),
           );
-          if (until !== null) deferrals[direction].set(key, until);
+          // The count is kept even when no window is ahead, so a deferral the
+          // plan does not hold back still counts against the limit.
+          deferrals[direction].set(key, {
+            until: until ?? 0,
+            count: deferred + 1,
+          });
           return;
         }
         if (!effects.applyToModel) return;
@@ -309,7 +326,11 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
           const counts = expanded[direction];
           counts[hop] = (counts[hop] ?? 0) + 1;
         }
-        if (effects.markFailed) failed[direction].add(key);
+        if (effects.markFailed) {
+          failed[direction].add(key);
+          // Only the limit's failures come back on Resume.
+          if (deferred >= DEFERRAL_LIMIT) limitFailed[direction].add(key);
+        }
         host.landed(key);
       })
       .catch((error: unknown) => {
@@ -381,7 +402,14 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     },
     retryNow: () => {
       windows = endAll(windows, host.now());
-      for (const direction of DIRECTIONS) deferrals[direction].clear();
+      for (const direction of DIRECTIONS) {
+        deferrals[direction].clear();
+        // The reader is asking to try again now, which is exactly the case the
+        // deferral limit should yield to (B72). A paper a provider answered
+        // nothing usable for is not the limit's, and stays out.
+        for (const key of limitFailed[direction]) failed[direction].delete(key);
+        limitFailed[direction].clear();
+      }
       coolingUntil = null;
       wake();
     },
@@ -405,6 +433,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
       cancelTimer();
       for (const direction of DIRECTIONS) {
         failed[direction].clear();
+        limitFailed[direction].clear();
         deferrals[direction].clear();
         expanded[direction] = [];
         caps[direction] = [];
