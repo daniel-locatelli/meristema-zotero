@@ -10,20 +10,32 @@ import type { CitationProvider, ProviderRequestOptions } from "./types";
 import {
   ProviderRefusedError,
   failureStatusFromHTTP,
-  numberOrNull,
   stringOrNull,
 } from "./types";
 
 const MAX_RELATION_RESULTS = 2500;
+/**
+ * The canonical API host. The legacy `opencitations.net/index/coci/api/v1`
+ * paths still answer, but only through a 301 to this one, so every relation
+ * page used to cost two round trips (B63).
+ */
+const API = "https://api.opencitations.net";
 
-interface OCMetadata {
-  doi?: string;
+/**
+ * A record from OpenCitations Meta, where the bibliographic data moved: the
+ * Index's own `/metadata` route answers 410 Gone (B63). Meta carries no
+ * citation or reference count, and the Index's count endpoints cannot stand
+ * in for one, because they answer `0` for a DOI that does not exist at all
+ * as readily as for a paper with no citers. So the provider reports no
+ * counts, and an empty citer list is trusted on the strength of the match
+ * alone (`unbackedEmptyList`, relationshipRefreshPolicy.ts).
+ */
+interface OCMetaRecord {
+  id?: string;
   title?: string;
   author?: string;
-  year?: string;
-  source_title?: string;
-  citation_count?: string | number;
-  reference_count?: string | number;
+  pub_date?: string;
+  venue?: string;
 }
 interface OCLink {
   citing?: string;
@@ -31,6 +43,13 @@ interface OCLink {
   creation?: string;
   author_sc?: string;
   timespan?: string;
+}
+
+/** Meta appends its own identifiers in brackets to every name and venue. */
+function withoutIdentifiers(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\s*\[[^\]]*\]\s*$/, "")
+    .trim();
 }
 
 function relatedFromLink(
@@ -65,7 +84,7 @@ async function fetchLinks(
 ): Promise<RelatedWorkMetadata[]> {
   const response = await requestJSON<OCLink[]>(
     "opencitations",
-    `https://opencitations.net/index/coci/api/v1/${direction}/${encodeURIComponent(doi)}`,
+    `${API}/index/v1/${direction}/${encodeURIComponent(doi)}`,
     { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
   if (response.status === 429) throw new ProviderRefusedError("opencitations");
@@ -87,8 +106,10 @@ export const openCitationsProvider: CitationProvider = {
       isbn: false,
       titleSearch: false,
     },
-    citationCount: true,
-    referenceCount: true,
+    // Meta carries no counts, and the Index's count endpoints answer `0` for
+    // a DOI that does not exist, so neither can be reported honestly (B63).
+    citationCount: false,
+    referenceCount: false,
     citingWorks: true,
     referencedWorks: true,
     abstract: false,
@@ -108,20 +129,29 @@ export const openCitationsProvider: CitationProvider = {
         message: "OpenCitations needs a DOI.",
       };
     }
-    const response = await requestJSON<OCMetadata[]>(
+    const response = await requestJSON<OCMetaRecord[]>(
       "opencitations",
-      `https://opencitations.net/index/coci/api/v1/metadata/${encodeURIComponent(identifiers.doi)}`,
+      `${API}/meta/v1/metadata/doi:${encodeURIComponent(identifiers.doi)}`,
       { signal: options?.signal, retryRefusals: options?.retryRefusals },
     );
-    const metadata = Array.isArray(response.data) ? response.data[0] : null;
-    if (!response.ok || !metadata) {
+    if (!response.ok) {
       return {
         status: failureStatusFromHTTP(response.status),
         provider: "opencitations",
         message: response.message || "OpenCitations did not return a work.",
       };
     }
-    const references: RelatedWorkMetadata[] = [];
+    const record = Array.isArray(response.data) ? response.data[0] : null;
+    if (!record) {
+      // Meta answers 200 with `[]` for a DOI it has never seen. That is a
+      // miss, not a provider fault, and saying so is what keeps a fill from
+      // storing "no citers" for a paper OpenCitations does not know.
+      return {
+        status: "not-found",
+        provider: "opencitations",
+        message: "OpenCitations Meta has no record for this DOI.",
+      };
+    }
     return {
       status: "success",
       provider: "opencitations",
@@ -129,23 +159,26 @@ export const openCitationsProvider: CitationProvider = {
       matchConfidence: 1,
       providerWorkID: identifiers.doi,
       doi: identifiers.doi,
-      title: stringOrNull(metadata.title),
-      year: publicationYearOrNull(metadata.year),
-      authors: metadata.author
-        ? metadata.author
+      title: stringOrNull(record.title),
+      // `pub_date` is a full date; publicationYearOrNull reads only a year.
+      year: publicationYearOrNull(String(record.pub_date ?? "").slice(0, 4)),
+      publicationDate: stringOrNull(record.pub_date),
+      authors: record.author
+        ? record.author
             .split(";")
-            .map((author) => author.trim())
+            .map((author) => withoutIdentifiers(author))
             .filter(Boolean)
         : [],
-      sourceTitle: stringOrNull(metadata.source_title),
+      sourceTitle: record.venue
+        ? stringOrNull(withoutIdentifiers(record.venue))
+        : null,
       abstract: null,
-      citationCount: numberOrNull(metadata.citation_count),
+      citationCount: null,
       citationCountProvider: "opencitations",
-      referenceCount:
-        numberOrNull(metadata.reference_count) ?? references.length,
+      referenceCount: null,
       referenceCountProvider: "opencitations",
-      resolvedReferenceCount: references.length,
-      references,
+      resolvedReferenceCount: 0,
+      references: [],
       sourceMetrics: null,
     };
   },
