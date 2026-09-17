@@ -215,6 +215,7 @@ import {
   type GraphFocusState,
   type LocalWorkIndexes,
 } from "./graphFocusService";
+import { createFrameOrTimer } from "./frameOrTimer";
 import { createHopFillRunner } from "./graphHopFillRunner";
 import { projectToScreen } from "./graphViewport";
 import {
@@ -3837,6 +3838,15 @@ ${error instanceof Error ? error.message : String(error)}`,
   };
 
   /**
+   * The fill's re-plan is not painting, so it must not wait on a paint: a
+   * covered or minimised window delivers no frame, and the fill stalled there
+   * (B75).
+   */
+  const hopFillFrames = createFrameOrTimer(() => document.defaultView, {
+    setTimeout: (run, ms) => setTimeout(run, ms) as unknown as number,
+    clearTimeout: (handle) => clearTimeout(handle),
+  });
+  /**
    * The fill (graphHopFillRunner.ts) owns its queue, epoch, counts, caps and
    * failures; this is its host: the plan's inputs read off the graph, the
    * provider call for one shown paper (automatic mode, one page, one
@@ -3936,16 +3946,8 @@ ${error instanceof Error ? error.message : String(error)}`,
       flushCoalescedPresentationRefresh();
       flushHopSnapshot();
     },
-    frame: (run) => {
-      const view = document.defaultView;
-      return view
-        ? view.requestAnimationFrame(run)
-        : (setTimeout(run, 0) as unknown as number);
-    },
-    cancelFrame: (handle) => {
-      document.defaultView?.cancelAnimationFrame(handle);
-      clearTimeout(handle);
-    },
+    frame: (run) => hopFillFrames.request(run),
+    cancelFrame: (handle) => hopFillFrames.cancel(handle),
     now: () => Date.now(),
     pagingProviders: (direction) => hopFillPagingProviders(direction),
     after: (ms, run) => setTimeout(run, ms) as unknown as number,

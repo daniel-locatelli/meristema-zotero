@@ -26,15 +26,14 @@ Inputs (do not re-derive them):
 
 ## Next
 
-1. B75: a second run of B72's drain case, once Semantic Scholar's throttle
-   window has passed (B74). B72 is pushed (2026-09-17) with this still open.
-2. D8's brainstorm, on the measured fill. It comes before Stage 4's spec.
+1. D8's brainstorm, on the measured fill. It comes before Stage 4's spec. B75's
+   finding (a hidden window starved the fill of frames) bears on its wall clock.
 
 Working rules: a feature branch per change, `npm run check` as the gate
-(prettier covers `docs/` and `README.md`), `npm test` when the change needs
-the Zotero suite, fast-forward to main, `npm run build` last, push via
-`gh-daniel-locatelli`. Commits: sentence-case subject, no type prefix, staged
-by path. Design items are `superpowers:brainstorming`, then a spec in
+(prettier covers `docs/` and `README.md`), the full Zotero suite every 4 or 5
+commits and not per change (see Zotero suite), fast-forward to main,
+`npm run build` last, push via `gh-daniel-locatelli`. Commits: sentence-case
+subject, no type prefix, staged by path. Design items are `superpowers:brainstorming`, then a spec in
 `docs/superpowers/specs/`, a plan in `docs/superpowers/plans/`, then
 subagent-driven development; delete the plan, and then the spec, once the
 work has shipped and nothing open cites them.
@@ -66,14 +65,6 @@ order of evaluation as a pure function with unit tests; label routing through
 
 ## The hop fill
 
-- [ ] B75 B72's stubbed case "drains the plan instead of re-asking papers with
-      no citers" failed once on 2026-09-17: the line read `expanding · 1 left`,
-      hop 1 `2/2`, hop 2 `0/0`. Not rate limiting: the case wraps
-      `Zotero.HTTP.request` (`graphCitationHops.test.ts:1480`) and its host
-      pattern covers all 55 requests in its ledger. It passed on 2026-09-16
-      with only a CSS selector changed since, and the deferral ladder runs on
-      real timers, so intermittent is the first suspect and a second run is the
-      first task. Do not tick B72's manual check until this is settled
 - [ ] D8 the fill fetches far more than the reader needs. The rail offers
       depth 6 but wall clock caps it at 3 ("another 2 hours just to start Hop
       4"). Zotero's own panes stay responsive and only the plot lags, so that
@@ -92,7 +83,11 @@ order of evaluation as a pure function with unit tests; label routing through
       sit-out works; OpenAlex answered 20 of 20, the user's key being live,
       unlike the test profile; 50.5% of wall clock refusing to 46.4% expanding
       over 6 windows; reached hop 3 at 401/401 of 820, never opened hop 4.
-      B64 and B67 are decided with it
+      B64 and B67 are decided with it. B75 (fixed 2026-09-17): until then the
+      re-plan waited on `requestAnimationFrame`, which a covered or minimised
+      window delivers late or never, so the 29.6 min were measured on a fill
+      that slowed whenever Zotero sat behind another window; re-measure before
+      weighing wall clock
 - [ ] D7 the hop rail's numbers do not add up to a story. On screen:
       `Hop 3 1,557/1,557 of 2,726` over `expanding · 627 left · Stop`. Two
       units (papers, and parents queued to expand); `shown/available` is a
@@ -371,7 +366,7 @@ any failure into a new entry above.
       flickering, Stop keeps focus under the keyboard, and Resume starts
       expanding at once. (The countdown half passed under the 2026-09-16
       probe.)
-- [ ] B72 (not before B75 is settled): fill hop 3 on your own profile while
+- [ ] B72: fill hop 3 on your own profile while
       Semantic Scholar is refusing. The progress line ends rather than
       alternating expanding and refusing — `n left` reaches zero. A 2026
       frontier paper reads as expanded with no citers, not re-asked; on
@@ -380,6 +375,10 @@ any failure into a new entry above.
       and count — `Hop 1` then `73/173`, and `Seeds` then its number — and so
       does a row carrying `of {reported}`. A folder row in the same rail is
       unchanged, still filling with the accent blue when selected (B59).
+- [ ] B75: start a hop-3 fill, then minimise Zotero (or cover it with another
+      window) for five minutes. On return the hop counts and `n left` have
+      moved as far as they would have in view; before the fix the line sat
+      where it was left.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -388,14 +387,23 @@ any failure into a new entry above.
 ## Zotero suite
 
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
-may be run from a session. A clean run is 89 passed, 0 failed as of 2026-09-17
+may be run from a session. Run it in full every 4 or 5 commits, not per change
+(the user, 2026-09-17: per-change runs are unsustainable); a case under work
+runs alone under a temporary `describe.only`. Last full run: 2026-09-17 at
+`89b7d91` (80/5, throttled), so count with `git log 89b7d91..main --oneline`.
+A clean run is 89 passed, 0 failed as of 2026-09-17
 (B71's case added); the last full green of all cases was 87 on 2026-09-16.
 
 - Ten Citation hops cases run against live providers on Semantic Scholar's
   keyless pool. When it answers 429 each expansion lands `0/0` after exactly
   15 s and those cases fail: the provider, not a regression. A second full run
   inside the same hour poisons them (B74), so a re-run confirms nothing until
-  the window has passed. B72's stubbed drain case failing is B75, not this.
+  the window has passed.
+- B72's drain case prints a timeline and a frame probe when it stalls. B75 was
+  `frames DO NOT fire in 3 s, visibility hidden`: the test window was covered
+  and the fill re-planned on a frame alone. Minimising the window in the case
+  does not reproduce it (Firefox backs frames off gradually), so
+  `test/unit/frameOrTimer.test.ts` is the regression test.
 - A suite that moves Zotero's collection tree must put it back on the library
   before erasing its fixtures, or the Citation hops suite, which runs next,
   fails its version 4 sticky-notice case.
@@ -432,3 +440,8 @@ entries are in git history.
   compacted and renamed to `roadmap.md`; the backlog trimmed to its open
   entries, B72's plan and B50's spec deleted, unused and duplicate images
   removed. Next: B75's second run, then D8.
+- 2026-09-17, evening: B75 found and fixed on `b75-fill-wakes-without-frames`:
+  the fill re-planned on `requestAnimationFrame` alone and stalled in a hidden
+  window. Six isolated runs of the drain case; the full suite was not run (one
+  attempt stopped: the Tools-menu hooks failed, the test window likely
+  covered). Suite cadence set to every 4 or 5 commits. Next: D8.

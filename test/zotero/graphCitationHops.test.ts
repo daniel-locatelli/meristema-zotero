@@ -1468,6 +1468,53 @@ describe("Citation hops (Stage 3)", function () {
     let realRequest: any = null;
     /** Every provider URL the case saw, as the evidence it asserts on. */
     let asked: string[] = [];
+    /**
+     * When each request went out and each reading of the progress line first
+     * appeared, in seconds from the case's start. The deferral ladder runs on
+     * real timers (B75), so a red run has to say when, not only what.
+     */
+    let timeline: string[] = [];
+    let startedAt = 0;
+    let lastLine = "";
+
+    function mark(what: string): void {
+      timeline.push(
+        `+${((Date.now() - startedAt) / 1000).toFixed(1)}s ${what}`,
+      );
+    }
+
+    /**
+     * Whether the graph's window still delivers animation frames. A window
+     * that is covered or minimised gets them late or not at all, and the fill
+     * once re-planned on a frame alone (B75: `frames DO NOT fire in 3 s,
+     * visibility hidden` under a line stuck on `expanding · 1 left`), so a
+     * stalled line has to say which world it stalled in.
+     */
+    async function frameProbe(): Promise<string> {
+      const view = graphRoot().ownerDocument!.defaultView!;
+      const began = Date.now();
+      const fired = await Promise.race([
+        new Promise<boolean>((resolve) =>
+          view.requestAnimationFrame(() => resolve(true)),
+        ),
+        delay(3_000).then(() => false),
+      ]);
+      return (
+        `frames ${fired ? `fire (${Date.now() - began} ms)` : "DO NOT fire in 3 s"}, ` +
+        `visibility ${view.document.visibilityState}, ` +
+        `focus ${view.document.hasFocus()}`
+      );
+    }
+
+    /** The progress line, recorded whenever its text changes. */
+    function watchedLine(): string {
+      const line = progressText().replace(/retry in .*/, "retry in …");
+      if (line !== lastLine) {
+        lastLine = line;
+        mark(`line "${line}"`);
+      }
+      return progressText();
+    }
 
     /**
      * The whole provider surface, served from here. Every provider request in
@@ -1486,6 +1533,7 @@ describe("Citation hops (Stage 3)", function () {
         if (!PROVIDER_HOST.test(url))
           return realRequest.call(Zotero.HTTP, method, url, options);
         asked.push(url);
+        mark(url.replace(/^https:\/\/([^/]+)\/.*?([^/?]*)(\?.*)?$/, "$1 …$2"));
         // The seed's citers, and then nothing for each of them.
         if (/opencitations\.net\/index\/v1\/citations\//.test(url))
           return providerAnswer(
@@ -1517,7 +1565,7 @@ describe("Citation hops (Stage 3)", function () {
       // Grouped by Intl.NumberFormat above 999, in the machine's own locale
       // (de-CH prints 1'200), so take the count whole and strip all that
       // is not a digit, rather than naming the separators.
-      const match = /^expanding · (.+?) left/.exec(progressText());
+      const match = /^expanding · (.+?) left/.exec(watchedLine());
       return match ? Number(match[1]!.replace(/\D/g, "")) : null;
     }
 
@@ -1629,6 +1677,9 @@ describe("Citation hops (Stage 3)", function () {
       // 210 s and the case needs room well past that.
       this.timeout(420_000);
       asked = [];
+      timeline = [];
+      lastLine = "";
+      startedAt = Date.now();
       serveProvidersOffline();
       try {
         (await nodeMenuEntry("Add as seed", DRAIN_SEED_TITLE)).click();
@@ -1701,7 +1752,7 @@ describe("Citation hops (Stage 3)", function () {
             // The recorded URLs are an ordered trace, so the order of the
             // citation requests says which paper the fill expanded first and
             // whether Semantic Scholar was asked between them.
-            `${asked.length} request(s) in order: ${asked.join(" | ")}`,
+            `${started ? "" : await frameProbe()}; timeline: ${timeline.join(" | ")}`,
         ).to.exist;
         // The anchor is a library paper, so nothing hints its work ID and its
         // expansion looks the DOI up. That is the fixture's own guard: were it
@@ -1747,7 +1798,7 @@ describe("Citation hops (Stage 3)", function () {
         // "1 gave up" rather than vanishing. What must stop either way — and
         // what pre-fix code cannot do — is the expanding/refusing alternation.
         const drained = await waitFor(() => {
-          const line = progressText();
+          const line = watchedLine();
           return line === "no progress line" || /gave up/.test(line)
             ? line
             : null;
@@ -1756,7 +1807,7 @@ describe("Citation hops (Stage 3)", function () {
           drained,
           `the plan never drained; the line reads "${progressText()}", ` +
             `hop 1 "${hopRowText(1)}", hop 2 "${hopRowText(2)}"; ` +
-            `${asked.length} provider request(s): ${asked.join(" | ")}`,
+            `${drained ? "" : await frameProbe()}; timeline: ${timeline.join(" | ")}`,
         ).to.exist;
         // The scenario really ran: each hop-1 paper was asked for its own
         // citers, and none of them was looked up first. That skipped lookup
