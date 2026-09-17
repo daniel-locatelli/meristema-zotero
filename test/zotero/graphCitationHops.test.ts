@@ -1,6 +1,7 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
 import { config } from "../../package.json";
+import { getOpenAlexAPIKey } from "../../src/services/citationPreferences";
 import { emptyGraphViewState } from "../../src/services/graphViewState";
 import { getPluginDatabase } from "../../src/services/pluginDatabase";
 import {
@@ -37,6 +38,94 @@ const REFUSAL_DOI = "10.1371/journal.pone.0043136";
 /** Every provider a fill may ask. The wrapper answers these with HTTP 429. */
 const REFUSED_URL =
   /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org)\//;
+/**
+ * B72's seed carries a DOI of its own, fabricated like its citers. The case
+ * serves every provider itself, so the seed never has to be a paper an index
+ * really knows — and a DOI nothing else uses is the only way to be sure no
+ * DOI-keyed state reaches it. The external-works metadata mirror keys by DOI,
+ * and B50 runs immediately before against a real one, so sharing that DOI let
+ * a stored citer count bound this case's own fetch.
+ */
+const DRAIN_SEED_DOI = "10.5555/b72.drain.seed";
+/**
+ * The seed's own citation list. B72's wrapper answers every other
+ * OpenCitations citation URL with an empty list, so hop-1 papers report no
+ * citers while the seed still fills hop 1. The DOI reaches the wrapper either
+ * raw or percent-encoded.
+ */
+const SEED_CITATIONS = new RegExp(
+  `opencitations\\.net/index/v1/citations/(${DRAIN_SEED_DOI.replace(
+    /[.]/g,
+    "\\.",
+  )}|${encodeURIComponent(DRAIN_SEED_DOI).replace(/[.]/g, "\\.")})`,
+  "i",
+);
+/**
+ * The seed's citers, fabricated so the case owns them. Two DOIs no library
+ * item carries, so `localNodeForWork` matches nothing and each arrives as an
+ * external node: `itemID: 0`, OpenCitations as its provider, the DOI as its
+ * provider work ID. Those are exactly the three conditions
+ * `graphViewService.ts:3898` requires before it hints a work ID, and a hint is
+ * what B72's path needs — a hop-1 paper whose empty list nothing backs.
+ */
+const DRAIN_CITERS = ["10.5555/b72.drain.a", "10.5555/b72.drain.b"];
+/**
+ * The refusal anchor, and the reason this case can go red at all: a SECOND
+ * SEED the library holds, carrying a DOI no index knows. A library paper has
+ * no work-ID hint and no provider of its own, so the fill asks Semantic
+ * Scholar first (the automatic citations order, `registry.ts`), is refused,
+ * and re-opens the window every time it lapses. Without it the window opened
+ * once, at the first seed's expansion, and had closed again by the time the
+ * hop-1 papers landed — so nobody was sitting out, their landings were not
+ * refused, and pre-fix code drained the plan correctly.
+ *
+ * It is a seed rather than a third citer because `planHopFill` ranks
+ * `hop === 0` at 0, ahead of every hop-1 paper, so the anchor is expanded
+ * first on every cycle by the product's own rule, whatever else is going on.
+ * Ordering it by selection was tried first and lost the race in red run 7:
+ * both children expanded while the window was shut, so neither landing was
+ * refused, both were failed, and the plan emptied down to the anchor. Why the
+ * selection did not hold was never established — external keys are `focus:…`
+ * (graphFocusService.ts:56) and sort ahead of a library item key in the
+ * `key.localeCompare` tiebreak, so any cycle where `selectedKey` is not the
+ * anchor hands the children the plan. Rank 0 removes the question entirely.
+ */
+// No fixture DOI here may be a prefix of another: `urlNames` matches by
+// substring on the percent-encoded form, so `…drain.a` matched `…drain.anchor`
+// and misattributed the anchor's own lookups to a citer (green run 2).
+const DRAIN_ANCHOR_DOI = "10.5555/b72.drain.refuser";
+const DRAIN_SEED_TITLE = `${REFUSAL_TITLE} (drain)`;
+const DRAIN_ANCHOR_TITLE = `${REFUSAL_TITLE} (anchor)`;
+/** Hop 1: the two citers with no citers of their own. */
+const DRAIN_HOP_1 = DRAIN_CITERS.length;
+/**
+ * What the plan holds once hop 2 is fetched: those two, and the anchor seed,
+ * which cannot leave until the deferral limit fails it.
+ */
+const DRAIN_PLANNED = DRAIN_CITERS.length + 1;
+/** The seed's citation page in OpenCitations' own row shape. */
+const DRAIN_CITER_LIST = JSON.stringify(
+  DRAIN_CITERS.map((doi) => ({ citing: doi })),
+);
+/** Semantic Scholar's own host: the provider this case keeps sitting out. */
+const SEMANTIC_SCHOLAR_HOST = /^https:\/\/api\.semanticscholar\.org\//;
+/** OpenCitations' work lookup — the request a work-ID hint skips. */
+const META_LOOKUP = /opencitations\.net\/meta\/v1\/metadata\//i;
+/**
+ * Every provider host the B72 case answers for itself. Anything else — Zotero's
+ * own traffic — still reaches the network, so the wrapper cannot break the
+ * session it runs in.
+ */
+const PROVIDER_HOST =
+  /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
+/** A provider sitting out a window: a refusal, never an error (ADR 0013). */
+function providerRefusal(): unknown {
+  return { status: 429, responseText: "", getResponseHeader: () => null };
+}
+/** A provider answering, with the body the case wants it to answer. */
+function providerAnswer(responseText: string): unknown {
+  return { status: 200, responseText, getResponseHeader: () => null };
+}
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -1326,6 +1415,377 @@ describe("Citation hops (Stage 3)", function () {
           hopCounts(1)?.available ?? 0,
           `hop 1 never filled after Resume; trace: ${trace}`,
         ).to.be.greaterThan(0);
+      } finally {
+        answerAgain();
+      }
+    });
+  });
+
+  /**
+   * B72: a fill must finish even while one provider refuses for good. The case
+   * serves every provider itself, so nothing here depends on what an index
+   * holds today: Semantic Scholar answers HTTP 429 throughout, so it sits out
+   * a window and every landing counts as refused, while OpenCitations answers
+   * the seed with two fabricated citers and answers each of those citers with
+   * an empty list. OpenAlex never enters it: it pages citations only with a
+   * key (`isPagingProvider`), so on a keyless profile it is not a candidate at
+   * all — and `before` asserts the profile has none, rather than letting a key
+   * quietly turn this into a different scenario.
+   *
+   * Those hop-1 papers are external and carry OpenCitations' own work ID, so
+   * the fill hints it and the lookup that would back their empty list is
+   * skipped. Before the fix each was deferred for ever and `n left` never
+   * fell; now each is stored as "no citers" and the plan drains.
+   *
+   * What makes that reachable is the second seed, the refusal anchor
+   * (`DRAIN_ANCHOR_DOI`). A window only ever opens where a provider was asked
+   * and refused, so without a paper that keeps asking Semantic Scholar the one
+   * window the first seed opened simply lapses, the children land with nobody
+   * sitting out, and pre-fix code drains the plan correctly. A seed is rank 0
+   * in `planHopFill`, ahead of every hop-1 paper, so the anchor is expanded
+   * first on every cycle and renews the window before either child lands.
+   *
+   * Three traps this case is shaped to avoid, each of which produced a false
+   * green before. It has to fetch hop 2: the defect is in expanding the hop-1
+   * papers, and only a fetch past the depth puts them in a plan, so expanding
+   * the seed alone drains whatever the code does. "Drained" has to mean the
+   * progress line is GONE — pre-fix code alternates expanding and refusing,
+   * and a refusal countdown is not `expanding` either, so any weaker reading
+   * passes on the first cool-down. And the drain cannot be the only signal:
+   * the anchor is refused on every cycle, so pre-fix it alone pins the plan
+   * for ever whatever the children do. The assertion that is B72's own is that
+   * `n left` FALLS BELOW the three it started at — pre-fix the children are
+   * deferred and stay counted, so it cannot; post-fix each is stored on its
+   * first landing and only the anchor is left.
+   */
+  describe("when one provider sits out and another has no citers (B72)", function () {
+    let drainTabID: string | null = null;
+    let drainItemID: number | null = null;
+    let anchorItemID: number | null = null;
+    let realRequest: any = null;
+    /** Every provider URL the case saw, as the evidence it asserts on. */
+    let asked: string[] = [];
+
+    /**
+     * The whole provider surface, served from here. Every provider request in
+     * the plugin funnels through one `Zotero.HTTP.request` call, so this is
+     * the entire network a fill can reach. Anything that is not a provider
+     * host still goes out, so Zotero's own traffic is untouched.
+     */
+    function serveProvidersOffline(): void {
+      if (realRequest) return;
+      realRequest = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) => {
+        if (!PROVIDER_HOST.test(url))
+          return realRequest.call(Zotero.HTTP, method, url, options);
+        asked.push(url);
+        // The seed's citers, and then nothing for each of them.
+        if (/opencitations\.net\/index\/v1\/citations\//.test(url))
+          return providerAnswer(
+            SEED_CITATIONS.test(url) ? DRAIN_CITER_LIST : "[]",
+          );
+        // The seed and the anchor are library papers, so their own expansions
+        // still look the DOI up; not-found answers that well enough and keeps
+        // the case offline. A hinted hop-1 paper must never reach here — the
+        // work-ID hint is what skips this lookup, and the case asserts both
+        // that the children skipped it and that the anchor did not.
+        if (META_LOOKUP.test(url)) return providerAnswer("[]");
+        // Every other provider sits out the window.
+        return providerRefusal();
+      };
+    }
+
+    function answerAgain(): void {
+      if (!realRequest) return;
+      (Zotero.HTTP as any).request = realRequest;
+      realRequest = null;
+    }
+
+    /**
+     * The `{n}` of `expanding · {n} left`, or null while the line reads
+     * anything else. A refusal countdown carries no count at all, so null
+     * means "not expanding just now", never "nothing left".
+     */
+    function leftCount(): number | null {
+      const match = /^expanding · (\d+) left/.exec(progressText());
+      return match ? Number(match[1]) : null;
+    }
+
+    /** Whether a recorded provider URL names this DOI, raw or encoded. */
+    function urlNames(url: string, doi: string): boolean {
+      const lower = url.toLowerCase();
+      return (
+        lower.includes(doi.toLowerCase()) ||
+        lower.includes(encodeURIComponent(doi).toLowerCase())
+      );
+    }
+
+    before(async function () {
+      this.timeout(90_000);
+      // OpenAlex pages citations only with a key, and this case is built on
+      // the fill having exactly two candidates: Semantic Scholar, which always
+      // refuses, and OpenCitations, which answers. A key would add a third and
+      // change what every landing means, so fail loudly rather than quietly
+      // run something else.
+      expect(
+        getOpenAlexAPIKey(),
+        "this profile carries an OpenAlex key, which makes it a third paging " +
+          "provider and changes what the fill asks",
+      ).to.equal("");
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", DRAIN_SEED_TITLE);
+      item.setField("date", "2012");
+      item.setField("DOI", DRAIN_SEED_DOI);
+      drainItemID = await item.saveTx();
+
+      // The refusal anchor, a library paper the seed's citation page names. It
+      // holds Semantic Scholar's window open for the whole fill; see the
+      // block's own comment for why the case is vacuous without it.
+      const anchor = new Zotero.Item("journalArticle");
+      anchor.libraryID = Zotero.Libraries.userLibraryID;
+      anchor.setField("title", DRAIN_ANCHOR_TITLE);
+      anchor.setField("date", "2013");
+      anchor.setField("DOI", DRAIN_ANCHOR_DOI);
+      anchorItemID = await anchor.saveTx();
+
+      drainTabID = await openNewGraphTab();
+      currentTabID = drainTabID;
+      win.Zotero_Tabs.select(drainTabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(drainTabID)?.querySelector(
+            ".cm-scope-section .cm-scope-count",
+          ),
+        30_000,
+      );
+      expect(rail, "the drain tab's Scope section").to.exist;
+      await dismissGallery(drainTabID);
+      // Fit before anything walks the plot, as B50's block does. Without it
+      // the camera keeps whatever extent it opened on, and the anchor widened
+      // the data's span enough to push the earliest paper off screen: red run
+      // 6 walked the canvas 36 times in 20 s and was offered only the anchor
+      // and the Stage 3 fixture, never the seed it was looking for.
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the drain tab's fit button").to.exist;
+      fit!.click();
+      await waitFor(() => {
+        const canvas = graphRoot().querySelector("canvas");
+        return canvas ? canvas.getBoundingClientRect().width > 10 : false;
+      }, 10_000);
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      let failure: unknown = null;
+      const record = (error: unknown): void => {
+        if (failure === null) failure = error;
+      };
+      try {
+        answerAgain();
+      } catch (error) {
+        record(error);
+      }
+      try {
+        if (drainTabID) win.Zotero_Tabs.close(drainTabID);
+        await delay(500);
+      } catch (error) {
+        record(error);
+      }
+      drainTabID = null;
+      currentTabID = null;
+      try {
+        if (drainItemID !== null) await Zotero.Items.erase(drainItemID);
+        drainItemID = null;
+      } catch (error) {
+        record(error);
+      }
+      try {
+        if (anchorItemID !== null) await Zotero.Items.erase(anchorItemID);
+        anchorItemID = null;
+      } catch (error) {
+        record(error);
+      }
+      if (failure !== null) throw failure;
+    });
+
+    it("drains the plan instead of re-asking papers with no citers", async function () {
+      // The anchor can only leave the plan through the deferral limit, which
+      // is three deferrals at 30 s, 1 min and 2 min (graphHopRunnerModel.ts,
+      // COOL_DOWN_MS and DEFERRAL_LIMIT), so the drain lands a little past
+      // 210 s and the case needs room well past that.
+      this.timeout(420_000);
+      asked = [];
+      serveProvidersOffline();
+      try {
+        (await nodeMenuEntry("Add as seed", DRAIN_SEED_TITLE)).click();
+        // Hop 1 is the seed's own citers, served by the wrapper, so the count
+        // is known exactly rather than being whatever an index holds today.
+        const filled = await waitFor(
+          () => hopCounts(1)?.available ?? null,
+          120_000,
+        );
+        expect(
+          filled,
+          `hop 1 never filled; it read "${hopRowText(1)}"; ` +
+            `${asked.length} provider request(s): ${asked.join(" | ")}`,
+        ).to.equal(DRAIN_HOP_1);
+        // A window opens only where a provider was actually asked and refused,
+        // so the seed's own expansion asking Semantic Scholar is what makes
+        // the first landings refused ones. Without this the case could pass
+        // with nothing ever sitting out a window.
+        expect(
+          asked.filter((url) => SEMANTIC_SCHOLAR_HOST.test(url)),
+          `Semantic Scholar was never asked, so no refusal window opened; ` +
+            `${asked.length} request(s): ${asked.join(" | ")}`,
+        ).to.not.be.empty;
+        // The anchor joins as a SECOND SEED. That is what guarantees it is
+        // expanded before either child: a seed is rank 0 in `planHopFill`,
+        // and rank beats every other term in the ordering.
+        (await nodeMenuEntry("Add as seed", DRAIN_ANCHOR_TITLE)).click();
+        const seeded = await waitFor(
+          () => (hopCountText(0) === "2" ? hopCountText(0) : null),
+          30_000,
+        );
+        expect(
+          seeded,
+          `the anchor never became a second seed, so nothing renews Semantic ` +
+            `Scholar's window; the Seeds row reads "${hopRowText(0)}"`,
+        ).to.exist;
+        // The hop-1 papers only enter a plan once hop 2 is fetched, and it is
+        // expanding them — not the seed — that B72 never finishes.
+        const fetchHop2 = fetchButton(2);
+        expect(
+          fetchHop2,
+          `hop 2 carries no Fetch button, so the hop-1 papers never enter a ` +
+            `plan; hop 1 read "${hopRowText(1)}", hop 2 "${hopRowText(2)}"`,
+        ).to.exist;
+        fetchHop2!.click();
+        // The progress line renders only while a fill is in flight, so confirm
+        // one actually started before treating any absence as "drained". The
+        // count cannot establish that: it moves as the plan is built, and
+        // pre-fix runs recorded the first expanding tick reading 1 (run 7) and
+        // 3 (run 9) from the same code. The trace only ever grows, so asking it
+        // is race-free — and both children having been asked for their own
+        // citers is precisely what "the fill started on all of hop 1" means.
+        // It must hold in both worlds: this is the vacuity guard, and the
+        // discrimination belongs to the two assertions below.
+        const started = await waitFor(
+          () =>
+            DRAIN_CITERS.every((doi) =>
+              asked.some(
+                (url) =>
+                  /index\/v1\/citations\//i.test(url) && urlNames(url, doi),
+              ),
+            ) || null,
+          120_000,
+        );
+        expect(
+          started,
+          `the fill never started on all of hop 1, so what follows would be ` +
+            `vacuous; the line reads "${progressText()}", ` +
+            `hop 1 "${hopRowText(1)}", hop 2 "${hopRowText(2)}"; ` +
+            // The recorded URLs are an ordered trace, so the order of the
+            // citation requests says which paper the fill expanded first and
+            // whether Semantic Scholar was asked between them.
+            `${asked.length} request(s) in order: ${asked.join(" | ")}`,
+        ).to.exist;
+        // The anchor is a library paper, so nothing hints its work ID and its
+        // expansion looks the DOI up. That is the fixture's own guard: were it
+        // to arrive as an external node instead, it would be hinted like the
+        // children, would never ask Semantic Scholar, and the count below
+        // could fall for reasons that are not B72's.
+        const anchorLookedUp = await waitFor(
+          () =>
+            asked.some(
+              (url) => META_LOOKUP.test(url) && urlNames(url, DRAIN_ANCHOR_DOI),
+            ) || null,
+          60_000,
+        );
+        expect(
+          anchorLookedUp,
+          `the anchor's work ID was hinted, so it is not the library paper ` +
+            `the case needs and no window is being renewed; ` +
+            `${asked.length} request(s): ${asked.join(" | ")}`,
+        ).to.exist;
+        // B72 itself. Pre-fix each child's hinted empty list is unbacked, so
+        // each is deferred and stays counted (ADR 0013) and this count cannot
+        // fall below the three it started at, however long the fill runs.
+        // Post-fix each is stored as "no citers" on its first landing and only
+        // the anchor is left.
+        const fell = await waitFor(() => {
+          const left = leftCount();
+          return left !== null && left < DRAIN_PLANNED ? left : null;
+        }, 90_000);
+        expect(
+          fell,
+          `the papers with no citers never left the plan: the line reads ` +
+            `"${progressText()}", hop 1 "${hopRowText(1)}"; ` +
+            `${asked.length} provider request(s): ${asked.join(" | ")}`,
+        ).to.exist;
+        // The fix's other half, and the slower one: the anchor is refused on
+        // every cycle, so only the deferral limit can end it. Drained means
+        // the line is GONE, the one reading a stalled fill cannot produce —
+        // pre-fix it alternates expanding and refusing for ever, and a refusal
+        // countdown is not `expanding` either.
+        const drained = await waitFor(
+          () => (progressText() === "no progress line" ? progressText() : null),
+          300_000,
+        );
+        expect(
+          drained,
+          `the plan never drained; the line reads "${progressText()}", ` +
+            `hop 1 "${hopRowText(1)}", hop 2 "${hopRowText(2)}"; ` +
+            `${asked.length} provider request(s): ${asked.join(" | ")}`,
+        ).to.exist;
+        // The scenario really ran: each hop-1 paper was asked for its own
+        // citers, and none of them was looked up first. That skipped lookup
+        // is the hint (externalDiscoveryService.ts:1288-1299) — the call-site
+        // wiring no unit test covers, and the reason an empty list needs
+        // backing at all.
+        const expanded = DRAIN_CITERS.filter((doi) =>
+          asked.some(
+            (url) => /index\/v1\/citations\//i.test(url) && urlNames(url, doi),
+          ),
+        );
+        expect(
+          expanded,
+          `the hop-1 papers were never expanded; ` +
+            `${asked.length} request(s): ${asked.join(" | ")}`,
+        ).to.have.lengthOf(DRAIN_CITERS.length);
+        const lookedUp = asked.filter(
+          (url) =>
+            META_LOOKUP.test(url) &&
+            DRAIN_CITERS.some((doi) => urlNames(url, doi)),
+        );
+        expect(
+          lookedUp,
+          `a hop-1 paper was looked up, so its empty list was backed by a ` +
+            `match rather than by the fill's own work-ID hint`,
+        ).to.deep.equal([]);
+        // And the anchor did its job: Semantic Scholar was asked again after
+        // the seed's own expansion, which is the only thing that can re-open
+        // the window the children's landings need in order to count as
+        // refused. One ask alone would mean the window lapsed unrenewed.
+        expect(
+          asked.filter((url) => SEMANTIC_SCHOLAR_HOST.test(url)).length,
+          `Semantic Scholar was asked once and never again, so its window was ` +
+            `never renewed and the children landed with nobody sitting out`,
+        ).to.be.greaterThan(1);
+        expect(
+          hopCountText(2),
+          `hop 2 still carries the Fetch button, so the depth never moved`,
+        ).to.not.equal(null);
       } finally {
         answerAgain();
       }
