@@ -4,7 +4,7 @@
 **Status:** Built 2026-09-13; manual checks queued (revised 2026-09-12 after
 an adversarial review of 24 findings, folded in below)
 
-Stage 3 of `docs/superpowers/handoffs/2026-09-08-roadmap.md`, layer 2 of the
+Stage 3 of `docs/superpowers/handoffs/roadmap.md`, layer 2 of the
 citation chain depth design
 (`docs/design_handoff_citation_chain_depth/README.md`, option 6a, item 2).
 Depends on Stage 2 (the graph scope rail) and on B6. Layer 3
@@ -248,8 +248,8 @@ the definitions above, rebuilds the hop model, recomputes the scope and
 re-sorts the plan. A request already in flight for a paper that has left the
 plan finishes and stores; it is not cancelled. A thrown provider error is
 logged, marks the paper failed for the session, and the runner moves on. A
-refusal (HTTP 429) is not a failure: see
-`2026-09-15-hop-fill-refusals-design.md`.
+refusal (HTTP 429) is not a failure: see ADR 0013
+(`docs/adr/0013-a-refusal-is-not-a-failure.md`).
 
 **Publications during a fill.** Each landing publishes `membership-published`
 for the expanded paper, which today refreshes every item-tree column and

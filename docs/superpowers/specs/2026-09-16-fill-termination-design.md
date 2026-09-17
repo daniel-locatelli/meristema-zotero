@@ -3,7 +3,7 @@
 **Date:** 2026-09-16
 **Status:** Design approved 2026-09-16
 
-B72 of `docs/superpowers/handoffs/2026-09-08-roadmap.md`, brainstormed as the
+B72 of `docs/superpowers/handoffs/roadmap.md`, brainstormed as the
 first half of D8 on the hop-3 fill measured the same day
 (`docs/superpowers/handoffs/2026-09-16-d8-evidence.md`, probe JSON
 `meristema-fill-probe-2026-09-16T12-23-24-909Z.json`). Refines ADR 0013, which

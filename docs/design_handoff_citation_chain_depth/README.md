@@ -92,5 +92,5 @@ Surfaces: panel `#1c1c1a`, paper `#232320`, hairline `#35352f`, grid `#2b2b27`, 
 
 ## Files
 - `Citation Chain Depth.dc.html` + `support.js` — prototype; open `#6a`.
-- `reference/FocusView.png`, `reference/OrderedGraph.png` — current plugin screenshots.
+- `docs/assets/FocusView.png` — a screenshot of the plugin as it was before Stage 2.
 - `reference/graph.css` — current rail/toolbar stylesheet to extend.
