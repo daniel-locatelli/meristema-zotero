@@ -118,8 +118,9 @@ _Avoid_: fetched, loaded, resolved
 
 **Failed**:
 A paper whose expansion in the current direction returned nothing usable this
-session, and no provider refused or was skipped. It leaves the fill until the
-graph is reopened.
+session with no provider refusing or skipped, or which reached the deferral
+limit. It leaves the fill until the graph is reopened; Resume brings back only
+the papers the limit failed.
 _Avoid_: broken, stale, missing
 
 **Refused**:
@@ -127,6 +128,23 @@ A paper whose expansion stored nothing because a provider answered "too many
 requests" or was sitting out its cool-down. Not failed: it stays in the fill
 and is asked again once that provider's cool-down ends.
 _Avoid_: rate-limited paper, throttled, blocked
+
+**Backed**:
+What lets a fill trust an empty list: a lookup match, a reported count, or a
+work-ID hint the asking provider itself supplied. An unbacked empty list is a
+failure and is never stored.
+_Avoid_: verified, confirmed
+
+**Empty answer**:
+A snapshot that succeeded with no works. It ends an expansion only when no
+candidate is left to ask; while one remains, the next is asked past it.
+_Avoid_: no results, blank list, zero hits
+
+**Deferral limit**:
+How many times a paper may be deferred with nothing stored before it fails for
+the session. Three. It is what lets a fill finish while a provider refuses for
+good.
+_Avoid_: retry count, max retries
 
 **Fill**:
 The background work that expands shown papers one at a time, in priority
