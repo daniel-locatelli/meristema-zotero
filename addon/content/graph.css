@@ -1644,7 +1644,18 @@
  * this one asks for a neutral 8% tint (B59). The hover pair below ties the
  * base rule's (0,3,1) and wins on sheet order, since graph.css's link is kept
  * after paperDetail.css's.
+ *
+ * The bare selector is grouped beside it for the hop rows, whose body is a
+ * `<div>` (`graphKeyRail.ts:601`) and so matched no layout rule at all once
+ * B59 tagged this one: the body lost `display: flex` and its `gap`, its label
+ * and count fell back to adjacent inline spans, and the rail read `Seeds2` and
+ * `Hop173/173` (B71). Each selector in a group carries its own specificity, so
+ * the div takes the bare one uncontested while the button still matches the
+ * tagged one and still outranks the base rule. `cursor` is the one property
+ * the two kinds want differently, and `.cm-scope-hop-body` below restores
+ * `default` for the div on source order.
  */
+.cm-scope-row-body,
 .meristema-root button.cm-scope-row-body {
   display: flex;
   align-items: center;

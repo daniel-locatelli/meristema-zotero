@@ -2,6 +2,8 @@
 import { expect } from "chai";
 import { createViewGallery } from "../../src/services/graphViewsMenu";
 import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
+import { createKeyRail } from "../../src/services/graphKeyRail";
+import type { ScopeRailModel } from "../../src/services/graphScopeRailModel";
 
 /**
  * B44: a plugin button in a Zotero tab is pinned to Zotero's own button height.
@@ -157,7 +159,8 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
    * B59, the same family read from the other side: a plugin button that wants
    * *no* chrome at all.
    *
-   * The Scope rail's row body is a `<button>` styled by `.cm-scope-row-body`,
+   * The Scope rail's folder and seed rows carry a `<button>` body styled by
+   * `.cm-scope-row-body` — the hop rows carry a `<div>`, which is B71 below —
    * which is (0,1,0) and loses to the plugin's own base rule
    * `.meristema-root button` at (0,1,1) — so it kept the raised surface the
    * base rule paints, which is opaque and hid the selected row's accent fill
@@ -192,6 +195,99 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       /rgba\(0, 0, 0, 0\)|transparent/.test(painted),
       `the row body paints no background of its own, but got "${painted}"`,
     ).to.equal(true);
+  });
+
+  /** A rail holding one open hop row: a label, and a count beside it. */
+  const HOP_ROW_MODEL: ScopeRailModel = {
+    countLine: "173 of 173 papers",
+    seedsHeading: "Seeds",
+    seeds: [],
+    rows: [],
+    hiddenLine: null,
+    hops: {
+      direction: "cited-by",
+      rows: [
+        {
+          hop: 1,
+          label: "Hop 1",
+          count: "73/173",
+          reported: null,
+          fetchButton: false,
+          checkbox: true,
+          enabled: true,
+          dimmed: false,
+          opened: true,
+          swatch: "#4f7cff",
+        },
+      ],
+      progress: null,
+    },
+  };
+
+  /**
+   * B71, which is B59's own fix read from the other side. The Scope rail builds
+   * two kinds of row body: a `<button>` for the folder and seed rows
+   * (`graphKeyRail.ts:492`) and a `<div>` for the hop rows (`:601`). B59 tagged
+   * the layout rule `.meristema-root button.cm-scope-row-body`
+   * (`graph.css:1648`) so it would beat the base rule at (0,1,1) — right for
+   * the buttons, but it left the div matching no layout rule at all, and
+   * `.cm-scope-hop-body` (`:1744`) declares only `cursor: default`. So the hop
+   * body loses `display: flex` and its `gap: 6px`, its label and count fall
+   * back to adjacent inline spans, and the rail reads `Seeds2` and
+   * `Hop173/173`.
+   *
+   * Two things about how this is measured, both learned the hard way. It runs
+   * in the main window because the visual harness opens its own window and
+   * never loads Zotero's sheet (B44). And it measures the rail's *own* output
+   * rather than a hand-built div: the one case that covered this rule
+   * hand-wrote a `<button>` and so encoded the very assumption that broke.
+   */
+  it("keeps a gap between a hop row's label and its count", async function () {
+    const measured = await inMainWindowStyled(
+      (document) => {
+        const rail = createKeyRail({
+          document,
+          onEmphasise: () => undefined,
+          onScope: {
+            toggleRow: () => undefined,
+            selectRow: () => undefined,
+            removeSeed: () => undefined,
+            addSeed: () => undefined,
+            showAllHidden: () => undefined,
+            setHopDirection: () => undefined,
+            fetchHop: () => undefined,
+            toggleHop: () => undefined,
+            fillControl: () => undefined,
+          },
+        });
+        rail.renderScope(HOP_ROW_MODEL);
+        return rail.root;
+      },
+      (mount, host) => {
+        const body = mount.querySelector(".cm-scope-hop-body") as HTMLElement;
+        expect(body, "the rail drew a hop row body").to.exist;
+        const label = body.querySelector(".cm-scope-row-label") as HTMLElement;
+        const count = body.querySelector(".cm-scope-row-count") as HTMLElement;
+        expect(label, "the hop row carries a label").to.exist;
+        expect(count, "the hop row carries a count").to.exist;
+        const labelBox = label.getBoundingClientRect();
+        const countBox = count.getBoundingClientRect();
+        // A row that never laid out reports a 0px gap and would fail for a
+        // reason that has nothing to do with the cascade.
+        expect(labelBox.width, "the label was laid out").to.be.greaterThan(0);
+        expect(countBox.width, "the count was laid out").to.be.greaterThan(0);
+        return {
+          gap: countBox.left - labelBox.right,
+          display: host.getComputedStyle(body)?.display ?? "",
+        };
+      },
+    );
+    expect(
+      measured.gap,
+      `the label and count sit 6px apart, but the gap is ` +
+        `${measured.gap.toFixed(1)}px and the body computed ` +
+        `display:${measured.display}`,
+    ).to.be.greaterThan(5);
   });
 
   /**
