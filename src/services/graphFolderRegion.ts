@@ -22,8 +22,7 @@
  * telling the reader which papers made it — the region swallows the viewport,
  * and a shape that covers everything identifies nothing. What makes it
  * defensible is that it is scoped to past the fit, where the alternative is
- * not a stable shape but an edge nobody can see. See
- * `docs/superpowers/specs/2026-09-10-graph-region-curves-design.md` (D6).
+ * not a stable shape but an edge nobody can see (D6).
  *
  * Plain geometry in, plain geometry out: no canvas, no DOM.
  *
