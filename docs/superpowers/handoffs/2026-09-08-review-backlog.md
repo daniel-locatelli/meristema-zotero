@@ -112,7 +112,7 @@ user confirmed via Ctrl+click).
 
 Action: none in code. Rewrite the spec's walk-through step ("Click empty
 list space") to "Ctrl+click the selected row" in
-`docs/superpowers/specs/2026-09-07-selection-sync-design.md`.
+the selection sync spec.
 
 ## B6. Adding a non-Zotero node as a seed, then Add to Zotero, fails
 
@@ -174,8 +174,7 @@ Pointers: `src/services/graphFocusService.ts` (`buildGraphFocusProjection`),
 (~line 1750), `applyMapItems` with modes replace/add (~line 3690),
 `replaceMapItems` used by `openGraphAndSelectItemsInView`
 (`windowService.ts` ~line 1597, called from the item menu "Show in ›").
-Specs: `docs/superpowers/specs/2026-09-06-graph-view-merge-design.md`
-and `2026-09-07-seed-entry-points-design.md` record why Add node was
+The graph view merge and seed entry points specs record why Add node was
 removed and why seeds replaced scope.
 
 Process: `superpowers:brainstorming` first (a real design session), then
@@ -265,8 +264,7 @@ is the cost of how they were met.
 
 Pointers: `src/services/windowService.ts:546` (`askName`, prompt) and
 `:587` (`remove`, `confirmEx`, `DELETE_CANCEL_BUTTONS`);
-`src/services/menuService.ts:550` (Rename View). Spec:
-`docs/superpowers/specs/2026-09-07-durable-graphs-design.md`.
+`src/services/menuService.ts:550` (Rename View). Spec: durable graphs.
 
 **Decided 2026-09-08: keep the native dialogs.** The alternative was to
 replace all three with an in-window modal built from the plugin's own DOM
@@ -297,7 +295,7 @@ which is specified in
 `docs/design_handoff_citation_chain_depth/README.md` and gains a
 `Make seed` button in stage 3.
 
-Note the interaction with Stage 2: `2026-09-08-graph-scope-rail-design.md`
+Note the interaction with Stage 2: the graph scope rail spec
 leaves the detail pane alone, so this can land before or after it.
 
 Process: short brainstorm, then a small plan.
@@ -370,7 +368,7 @@ catches as `expected HTMLParagraphElement{} to equal null`.
 The rest of the case passes, so the selection does arrive and the graph does
 act on it: what is unclear is whether a one-row selection is meant to select
 or only to emphasise now, and the answer decides whether the defect is in the
-pane or in the case. `2026-09-07-selection-sync-design.md` is the authority,
+pane or in the case. The selection sync spec is the authority,
 and Stage 2's adopt rule — a fresh view keeps a selection it restored, and a
 list row only emphasises — is the thing to read it against.
 
@@ -423,8 +421,7 @@ region's colour comes from a ledger keyed on the collection's own ID, which
 hands out the lowest free palette index and holds it while the key lives.
 Ticking or unticking a folder can no longer repaint another's colour, because
 no folder's colour is a function of rank any more.
-`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md` is the
-spec.
+The graph colour system spec is the spec.
 
 ---
 
@@ -909,8 +906,7 @@ through. `npm run check` green; not walked in Zotero.
 ## B25. The category assignment map the spec promises is not persisted; it lives on the renderer and dies with it — FIXED
 
 Found in the final whole-branch review of D3. The design spec
-(`docs/superpowers/specs/2026-09-09-graph-colour-system-design.md`, lines
-137-144) says the category-to-swatch assignment is persisted with the graph,
+(graph colour system) says the category-to-swatch assignment is persisted with the graph,
 the same way seed and folder swatches are. It is not: `state.swatches` (the
 field the spec means) only ever receives stringified collection IDs, written
 by `graphViewService.ts`. The actual category ledger — which swatch

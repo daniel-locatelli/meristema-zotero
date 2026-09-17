@@ -7,7 +7,7 @@ an adversarial review of 24 findings, folded in below)
 Stage 3 of `docs/superpowers/handoffs/2026-09-08-roadmap.md`, layer 2 of the
 citation chain depth design
 (`docs/design_handoff_citation_chain_depth/README.md`, option 6a, item 2).
-Depends on Stage 2 (`2026-09-08-graph-scope-rail-design.md`) and on B6. Layer 3
+Depends on Stage 2 (the graph scope rail) and on B6. Layer 3
 (the citation floor, shared citers, the presets) is Stage 4 and is not in this
 spec.
 
@@ -23,7 +23,7 @@ demand and each toggleable, with `{shown}/{available}` per row.
 
 Fetching is the constraint. Hop 2 is the union of the citers of every hop-1
 paper; with 50 hop-1 papers per seed and the providers' one request per second
-(`2026-09-10-provider-rate-limits-design.md`), one press of a whole-hop button
+(B9 and B10), one press of a whole-hop button
 runs for minutes and can bring thousands of nodes. The user's answer, taken in
 the brainstorm, is a lazy fill with a priority queue rather than a batch, and
 the review added a hard bound on how far one press can go.

@@ -18,7 +18,7 @@ import {
 import type { IconName } from "./uiIconService";
 
 /*
- * D4, graph views (spec 2026-09-12-graph-views-design.md). A view is a named
+ * D4, graph views. A view is a named
  * bundle of appearance, regions and filters, applied once; it never touches
  * Scope (seeds, ticks). Everything here is pure: the DOM is in
  * graphViewsMenu.ts and the wiring in graphViewService.ts.
