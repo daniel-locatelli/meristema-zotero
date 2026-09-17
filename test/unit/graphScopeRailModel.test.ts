@@ -503,6 +503,25 @@ describe("the Citation hops block", function () {
     );
   });
 
+  // B72: a refusal storm ends with the plan empty and every paper limit-failed.
+  // The line carries the only Resume that brings them back, so it has to
+  // outlive the plan that produced them (ADR 0014).
+  it("keeps a Resume on the line once the deferral limit has failed papers", function () {
+    const gaveUp = railWithHops(
+      hopsInput({
+        fill: { remaining: 0, waiting: 0, paused: false, gaveUp: 4 },
+      }),
+    )!.hops!;
+    expect(gaveUp.progress).to.deep.equal({
+      afterHop: 2,
+      text: `${count(4)} gave up`,
+      action: "resume",
+      actionLabel: "Resume",
+      countdown: null,
+      title: null,
+    });
+  });
+
   it("names the one provider refusing, with a countdown and Stop", function () {
     const block = railWithHops(
       hopsInput({

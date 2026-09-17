@@ -1683,8 +1683,12 @@ function providerSupportsPaper(
  * usable moves the expansion straight on to the next candidate, and so does an
  * empty answer while another candidate is left (B72); the last candidate's
  * empty list stands. Each candidate is asked at most once.
+ *
+ * Exported for its own unit test: no Zotero fixture can reach the
+ * empty-answer continuation, because a fill's candidate list never holds two
+ * providers that both answer (the refusing one is skipped or asked first).
  */
-async function askUntilNotRefused(
+export async function askUntilNotRefused(
   candidates: readonly CitationProviderID[],
   ask: (provider: CitationProviderID) => Promise<RelationshipProviderSnapshot>,
   cancelled: () => boolean,
@@ -2054,7 +2058,8 @@ async function runExternalRelationshipRefresh(
       [...usable]
         .reverse()
         .find((snapshot) => snapshot.identifiedWorks.length > 0) ??
-      usable[usable.length - 1];
+      // Never undefined: the `if (!usable.length)` return above has left.
+      usable.at(-1)!;
     options.onMembershipResolved?.({
       complete: selection.complete,
       provider: publishedReported.provider,

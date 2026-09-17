@@ -283,13 +283,25 @@ export function refusedSnapshotState(collectedCount: number): {
  * expansion. A refusal with nothing usable moves the expansion on to the next
  * candidate, and so does an empty answer while a candidate is left to ask
  * (B72) — only the last candidate's empty list stands as "no citers".
+ *
+ * A reported count of zero is the exception: the provider has said outright
+ * that the paper has none, which is backing in its own right, so nobody else
+ * is asked. That keeps ADR 0006's per-expansion traffic ceiling for exactly
+ * the frontier papers whose true answer is "none" — the ones a fill would
+ * otherwise re-ask most.
  */
 export function fillStopsAt(
-  snapshot: { refused: boolean; succeeded: boolean; empty: boolean },
+  snapshot: {
+    refused: boolean;
+    succeeded: boolean;
+    empty: boolean;
+    reportedCount: number | null;
+  },
   hasNextCandidate: boolean,
 ): boolean {
   if (snapshot.refused) return snapshot.succeeded;
-  if (snapshot.succeeded && snapshot.empty) return !hasNextCandidate;
+  if (snapshot.succeeded && snapshot.empty)
+    return !hasNextCandidate || snapshot.reportedCount === 0;
   return true;
 }
 

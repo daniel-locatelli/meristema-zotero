@@ -17,10 +17,14 @@ Refusals travel from the provider to the runner as a typed outcome
 (`ProviderRefusedError`, then `refusedBy`, `skipped` and `answeredBy` on the
 refresh's resolution), never inferred from timing, and the fill bypasses the
 60 s provider register so the rail can always name who is refusing. A fill
-also trusts an empty first page only with a lookup match or a reported count
-behind it, since OpenCitations answers an unindexed DOI with an empty list.
+also trusts an empty first page only with something behind it, since
+OpenCitations answers an unindexed DOI with an empty list; ADR 0014 widens what
+counts as backing to include a work-ID hint the asking provider supplied.
 This refines ADR 0006: the traffic ceiling per expansion becomes one refused
 request per paging provider plus one lookup and one page. Rejected: a
 provider-health register fed by timeouts, which cannot tell a refusal from a
 slow answer, and failing a refused paper as before, which in a refusal storm
 emptied the plan until the graph was reopened.
+
+Refined by ADR 0014: an empty list is an answer when something backs it, and a
+paper deferred to the limit fails for the session.

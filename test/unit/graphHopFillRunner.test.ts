@@ -260,6 +260,7 @@ describe("createHopFillRunner", function () {
       remaining: 2,
       waiting: 0,
       paused: true,
+      gaveUp: 0,
       refusal: null,
     });
     runner.resume();
@@ -358,11 +359,28 @@ describe("createHopFillRunner", function () {
       fake.calls.expanded,
       "the limit failed it, so no later window asks it again",
     ).to.deep.equal(["a", "a", "a", "a"]);
-    expect(runner.state(), "the plan drained").to.equal(null);
+    // B72 review, Important 1: the plan is drained of work, but the line must
+    // outlive it. The limit's failures come back only on Resume, and the line
+    // carries the only Resume there is (ADR 0014), so a state of null here
+    // would strand the reader with no way to ask again.
+    expect(
+      runner.state(),
+      "the plan drained, and the line stays to carry its Resume",
+    ).to.deep.equal({
+      remaining: 0,
+      waiting: 0,
+      paused: false,
+      gaveUp: 1,
+      refusal: null,
+    });
     fake.refusing.clear();
     runner.retryNow();
     await fake.settle();
     expect(fake.calls.expanded.slice(4)).to.deep.equal(["a"]);
+    expect(
+      runner.state()?.gaveUp ?? 0,
+      "Resume undid the limit's failure, so nothing waits on it any more",
+    ).to.equal(0);
   });
 
   it("keeps a paper failed the ordinary way out across Resume", async function () {
@@ -429,6 +447,7 @@ describe("the fill under provider refusals", function () {
       remaining: 2,
       waiting: 0,
       paused: false,
+      gaveUp: 0,
       refusal: { providers: [S2, OC], retryAt: 30_000 },
     });
   });

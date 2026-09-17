@@ -255,11 +255,14 @@ describe("Citation hops (Stage 3)", function () {
   /** `{shown}/{available}` as numbers, or null when the row shows no pair. */
   function hopCounts(hop: number): { shown: number; available: number } | null {
     const text = hopCountText(hop);
-    const match = text ? /^([\d,]+)\/([\d,]+)$/.exec(text) : null;
+    // The rail groups with Intl.NumberFormat, whose separator follows the
+    // machine's locale — de-CH prints 1'200 — so take each side whole
+    // and strip all that is not a digit, rather than naming separators.
+    const match = text ? new RegExp("^([^/]+)/([^/]+)$").exec(text) : null;
     if (!match) return null;
     return {
-      shown: Number(match[1]!.replace(/,/g, "")),
-      available: Number(match[2]!.replace(/,/g, "")),
+      shown: Number(match[1]!.replace(/\D/g, "")),
+      available: Number(match[2]!.replace(/\D/g, "")),
     };
   }
 
@@ -1511,8 +1514,11 @@ describe("Citation hops (Stage 3)", function () {
      * means "not expanding just now", never "nothing left".
      */
     function leftCount(): number | null {
-      const match = /^expanding · (\d+) left/.exec(progressText());
-      return match ? Number(match[1]) : null;
+      // Grouped by Intl.NumberFormat above 999, in the machine's own locale
+      // (de-CH prints 1'200), so take the count whole and strip all that
+      // is not a digit, rather than naming the separators.
+      const match = /^expanding · (.+?) left/.exec(progressText());
+      return match ? Number(match[1]!.replace(/\D/g, "")) : null;
     }
 
     /** Whether a recorded provider URL names this DOI, raw or encoded. */
@@ -1529,13 +1535,10 @@ describe("Citation hops (Stage 3)", function () {
       // OpenAlex pages citations only with a key, and this case is built on
       // the fill having exactly two candidates: Semantic Scholar, which always
       // refuses, and OpenCitations, which answers. A key would add a third and
-      // change what every landing means, so fail loudly rather than quietly
-      // run something else.
-      expect(
-        getOpenAlexAPIKey(),
-        "this profile carries an OpenAlex key, which makes it a third paging " +
-          "provider and changes what the fill asks",
-      ).to.equal("");
+      // change what every landing means. Skip rather than fail: a configured
+      // key is this profile's business, not a product defect, and a red here
+      // would read like one.
+      if (getOpenAlexAPIKey() !== "") this.skip();
       const item = new Zotero.Item("journalArticle");
       item.libraryID = Zotero.Libraries.userLibraryID;
       item.setField("title", DRAIN_SEED_TITLE);
@@ -1738,10 +1741,17 @@ describe("Citation hops (Stage 3)", function () {
         // the line is GONE, the one reading a stalled fill cannot produce —
         // pre-fix it alternates expanding and refusing for ever, and a refusal
         // countdown is not `expanding` either.
-        const drained = await waitFor(
-          () => (progressText() === "no progress line" ? progressText() : null),
-          300_000,
-        );
+        // B72 review, Important 1: "ended" no longer means the line is gone.
+        // A paper the deferral limit failed keeps a line carrying the only
+        // Resume that brings it back (ADR 0014), so the anchor settles on
+        // "1 gave up" rather than vanishing. What must stop either way — and
+        // what pre-fix code cannot do — is the expanding/refusing alternation.
+        const drained = await waitFor(() => {
+          const line = progressText();
+          return line === "no progress line" || /gave up/.test(line)
+            ? line
+            : null;
+        }, 300_000);
         expect(
           drained,
           `the plan never drained; the line reads "${progressText()}", ` +

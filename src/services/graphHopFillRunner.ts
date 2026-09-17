@@ -117,6 +117,13 @@ export interface HopFillState {
   remaining: number;
   waiting: number;
   paused: boolean;
+  /**
+   * Papers the deferral limit failed for the session (B72). They come back
+   * only on Resume, so the rail keeps a line while this is above zero even
+   * though the plan itself is empty — otherwise the only Resume there is
+   * disappears with the plan that produced them.
+   */
+  gaveUp: number;
   /** Set only while the fill is cooling down and not paused. */
   refusal: HopFillRefusal | null;
 }
@@ -313,9 +320,13 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
             host.now(),
           );
           // The count is kept even when no window is ahead, so a deferral the
-          // plan does not hold back still counts against the limit.
+          // plan does not hold back still counts against the limit. Such a
+          // paper is re-planned at once and can spend a second deferral within
+          // milliseconds; it cannot reach a third, because the next expansion
+          // recomputes the windows, nobody is skipped, and the landing is then
+          // not refused.
           deferrals[direction].set(key, {
-            until: until ?? 0,
+            until: until ?? host.now(),
             count: deferred + 1,
           });
           return;
@@ -447,13 +458,18 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
       if (!lastPlan) return null;
       const remaining = lastPlan.remainingByHop.reduce((sum, n) => sum + n, 0);
       const waiting = lastPlan.waitingByHop.reduce((sum, n) => sum + n, 0);
-      if (!remaining && !waiting) return null;
+      // A refusal storm ends with the plan empty and every paper limit-failed.
+      // The line has to outlive that, because it carries the only Resume that
+      // brings those papers back (B72, ADR 0014).
+      const gaveUp = limitFailed[lastDirection].size;
+      if (!remaining && !waiting && !gaveUp) return null;
       const providers =
         coolingUntil !== null && !paused ? refusingProviders() : [];
       return {
         remaining: remaining - waiting,
         waiting,
         paused,
+        gaveUp,
         refusal:
           coolingUntil !== null && providers.length
             ? { providers, retryAt: coolingUntil }

@@ -71,6 +71,8 @@ export interface ScopeHopsInput {
     remaining: number;
     waiting: number;
     paused: boolean;
+    /** Papers the deferral limit failed; only Resume brings them back (B72). */
+    gaveUp?: number;
     /** Set while the fill cools down: who is refusing, and when it tries again. */
     refusal?: {
       providers: readonly CitationProviderID[];
@@ -302,6 +304,17 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
             countdown: null,
             title: null,
           };
+  } else if (fill && (fill.gaveUp ?? 0) > 0) {
+    // The plan is empty but papers gave up, and Resume is the whole of their
+    // recovery (ADR 0014), so the line stays to carry its button.
+    progress = {
+      afterHop: input.depth,
+      text: `${COUNT_FORMAT.format(fill.gaveUp ?? 0)} gave up`,
+      action: "resume",
+      actionLabel: "Resume",
+      countdown: null,
+      title: null,
+    };
   }
   return { direction: input.direction, rows, progress };
 }
