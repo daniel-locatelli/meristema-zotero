@@ -66,10 +66,10 @@ function mergeMetadata(
   return mergeRelatedWorkHydrationState(merged, incoming);
 }
 
-function isRelationshipResponse(url: string): boolean {
+export function isRelationshipResponse(url: string): boolean {
   if (/\/(?:references|citations)(?:\?|$)/i.test(url)) return true;
   const parsed = new URL(url);
-  return /^cites:/i.test(parsed.searchParams.get("filter") ?? "");
+  return /^(?:cites|cited_by):/i.test(parsed.searchParams.get("filter") ?? "");
 }
 
 const persistenceQueue = new SerializedTaskQueue();

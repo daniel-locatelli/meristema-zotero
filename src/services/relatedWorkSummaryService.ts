@@ -139,6 +139,8 @@ interface S2RelationResponse {
 
 interface OpenAlexList {
   results?: OpenAlexWork[];
+  /** OpenAlex's exact total for the filter, whatever the page holds. */
+  meta?: { count?: number };
 }
 
 interface OpenAlexReferenceSource {
@@ -507,6 +509,50 @@ async function applyIndividualFallbacks(
   return { used: selected.length, resolved };
 }
 
+export interface RelatedWorkSummaryPage {
+  works: RelatedWorkMetadata[];
+  /** The provider's exact total for the direction when its list answer carries one. */
+  reportedCount: number | null;
+}
+
+async function openAlexRelationPage(
+  filter: string,
+  requested: number,
+  start: number,
+  sorted: boolean,
+  requestOptions?: ProviderRequestOptions,
+): Promise<RelatedWorkSummaryPage> {
+  const page = Math.floor(start / OPENALEX_BATCH_LIMIT) + 1;
+  const withinPage = start % OPENALEX_BATCH_LIMIT;
+  const response = await requestJSON<OpenAlexList>(
+    "openalex",
+    openAlexURL({
+      filter,
+      per_page: OPENALEX_BATCH_LIMIT,
+      page,
+      select: OPENALEX_SUMMARY_FIELDS,
+      ...(sorted ? { sort: "cited_by_count:desc" } : {}),
+    }),
+    {
+      signal: requestOptions?.signal,
+      retryRefusals: requestOptions?.retryRefusals,
+    },
+  );
+  if (response.status === 429) throw new ProviderRefusedError("openalex");
+  if (!response.ok || !response.data) return { works: [], reportedCount: null };
+  const count = response.data.meta?.count;
+  return {
+    works: (response.data.results ?? [])
+      .slice(withinPage, withinPage + requested)
+      .map(summaryFromOpenAlex)
+      .filter((work): work is RelatedWorkMetadata => Boolean(work)),
+    reportedCount:
+      typeof count === "number" && Number.isFinite(count) && count >= 0
+        ? count
+        : null,
+  };
+}
+
 export async function fetchRelatedWorkSummaryPage(
   providerID: "semantic-scholar" | "openalex",
   providerWorkID: string,
@@ -514,10 +560,11 @@ export async function fetchRelatedWorkSummaryPage(
   maximum: number,
   offset = 0,
   requestOptions?: ProviderRequestOptions,
-): Promise<RelatedWorkMetadata[]> {
+): Promise<RelatedWorkSummaryPage> {
   const requested = Math.max(0, Math.floor(maximum));
   const start = Math.max(0, Math.floor(offset));
-  if (!requested) return [];
+  const none: RelatedWorkSummaryPage = { works: [], reportedCount: null };
+  if (!requested) return none;
 
   if (providerID === "semantic-scholar") {
     const kind = direction === "references" ? "references" : "citations";
@@ -532,43 +579,45 @@ export async function fetchRelatedWorkSummaryPage(
     if (response.status === 429) {
       throw new ProviderRefusedError("semantic-scholar");
     }
-    if (!response.ok || !response.data) return [];
-    return (response.data.data ?? [])
-      .map((entry) =>
-        summaryFromSemanticScholar(
-          direction === "references"
-            ? (entry.citedPaper ?? {})
-            : (entry.citingPaper ?? {}),
-        ),
-      )
-      .filter((work): work is RelatedWorkMetadata => Boolean(work));
+    if (!response.ok || !response.data) return none;
+    return {
+      works: (response.data.data ?? [])
+        .map((entry) =>
+          summaryFromSemanticScholar(
+            direction === "references"
+              ? (entry.citedPaper ?? {})
+              : (entry.citingPaper ?? {}),
+          ),
+        )
+        .filter((work): work is RelatedWorkMetadata => Boolean(work)),
+      reportedCount: null,
+    };
   }
 
-  if (!getOpenAlexAPIKey()) return [];
+  if (!getOpenAlexAPIKey()) return none;
   const normalizedID = shortOpenAlexID(providerWorkID);
-  if (!normalizedID) return [];
+  if (!normalizedID) return none;
+  const sorted = requestOptions?.order === "most-cited";
   if (direction === "cited-by") {
-    const page = Math.floor(start / OPENALEX_BATCH_LIMIT) + 1;
-    const withinPage = start % OPENALEX_BATCH_LIMIT;
-    const response = await requestJSON<OpenAlexList>(
-      "openalex",
-      openAlexURL({
-        filter: `cites:${normalizedID}`,
-        per_page: OPENALEX_BATCH_LIMIT,
-        page,
-        select: OPENALEX_SUMMARY_FIELDS,
-      }),
-      {
-        signal: requestOptions?.signal,
-        retryRefusals: requestOptions?.retryRefusals,
-      },
+    return openAlexRelationPage(
+      `cites:${normalizedID}`,
+      requested,
+      start,
+      sorted,
+      requestOptions,
     );
-    if (response.status === 429) throw new ProviderRefusedError("openalex");
-    if (!response.ok || !response.data) return [];
-    return (response.data.results ?? [])
-      .slice(withinPage, withinPage + requested)
-      .map(summaryFromOpenAlex)
-      .filter((work): work is RelatedWorkMetadata => Boolean(work));
+  }
+  // Sorted references are a filter query like citers: a list with metadata,
+  // most cited first. Arrival order keeps the work record's own list, whose
+  // order is the paper's bibliography.
+  if (sorted) {
+    return openAlexRelationPage(
+      `cited_by:${normalizedID}`,
+      requested,
+      start,
+      true,
+      requestOptions,
+    );
   }
 
   let referenceIDs = cachedOpenAlexReferenceIDs(normalizedID);
@@ -584,14 +633,14 @@ export async function fetchRelatedWorkSummaryPage(
       },
     );
     if (source.status === 429) throw new ProviderRefusedError("openalex");
-    if (!source.ok || !source.data) return [];
+    if (!source.ok || !source.data) return none;
     referenceIDs = (source.data.referenced_works ?? [])
       .map(shortOpenAlexID)
       .filter((id): id is string => Boolean(id));
     cacheOpenAlexReferenceIDs(normalizedID, referenceIDs);
   }
   const identifiers = referenceIDs.slice(start, start + requested);
-  if (!identifiers.length) return [];
+  if (!identifiers.length) return none;
   const summaries: RelatedWorkMetadata[] = identifiers.map((id) => ({
     provider: "openalex",
     providerWorkID: id,
@@ -606,7 +655,10 @@ export async function fetchRelatedWorkSummaryPage(
     requestOptions,
     true,
   );
-  return summaries.filter((work) => Boolean(work.title));
+  return {
+    works: summaries.filter((work) => Boolean(work.title)),
+    reportedCount: null,
+  };
 }
 
 export interface RelatedWorkSummaryResolutionOptions {

@@ -1271,21 +1271,27 @@ async function fetchProviderRelationshipSnapshot(
         : provider.fetchCitingWorks;
     const hasSummaryFetcher =
       providerID === "semantic-scholar" || providerID === "openalex";
+    /** The list answer's own total (OpenAlex `meta.count`), read off the first page. */
+    let listReportedCount: number | null = null;
     const fetcher = hasSummaryFetcher
-      ? (
+      ? async (
           id: string,
           requested: number,
           offset: number,
           options?: ProviderRequestOptions,
-        ) =>
-          fetchRelatedWorkSummaryPage(
+        ) => {
+          const page = await fetchRelatedWorkSummaryPage(
             providerID,
             id,
             direction,
             requested,
             offset,
             options,
-          )
+          );
+          if (listReportedCount === null)
+            listReportedCount = page.reportedCount;
+          return page.works;
+        }
       : nativeFetcher;
     const hintedProviderWorkID =
       providerWorkIDs[providerID] ??
@@ -1299,7 +1305,7 @@ async function fetchProviderRelationshipSnapshot(
           requestOptions,
           (options) => lookupProviderRecord(providerID, identifiers, options),
         );
-    const reportedCount =
+    let reportedCount =
       direction === "references"
         ? (match?.referenceCount ??
           (providerID === node.referenceCountProvider
@@ -1386,6 +1392,12 @@ async function fetchProviderRelationshipSnapshot(
       if (!Array.isArray(pageResult)) return failed();
       const page = pageResult;
       pages += 1;
+      // A hinted parent skipped the lookup, so the list answer is the only
+      // place a total can come from (spec, "Reported count for free").
+      if (reportedCount === null && listReportedCount !== null) {
+        reportedCount = listReportedCount;
+        knownReportedCount = reportedCount;
+      }
       if (!page.length) {
         if (
           unbackedEmptyList({
@@ -1943,7 +1955,11 @@ async function runExternalRelationshipRefresh(
               direction,
               maximum,
               options.providerWorkIDs,
-              { signal: options.signal, retryRefusals: false },
+              {
+                signal: options.signal,
+                retryRefusals: false,
+                order: "most-cited",
+              },
               true,
             ),
           cancelled,

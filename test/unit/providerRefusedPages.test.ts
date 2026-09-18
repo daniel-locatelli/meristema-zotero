@@ -143,7 +143,7 @@ describe("a refused relationship page", function () {
         50,
         0,
       ),
-    ).to.deep.equal([]);
+    ).to.deep.equal({ works: [], reportedCount: null });
   });
 
   it("throws from OpenAlex's cited-by page, its references source and the page's batches", async function () {
@@ -179,7 +179,7 @@ describe("a refused relationship page", function () {
     respond = () => answered({ results: [] });
     expect(
       await fetchRelatedWorkSummaryPage("openalex", "W4", "cited-by", 50, 0),
-    ).to.deep.equal([]);
+    ).to.deep.equal({ works: [], reportedCount: null });
   });
 
   it("does not throw when a metadata hydration batch is refused", async function () {
@@ -244,5 +244,93 @@ describe("a refused lookup", function () {
       calls.every((call) => call.options.retryRefusals === false),
       JSON.stringify(calls.map((call) => [call.provider, call.options])),
     ).to.equal(true);
+  });
+});
+
+describe("an OpenAlex page cut most-cited first", function () {
+  const work = (id: string, count: number) => ({
+    id: `https://openalex.org/${id}`,
+    doi: `https://doi.org/10.5555/${id.toLowerCase()}`,
+    display_name: `Paper ${id}`,
+    publication_year: 2020,
+    cited_by_count: count,
+    authorships: [],
+  });
+
+  it("asks for cites sorted by citations and reads meta.count", async function () {
+    respond = () =>
+      answered({ results: [work("W2", 9), work("W3", 4)], meta: { count: 2 } });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W1",
+      "cited-by",
+      50,
+      0,
+      { order: "most-cited" },
+    );
+    const url = new URL(calls[0]!.url);
+    expect(url.searchParams.get("filter")).to.equal("cites:W1");
+    expect(url.searchParams.get("sort")).to.equal("cited_by_count:desc");
+    expect(page.reportedCount).to.equal(2);
+    expect(page.works.map((entry) => entry.providerWorkID)).to.deep.equal([
+      "W2",
+      "W3",
+    ]);
+  });
+
+  it("sends no sort in arrival order and reads the count all the same", async function () {
+    respond = () => answered({ results: [work("W2", 9)], meta: { count: 1 } });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W1",
+      "cited-by",
+      50,
+      0,
+    );
+    expect(new URL(calls[0]!.url).searchParams.get("sort")).to.equal(null);
+    expect(page.reportedCount).to.equal(1);
+  });
+
+  it("pages references through cited_by, sorted, with metadata", async function () {
+    respond = () => answered({ results: [work("W5", 30)], meta: { count: 1 } });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W1",
+      "references",
+      50,
+      0,
+      { order: "most-cited" },
+    );
+    const url = new URL(calls[0]!.url);
+    expect(url.pathname).to.equal("/works");
+    expect(url.searchParams.get("filter")).to.equal("cited_by:W1");
+    expect(url.searchParams.get("sort")).to.equal("cited_by_count:desc");
+    expect(page.works[0]).to.include({
+      providerWorkID: "W5",
+      title: "Paper W5",
+    });
+    expect(page.reportedCount).to.equal(1);
+  });
+
+  it("keeps the referenced_works slice for references in arrival order", async function () {
+    respond = (url) =>
+      url.includes("/works/W3?")
+        ? answered({
+            referenced_works: ["https://openalex.org/W30"],
+            referenced_works_count: 1,
+          })
+        : answered({ results: [work("W30", 2)] });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W3",
+      "references",
+      50,
+      0,
+    );
+    expect(calls[0]!.url).to.include("/works/W3?");
+    expect(page.works.map((entry) => entry.providerWorkID)).to.deep.equal([
+      "W30",
+    ]);
+    expect(page.reportedCount).to.equal(null);
   });
 });
