@@ -125,6 +125,8 @@ const PROVIDER_HOST =
  * refuses.
  */
 const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
+/** The layout a graph opens with, kept out here for the same reason. */
+const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;
 /** A provider sitting out a window: a refusal, never an error (ADR 0013). */
 function providerRefusal(): unknown {
   return { status: 429, responseText: "", getResponseHeader: () => null };
@@ -2278,6 +2280,518 @@ describe("Citation hops (Stage 3)", function () {
         fillRequests().length,
         `fill requests: ${fillRequests().join(" | ")} (of ${asked.length} in all: ${asked.join(" | ")}; before the case: ${settledAfter}, line ${wentQuiet ? "quiet" : "STILL BUSY"})`,
       ).to.equal(2 + CITERS.length);
+    });
+  });
+
+  /**
+   * Stage 4: the citation floor. Served offline the way D8 is — a fake key for
+   * the case alone, and a wrapper that answers every provider host itself — so
+   * a keyless profile runs it and nothing reaches the network. Every helper
+   * this block needs from D8 is block-scoped there, so it keeps its own copy.
+   */
+  describe("with a citation floor (Stage 4)", function () {
+    const SEED_DOI = "10.5555/floor.seed";
+    const SEED_TITLE = `${FIXTURE_TITLE} (floor)`;
+    /** Named apart from the seed: the node-menu walk matches on a substring. */
+    const NO_DATA_TITLE = "Stage 4 floor lane paper";
+    /**
+     * The floor the case sets, between the seed's own three citations and the
+     * one citer above it. The seed's count matters because the camera fits the
+     * VISIBLE cloud after every expansion (`fitCurrentGraph`), and a floor
+     * line outside that cloud is off the plot, where the renderer draws no
+     * tag and answers no hit (`drawFloor`, `onPlot`): red run 2 put the floor
+     * at 2, which left the seed and its one surviving citer both at 3, and the
+     * hover walk found no floor anywhere on the canvas. A seed is never under
+     * the floor, so it is the one paper that can hold the cloud open beneath
+     * the line.
+     */
+    const FLOOR = 5;
+    /**
+     * Three citers whose counts straddle the floor; each one's own page holds
+     * exactly its count, so the fill drains. W903's `0` is the reported-zero
+     * return (externalDiscoveryService.ts): its expansion pages nothing at
+     * all, which is why no expected page list ever names it.
+     */
+    const CITERS = [
+      { id: "W901", doi: "10.5555/floor.a", count: 1, citers: ["W911"] },
+      {
+        id: "W902",
+        doi: "10.5555/floor.b",
+        count: 6,
+        citers: ["W912", "W913", "W914", "W915", "W916", "W917"],
+      },
+      { id: "W903", doi: "10.5555/floor.c", count: 0, citers: [] },
+    ];
+    /** Hop 2 once the one citer above the floor has been paged, and once the floor is off. */
+    const citersOf = (id: string): number =>
+      CITERS.find((citer) => citer.id === id)?.citers.length ?? 0;
+    let previousKey: unknown = undefined;
+    /** Choosing a view writes the layout back; the profile keeps what it had. */
+    let previousAppearance: unknown = undefined;
+    let seedItemID: number | null = null;
+    let noDataItemID: number | null = null;
+    let tabID: string | null = null;
+    let realRequest: any = null;
+    let asked: string[] = [];
+    /** Evidence for the messages: the line's state when the case took over. */
+    let settledAfter = 0;
+    let wentQuiet = false;
+    /** One OpenAlex record, with the citation count the case gives it. */
+    function work(id: string, doi: string, count: number): unknown {
+      return {
+        id: `https://openalex.org/${id}`,
+        doi: `https://doi.org/${doi}`,
+        display_name: `Floor paper ${id}`,
+        publication_year: 2021,
+        publication_date: "2021-01-01",
+        cited_by_count: count,
+        referenced_works_count: 0,
+        authorships: [
+          {
+            author: {
+              id: "https://openalex.org/A1",
+              display_name: "A. Author",
+            },
+          },
+        ],
+        primary_location: null,
+      };
+    }
+
+    function notFound(): unknown {
+      return { status: 404, responseText: "", getResponseHeader: () => null };
+    }
+
+    /**
+     * The fake, answering from the moment it is installed — which is where
+     * this block parts company with D8. D8 holds every answer back until its
+     * case clicks, so that the library's own automatic update of the new item
+     * stores nothing and the list the case reads is the one its own fill asked
+     * for. Here the update must instead run to the end BEFORE the graph is
+     * built: a graph whose papers carry no citation count is never offered a
+     * citation axis (`createMetricSelect`, `normaliseLayoutFor`), and the
+     * floor is drawn on that axis and on no other — red run 5 opened on
+     * year × free and the renderer drew no floor anywhere. Red run 6 answered
+     * the seed's lookup alone and left its citer page not-found: the update
+     * stored an empty list, and hop 1 opened reading "none yet" with nothing
+     * left for the fill to fetch. So the seed's own list comes from the
+     * update, and what the case's clicks still have to fetch — the hop-2 citer
+     * pages, which the update never asks for, since it walks one library paper
+     * and not a hop — is exactly what the case reads.
+     */
+    function serve(): void {
+      if (realRequest) return;
+      realRequest = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) => {
+        if (!PROVIDER_HOST.test(url))
+          return realRequest.call(Zotero.HTTP, method, url, options);
+        asked.push(url);
+        // A not-found is final; a 429 would bring the automatic update back on
+        // a cool-down in the middle of a case that counts requests (D8).
+        if (!/^https:\/\/api\.openalex\.org\//.test(url)) return notFound();
+        const parsed = new URL(url);
+        const path = decodeURIComponent(parsed.pathname);
+        // The seed's own record carries the LIBRARY item's title and year: a
+        // lookup that contradicts the local one is ambiguous, and an ambiguous
+        // lookup is dropped, leaving the fill no work ID to page (D8).
+        if (/\/works\/doi/i.test(path)) {
+          return path.includes(SEED_DOI)
+            ? providerAnswer(
+                JSON.stringify({
+                  ...(work("W900", SEED_DOI, CITERS.length) as object),
+                  display_name: SEED_TITLE,
+                  publication_year: 2019,
+                  publication_date: "2019-01-01",
+                }),
+              )
+            : notFound();
+        }
+        const filter = parsed.searchParams.get("filter") ?? "";
+        if (filter === "cites:W900") {
+          return providerAnswer(
+            JSON.stringify({
+              results: CITERS.map((citer) =>
+                work(citer.id, citer.doi, citer.count),
+              ),
+              meta: { count: CITERS.length },
+            }),
+          );
+        }
+        const citer = CITERS.find(
+          (candidate) => filter === `cites:${candidate.id}`,
+        );
+        if (citer) {
+          return providerAnswer(
+            JSON.stringify({
+              results: citer.citers.map((id) =>
+                work(id, `10.5555/floor.${id.toLowerCase()}`, 0),
+              ),
+              meta: { count: citer.citers.length },
+            }),
+          );
+        }
+        return providerAnswer(
+          JSON.stringify({ results: [], meta: { count: 0 } }),
+        );
+      };
+    }
+
+    function restore(): void {
+      if (!realRequest) return;
+      (Zotero.HTTP as any).request = realRequest;
+      realRequest = null;
+    }
+
+    /** The citer pages the fill asked for, in the order it asked. */
+    function citerPages(): string[] {
+      return asked.filter((url) =>
+        /^cites:W90[123]$/.test(new URL(url).searchParams.get("filter") ?? ""),
+      );
+    }
+
+    function pagedFilters(): string[] {
+      return citerPages().map(
+        (url) => new URL(url).searchParams.get("filter") ?? "",
+      );
+    }
+
+    function floorInput(): HTMLInputElement {
+      const input = graphRoot().querySelector(
+        ".cm-scope-floor-input",
+      ) as HTMLInputElement | null;
+      expect(input, "the Citation floor field").to.exist;
+      return input!;
+    }
+
+    function floorRowText(): string {
+      return normalize(
+        graphRoot().querySelector(".cm-scope-floor-row")?.textContent,
+      );
+    }
+
+    /**
+     * The gear's Y axis metric: the second select of the panel's second
+     * section (X axis, Y axis, Nodes). The floor is drawn on the axis that
+     * shows citations and on no other, so this is the case's precondition.
+     */
+    function yAxisMetric(): string {
+      const section = graphRoot().querySelectorAll(".cm-appearance-section")[1];
+      const selects = Array.from(
+        section?.querySelectorAll("select") ?? [],
+      ) as HTMLSelectElement[];
+      return selects[1]?.value ?? "no Y axis select";
+    }
+
+    /** Everything about the floor's row, for an assertion that has to explain itself. */
+    function floorEvidence(): string {
+      const active = win.document.activeElement as Element | null;
+      return (
+        `y axis ${yAxisMetric()}, row "${floorRowText()}", field "${floorInput().value}", ` +
+        `${graphRoot().querySelectorAll(".cm-scope-floor-input").length} field(s), ` +
+        `focus ${active ? `${active.localName}.${active.className}` : "none"}` +
+        `; recent Zotero errors: ${
+          (Zotero.getErrors(true) as string[]).slice(-5).join(" || ") || "none"
+        }`
+      );
+    }
+
+    /**
+     * Commit a floor in the field, the way the reader's Enter does. The field
+     * is not focused first: the rail holds its Scope render back while the
+     * field has focus and lets it out on blur, and that bookkeeping is the
+     * rail's own to test — here it would only stand between the case and the
+     * row it reads.
+     */
+    async function typeFloor(value: number): Promise<void> {
+      const input = floorInput();
+      input.value = String(value);
+      input.dispatchEvent(new win.Event("change", { bubbles: true }));
+      const settled = await waitFor(
+        () => (value > 0 ? /\d+ below/.test(floorRowText()) : null),
+        10_000,
+      );
+      expect(settled, `the floor row never took ${value}: ${floorEvidence()}`)
+        .to.exist;
+    }
+
+    /**
+     * Walk the plot in whole CSS pixels (B43) until the canvas title reads the
+     * floor. Either end of the gesture serves: the tag always grabs the floor,
+     * and the bare line grabs it wherever no node sits under it.
+     */
+    function findTag(): {
+      point: { x: number; y: number } | null;
+      /** Every distinct title the walk was offered, as evidence when it finds none. */
+      seen: string[];
+    } {
+      const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+      const box = canvas.getBoundingClientRect();
+      const left = Math.ceil(box.left);
+      const top = Math.ceil(box.top);
+      const seen = new Set<string>();
+      for (let y = top + 2; y < box.bottom - 2; y += 3) {
+        for (let x = left + 2; x < box.right - 2; x += 3) {
+          canvas.dispatchEvent(
+            new win.PointerEvent("pointermove", {
+              bubbles: true,
+              clientX: x,
+              clientY: y,
+            }),
+          );
+          const title = canvas.title;
+          if (title.startsWith("⇕ floor")) return { point: { x, y }, seen: [] };
+          if (title) seen.add(`${title.split("\n")[0]} @${x},${y}`);
+        }
+      }
+      return { point: null, seen: [...seen] };
+    }
+
+    /**
+     * Open the graph on Overview — year across, citations up. The floor is
+     * drawn on the axis that shows citations and on no other (graphFloor.ts,
+     * `floorLinePlacement`), and a graph opens with the layout the profile
+     * last stored: red runs 3 and 4 found `yMetric: "free"` in the test
+     * profile's `graphAppearance`, so the plot had no citation axis, the
+     * renderer drew no line, and the hover walk was offered 237 paper titles
+     * and not one floor. Choosing the view is the reader's own way to say
+     * which axes the plot has.
+     */
+    async function chooseOverview(id: string | null): Promise<void> {
+      const gallery = (): HTMLElement | null =>
+        (tabContent(id)?.querySelector(".cm-view-gallery") as HTMLElement) ??
+        null;
+      const card = await waitFor(() => {
+        const live = gallery();
+        return live && !live.hidden
+          ? (live.querySelector(
+              '.cm-view-gallery-card[data-view-id="overview"]',
+            ) as HTMLButtonElement | null)
+          : null;
+      }, 15_000);
+      expect(card, "the gallery's Overview card").to.exist;
+      card!.click();
+      const gone = await waitFor(() => gallery()?.hidden ?? false, 10_000);
+      expect(gone, `the gallery after Overview; ${galleryState()}`).to.equal(
+        true,
+      );
+    }
+
+    /**
+     * Hold until the provider line has been silent for `idleMs`: the library's
+     * own update of the new item runs before the case clicks anything, and
+     * counting it would read like the fill asking for lists it never asked for
+     * (D8's own note; the update cannot be turned off, since it is what puts
+     * the paper on the plot at all).
+     */
+    async function untilQuiet(idleMs: number, capMs: number): Promise<boolean> {
+      const deadline = Date.now() + capMs;
+      let seen = asked.length;
+      let since = Date.now();
+      while (Date.now() < deadline) {
+        await delay(500);
+        if (asked.length !== seen) {
+          seen = asked.length;
+          since = Date.now();
+        } else if (Date.now() - since >= idleMs) return true;
+      }
+      return false;
+    }
+
+    before(async function () {
+      this.timeout(240_000);
+      previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
+      Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, "floor-test-key", true);
+      previousAppearance = Zotero.Prefs.get(GRAPH_APPEARANCE_PREF, true);
+      serve();
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", SEED_TITLE);
+      item.setField("date", "2019");
+      item.setField("DOI", SEED_DOI);
+      seedItemID = await item.saveTx();
+      // A paper with no identifier, and so no citation count ever: it sits in
+      // the plot's no-data lane, under the axis, and the floor never touches a
+      // paper whose count is unknown. The camera fits the VISIBLE cloud, so
+      // without a point below the axis the world's own bottom edge — the only
+      // place a dragged floor reads 0 — can sit off the canvas entirely.
+      const noData = new Zotero.Item("journalArticle");
+      noData.libraryID = Zotero.Libraries.userLibraryID;
+      noData.setField("title", NO_DATA_TITLE);
+      noData.setField("date", "2018");
+      noDataItemID = await noData.saveTx();
+      // The library's own update of the seed runs before the graph is built,
+      // not after: the display settings list only the metrics the loaded
+      // papers carry (`createMetricSelect`), and a view asking for an axis the
+      // graph has no data for lands on Free instead (`normaliseLayoutFor`).
+      // Red run 5 opened the tab first, so no paper had a citation count when
+      // the gear was built, Overview came out as year × free, and with neither
+      // axis showing citations the renderer drew no floor at all.
+      wentQuiet = await untilQuiet(10_000, 120_000);
+      settledAfter = asked.length;
+      tabID = await openNewGraphTab();
+      currentTabID = tabID;
+      win.Zotero_Tabs.select(tabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(tabID)?.querySelector(".cm-scope-section .cm-scope-count"),
+        30_000,
+      );
+      expect(rail, "the floor tab's Scope section").to.exist;
+      await chooseOverview(tabID);
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the floor tab's fit button").to.exist;
+      fit!.click();
+      expect(yAxisMetric(), "the Y axis Overview landed on").to.equal(
+        "citations",
+      );
+      // The test Zotero starts its suites while the database check still holds
+      // the pane under a progress overlay a real pointer cannot cross. A
+      // reader's Zotero is unlocked; lower the overlay the way Zotero does.
+      const unlocked = await Promise.race([
+        Zotero.unlockPromise.then(() => true),
+        delay(5_000).then(() => false),
+      ]);
+      if (!unlocked) Zotero.hideZoteroPaneOverlays();
+      const overlay = win.document.getElementById(
+        "zotero-pane-overlay",
+      ) as HTMLElement | null;
+      const overlayDown = await waitFor(
+        () => !overlay || win.getComputedStyle(overlay).display === "none",
+        10_000,
+      );
+      expect(overlayDown, "the pane's progress overlay is down").to.equal(true);
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      restore();
+      if (previousKey === undefined || previousKey === null)
+        Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
+      else Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, previousKey as string, true);
+      if (previousAppearance === undefined || previousAppearance === null)
+        Zotero.Prefs.clear(GRAPH_APPEARANCE_PREF, true);
+      else
+        Zotero.Prefs.set(
+          GRAPH_APPEARANCE_PREF,
+          previousAppearance as string,
+          true,
+        );
+      if (tabID) win.Zotero_Tabs.close(tabID);
+      await delay(500);
+      tabID = null;
+      currentTabID = null;
+      if (seedItemID !== null) await Zotero.Items.erase(seedItemID);
+      seedItemID = null;
+      if (noDataItemID !== null) await Zotero.Items.erase(noDataItemID);
+      noDataItemID = null;
+    });
+
+    it("hides under the floor, fills only above it, and the drag brings the rest back", async function () {
+      this.timeout(180_000);
+      // Hop 2 with the floor on: the citers of the one paper above it. With
+      // the floor off: the citer under it brings its own along.
+      const HOP_2 = citersOf("W902");
+      const HOP_2_OFF = HOP_2 + citersOf("W901");
+      asked = [];
+      (await nodeMenuEntry("Add as seed", SEED_TITLE)).click();
+      const filled = await waitFor(
+        () => hopCounts(1)?.available ?? null,
+        60_000,
+      );
+      expect(
+        filled,
+        `hop 1 never filled; it read "${hopRowText(1)}"; ${asked.join(" | ")}` +
+          ` (before the case: ${settledAfter} request(s), line ${wentQuiet ? "quiet" : "STILL BUSY"})`,
+      ).to.equal(3);
+
+      // The floor hides the two citers under it and leaves the count beside
+      // the field reading how many it took.
+      await typeFloor(FLOOR);
+      expect(floorInput().value, floorEvidence()).to.equal(String(FLOOR));
+      expect(floorRowText(), floorEvidence()).to.include("2 below");
+      expect(hopCounts(1), hopRowText(1)).to.deep.equal({
+        shown: 1,
+        available: 3,
+      });
+
+      // The fill expands SHOWN papers only, so the one citer above the floor
+      // is the only one paged — and the papers it brings back carry a count of
+      // 0 apiece, so the same floor hides them as they land.
+      fetchButton(2)!.click();
+      const hop2 = await waitFor(
+        () => (hopCounts(2)?.available ? hopCounts(2) : null),
+        60_000,
+      );
+      expect(
+        hop2,
+        `hop 2: "${hopRowText(2)}"; pages ${pagedFilters().join(" | ")}`,
+      ).to.deep.equal({ shown: 0, available: HOP_2 });
+      expect(
+        pagedFilters(),
+        "only the citer above the floor was paged",
+      ).to.deep.equal(["cites:W902"]);
+
+      // Dragging the floor off the bottom of the plot turns it off, and the
+      // fill re-plans on the release: the citer that was under the floor is
+      // paged now, and W903's reported zero still pages nothing.
+      const walk = findTag();
+      const tag = walk.point;
+      expect(
+        tag,
+        `the floor's tag on the plot; ${galleryState()}; ${floorEvidence()}` +
+          `; the walk was offered ${walk.seen.length} title(s): ${walk.seen.slice(0, 12).join(" | ") || "none"}`,
+      ).to.exist;
+      const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+      const box = canvas.getBoundingClientRect();
+      // A real pointer, not a constructed PointerEvent: the renderer captures
+      // the pointer on the way down, and `setPointerCapture` throws on a
+      // synthetic pointer id. Whole pixels, since a MouseEvent truncates
+      // fractions (B43). The walk down stops at the first frame the field
+      // reads 0 — each move is handled and the rail rebuilt before
+      // `sendMouseEvent` returns — so the gesture is as short as the camera
+      // allows and the last y it needed is in the message.
+      const utils = win.windowUtils;
+      const endY = Math.floor(box.bottom) - 2;
+      const seen: string[] = [];
+      utils.sendMouseEvent("mousedown", tag!.x, tag!.y, 0, 1, 0, false, 0, 0);
+      let y = tag!.y;
+      while (y < endY) {
+        y = Math.min(endY, y + 8);
+        utils.sendMouseEvent("mousemove", tag!.x, y, 0, 0, 0, false, 0, 0);
+        seen.push(`${y}:${floorInput().value}`);
+        if (floorInput().value === "0") break;
+      }
+      utils.sendMouseEvent("mouseup", tag!.x, y, 0, 1, 0, false, 0, 0);
+      const off = await waitFor(() => floorInput().value === "0", 5_000);
+      expect(
+        off,
+        `the drag from ${tag!.x},${tag!.y} down to ${y} (canvas bottom ${endY})` +
+          ` left the field at "${floorInput().value}"; the floor it read on the` +
+          ` way: ${seen.join(" ")}; ${floorEvidence()}`,
+      ).to.equal(true);
+      expect(floorRowText(), floorEvidence()).to.include("off");
+      const back = await waitFor(
+        () => (hopCounts(2)?.available === HOP_2_OFF ? hopCounts(2) : null),
+        60_000,
+      );
+      expect(
+        back,
+        `hop 2 after the drag: "${hopRowText(2)}"; pages ${pagedFilters().join(" | ")}`,
+      ).to.deep.equal({ shown: HOP_2_OFF, available: HOP_2_OFF });
+      expect(
+        [...pagedFilters()].sort(),
+        `pages after the drag: ${pagedFilters().join(" | ")}`,
+      ).to.deep.equal(["cites:W901", "cites:W902"]);
     });
   });
 });
