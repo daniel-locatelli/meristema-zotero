@@ -40,8 +40,8 @@ _Avoid_: focus paper, root, origin
 ### What is shown
 
 **Scope**:
-The rule that decides which papers of the graph are shown: the folder rule
-and the hop rule taken together, followed by the reader's filters.
+The rule that decides which papers of the graph are shown: the folder rule,
+the hop rule and the floor taken together, followed by the reader's filters.
 _Avoid_: filter (filters come after scope), visibility, focus
 
 **Folder rule**:
@@ -53,6 +53,12 @@ _Avoid_: collection filter
 A paper the folder rule does not admit is shown when it sits at a hop the
 reader has opened and enabled, and one of its parents is shown. The hop rule
 never hides a paper the folder rule admits.
+
+**Floor**:
+The citation count a paper needs to be shown. A paper under it is not shown
+and is not followed by the fill; one with no count passes. Seeds are never
+under it. Set by dragging the line on the plot or typing in the rail.
+_Avoid_: threshold, cutoff, min citations
 
 **Tick**:
 The reader's on/off choice on a folder or a hop row in the rail.

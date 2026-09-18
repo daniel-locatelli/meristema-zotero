@@ -26,8 +26,7 @@ Inputs (do not re-derive them):
 
 ## Next
 
-1. Stage 4's brainstorm and spec (citation floor and shared citers). D8 is
-   settled (ADR 0015), so the fill it builds on is fixed.
+1. Shared citers' brainstorm and spec (Stage 4's second half); the floor shipped.
 
 Working rules: a feature branch per change, `npm run check` as the gate
 (prettier covers `docs/` and `README.md`), the full Zotero suite every 4 or 5
@@ -52,16 +51,17 @@ Built and merged from `docs/superpowers/specs/2026-09-12-citation-hops-design.md
 
 ### Stage 4: citation floor and shared citers
 
-Depends on Stage 3, and on D8 being settled, since it builds on the fill.
-Floor line on the plot with drag handle and outline rendering below the floor;
-Shared citers Off, Dim, Only with the grading formula and Key tiers; visibility
-order of evaluation as a pure function with unit tests; label routing through
-`graphLabelBudget.ts`.
+Depends on Stage 3 and D8. Two specs: the floor
+(`docs/superpowers/specs/2026-09-18-citation-floor-design.md`, ADR 0016) and
+shared citers (Off, Dim, Only with the grading formula and Key tiers; label
+routing through `graphLabelBudget.ts`; brainstorm not yet held).
 
-- [ ] brainstorm and spec
-- [ ] plan
-- [ ] implemented, reviewed, merged, XPI built, pushed
-- [ ] manual walk-through by the user
+- [x] floor: brainstorm, spec, plan, implemented, reviewed, merged
+- [ ] floor: manual walk-through by the user
+- [ ] shared citers: brainstorm and spec
+- [ ] shared citers: plan
+- [ ] shared citers: implemented, reviewed, merged, XPI built, pushed
+- [ ] shared citers: manual walk-through by the user
 
 ## The hop fill
 
@@ -371,6 +371,18 @@ any failure into a new entry above.
       order in the rail's cut line.
 - [ ] D8: press Refresh on a seed with more than 50 citers; the cut line still
       describes hop 1's cut, not the seed's 200-member list.
+- [ ] Floor: on both themes, drag the floor on a filled seeded graph: the line,
+      band and tag follow the pointer in steps, hop counts and `n below` move,
+      the fill's `n left` drops after release, and no label sits under the tag.
+- [ ] Floor: put citations on X: the line is vertical, the tag at its bottom,
+      the cursor `ew-resize`. Put citations on neither axis: no line; the rail
+      field still sets the floor.
+- [ ] Floor: on a log Y: the `off` line sits on the axis and the first drag
+      step reads a round number.
+- [ ] Floor: apply Cornerstones on a seeded graph: the floor reads 10 in the
+      rail and the summary; apply Overview afterwards: the floor stays 10.
+- [ ] Floor: reopen a saved graph that had a floor: the floor is back; a graph
+      saved before this change opens at `off`.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -448,3 +460,4 @@ entries are in git history.
   covered). Suite cadence set to every 4 or 5 commits. Next: D8.
 - 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits ee3d3d6..9bb70bc.
   Next: Stage 4.
+- 2026-09-18, later: the citation floor shipped (ADR 0016); commits `dc0fa65..<final>`.
