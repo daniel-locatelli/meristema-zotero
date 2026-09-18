@@ -92,6 +92,7 @@ import {
   orderRelationshipProviders,
   preferredRelationshipProviders,
   refusedSnapshotState,
+  fillProviderOrder,
   relationshipForegroundMetadataLimit,
   relationshipProviderPolicyForSize,
   relationshipRefreshRequiresFollowUp,
@@ -1872,15 +1873,14 @@ async function runExternalRelationshipRefresh(
     // A fill expansion asks paging providers only, one at a time, and never
     // one sitting out a window (ADR 0013). When the windows leave nobody to
     // ask, nothing is requested and nothing is published.
+    const isPaging = pagingProviderTest(direction);
     const fillCandidates = options.fill
       ? fillRelationshipCandidates({
-          ordered: orderedRelationshipProviders(
-            node,
-            direction,
-            "native-first",
-            true,
+          ordered: fillProviderOrder(
+            orderedRelationshipProviders(node, direction, "native-first", true),
+            isPaging,
           ),
-          isPaging: pagingProviderTest(direction),
+          isPaging,
           supportsPaper: (provider) =>
             providerSupportsPaper(
               provider,

@@ -2,6 +2,9 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { CitationProviderID } from "../../src/domain/citationTypes";
 import {
+  cutOrderFor,
+  fillCutIntent,
+  fillProviderOrder,
   fillRelationshipCandidates,
   fillStopsAt,
   isPagingProvider,
@@ -355,5 +358,55 @@ describe("getProviderPlan with ignoreHealth", function () {
     } finally {
       resetCitationProviderSessionState();
     }
+  });
+});
+
+describe("fillProviderOrder", function () {
+  const order: CitationProviderID[] = [
+    "semantic-scholar",
+    "opencitations",
+    "openalex",
+  ];
+
+  it("moves OpenAlex to the front when it can page", function () {
+    expect(fillProviderOrder(order, () => true)).to.deep.equal([
+      "openalex",
+      "semantic-scholar",
+      "opencitations",
+    ]);
+  });
+
+  it("leaves the order alone when OpenAlex cannot page (no key)", function () {
+    expect(
+      fillProviderOrder(order, (provider) => provider !== "openalex"),
+    ).to.deep.equal(order);
+  });
+
+  it("leaves the order alone when OpenAlex is not in it", function () {
+    expect(
+      fillProviderOrder(["semantic-scholar", "opencitations"], () => true),
+    ).to.deep.equal(["semantic-scholar", "opencitations"]);
+  });
+});
+
+describe("cutOrderFor", function () {
+  it("is most-cited only when OpenAlex was asked for it", function () {
+    expect(cutOrderFor("openalex", "most-cited")).to.equal("most-cited");
+    expect(cutOrderFor("openalex", "arrival")).to.equal("arrival");
+    expect(cutOrderFor("openalex", undefined)).to.equal("arrival");
+    expect(cutOrderFor("semantic-scholar", "most-cited")).to.equal("arrival");
+    expect(cutOrderFor("opencitations", "most-cited")).to.equal("arrival");
+  });
+});
+
+describe("fillCutIntent", function () {
+  it("is most-cited when OpenAlex is a paging provider, else arrival", function () {
+    expect(
+      fillCutIntent(["semantic-scholar", "opencitations", "openalex"]),
+    ).to.equal("most-cited");
+    expect(fillCutIntent(["semantic-scholar", "opencitations"])).to.equal(
+      "arrival",
+    );
+    expect(fillCutIntent([])).to.equal("arrival");
   });
 });

@@ -7,6 +7,9 @@ import type {
 } from "../domain/citationTypes";
 import type { CancellationSignal } from "../services/cancellationScope";
 
+/** How a relationship list was cut to its limit: most cited first, or as the provider returns it. */
+export type RelationshipCutOrder = "most-cited" | "arrival";
+
 export interface ProviderRequestOptions {
   signal?: CancellationSignal;
   /**
@@ -14,6 +17,12 @@ export interface ProviderRequestOptions {
    * itself (the hop fill, ADR 0013), so a 429 comes back at once.
    */
   retryRefusals?: boolean;
+  /**
+   * The order a page fetcher is asked to cut in. Only OpenAlex honours
+   * `most-cited`; every other provider returns arrival order whatever is
+   * asked, so the snapshot records what it got, not what it wanted.
+   */
+  order?: RelationshipCutOrder;
 }
 
 export interface ProviderCapabilities {

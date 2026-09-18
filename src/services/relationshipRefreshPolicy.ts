@@ -1,4 +1,5 @@
 import type { CitationProviderID } from "../domain/citationTypes";
+import type { RelationshipCutOrder } from "../providers/types";
 
 export type RelationshipRefreshMode = "automatic" | "manual";
 export type RelationshipProviderStrategy = "native-first" | "aggregate";
@@ -330,4 +331,36 @@ export function unbackedEmptyList(input: {
     !input.hinted &&
     input.reportedCount === null
   );
+}
+
+/**
+ * Who a fill asks first: OpenAlex whenever it can page the direction (enabled
+ * and holding a key), since it is the one provider that sorts a list and
+ * returns metadata with it; the native-first order stands behind it. Keyless
+ * profiles see today's order unchanged.
+ */
+export function fillProviderOrder(
+  ordered: readonly CitationProviderID[],
+  isPaging: (providerID: CitationProviderID) => boolean,
+): CitationProviderID[] {
+  if (!ordered.includes("openalex") || !isPaging("openalex"))
+    return [...ordered];
+  return ["openalex", ...ordered.filter((provider) => provider !== "openalex")];
+}
+
+/** The order a snapshot was actually cut in: only OpenAlex honours most-cited. */
+export function cutOrderFor(
+  provider: CitationProviderID,
+  requested: RelationshipCutOrder | undefined,
+): RelationshipCutOrder {
+  return provider === "openalex" && requested === "most-cited"
+    ? "most-cited"
+    : "arrival";
+}
+
+/** What the fill in force would cut in, for the rail before anything is expanded. */
+export function fillCutIntent(
+  pagingProviders: readonly CitationProviderID[],
+): RelationshipCutOrder {
+  return pagingProviders.includes("openalex") ? "most-cited" : "arrival";
 }
