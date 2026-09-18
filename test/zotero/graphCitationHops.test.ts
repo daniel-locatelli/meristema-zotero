@@ -118,6 +118,13 @@ const META_LOOKUP = /opencitations\.net\/meta\/v1\/metadata\//i;
  */
 const PROVIDER_HOST =
   /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
+/**
+ * The OpenAlex key pref the D8 block sets for itself. It lives out here rather
+ * than in the block: reading `config.prefsPrefix` inside a `describe` body is a
+ * member expression at collection time, which `mocha/no-setup-in-describe`
+ * refuses.
+ */
+const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** A provider sitting out a window: a refusal, never an error (ADR 0013). */
 function providerRefusal(): unknown {
   return { status: 429, responseText: "", getResponseHeader: () => null };
@@ -1850,6 +1857,427 @@ describe("Citation hops (Stage 3)", function () {
       } finally {
         answerAgain();
       }
+    });
+  });
+
+  /**
+   * D8: with a key, the fill asks OpenAlex first, sorted, and every list
+   * comes back with metadata. Served offline: the key is a fake set for the
+   * case alone, and the wrapper answers every provider host itself, so a
+   * keyless profile runs it too and nothing reaches the network.
+   */
+  describe("with an OpenAlex key (D8)", function () {
+    const SEED_DOI = "10.5555/d8.order.seed";
+    const SEED_TITLE = `${FIXTURE_TITLE} (D8 order)`;
+    /**
+     * The seed's two citers. Neither carries a citation count of its own, so
+     * the `meta.count: 0` of its own citer page is the only total behind its
+     * empty list — the D8 path where a hinted expansion takes its reported
+     * count from the list answer (externalDiscoveryService.ts, "Reported
+     * count for free"). A count would ruin the case twice over: red run 5
+     * gave each 9 and 4, and an empty page against a reported 9 is an
+     * INCOMPLETE list, so the fill rightly moved on to the next provider
+     * (Semantic Scholar was asked for both) and hop 1 never drained, leaving
+     * hop 2 reading "0/0" where the rail's "none yet" needs a drained hop
+     * above it.
+     *
+     * This is a deliberate divergence from real OpenAlex, which always sends
+     * `cited_by_count`. If both citers carried their honest `0`,
+     * `externalDiscoveryService.ts:1329-1339`'s `reportedCount === 0` early
+     * return would hand back `{ works: [], complete: true }` for each without
+     * a request — the fill would trust the reported zero and never page
+     * `cites:W802` or `cites:W803`, so the honest real-data total would be 2
+     * (the seed's lookup and its citer page), not the plan's
+     * `2 + CITERS.length` = 4. Omitting the field routes the expansion down
+     * the "reported count for free" path instead, so the case exercises the
+     * unknown-count path where the list answer's own `meta.count` supplies
+     * the total.
+     */
+    const CITERS = [
+      { id: "W802", doi: "10.5555/d8.order.a" },
+      { id: "W803", doi: "10.5555/d8.order.b" },
+    ];
+    let previousKey: unknown = undefined;
+    let seedItemID: number | null = null;
+    let tabID: string | null = null;
+    let realRequest: any = null;
+    let asked: string[] = [];
+    /**
+     * What the provider line carried before the case began, as evidence: the
+     * outer suite's own fixture item shares the library and its update may
+     * still be in flight when this block opens.
+     */
+    let settledAfter = 0;
+    let wentQuiet = false;
+    /**
+     * Whether the fake is answering yet. Saving a library item queues an
+     * automatic citation-data update of its own, and that update fetches the
+     * paper's citers exactly as a fill would: red run 3 read hop 1 as 2/2 with
+     * not one request of its own, because the seed's list was already stored
+     * before the case clicked anything, and a stored list is nothing for the
+     * fill to fetch. Until the case opens, every OpenAlex URL is answered
+     * not-found, so the update stores no list and the list the case reads is
+     * the one its own fill asked for.
+     */
+    let serving = false;
+
+    function openAlexWork(
+      id: string,
+      doi: string,
+      count: number | null,
+    ): unknown {
+      return {
+        id: `https://openalex.org/${id}`,
+        doi: `https://doi.org/${doi}`,
+        display_name: `D8 paper ${id}`,
+        publication_year: 2021,
+        publication_date: "2021-01-01",
+        ...(count === null ? {} : { cited_by_count: count }),
+        referenced_works_count: 0,
+        authorships: [
+          {
+            author: {
+              id: "https://openalex.org/A1",
+              display_name: "A. Author",
+            },
+          },
+        ],
+        primary_location: null,
+      };
+    }
+
+    /**
+     * The seed's own record, carrying the LIBRARY item's title and year. A
+     * lookup answer whose title contradicts the local one and shares no author
+     * is "ambiguous", not "same-work" (`severeLocalContradiction`,
+     * src/domain/workIdentity.ts), and an ambiguous lookup is dropped, so the
+     * fill holds no OpenAlex work ID for the seed and never pages its citers:
+     * red run 1 read "Hop 1 0/0" with the lookup answered and no `cites:` page
+     * behind it. The citers are external papers with no local record to
+     * contradict, so they keep the generic shape.
+     */
+    function seedWork(): unknown {
+      return {
+        ...(openAlexWork("W801", SEED_DOI, CITERS.length) as object),
+        display_name: SEED_TITLE,
+        publication_year: 2019,
+        publication_date: "2019-01-01",
+      };
+    }
+
+    function notFound(): unknown {
+      return { status: 404, responseText: "", getResponseHeader: () => null };
+    }
+
+    function serveOpenAlex(): void {
+      if (realRequest) return;
+      realRequest = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) => {
+        if (!PROVIDER_HOST.test(url))
+          return realRequest.call(Zotero.HTTP, method, url, options);
+        asked.push(url);
+        // Not a refusal: a 429 makes the automatic update come back on a
+        // cool-down (30 s, 1 min, 2 min) and land in the middle of a case
+        // that counts requests, while a not-found is final and lets the
+        // library's own update settle before the case starts. What the other
+        // providers would answer is not this case's evidence anyway — the
+        // case asserts that none of them was asked at all.
+        if (!serving || !/^https:\/\/api\.openalex\.org\//.test(url))
+          return notFound();
+        const parsed = new URL(url);
+        const path = decodeURIComponent(parsed.pathname);
+        // The seed is a library paper: its own expansion looks the DOI up.
+        // The outer suite's fixtures share the library, so a lookup of any
+        // other DOI is not this case's and is answered not-found rather than
+        // handed the seed's record.
+        if (/\/works\/doi/i.test(path)) {
+          return path.includes(SEED_DOI)
+            ? providerAnswer(JSON.stringify(seedWork()))
+            : notFound();
+        }
+        const filter = parsed.searchParams.get("filter") ?? "";
+        if (filter === "cites:W801") {
+          return providerAnswer(
+            JSON.stringify({
+              results: CITERS.map((citer) =>
+                openAlexWork(citer.id, citer.doi, null),
+              ),
+              meta: { count: CITERS.length },
+            }),
+          );
+        }
+        // Each citer's own page (cites:W802, cites:W803), and anything else
+        // this fake did not name above: empty with a reported total of 0.
+        return providerAnswer(
+          JSON.stringify({ results: [], meta: { count: 0 } }),
+        );
+      };
+    }
+
+    function answerAgain(): void {
+      if (!realRequest) return;
+      (Zotero.HTTP as any).request = realRequest;
+      realRequest = null;
+    }
+
+    function cutLine(): string {
+      const line = graphRoot().querySelector(".cm-scope-hop-cut");
+      return line ? normalize(line.textContent) : "no cut line";
+    }
+
+    /**
+     * The seed title's distinctive fragment, lowercased: a title search for
+     * the seed (no DOI, no `W80x`) is still this case's own traffic, in both
+     * its raw and percent-encoded forms.
+     */
+    const SEED_TITLE_FRAGMENT = "d8 order";
+
+    /**
+     * Whether a recorded URL names one of THIS case's papers, by DOI (raw or
+     * encoded), by OpenAlex work ID, or by a title search naming the seed.
+     * The outer suite's fixture item shares the library and its own metadata
+     * update keeps asking every provider about `FIXTURE_DOI` while this case
+     * runs; that traffic is not the fill's and is not this case's to read.
+     */
+    function mine(url: string): boolean {
+      const lower = url.toLowerCase();
+      return (
+        /w80[123]/.test(lower) ||
+        [SEED_DOI, ...CITERS.map((citer) => citer.doi)].some(
+          (doi) =>
+            lower.includes(doi.toLowerCase()) ||
+            lower.includes(encodeURIComponent(doi).toLowerCase()),
+        ) ||
+        lower.includes(SEED_TITLE_FRAGMENT) ||
+        lower.includes(encodeURIComponent(SEED_TITLE_FRAGMENT).toLowerCase())
+      );
+    }
+
+    /**
+     * The requests the FILL made about this case's papers: the seed's own
+     * lookup, and one citer page per expansion. Seeding a paper also sets the
+     * graph's own enrichment of it going — red run 5 recorded two
+     * `ids.openalex:W801` lookups, one of them for open-access locations —
+     * and that is not the fill asking for a list.
+     */
+    function fillRequests(): string[] {
+      return asked.filter((url) => {
+        if (!mine(url)) return false;
+        const parsed = new URL(url);
+        return (
+          /\/works\/doi/i.test(decodeURIComponent(parsed.pathname)) ||
+          (parsed.searchParams.get("filter") ?? "").startsWith("cites:")
+        );
+      });
+    }
+
+    /**
+     * Hold until the provider line has been silent for `idleMs`, so the case
+     * starts from a quiet baseline. Saving a library item queues an automatic
+     * citation-data update of its own (automaticUpdateCoordinator.ts, 1.2 s
+     * after the save), and that update is what puts the paper on the plot at
+     * all, so it cannot be turned off — run 2 turned it off and the node-menu
+     * walk was offered the outer fixture alone. It is not the fill's traffic
+     * either, and counting it would read like the fill asking providers it
+     * never asked, so the case waits it out instead.
+     */
+    async function untilQuiet(idleMs: number, capMs: number): Promise<boolean> {
+      const deadline = Date.now() + capMs;
+      let seen = asked.length;
+      let since = Date.now();
+      while (Date.now() < deadline) {
+        await delay(500);
+        if (asked.length !== seen) {
+          seen = asked.length;
+          since = Date.now();
+        } else if (Date.now() - since >= idleMs) return true;
+      }
+      return false;
+    }
+
+    before(async function () {
+      this.timeout(240_000);
+      previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
+      Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, "d8-test-key", true);
+      serveOpenAlex();
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", SEED_TITLE);
+      item.setField("date", "2019");
+      item.setField("DOI", SEED_DOI);
+      seedItemID = await item.saveTx();
+      tabID = await openNewGraphTab();
+      currentTabID = tabID;
+      win.Zotero_Tabs.select(tabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(tabID)?.querySelector(".cm-scope-section .cm-scope-count"),
+        30_000,
+      );
+      expect(rail, "the D8 tab's Scope section").to.exist;
+      await dismissGallery(tabID);
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the D8 tab's fit button").to.exist;
+      fit!.click();
+      wentQuiet = await untilQuiet(10_000, 120_000);
+      settledAfter = asked.length;
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      serving = false;
+      answerAgain();
+      if (previousKey === undefined || previousKey === null)
+        Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
+      else Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, previousKey as string, true);
+      if (tabID) win.Zotero_Tabs.close(tabID);
+      await delay(500);
+      tabID = null;
+      currentTabID = null;
+      if (seedItemID !== null) await Zotero.Items.erase(seedItemID);
+      seedItemID = null;
+    });
+
+    it("fills through OpenAlex alone, sorted, with the rows and the cut line the data allows", async function () {
+      this.timeout(180_000);
+      asked = [];
+      serving = true;
+      (await nodeMenuEntry("Add as seed", SEED_TITLE)).click();
+      const filled = await waitFor(
+        () => hopCounts(1)?.available ?? null,
+        60_000,
+      );
+      expect(
+        filled,
+        `hop 1 never filled; it read "${hopRowText(1)}"; ${asked.length} request(s): ${asked.join(" | ")}` +
+          ` (before the case: ${settledAfter} request(s), line ${wentQuiet ? "quiet" : "STILL BUSY"})`,
+      ).to.equal(CITERS.length);
+      // OpenAlex first: about this case's papers, nobody else was asked at all.
+      expect(
+        asked.filter(
+          (url) => mine(url) && !/^https:\/\/api\.openalex\.org\//.test(url),
+        ),
+        `a provider other than OpenAlex was asked about this case's papers: ${asked.filter(mine).join(" | ")}`,
+      ).to.be.empty;
+      // Sorted: the seed's citer page carried the sort.
+      const citerPages = asked.filter(
+        (url) => new URL(url).searchParams.get("filter") === "cites:W801",
+      );
+      expect(
+        citerPages,
+        `the seed's citer page; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.not.be.empty;
+      expect(
+        new URL(citerPages[0]!).searchParams.get("sort"),
+        `the seed's citer page: ${citerPages[0]}`,
+      ).to.equal("cited_by_count:desc");
+      // The rows: Seeds, Hop 1, a Fetch row for hop 2, nothing else.
+      expect(
+        Array.from(graphRoot().querySelectorAll(".cm-scope-hop-row")).map(
+          (row) => (row as HTMLElement).dataset.hop,
+        ),
+        `rows: ${Array.from(graphRoot().querySelectorAll(".cm-scope-hop-row"))
+          .map((row) => normalize(row?.textContent))
+          .join(" | ")}`,
+      ).to.deep.equal(["0", "1", "2"]);
+      expect(fetchButton(2), "hop 2's Fetch button").to.exist;
+      expect(
+        cutLine(),
+        `rail rows: ${Array.from(
+          graphRoot().querySelectorAll(".cm-scope-hop-row"),
+        )
+          .map((row) => normalize(row?.textContent))
+          .join(" | ")}`,
+      ).to.equal("Top 50 citers per paper, most cited first");
+      // Hop 2: both citers expand to nothing, so hop 2 reads none yet and no
+      // Fetch row follows it.
+      fetchButton(2)!.click();
+      // Hop 2 reads "none yet" the moment it opens, before either citer has
+      // been asked anything, so waiting on that word alone is vacuous: red
+      // run 4 reached the last assertion with the pair still in flight and
+      // counted 2 requests. The recorded URLs only ever grow, so asking them
+      // for both citer pages is race-free, and it is exactly what "the fill
+      // ran on all of hop 1" means.
+      const expanded = await waitFor(
+        () =>
+          CITERS.every((citer) =>
+            asked.some(
+              (url) =>
+                new URL(url).searchParams.get("filter") === `cites:${citer.id}`,
+            ),
+          ) || null,
+        60_000,
+      );
+      expect(
+        expanded,
+        `the fill never asked both hop-1 papers for their own citers; hop 1 read "${hopRowText(1)}", hop 2 "${hopRowText(2)}", line "${progressText()}"; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.exist;
+      // Drained means the progress line is GONE (B72), and only a drained
+      // fill has a final request count to assert on.
+      const drained = await waitFor(
+        () => (progressText() === "no progress line" ? "drained" : null),
+        60_000,
+      );
+      expect(
+        drained,
+        `the fill never drained; the line reads "${progressText()}", hop 2 "${hopRowText(2)}"; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.exist;
+      const empty = await waitFor(
+        () => (hopCountText(2) === "none yet" ? hopCountText(2) : null),
+        60_000,
+      );
+      expect(
+        empty,
+        `hop 2 never read none yet; it read "${hopRowText(2)}", line "${progressText()}"; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.exist;
+      expect(fetchButton(3), "no Fetch row past an empty hop").to.equal(null);
+      expect(
+        Array.from(graphRoot().querySelectorAll(".cm-scope-hop-row")).map(
+          (row) => (row as HTMLElement).dataset.hop,
+        ),
+        `rows: ${Array.from(graphRoot().querySelectorAll(".cm-scope-hop-row"))
+          .map((row) => normalize(row?.textContent))
+          .join(" | ")}`,
+      ).to.deep.equal(["0", "1", "2"]);
+      // No hydration: the hop-1 list carried metadata, so nothing looked its
+      // papers up in a batch.
+      expect(
+        asked.filter(
+          (url) =>
+            /filter=(ids\.openalex|doi)%3A/i.test(url) &&
+            CITERS.some(
+              (citer) =>
+                url.toLowerCase().includes(citer.id.toLowerCase()) ||
+                url
+                  .toLowerCase()
+                  .includes(encodeURIComponent(citer.doi).toLowerCase()),
+            ),
+        ),
+        `a hydration batch was asked for the hop-1 papers: ${asked.filter(mine).join(" | ")}`,
+      ).to.be.empty;
+      // Still OpenAlex alone, now that every expansion has landed.
+      expect(
+        asked.filter(
+          (url) => mine(url) && !/^https:\/\/api\.openalex\.org\//.test(url),
+        ),
+        `a provider other than OpenAlex was asked about this case's papers: ${asked.filter(mine).join(" | ")}`,
+      ).to.be.empty;
+      // The seed's lookup, its own citer page, and one page per citer of
+      // unknown count.
+      expect(
+        fillRequests().length,
+        `fill requests: ${fillRequests().join(" | ")} (of ${asked.length} in all: ${asked.join(" | ")}; before the case: ${settledAfter}, line ${wentQuiet ? "quiet" : "STILL BUSY"})`,
+      ).to.equal(2 + CITERS.length);
     });
   });
 });
