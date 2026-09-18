@@ -23,6 +23,7 @@ import {
   createLabelBudget,
   createRectangleIndex,
   createTextWidthCache,
+  type LabelRectangle,
 } from "./graphLabelBudget";
 
 interface Position {
@@ -79,6 +80,8 @@ export interface RendererSceneContext {
   draw(): void;
   hopAlphaFor(key: string): number;
   emphasisAlphaFor(key: string): number;
+  /** Rectangles in device pixels no label may cover: the floor's tag. */
+  labelObstacles(): LabelRectangle[];
 }
 
 const WORLD_WIDTH = 1100;
@@ -611,6 +614,8 @@ export function drawRendererLabels(
       bottom: position.y + radius,
     });
   }
+  for (const rectangle of renderer.labelObstacles())
+    obstacles.insert(rectangle);
   // The budget is a share of the plot that is actually on screen, so zooming
   // in — which grows the visible plot without adding nodes — reveals more
   // labels continuously rather than at a threshold.

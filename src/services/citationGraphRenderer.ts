@@ -92,6 +92,14 @@ import {
 } from "./graphEdgeStyle";
 import { isContextMenuKey } from "./nodeMenu";
 import { seedMarksWithin, type SeedMarks } from "./graphHopModel";
+import {
+  floorAtWorld,
+  floorLinePlacement,
+  floorTagText,
+  type FloorAxisInput,
+  type FloorLinePlacement,
+} from "./graphFloor";
+import type { LabelRectangle } from "./graphLabelBudget";
 
 export interface Position {
   x: number;
@@ -146,6 +154,10 @@ export interface CitationGraphRendererOptions {
    * false, and the one redraw that follows carries all of it (B29).
    */
   onThemeChange?: (theme: GraphTheme) => void;
+  /** The floor's tag or line was dragged to a new rounded value. */
+  onFloorChange?: (floor: number) => void;
+  /** The drag released; the owner re-plans the fill once here. */
+  onFloorDragEnd?: () => void;
 }
 
 const WORLD_WIDTH = 1100;
@@ -297,6 +309,19 @@ export class CitationGraphRenderer {
     moved: false,
     draggedKey: null as string | null,
   };
+  private readonly onFloorChange: (floor: number) => void;
+  private readonly onFloorDragEnd: () => void;
+  private floor = 0;
+  private floorBelow = 0;
+  /** Where the last frame drew the line, or null when no axis shows citations. */
+  private floorPlacement: FloorLinePlacement | null = null;
+  private floorAxisInput: FloorAxisInput | null = null;
+  /** The line's screen coordinate on its axis, device pixels, for the hit test. */
+  private floorLineScreen: number | null = null;
+  /** The tag's rectangle in device pixels; a label obstacle and the grab. */
+  private floorTagRect: LabelRectangle | null = null;
+  private floorDragging = false;
+  private floorHovered = false;
   /** The keys the Key rail is emphasising, or null when it is emphasising none. */
   private emphasisKeys: ReadonlySet<string> | null = null;
   /** How far into the emphasis the ease has travelled: 0 none, 1 full. */
@@ -327,6 +352,8 @@ export class CitationGraphRenderer {
     this.onViewChange = options.onViewChange ?? (() => undefined);
     this.onNodeContextMenu = options.onNodeContextMenu ?? (() => undefined);
     this.onThemeChange = options.onThemeChange ?? (() => undefined);
+    this.onFloorChange = options.onFloorChange ?? (() => undefined);
+    this.onFloorDragEnd = options.onFloorDragEnd ?? (() => undefined);
     this.visibleKeys = new Set(this.model.nodes.map((node) => node.key));
     this.scopeKeys = new Set(this.visibleKeys);
 
@@ -654,8 +681,12 @@ export class CitationGraphRenderer {
     if (event.button !== 0) return;
     this.markViewAdjusted();
     this.canvas.setPointerCapture?.(event.pointerId);
+    // The tag always grabs the floor; a node wins over the bare line.
+    const floorHit = this.floorHit(event.clientX, event.clientY);
+    if (floorHit === "tag") return this.beginFloorDrag(event);
     const world = this.screenToWorld(event.clientX, event.clientY);
     const node = this.hitTest(world.x, world.y);
+    if (!node && floorHit === "line") return this.beginFloorDrag(event);
     const canDragNode = Boolean(
       node &&
       (this.layout.xMetric === "free" || this.layout.yMetric === "free"),
@@ -678,6 +709,10 @@ export class CitationGraphRenderer {
   };
 
   private onPointerMove = (event: PointerEvent): void => {
+    if (this.pointer.down && this.floorDragging) {
+      this.dragFloorTo(event);
+      return;
+    }
     if (this.pointer.down && this.pointer.draggedKey) {
       if (
         Math.hypot(
@@ -718,24 +753,41 @@ export class CitationGraphRenderer {
       this.draw();
       return;
     }
+    const floorHit = this.floorHit(event.clientX, event.clientY);
     const world = this.screenToWorld(event.clientX, event.clientY);
-    const node = this.hitTest(world.x, world.y);
+    // The tag is over the plot; the bare line yields to a node under it.
+    const node = floorHit === "tag" ? null : this.hitTest(world.x, world.y);
+    const overFloor = floorHit === "tag" || (floorHit === "line" && !node);
     const key = node?.key ?? null;
-    if (key !== this.hoverKey) {
+    if (key !== this.hoverKey || overFloor !== this.floorHovered) {
       this.hoverKey = key;
+      this.floorHovered = overFloor;
       this.onHoverChange(key);
-      this.canvas.style.cursor = node
-        ? this.layout.xMetric === "free" || this.layout.yMetric === "free"
-          ? "move"
-          : "pointer"
-        : "grab";
-      this.canvas.title = node ? this.tooltipForNode(node) : "";
+      this.canvas.style.cursor = overFloor
+        ? this.floorCursor()
+        : node
+          ? this.layout.xMetric === "free" || this.layout.yMetric === "free"
+            ? "move"
+            : "pointer"
+          : "grab";
+      this.canvas.title = overFloor
+        ? floorTagText(this.floor, this.floorBelow)
+        : node
+          ? this.tooltipForNode(node)
+          : "";
       this.draw();
     }
   };
 
   private onPointerUp = (event: PointerEvent): void => {
     this.canvas.releasePointerCapture?.(event.pointerId);
+    if (this.floorDragging) {
+      this.floorDragging = false;
+      this.pointer.down = false;
+      this.canvas.style.cursor = "grab";
+      this.onFloorDragEnd();
+      return;
+    }
     const wasBackgroundClick =
       this.pointer.down && this.pointer.panning && !this.pointer.moved;
     const wasNodeDrag = this.pointer.down && Boolean(this.pointer.draggedKey);
@@ -1251,6 +1303,103 @@ export class CitationGraphRenderer {
   }
 
   /**
+   * The citation floor: a dashed line across the plot on the axis that shows
+   * citations, a band over the hidden side, and a handle tag at the line's
+   * left (Y) or bottom (X) end. Drawn after the backdrop and before the
+   * regions, so the band sits under everything the reader can point at. The
+   * tag's rectangle is kept for the hit test and as a label obstacle.
+   */
+  private drawFloor(
+    plot: PlotRect,
+    xScale: AxisScale | null,
+    yScale: AxisScale | null,
+  ): void {
+    const x: FloorAxisInput = {
+      metric: this.layout.xMetric,
+      scale: this.layout.xScale,
+      domain: xScale?.domain ?? null,
+    };
+    const y: FloorAxisInput = {
+      metric: this.layout.yMetric,
+      scale: this.layout.yScale,
+      domain: yScale?.domain ?? null,
+    };
+    const placement = floorLinePlacement(x, y, this.floor);
+    this.floorPlacement = placement;
+    this.floorAxisInput = placement ? (placement.axis === "y" ? y : x) : null;
+    this.floorLineScreen = null;
+    this.floorTagRect = null;
+    if (!placement) return;
+
+    const context = this.context;
+    const ratio = this.ratio;
+    const screen =
+      placement.axis === "y"
+        ? this.projectToScreen({ x: 0, y: placement.world }).y
+        : this.projectToScreen({ x: placement.world, y: 0 }).x;
+    this.floorLineScreen = screen;
+    // Under the fit transform the camera normally holds, `screen` always
+    // lands within `plot`: `floorLinePlacement` clamps its world coordinate
+    // to the world plot box, and a fit maps that box onto `plot`. A panned
+    // or zoomed view can still carry the line past the visible frame; the
+    // `clip()` below is what keeps a line or tag drawn past the edge from
+    // painting outside the plot, so there is nothing extra to gate on here.
+
+    context.save();
+    context.beginPath();
+    context.rect(plot.left, plot.top, plot.width, plot.height);
+    context.clip();
+    context.fillStyle = this.theme.states.floorBand;
+    if (placement.axis === "y") {
+      context.fillRect(plot.left, screen, plot.width, plot.bottom - screen);
+    } else {
+      context.fillRect(plot.left, plot.top, screen - plot.left, plot.height);
+    }
+    context.strokeStyle = this.theme.states.floorLine;
+    context.lineWidth = Math.max(1, 1.2 * ratio);
+    context.setLineDash([4 * ratio, 4 * ratio]);
+    context.beginPath();
+    if (placement.axis === "y") {
+      context.moveTo(plot.left, screen);
+      context.lineTo(plot.right, screen);
+    } else {
+      context.moveTo(screen, plot.top);
+      context.lineTo(screen, plot.bottom);
+    }
+    context.stroke();
+    context.setLineDash([]);
+
+    const size = Math.round(10.5 * ratio);
+    context.font = `${size}px ${this.fontStack}`;
+    const label = floorTagText(this.floor, this.floorBelow);
+    const padX = 8 * ratio;
+    const padY = 3 * ratio;
+    const width = context.measureText(label).width + padX * 2;
+    const height = size + padY * 2;
+    const left =
+      placement.axis === "y" ? plot.left + 8 * ratio : screen + 8 * ratio;
+    const top =
+      placement.axis === "y"
+        ? screen + 8 * ratio
+        : plot.bottom - 8 * ratio - height;
+    context.fillStyle = this.theme.surfaces.panel;
+    context.fillRect(left, top, width, height);
+    context.lineWidth = Math.max(1, ratio);
+    context.strokeRect(left, top, width, height);
+    context.fillStyle = this.theme.inks.primary;
+    context.textAlign = "left";
+    context.textBaseline = "middle";
+    context.fillText(label, left + padX, top + height / 2);
+    context.restore();
+    this.floorTagRect = {
+      left,
+      right: left + width,
+      top,
+      bottom: top + height,
+    };
+  }
+
+  /**
    * Everything that belongs beneath the nodes: the paper the plot is printed
    * on, a gridline at every tick, and the no-data lanes. The frame, the ticks
    * and the axis titles go on top, in `drawAxes`.
@@ -1297,6 +1446,78 @@ export class CitationGraphRenderer {
     this.drawNoDataLane(plot, "x", nodes);
     this.drawNoDataLane(plot, "y", nodes);
     context.restore();
+  }
+
+  /** The floor and how many papers sit under it; the tag prints both. */
+  public setFloor(floor: number, below: number, draw = true): void {
+    this.floor = Math.max(0, Math.floor(floor));
+    this.floorBelow = Math.max(0, below);
+    if (draw) this.draw();
+  }
+
+  /** Rectangles no label may sit under: the floor's tag, when drawn. */
+  public labelObstacles(): LabelRectangle[] {
+    return this.floorTagRect ? [this.floorTagRect] : [];
+  }
+
+  /** What the pointer is over, floor-wise: the tag, the bare line, or nothing. */
+  private floorHit(clientX: number, clientY: number): "tag" | "line" | null {
+    if (!this.floorPlacement || this.floorLineScreen === null) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = devicePixelScale(this.canvas.width, rect.width);
+    const x = (clientX - rect.left) * ratio;
+    const y = (clientY - rect.top) * ratio;
+    const tag = this.floorTagRect;
+    if (
+      tag &&
+      x >= tag.left &&
+      x <= tag.right &&
+      y >= tag.top &&
+      y <= tag.bottom
+    ) {
+      return "tag";
+    }
+    const plot = this.plotRect();
+    const tolerance = 5 * ratio;
+    if (this.floorPlacement.axis === "y") {
+      const onLine = Math.abs(y - this.floorLineScreen) <= tolerance;
+      return onLine && x >= plot.left && x <= plot.right ? "line" : null;
+    }
+    const onLine = Math.abs(x - this.floorLineScreen) <= tolerance;
+    return onLine && y >= plot.top && y <= plot.bottom ? "line" : null;
+  }
+
+  private floorCursor(): string {
+    return this.floorPlacement?.axis === "x" ? "ew-resize" : "ns-resize";
+  }
+
+  private beginFloorDrag(event: PointerEvent): void {
+    this.floorDragging = true;
+    this.pointer = {
+      down: true,
+      panning: false,
+      x: event.clientX,
+      y: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+      draggedKey: null,
+    };
+    this.canvas.style.cursor = this.floorCursor();
+  }
+
+  private dragFloorTo(event: PointerEvent): void {
+    if (!this.floorPlacement || !this.floorAxisInput) return;
+    const world = this.screenToWorld(event.clientX, event.clientY);
+    const axis = this.floorPlacement.axis;
+    const value = floorAtWorld(
+      axis,
+      this.floorAxisInput,
+      axis === "y" ? world.y : world.x,
+    );
+    if (value === this.floor) return;
+    this.floor = value;
+    this.onFloorChange(value);
   }
 
   /**
@@ -1649,6 +1870,13 @@ export class CitationGraphRenderer {
       const xScale = axes.xFree ? null : this.axisScale(metricNodes, "x");
       const yScale = axes.yFree ? null : this.axisScale(metricNodes, "y");
       if (framed) this.drawPlotBackdrop(plot, metricNodes, xScale, yScale);
+      if (framed) this.drawFloor(plot, xScale, yScale);
+      else {
+        this.floorPlacement = null;
+        this.floorAxisInput = null;
+        this.floorLineScreen = null;
+        this.floorTagRect = null;
+      }
       this.drawRegions(plot);
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
