@@ -118,6 +118,8 @@ export interface ScopePaper {
   collectionIDs: readonly number[];
   /** False for a paper that is not in Zotero. */
   inLibrary: boolean;
+  /** What the floor reads; null passes the floor. */
+  citationCount: number | null;
 }
 
 /** What the hop rule needs of an entry; structurally `HopEntry` from graphHopModel.ts. */
@@ -150,6 +152,11 @@ export interface GraphScopeInput {
    * without changing a single count the rail prints.
    */
   facetAdmits: (key: string) => boolean;
+  /**
+   * The citation count a non-seed paper needs to be shown. 0 is off. The last
+   * rule of the order, so a paper a facet already hid is not counted below it.
+   */
+  floor: number;
 }
 
 export interface GraphScopeResult {
@@ -167,6 +174,8 @@ export interface GraphScopeResult {
   shownByHop: number[];
   /** Papers the walk reached at each hop, whatever the rules said. */
   availableByHop: number[];
+  /** Papers the floor removed: known count under it, after every other rule. */
+  belowFloorCount: number;
 }
 
 /**
@@ -185,7 +194,10 @@ export interface GraphScopeResult {
  * they are of anything else.
  *
  * The hop rule reads a parent's visibility, so papers are walked in hop
- * order: a parent is settled before its children ask about it.
+ * order: a parent is settled before its children ask about it. The floor is
+ * the last rule: it reads a fact about the paper itself and, like the facets,
+ * applies to a folder-admitted paper as much as to a citer; a seed is never
+ * under it.
  */
 export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   const visibleKeys = new Set<string>();
@@ -193,6 +205,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   let unfiledCount = 0;
   let externalCount = 0;
   let hiddenCount = 0;
+  let belowFloorCount = 0;
   const depth = input.hops.depth;
   const shownByHop = Array.from({ length: depth + 1 }, () => 0);
   const availableByHop = Array.from({ length: depth + 1 }, () => 0);
@@ -229,15 +242,26 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
             isCollectionTicked(input.ticks, collectionID),
           )
         : input.includeUnfiled);
-    const hopAdmitted =
+    const hopCanBeAdmitted =
       entry !== undefined &&
       entry.hop <= depth &&
-      input.hops.enabled[entry.hop] !== false &&
-      entry.parents.some((parent) => visibleKeys.has(parent));
-    if (!folderAdmitted && !hopAdmitted) continue;
+      input.hops.enabled[entry.hop] !== false;
+    if (!folderAdmitted && !hopCanBeAdmitted) continue;
     if (!paper.inLibrary && !input.includeExternal) continue;
     if (input.hiddenKeys.has(paper.key)) continue;
     if (!input.facetAdmits(paper.key)) continue;
+    if (
+      input.floor > 0 &&
+      paper.citationCount !== null &&
+      paper.citationCount < input.floor
+    ) {
+      belowFloorCount += 1;
+      continue;
+    }
+    const hopAdmitted =
+      hopCanBeAdmitted &&
+      entry!.parents.some((parent) => visibleKeys.has(parent));
+    if (!folderAdmitted && !hopAdmitted) continue;
     visibleKeys.add(paper.key);
     if (entry && entry.hop <= depth) shownByHop[entry.hop] += 1;
   }
@@ -250,6 +274,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     unfiledCount,
     externalCount,
     hiddenCount,
+    belowFloorCount,
     shownByHop,
     availableByHop,
   };

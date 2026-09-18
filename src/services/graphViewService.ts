@@ -4096,6 +4096,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         key: node.key,
         collectionIDs: node.collectionIDs,
         inLibrary: node.kind !== "external",
+        citationCount: node.citationCount,
       })),
       seedKeys: hopModel?.seedKeys ?? new Set<string>(),
       hops: {
@@ -4113,6 +4114,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         const descriptor = graphFilterDescriptors.get(key);
         return descriptor ? graphFilter.matches(descriptor) : false;
       },
+      floor: 0,
     });
     lastScope = scope;
     // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the

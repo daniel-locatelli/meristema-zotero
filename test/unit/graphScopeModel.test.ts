@@ -76,8 +76,9 @@ function paper(
   key: string,
   collectionIDs: readonly number[] = [],
   inLibrary = true,
+  citationCount: number | null = null,
 ): ScopePaper {
-  return { key, collectionIDs, inLibrary };
+  return { key, collectionIDs, inLibrary, citationCount };
 }
 
 function scope(overrides: Partial<GraphScopeInput> = {}): GraphScopeResult {
@@ -90,6 +91,7 @@ function scope(overrides: Partial<GraphScopeInput> = {}): GraphScopeResult {
     includeExternal: true,
     hiddenKeys: new Set(),
     facetAdmits: () => true,
+    floor: 0,
     ...overrides,
   });
 }
@@ -362,5 +364,81 @@ describe("computeGraphScope with hops", function () {
       hops: hops({ s: [0, []] }, 3, [true, false, false, false]),
     });
     expect(result.visibleKeys.has("lib")).to.equal(false);
+  });
+});
+
+describe("computeGraphScope with a floor", function () {
+  const hops: GraphScopeHops = {
+    entries: new Map([
+      ["s", { hop: 0, parents: [] }],
+      ["a", { hop: 1, parents: ["s"] }],
+      ["b", { hop: 1, parents: ["s"] }],
+      ["c", { hop: 2, parents: ["a"] }],
+      ["d", { hop: 2, parents: ["a", "b"] }],
+    ]),
+    depth: 2,
+    enabled: [true, true, true],
+  };
+  const papers = [
+    paper("s", [], true, 3),
+    paper("a", [], false, 5),
+    paper("b", [], false, 40),
+    paper("c", [], false, 9),
+    paper("d", [], false, 200),
+  ];
+
+  it("hides a paper under the floor and its hop-child with it", function () {
+    const result = scope({ papers, seedKeys: new Set(["s"]), hops, floor: 10 });
+    expect([...result.visibleKeys].sort()).to.deep.equal(["b", "d", "s"]);
+    expect(result.belowFloorCount).to.equal(2);
+    expect(result.shownByHop).to.deep.equal([1, 1, 1]);
+  });
+
+  it("keeps a child whose other parent is above the floor", function () {
+    const result = scope({ papers, seedKeys: new Set(["s"]), hops, floor: 10 });
+    expect(result.visibleKeys.has("d")).to.equal(true);
+  });
+
+  it("never hides a seed", function () {
+    const result = scope({
+      papers,
+      seedKeys: new Set(["s"]),
+      hops,
+      floor: 1000,
+    });
+    expect([...result.visibleKeys]).to.deep.equal(["s"]);
+  });
+
+  it("hides a folder-admitted library paper under the floor", function () {
+    const result = scope({
+      papers: [paper("lib", [1], true, 2), paper("top", [1], true, 50)],
+      floor: 10,
+    });
+    expect([...result.visibleKeys]).to.deep.equal(["top"]);
+    expect(result.belowFloorCount).to.equal(1);
+  });
+
+  it("lets a paper with no count pass", function () {
+    const result = scope({
+      papers: [paper("unknown", [1], true, null)],
+      floor: 10,
+    });
+    expect([...result.visibleKeys]).to.deep.equal(["unknown"]);
+    expect(result.belowFloorCount).to.equal(0);
+  });
+
+  it("counts only what the floor removed, not what a facet already hid", function () {
+    const result = scope({
+      papers: [paper("x", [1], true, 1), paper("y", [1], true, 1)],
+      facetAdmits: (key) => key !== "x",
+      floor: 10,
+    });
+    expect(result.belowFloorCount).to.equal(1);
+  });
+
+  it("removes nothing at 0", function () {
+    const result = scope({ papers, seedKeys: new Set(["s"]), hops, floor: 0 });
+    expect(result.visibleKeys.size).to.equal(5);
+    expect(result.belowFloorCount).to.equal(0);
   });
 });

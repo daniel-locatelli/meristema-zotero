@@ -51,10 +51,10 @@ const TREE: LibraryCollectionFilter[] = [
 function emptyScope(): GraphScopeResult {
   return computeGraphScope({
     papers: [
-      { key: "a", collectionIDs: [1], inLibrary: true },
-      { key: "b", collectionIDs: [11], inLibrary: true },
-      { key: "c", collectionIDs: [], inLibrary: true },
-      { key: "x", collectionIDs: [], inLibrary: false },
+      { key: "a", collectionIDs: [1], inLibrary: true, citationCount: null },
+      { key: "b", collectionIDs: [11], inLibrary: true, citationCount: null },
+      { key: "c", collectionIDs: [], inLibrary: true, citationCount: null },
+      { key: "x", collectionIDs: [], inLibrary: false, citationCount: null },
     ],
     seedKeys: new Set(),
     hops: noHops(),
@@ -63,6 +63,7 @@ function emptyScope(): GraphScopeResult {
     includeExternal: true,
     hiddenKeys: new Set(),
     facetAdmits: () => true,
+    floor: 0,
   });
 }
 
@@ -201,8 +202,8 @@ describe("buildScopeRailModel", function () {
   it("shows the hidden line only when something is hidden", function () {
     const scope = computeGraphScope({
       papers: [
-        { key: "a", collectionIDs: [1], inLibrary: true },
-        { key: "b", collectionIDs: [1], inLibrary: true },
+        { key: "a", collectionIDs: [1], inLibrary: true, citationCount: null },
+        { key: "b", collectionIDs: [1], inLibrary: true, citationCount: null },
       ],
       seedKeys: new Set(),
       hops: noHops(),
@@ -211,6 +212,7 @@ describe("buildScopeRailModel", function () {
       includeExternal: true,
       hiddenKeys: new Set(["b"]),
       facetAdmits: () => true,
+      floor: 0,
     });
     const model = buildScopeRailModel({
       collections: TREE,
