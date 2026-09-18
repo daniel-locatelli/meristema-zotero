@@ -784,6 +784,10 @@ export class CitationGraphRenderer {
     if (this.floorDragging) {
       this.floorDragging = false;
       this.pointer.down = false;
+      // The hover is forgotten with the drag: the next move over the tag has
+      // to restore the resize cursor and retitle the canvas with the value
+      // the drag just left behind.
+      this.floorHovered = false;
       this.canvas.style.cursor = "grab";
       this.onFloorDragEnd();
       return;
@@ -819,6 +823,9 @@ export class CitationGraphRenderer {
   private onPointerLeave = (): void => {
     if (!this.pointer.down) {
       this.hoverKey = null;
+      // Cleared with the title it wrote, so re-entering over the tag counts
+      // as a change again and names the floor once more.
+      this.floorHovered = false;
       this.onHoverChange(null);
       this.canvas.title = "";
       this.draw();
@@ -1337,13 +1344,15 @@ export class CitationGraphRenderer {
       placement.axis === "y"
         ? this.projectToScreen({ x: 0, y: placement.world }).y
         : this.projectToScreen({ x: placement.world, y: 0 }).x;
+    const onPlot =
+      placement.axis === "y"
+        ? screen >= plot.top && screen <= plot.bottom
+        : screen >= plot.left && screen <= plot.right;
+    // A pan or a zoom can carry the line off the frame. Nothing is drawn and
+    // both rectangles stay null, so an unreachable floor is neither a hit
+    // target nor an obstacle the labels must dodge.
+    if (!onPlot) return;
     this.floorLineScreen = screen;
-    // Under the fit transform the camera normally holds, `screen` always
-    // lands within `plot`: `floorLinePlacement` clamps its world coordinate
-    // to the world plot box, and a fit maps that box onto `plot`. A panned
-    // or zoomed view can still carry the line past the visible frame; the
-    // `clip()` below is what keeps a line or tag drawn past the edge from
-    // painting outside the plot, so there is nothing extra to gate on here.
 
     context.save();
     context.beginPath();
