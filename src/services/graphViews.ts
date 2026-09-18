@@ -36,16 +36,23 @@ export type GraphViewFilters = Partial<
   Omit<PaperListFilterState, "collectionIDs" | "relation">
 >;
 
-/** Stage 3: the direction and the depth a view opens. Stage 4 adds `floor`. */
+/**
+ * Stage 3: the direction and the depth a view opens. Stage 4: an optional
+ * `floor`; a view that carries one applies it (0 switches it off), a view
+ * without leaves the live floor alone.
+ */
 export interface GraphViewExplore {
   direction: HopDirection;
   hops: number;
+  floor?: number;
 }
 
 export interface GraphViewLiveHops {
   direction: HopDirection;
   depth: number;
   enabled: readonly boolean[];
+  /** The live citation floor, 0 when off. */
+  floor: number;
 }
 
 export interface GraphViewDefinition {
@@ -92,14 +99,14 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     id: "cornerstones",
     name: "Cornerstones",
     summary:
-      "Seeds, 2 hops of references, colour citations. What the field rests on.",
+      "Seeds, 2 hops of references, floor 10, colour citations. What the field rests on.",
     paragraph:
-      "Starts from your seeds and follows their references two steps out, so what remains is the work the field rests on. Colour is citations. Seeds and collections are untouched.",
+      "Starts from your seeds and follows their references two steps out, keeps what has at least 10 citations, so what remains is the work the field rests on. Colour is citations. Seeds and collections are untouched.",
     icon: "view-cornerstones",
     appearance: { ...BASE, nodeColorMetric: "citations" },
     regions: null,
     filters: null,
-    explore: { direction: "references", hops: 2 },
+    explore: { direction: "references", hops: 2, floor: 10 },
     requires: "seed",
     availability: "ready",
   },
@@ -385,6 +392,12 @@ export function graphViewIsEdited(
     for (let hop = 1; hop <= view.explore.hops; hop += 1) {
       if (live.hops.enabled[hop] === false) return true;
     }
+    if (
+      view.explore.floor !== undefined &&
+      live.hops.floor !== view.explore.floor
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -426,7 +439,7 @@ export function tutorialChips(
   ];
   if (view.explore) {
     chips.push(
-      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}`,
+      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}${view.explore.floor ? ` · floor ${view.explore.floor}` : ""}`,
     );
   }
   if (application.regions !== null) {
@@ -679,7 +692,21 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
     if (direction !== "cited-by" && direction !== "references") {
       return { ok: false, field: "explore.direction" };
     }
-    explore = { direction, hops: clampHopDepth(raw.explore.hops) };
+    const rawFloor = raw.explore.floor;
+    if (rawFloor !== undefined) {
+      if (
+        typeof rawFloor !== "number" ||
+        !Number.isFinite(rawFloor) ||
+        rawFloor < 0
+      ) {
+        return { ok: false, field: "explore.floor" };
+      }
+    }
+    explore = {
+      direction,
+      hops: clampHopDepth(raw.explore.hops),
+      ...(rawFloor === undefined ? {} : { floor: Math.floor(rawFloor) }),
+    };
   }
   return {
     ok: true,
@@ -732,7 +759,11 @@ export function captureGraphView(input: CaptureInput): GraphViewDefinition {
     appearance: { ...input.layout },
     regions,
     filters: stripScopeFilters(input.filters),
-    explore: { direction: input.hops.direction, hops: input.hops.depth },
+    explore: {
+      direction: input.hops.direction,
+      hops: input.hops.depth,
+      floor: input.hops.floor,
+    },
     requires: "none",
     availability: "ready",
   };

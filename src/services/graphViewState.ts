@@ -33,7 +33,7 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 5;
+export const GRAPH_VIEW_STATE_VERSION = 6;
 
 /**
  * Which view (D4) the graph is on. `null` is "never chosen", which shows
@@ -80,6 +80,8 @@ export interface GraphViewState {
   includeExternal: boolean;
   /** Papers the reader removed one by one. */
   hiddenKeys: string[];
+  /** The citation floor, 0 when off (spec: the citation floor). Since version 6. */
+  floor: number;
   /**
    * The folders drawn as regions, oldest selection first. Uncapped since
    * 2026-09-11 (F14): overlapping translucent hulls do stop being readable
@@ -143,6 +145,7 @@ export function emptyGraphViewState(): GraphViewState {
     includeUnfiled: true,
     includeExternal: true,
     hiddenKeys: [],
+    floor: 0,
     regions: [],
     swatches: emptySwatchLedger(),
     seedSwatches: emptySwatchLedger(),
@@ -365,6 +368,13 @@ function parseTicks(value: unknown): GraphViewCollectionTicks | null {
     : { base: "none", except };
 }
 
+/** A stored floor: a finite number at or above 0, floored; anything else is off. */
+function parseFloor(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : 0;
+}
+
 function parseKeys(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [
@@ -508,6 +518,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 5 &&
     raw.version !== 4 &&
     raw.version !== 3 &&
     raw.version !== 2 &&
@@ -534,7 +545,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
         };
   // Regions have been stored since version 3; older records rebuild them
   // from the ticks. Version 4 only added `view`. Version 5 replaced
-  // `explore` with `hops`.
+  // `explore` with `hops`. Version 6 added `floor`.
   const regions =
     typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
@@ -552,6 +563,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
       : {}),
     filters,
     ...scope,
+    floor: parseFloor(raw.floor),
     regions,
     swatches: parsedLedger(raw.swatches),
     seedSwatches: parsedLedger(raw.seedSwatches),

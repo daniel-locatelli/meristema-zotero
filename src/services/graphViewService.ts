@@ -1986,6 +1986,7 @@ export function renderGraphView(
     direction: hopDirection,
     depth: hopDepth,
     enabled: hopEnabled,
+    floor: 0,
   });
   /** The save panel's Explore row: the direction and depth it will save. */
   const capturedExplore = (

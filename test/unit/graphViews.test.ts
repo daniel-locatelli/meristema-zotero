@@ -5,6 +5,7 @@ import { defaultPaperListFilterState } from "../../src/services/paperListViewSer
 import {
   captureGraphView,
   decodeGraphView,
+  decodeGraphViewRecord,
   encodeGraphView,
   graphViewAvailabilityLine,
   graphViewIsEdited,
@@ -102,6 +103,7 @@ const liveHops = {
   direction: "cited-by" as const,
   depth: 1,
   enabled: [true, true, true, true, true, true, true],
+  floor: 0,
 };
 
 describe("the shipped views", function () {
@@ -125,7 +127,7 @@ describe("the shipped views", function () {
       ]);
       expect(view.explore, view.id).to.deep.equal(
         view.id === "cornerstones"
-          ? { direction: "references", hops: 2 }
+          ? { direction: "references", hops: 2, floor: 10 }
           : null,
       );
     }
@@ -344,6 +346,83 @@ describe("graphViewIsEdited", function () {
       },
     };
     expect(graphViewIsEdited(saved, live)).to.equal(false);
+  });
+
+  it("is edited when the view's floor differs from the live one, and not when the view has none", function () {
+    const cornerstones = SHIPPED_GRAPH_VIEWS.find(
+      (v) => v.id === "cornerstones",
+    )!;
+    expect(cornerstones.explore).to.deep.equal({
+      direction: "references",
+      hops: 2,
+      floor: 10,
+    });
+    const live = {
+      layout: cornerstones.appearance,
+      regions: [],
+      filters,
+      folders,
+      nodes,
+      hops: {
+        ...liveHops,
+        direction: "references" as const,
+        depth: 2,
+        floor: 10,
+      },
+    };
+    expect(graphViewIsEdited(cornerstones, live)).to.equal(false);
+    expect(
+      graphViewIsEdited(cornerstones, {
+        ...live,
+        hops: { ...live.hops, floor: 20 },
+      }),
+    ).to.equal(true);
+    const noFloor: GraphViewDefinition = {
+      ...cornerstones,
+      id: "user:9",
+      explore: { direction: "references", hops: 2 },
+    };
+    expect(
+      graphViewIsEdited(noFloor, {
+        ...live,
+        hops: { ...live.hops, floor: 20 },
+      }),
+    ).to.equal(false);
+  });
+
+  it("decodes, encodes and captures the floor", function () {
+    const record = JSON.parse(
+      encodeGraphView({
+        ...SHIPPED_GRAPH_VIEWS[0]!,
+        explore: { direction: "cited-by", hops: 1, floor: 5 },
+      }),
+    );
+    expect(record.explore).to.deep.equal({
+      direction: "cited-by",
+      hops: 1,
+      floor: 5,
+    });
+    const decoded = decodeGraphViewRecord(record);
+    expect(decoded.ok && decoded.view.explore).to.deep.equal({
+      direction: "cited-by",
+      hops: 1,
+      floor: 5,
+    });
+    const bad = decodeGraphViewRecord({
+      ...record,
+      explore: { direction: "cited-by", hops: 1, floor: "many" },
+    });
+    expect(bad.ok).to.equal(false);
+    const captured = captureGraphView({
+      name: "Mine",
+      paragraph: "",
+      layout: SHIPPED_GRAPH_VIEWS[0]!.appearance,
+      regions: [],
+      filters,
+      folders,
+      hops: { ...liveHops, floor: 30 },
+    });
+    expect(captured.explore?.floor).to.equal(30);
   });
 });
 
@@ -611,6 +690,7 @@ describe("explore on a view", function () {
     direction: "references" as const,
     depth: 2,
     enabled: [true, true, true, true, true, true, true],
+    floor: 10,
   };
 
   it("reads edited when direction, depth or a hop within the depth differs", function () {
@@ -678,7 +758,11 @@ describe("explore on a view", function () {
         enabled: [true, false, false, false, false, false, false],
       },
     });
-    expect(view.explore).to.deep.equal({ direction: "references", hops: 2 });
+    expect(view.explore).to.deep.equal({
+      direction: "references",
+      hops: 2,
+      floor: 10,
+    });
   });
 
   it("round-trips explore on the wire and clamps a bad depth", function () {
@@ -695,6 +779,7 @@ describe("explore on a view", function () {
     expect(decoded.ok && decoded.view.explore).to.deep.equal({
       direction: "references",
       hops: 2,
+      floor: 10,
     });
     const raw = JSON.parse(encodeGraphView(view));
     raw.explore = { direction: "references", hops: 40 };
@@ -726,7 +811,7 @@ describe("explore on a view", function () {
       hops: under,
     });
     expect(tutorialChips(cornerstones, plan, 8)).to.include(
-      "hops 2 · references",
+      "hops 2 · references · floor 10",
     );
     expect(tutorialFootnote(plan, cornerstones)).to.include(
       "Opening hops fetches citations from the providers.",

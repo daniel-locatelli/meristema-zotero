@@ -711,7 +711,7 @@ describe("Graph views (D4)", function () {
         regions: [],
         filters: defaultPaperListFilterState(),
         folders: [],
-        hops: { direction: "cited-by", depth: 1, enabled: [] },
+        hops: { direction: "cited-by", depth: 1, enabled: [], floor: 0 },
       }),
     );
     importPath = PathUtils.join(
