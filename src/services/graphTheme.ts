@@ -62,6 +62,10 @@ export interface GraphStateTokens {
   inLibraryRing: string;
   /** Every non-seed node when no colour metric is chosen. */
   uniformFill: string;
+  /** The citation floor's dashed line and its handle tag's border. */
+  floorLine: string;
+  /** The band over the plot's hidden side, under the floor. */
+  floorBand: string;
 }
 
 export interface GraphCategoricalTokens {
@@ -162,6 +166,8 @@ const LIGHT_THEME: GraphTheme = {
     retracted: "#a33a3a",
     inLibraryRing: "#6f736a",
     uniformFill: "#8d928a",
+    floorLine: "#2563eb",
+    floorBand: "rgba(27, 29, 25, .06)",
   },
 };
 
@@ -211,6 +217,8 @@ const DARK_THEME: GraphTheme = {
     retracted: "#d98b8b",
     inLibraryRing: "#a8ada2",
     uniformFill: "#787d75",
+    floorLine: "#8fb8ff",
+    floorBand: "rgba(0, 0, 0, .28)",
   },
 };
 
