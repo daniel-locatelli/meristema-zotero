@@ -174,7 +174,11 @@ export interface GraphScopeResult {
   shownByHop: number[];
   /** Papers the walk reached at each hop, whatever the rules said. */
   availableByHop: number[];
-  /** Papers the floor removed: known count under it, after every other rule. */
+  /**
+   * Papers the floor removed: known count under it, after the folder rule,
+   * the hop's depth and tick, and the facets, but before the hop rule's
+   * parent check, so a floored parent's under-floor child is counted too.
+   */
   belowFloorCount: number;
 }
 

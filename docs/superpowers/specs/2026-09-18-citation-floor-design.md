@@ -46,7 +46,9 @@ paper, unchanged up to the last step:
 
 `GraphScopeResult` gains `belowFloorCount`: papers step 4 removed, so a
 paper a facet already hid is not in it and `n below` never counts a paper
-twice. Since the
+twice. The tally is taken before the hop rule's parent check, so a floored
+parent's under-floor child counts as well (as built: lowering the floor
+brings both back). Since the
 hop rule reads a parent's visibility and papers are walked in hop order, a
 parent under the floor takes its hop-children with it unless another parent
 or a ticked folder admits them; since the fill expands shown papers, none of
@@ -175,15 +177,18 @@ Unit (`test/unit`):
 
 Zotero (`test/zotero/graphCitationHops.test.ts`, a block after D8's, on the
 same fake-OpenAlex harness), one case on a seeded graph whose three citers
-carry counts 1, 3 and 0: with hop 1 filled, type 2 in the rail field, and
-hop 1 reads `1/3`, the row `2 below`; Fetch hop 2, and the fill pages only
-the citer above the floor (one `cites:` request, not two) so hop 2 reads
-`3/3`; then find the tag by walking the plot in whole CSS pixels (B43) until
-the canvas title reads the tag, drag it down to the axis with a real pointer
-(`windowUtils.sendMouseEvent`, the only way past `setPointerCapture`; lower
-the pane overlay first), and the field reads 0, hop 1 `3/3`, and the fill
-pages the citer it skipped so hop 2 reads `4/4`. No timing-shaped
-assertion: the fake answers at once.
+carry counts 1, 6 and 0, opened on Overview so the Y axis shows citations
+(a graph whose papers carry no count gets no citation axis, and then no
+floor is drawn): with hop 1 filled, type 5 in the rail field, and hop 1
+reads `1/3`, the row `2 below`; Fetch hop 2, and the fill pages only the
+citer above the floor (one `cites:` request, not two); the six papers it
+lands carry 0, so the floor hides them on landing and hop 2 reads `0/6`;
+then find the tag by walking the plot in whole CSS pixels
+(B43) until the canvas title reads the tag, drag it down past the axis with
+a real pointer (`windowUtils.sendMouseEvent`, the only way past
+`setPointerCapture`; lower the pane overlay first), and the field reads 0,
+the row `off`, and the fill pages the citer it skipped so hop 2 reads
+`7/7`. No timing-shaped assertion: the fake answers at once.
 
 ## Manual verification
 
