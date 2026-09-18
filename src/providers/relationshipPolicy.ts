@@ -2,6 +2,7 @@ import type {
   CitationProviderID,
   RelatedWorkMetadata,
 } from "../domain/citationTypes";
+import type { RelationshipCutOrder } from "./types";
 
 export type RelationshipDirection = "references" | "cited-by";
 
@@ -61,6 +62,8 @@ export interface RelationshipProviderSnapshot {
    * collected it is never usable, so never stored (ADR 0013).
    */
   refused: boolean;
+  /** How the list was cut: most-cited only when the provider honoured it (spec, "The cut"). */
+  order: RelationshipCutOrder;
 }
 
 export interface PreparedRelationshipProviderSnapshot extends RelationshipProviderSnapshot {

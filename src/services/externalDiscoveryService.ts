@@ -99,6 +99,7 @@ import {
   relationshipRefreshPolicy,
   relationshipSnapshotIsFresh,
   unbackedEmptyList,
+  cutOrderFor,
   type RelationshipProviderStrategy,
   type RelationshipRefreshMode,
 } from "./relationshipRefreshPolicy";
@@ -554,6 +555,7 @@ export async function storeExternalRelationshipSnapshot(
         complete: options.complete === true,
         succeeded: true,
         refused: false,
+        order: "arrival",
       },
     ],
     mergeRelatedWorkLists,
@@ -1256,6 +1258,7 @@ async function fetchProviderRelationshipSnapshot(
     complete: false,
     succeeded: false,
     refused: false,
+    order: "arrival",
   });
   // Outside the `try`, so a refusal part-way can still hand back what was
   // collected before it (B50).
@@ -1331,6 +1334,7 @@ async function fetchProviderRelationshipSnapshot(
         complete: true,
         succeeded: Boolean(match) || Boolean(fetcher),
         refused: false,
+        order: "arrival",
       };
     }
 
@@ -1344,6 +1348,7 @@ async function fetchProviderRelationshipSnapshot(
           (reportedCount === null || works.length >= reportedCount),
         succeeded: Boolean(match),
         refused: false,
+        order: "arrival",
       };
     }
 
@@ -1458,6 +1463,7 @@ async function fetchProviderRelationshipSnapshot(
           reportedCount <= boundedMaximum),
       succeeded: true,
       refused: false,
+      order: cutOrderFor(providerID, requestOptions?.order),
     };
   } catch (error) {
     if (error instanceof ProviderRefusedError) {
@@ -1469,6 +1475,7 @@ async function fetchProviderRelationshipSnapshot(
         complete: state.complete,
         succeeded: state.succeeded,
         refused: true,
+        order: cutOrderFor(providerID, requestOptions?.order),
       };
     }
     Zotero.debug(
@@ -1976,6 +1983,7 @@ async function runExternalRelationshipRefresh(
                 complete: false,
                 succeeded: false,
                 refused: false,
+                order: "arrival",
               };
             }
             return fetchProviderRelationshipSnapshot(
@@ -2045,11 +2053,21 @@ async function runExternalRelationshipRefresh(
       (work) => compactRelationshipWork(work as ExternalWork),
       { forceEvery: 25 },
     );
+    // An expansion may now hold an empty answer and a later non-empty one
+    // (B72), so "exactly one usable snapshot" no longer identifies who
+    // answered. The window to clear belongs to whoever last gave us works, or,
+    // when every answer was empty, to the last provider that answered at all.
+    const answered =
+      [...usable]
+        .reverse()
+        .find((snapshot) => snapshot.identifiedWorks.length > 0) ??
+      // Never undefined: the `if (!usable.length)` return above has left.
+      usable.at(-1)!;
     const committed = await replaceStoredRelationshipSelection(
       node,
       direction,
       selectedMembership,
-      { alreadyCanonical: true, writeMetadata: false },
+      { alreadyCanonical: true, writeMetadata: false, order: answered.order },
     );
     const reported = {
       count: selection.reportedCount,
@@ -2069,16 +2087,6 @@ async function runExternalRelationshipRefresh(
       publishedReported,
       options.publicationSource,
     );
-    // An expansion may now hold an empty answer and a later non-empty one
-    // (B72), so "exactly one usable snapshot" no longer identifies who
-    // answered. The window to clear belongs to whoever last gave us works, or,
-    // when every answer was empty, to the last provider that answered at all.
-    const answered =
-      [...usable]
-        .reverse()
-        .find((snapshot) => snapshot.identifiedWorks.length > 0) ??
-      // Never undefined: the `if (!usable.length)` return above has left.
-      usable.at(-1)!;
     options.onMembershipResolved?.({
       complete: selection.complete,
       provider: publishedReported.provider,

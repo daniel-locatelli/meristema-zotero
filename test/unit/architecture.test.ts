@@ -859,6 +859,7 @@ describe("Architecture foundations", function () {
           complete: true,
           succeeded: true,
           refused: false,
+          order: "arrival",
         },
         {
           provider: "openalex",
@@ -867,6 +868,7 @@ describe("Architecture foundations", function () {
           complete: true,
           succeeded: true,
           refused: false,
+          order: "arrival",
         },
       ],
       mergeRelatedWorkLists,
@@ -1059,6 +1061,7 @@ describe("Architecture foundations", function () {
           complete: true,
           succeeded: true,
           refused: false,
+          order: "arrival",
         },
       ],
       (...groups) => {

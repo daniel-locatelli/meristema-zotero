@@ -2,6 +2,7 @@ import type {
   CitationProviderID,
   RelatedWorkMetadata,
 } from "../domain/citationTypes";
+import type { RelationshipCutOrder } from "../providers/types";
 import {
   bibliographicWorkAliases,
   matchRelatedWorks,
@@ -217,7 +218,11 @@ export async function replaceStoredRelationshipSelection(
   node: RelationshipStoreSubject,
   direction: StoredRelationshipDirection,
   works: RelatedWorkMetadata[],
-  options: { alreadyCanonical?: boolean; writeMetadata?: boolean } = {},
+  options: {
+    alreadyCanonical?: boolean;
+    writeMetadata?: boolean;
+    order?: RelationshipCutOrder;
+  } = {},
 ): Promise<RelatedWorkMetadata[]> {
   const snapshot = options.alreadyCanonical
     ? works
@@ -230,6 +235,7 @@ export async function replaceStoredRelationshipSelection(
       ...(options.writeMetadata !== undefined
         ? { writeMetadata: options.writeMetadata }
         : {}),
+      order: options.order,
     },
   );
   return snapshot;

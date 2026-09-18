@@ -1,4 +1,5 @@
 import type { RelatedWorkMetadata } from "../domain/citationTypes";
+import type { RelationshipCutOrder } from "../providers/types";
 import { openPluginDatabase } from "./pluginDatabase";
 import {
   relationshipCandidateIdentity,
@@ -35,12 +36,14 @@ export interface ExternalRelationshipCacheEntry {
   relationshipKey: string;
   works: RelatedWorkMetadata[];
   fetchedAt: string;
+  order: RelationshipCutOrder;
 }
 
 export interface ExternalRelationshipCacheSummary {
   relationshipKey: string;
   count: number;
   fetchedAt: string;
+  order: RelationshipCutOrder;
 }
 
 interface ExternalWorkCacheRow {
@@ -57,6 +60,7 @@ interface ExternalRelationshipCacheRow {
   relationship_key: string;
   works_json: string;
   fetched_at: string;
+  cut_order: string | null;
 }
 
 const SCHEMA = `
@@ -304,6 +308,7 @@ function rowToRelationshipEntry(
     relationshipKey,
     works,
     fetchedAt: String(row.fetched_at),
+    order: row.cut_order === "most-cited" ? "most-cited" : "arrival",
   };
 }
 
@@ -340,6 +345,15 @@ export function initExternalWorkCache(): Promise<void> {
       .map((part) => part.trim())
       .filter(Boolean)) {
       await connection.queryAsync(statement);
+    }
+    // Lists stored before the cut was recorded read as arrival order.
+    const columns = (await connection.queryAsync(
+      "PRAGMA table_info(external_relationships_v2)",
+    )) as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "cut_order")) {
+      await connection.queryAsync(
+        "ALTER TABLE external_relationships_v2 ADD COLUMN cut_order TEXT",
+      );
     }
     const rows = (await connection.queryAsync(
       "SELECT * FROM external_works_v2",
@@ -424,6 +438,7 @@ export function getExternalRelationshipCacheSummary(
         relationshipKey,
         count: entry.works.length,
         fetchedAt: entry.fetchedAt,
+        order: entry.order,
       }
     : null;
 }
@@ -481,11 +496,16 @@ export function getExternalRelationshipCacheEntry(
 export async function saveExternalRelationshipCache(
   relationshipKey: string,
   works: RelatedWorkMetadata[],
-  options: { writeMetadata?: boolean; alreadyCanonical?: boolean } = {},
+  options: {
+    writeMetadata?: boolean;
+    alreadyCanonical?: boolean;
+    order?: RelationshipCutOrder;
+  } = {},
 ): Promise<void> {
   const startedAt = Date.now();
   if (!(await ensureExternalWorkCache())) return;
   const fetchedAt = new Date().toISOString();
+  const order: RelationshipCutOrder = options.order ?? "arrival";
   const completeWorks = options.alreadyCanonical
     ? works
     : deduplicateRelationshipWorks(works);
@@ -527,9 +547,9 @@ export async function saveExternalRelationshipCache(
       await upsertExternalWorkRows(connection, metadataRows);
       await connection.queryAsync(
         `INSERT OR REPLACE INTO external_relationships_v2
-         (relationship_key, works_json, fetched_at)
-         VALUES (?, ?, ?)`,
-        [relationshipKey, JSON.stringify(storedWorks), fetchedAt],
+         (relationship_key, works_json, fetched_at, cut_order)
+         VALUES (?, ?, ?, ?)`,
+        [relationshipKey, JSON.stringify(storedWorks), fetchedAt, order],
       );
     });
 
@@ -549,6 +569,7 @@ export async function saveExternalRelationshipCache(
       relationshipKey,
       works: storedWorks,
       fetchedAt,
+      order,
     });
     registerRelationshipDependencies(relationshipKey, storedWorks);
     // Do not retain a second fully cloned bibliography after every update.

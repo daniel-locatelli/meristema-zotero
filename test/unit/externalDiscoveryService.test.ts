@@ -16,6 +16,7 @@ function snapshot(
     complete: true,
     succeeded: true,
     refused: false,
+    order: "arrival",
     ...over,
   };
 }
