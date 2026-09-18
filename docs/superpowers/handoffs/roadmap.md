@@ -21,7 +21,7 @@ Inputs (do not re-derive them):
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
-- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0015).
+- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0016).
 - Ledger of finished plans: `.superpowers/sdd/progress.md`.
 
 ## Next
@@ -394,11 +394,11 @@ any failure into a new entry above.
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-09-18 at
-`0507488` (90/0, clean), so count with `git log 0507488..main --oneline`; the
-final review-fix commit after it touched `cutInput` and `drainedByHop` only,
-both unit-covered, and was not re-run.
-A clean run is 90 passed, 0 failed as of 2026-09-18
-(D8's case added); the last full green of all cases was 90 on 2026-09-18.
+`449365f` (91/0, clean), so count with `git log 449365f..main --oneline`; the
+commits after it are docs and one comment.
+A clean run is 91 passed, 0 failed as of 2026-09-18
+(the floor's case added); the last full green of all cases was 91 on
+2026-09-18.
 
 - Ten Citation hops cases run against live providers on Semantic Scholar's
   keyless pool. When it answers 429 each expansion lands `0/0` after exactly
@@ -432,6 +432,12 @@ A clean run is 90 passed, 0 failed as of 2026-09-18
   capped at 120 s, non-fatal) before counting requests. Its citers deliberately
   omit `cited_by_count`, so the expansion takes the unknown-count path (real
   data would make the total 2 requests, not 4).
+- The floor's case (`graphCitationHops.test.ts`, "with a citation floor
+  (Stage 4)") opens on Overview and asserts the Y axis reads citations first:
+  a graph whose papers carry no count gets no citation axis
+  (`normaliseLayoutFor`), and the floor is drawn only on one. Its fake answers
+  from install, so the library's own update stores the seed's citer list; the
+  case's clicks fetch the hop-2 pages. Seven isolated runs to get there.
 - An unidentified 42-passed/1-failed run from 2026-09-10 never reproduced in
   twelve logged runs and its case was never named. Keep the full log
   (`npm test 2>&1 | tee <file>`) on any branch that touches the region code,
@@ -460,4 +466,5 @@ entries are in git history.
   covered). Suite cadence set to every 4 or 5 commits. Next: D8.
 - 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits ee3d3d6..9bb70bc.
   Next: Stage 4.
-- 2026-09-18, later: the citation floor shipped (ADR 0016); commits `dc0fa65..<final>`.
+- 2026-09-18, later: the citation floor shipped (ADR 0016); commits
+  `dc0fa65..cc83d22` plus this log line. Next: shared citers.
