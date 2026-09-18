@@ -20,13 +20,13 @@ never hold anything reads the same as one not yet fetched.
 
 ## Decisions
 
-| question                  | decision                                                                                                                                                                                                          |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What a hop is for         | **The whole field.** Completeness matters (Stage 4's shared citers build on it); the design makes it affordable rather than pruning by attention.                                                                 |
-| Where completeness yields | **The tail of each parent.** The cut of 50 per paper stays, becomes most-cited first where the provider can sort, and the rail says so. Depth and breadth are not pruned.                                         |
-| How                       | **OpenAlex first for keyed fills, sorted.** Batching parents into one `cites:W1\|W2…` query (Option B) is the follow-up if the measured rate still falls short; it reworks per-paper bookkeeping and is not here. |
-| Hop rows                  | **Only the hops that exist, plus the next one.** No greyed rows to 6.                                                                                                                                             |
-| Out of scope              | The plot's per-landing rebuild (B47, D13), reopen behaviour (B54, B55), a reader-set budget, the opacity ramp (D10), the doubled hop colours (D9).                                                                |
+| question                  | decision                                                                                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What a hop is for         | **The whole field.** Completeness matters (Stage 4's shared citers build on it); the design makes it affordable rather than pruning by attention.                                                                                                       |
+| Where completeness yields | **The tail of each parent.** The cut of 50 per paper stays, becomes most-cited first where the provider can sort, and the rail says so. Depth and breadth are not pruned.                                                                               |
+| How                       | **OpenAlex first for keyed fills, sorted.** Batching parents into one `cites:W1\|W2…` query (Option B) is the follow-up if the measured rate still falls short; it reworks per-paper bookkeeping, must chunk IDs under the URL length, and is not here. |
+| Hop rows                  | **Only the hops that exist, plus the next one.** No greyed rows to 6.                                                                                                                                                                                   |
+| Out of scope              | The plot's per-landing rebuild (B47, D13), reopen behaviour (B54, B55), a reader-set budget, the opacity ramp (D10), the doubled hop colours (D9).                                                                                                      |
 
 ## Design
 
@@ -67,15 +67,28 @@ each already takes.
   `arrival`.
 
 **The rail says so.** The hop block gains one line under the direction
-switch, the cut line, stating the cut for the fill in force, from
-`fillProviderOrder`'s head:
+switch, the cut line, stating how the shown expanded papers' stored lists
+were actually cut, never what the fill intended, since a fallback provider
+cuts in arrival order whatever was asked:
 
-- OpenAlex first: `Top 50 citers per paper, most cited first` (References:
-  `Top 50 references per paper, most cited first`);
-- otherwise: `First 50 citers per paper, in the provider's order`.
+- every stored list `most-cited`: `Top 50 citers per paper, most cited
+first` (References: `Top 50 references per paper, most cited first`);
+- every stored list `arrival`: `First 50 citers per paper, in the
+provider's order`;
+- mixed: `Top 50 citers per paper, most cited first for {n} of {m}`;
+- nothing expanded yet: the fill's intent, from `fillProviderOrder`'s head,
+  in the first or second wording.
 
 Muted text, same size as the progress line, always present while the graph
 has a seed. It is the plain statement D7 and D12 asked for.
+
+**Metadata merging.** No new path: every provider JSON response already
+feeds the external-work cache by alias (`providerResponseCacheService.ts`),
+and `mergeRelatedWorkLists` enriches each work from it, so a bare DOI stored
+from OpenCitations picks up OpenAlex's metadata the next time its list is
+read. `isRelationshipResponse` there recognises `filter=cites:` only; it
+must also recognise `cited_by:`, or References responses are cached as full
+records rather than summaries.
 
 **Reported count for free.** An OpenAlex list response carries `meta.count`,
 the exact total in the direction. `listByFilter` returns it, and the
@@ -95,10 +108,13 @@ does not arise for OpenAlex.
 - nothing past that.
 
 A row at or below the depth whose hop holds no paper, while the hop above it
-has nothing left to expand (`remaining`, `waiting` and `deferred` all zero
-for that hop), reads `none yet` under Citers and `none found` under
-References instead of `0/0`, and no Fetch row follows it. Before the hop
-above is drained the row reads `0/0` as today, since papers may still land.
+is drained, reads `none yet` under Citers and `none found` under References
+instead of `0/0`, and no Fetch row follows it. Drained: `remaining`,
+`waiting` and `deferred` are zero for that hop and no paper at it failed
+this session. `remaining` counts a paper until its expansion lands, so an
+in-flight, paused or deferred paper keeps the row at `0/0`; a failed paper
+would not, which is why failures are in the condition, and D12 owns saying
+what failed. Before the hop above is drained the row reads `0/0` as today.
 
 Opening a deeper hop early stays allowed: the Fetch row is offered as soon as
 the hop above has a paper, not once it is drained (B51's skip is kept).
@@ -127,7 +143,10 @@ lists the hops the rail draws, minus the Fetch row.
   through, `reportedCount` from the list, `order` on the snapshot.
 - `src/services/relationshipStoreService.ts`: `order` on the stored entry,
   defaulting to `arrival`.
-- `src/services/graphScopeRailModel.ts`: the row rule and the cut line.
+- `src/services/providerResponseCacheService.ts`: `isRelationshipResponse`
+  takes `cited_by:`.
+- `src/services/graphScopeRailModel.ts`: the row rule and the cut line, fed
+  the stored orders of the shown expanded papers and the failed count by hop.
 - `src/services/graphKeyModel.ts`: hops listed follow the rail's rows.
 - `src/services/graphViewService.ts`: the runner passes `fill: true` and
   `order: "most-cited"`; Refresh passes `retryRefusals: false`.
@@ -146,7 +165,9 @@ Unit (`test/unit`):
   honoured it.
 - `buildScopeHopsBlock`: rows stop at `depth + 1`; no Fetch row when hop
   `depth` is empty; `none yet` / `none found` only once the hop above is
-  drained; the cut line's two texts in both directions.
+  drained, and not while a paper there failed; the cut line's four texts in
+  both directions, including the mixed count.
+- `isRelationshipResponse` recognises a `cited_by:` filter.
 - `hopLandingEffects` and the runner's options: `fill` is explicit.
 
 Zotero (`test/zotero/graphCitationHops.test.ts`), stubbed in B72's style,
