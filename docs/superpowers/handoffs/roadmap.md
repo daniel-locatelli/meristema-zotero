@@ -21,13 +21,13 @@ Inputs (do not re-derive them):
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
-- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0014).
+- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0015).
 - Ledger of finished plans: `.superpowers/sdd/progress.md`.
 
 ## Next
 
-1. D8's brainstorm, on the measured fill. It comes before Stage 4's spec. B75's
-   finding (a hidden window starved the fill of frames) bears on its wall clock.
+1. Stage 4's brainstorm and spec (citation floor and shared citers). D8 is
+   settled (ADR 0015), so the fill it builds on is fixed.
 
 Working rules: a feature branch per change, `npm run check` as the gate
 (prettier covers `docs/` and `README.md`), the full Zotero suite every 4 or 5
@@ -446,5 +446,5 @@ entries are in git history.
   window. Six isolated runs of the drain case; the full suite was not run (one
   attempt stopped: the Tools-menu hooks failed, the test window likely
   covered). Suite cadence set to every 4 or 5 commits. Next: D8.
-- 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits ee3d3d6..d8-fill-order
-  tip.
+- 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits ee3d3d6..9bb70bc.
+  Next: Stage 4.
