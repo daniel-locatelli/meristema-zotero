@@ -87,7 +87,8 @@ reports the value through `onFloorChange(value)` when it changed; a pointer
 at or past the plot's bottom (or left) edge reads 0 on every scale, since a
 log domain starting at 1 could otherwise never reach `off`. Pointerup or
 pointercancel ends the drag and reports `onFloorDragEnd()`. Hovering the tag
-or the line shows the resize cursor.
+or the line shows the resize cursor, and the canvas title reads the tag's
+text, as it reads a node's tooltip.
 
 `roundFloor(value)` is pure: the nearest integer under 20, the nearest
 multiple of 5 to 100, of 10 to 1,000, of 100 above; never below 0.
@@ -172,13 +173,17 @@ Unit (`test/unit`):
   log axis reports 0.
 - The label scene: no label rectangle overlaps the tag's.
 
-Zotero (`test/zotero/graphScopeRail.test.ts`), one case on a seeded graph
-with stubbed providers in B72's style: drag the handle with synthetic pointer
-events in whole CSS pixels (B43); the rail field and `below` text move, hop
-1's shown count drops, and the fill's `n left` is lower after release than
-it read while the fill was running before the drag (the case proves the fill
-ran first). Type a value in the field: the line moves. Switch Y to year: the
-line goes, the row and the counts stay.
+Zotero (`test/zotero/graphCitationHops.test.ts`, a block after D8's, on the
+same fake-OpenAlex harness), one case on a seeded graph whose three citers
+carry counts 1, 3 and 0: with hop 1 filled, type 2 in the rail field, and
+hop 1 reads `1/3`, the row `2 below`; Fetch hop 2, and the fill pages only
+the citer above the floor (one `cites:` request, not two) so hop 2 reads
+`3/3`; then find the tag by walking the plot in whole CSS pixels (B43) until
+the canvas title reads the tag, drag it down to the axis with a real pointer
+(`windowUtils.sendMouseEvent`, the only way past `setPointerCapture`; lower
+the pane overlay first), and the field reads 0, hop 1 `3/3`, and the fill
+pages the citer it skipped so hop 2 reads `4/4`. No timing-shaped
+assertion: the fake answers at once.
 
 ## Manual verification
 
