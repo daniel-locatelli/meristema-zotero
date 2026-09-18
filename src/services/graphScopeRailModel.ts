@@ -18,6 +18,8 @@ import { HOP_EXPANSION_CAP } from "./graphHopFillModel";
 import { MAX_HOP_DEPTH, type HopDirection } from "./graphHopModel";
 import type { CitationProviderID } from "../domain/citationTypes";
 import { citationDataSourceLabel } from "./providerPresentation";
+import { AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT } from "./relationshipRefreshPolicy";
+import type { RelationshipCutOrder } from "../providers/types";
 
 export interface ScopeSeedRow {
   /** The seed's node key. */
@@ -56,6 +58,12 @@ export interface ScopeToggleRow {
 
 export type ScopeRow = ScopeCollectionRow | ScopeToggleRow;
 
+export interface ScopeCutInput {
+  mostCited: number;
+  arrival: number;
+  intent: RelationshipCutOrder;
+}
+
 export interface ScopeHopsInput {
   direction: HopDirection;
   depth: number;
@@ -79,6 +87,14 @@ export interface ScopeHopsInput {
       retryAt: number;
     } | null;
   } | null;
+  /**
+   * Per hop: nothing at it is left to expand, waiting on the cap, deferred
+   * or failed this session (the runner's `drainedByHop`). Decides whether an
+   * empty hop below reads `none yet` or `0/0`.
+   */
+  drainedByHop: readonly boolean[];
+  /** How the shown expanded papers' stored lists were cut, and what the fill would cut in. */
+  cut: ScopeCutInput;
 }
 
 export interface ScopeHopRow {
@@ -120,6 +136,7 @@ export interface ScopeHopsBlock {
   direction: HopDirection;
   rows: ScopeHopRow[];
   progress: ScopeHopsProgress | null;
+  cutLine: string;
 }
 
 export interface ScopeRailModel {
@@ -236,23 +253,54 @@ export function formatRetryIn(ms: number): string {
   return `retry in ${Math.ceil(ms / 60_000)} min`;
 }
 
+/**
+ * The cut line: how the shown lists were actually cut, never the fill's
+ * intent once anything is stored, since a fallback provider cuts in arrival
+ * order whatever was asked (spec, "The rail says so").
+ */
+export function cutLineText(
+  cut: ScopeCutInput,
+  direction: HopDirection,
+): string {
+  const limit = COUNT_FORMAT.format(AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT);
+  const word = direction === "cited-by" ? "citers" : "references";
+  const total = cut.mostCited + cut.arrival;
+  const mostCited = `Top ${limit} ${word} per paper, most cited first`;
+  const arrival = `First ${limit} ${word} per paper, in the provider's order`;
+  if (total === 0) return cut.intent === "most-cited" ? mostCited : arrival;
+  if (cut.arrival === 0) return mostCited;
+  if (cut.mostCited === 0) return arrival;
+  return `${mostCited} for ${COUNT_FORMAT.format(cut.mostCited)} of ${COUNT_FORMAT.format(total)}`;
+}
+
 export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
   const rows: ScopeHopRow[] = [];
-  for (let hop = 0; hop <= MAX_HOP_DEPTH; hop += 1) {
+  // The open hops, and one Fetch row while the deepest holds a paper: hops
+  // that cannot exist yet are not drawn (spec, "The rail shows what exists").
+  const deepestHasPapers = (input.availableByHop[input.depth] ?? 0) > 0;
+  const lastRow = Math.min(
+    MAX_HOP_DEPTH,
+    deepestHasPapers ? input.depth + 1 : input.depth,
+  );
+  const emptyWord = input.direction === "cited-by" ? "none yet" : "none found";
+  for (let hop = 0; hop <= lastRow; hop += 1) {
     const opened = hop <= input.depth;
     const enabled = hop === 0 ? true : input.enabled[hop] !== false;
     const shown = input.shownByHop[hop] ?? 0;
     const available = input.availableByHop[hop] ?? 0;
     const reported = input.reportedByHop[hop] ?? null;
+    const drainedAbove = hop > 0 && input.drainedByHop[hop - 1] === true;
     rows.push({
       hop,
       label: hop === 0 ? "Seeds" : `Hop ${hop}`,
       count:
         hop === 0
           ? COUNT_FORMAT.format(shown)
-          : opened
-            ? `${COUNT_FORMAT.format(shown)}/${COUNT_FORMAT.format(available)}`
-            : "not fetched",
+          : !opened
+            ? "not fetched"
+            : available === 0 && drainedAbove
+              ? emptyWord
+              : `${COUNT_FORMAT.format(shown)}/${COUNT_FORMAT.format(available)}`,
       reported:
         opened && hop > 0 && reported !== null && reported > available
           ? `of ${COUNT_FORMAT.format(reported)}`
@@ -316,7 +364,12 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
       title: null,
     };
   }
-  return { direction: input.direction, rows, progress };
+  return {
+    direction: input.direction,
+    rows,
+    progress,
+    cutLine: cutLineText(input.cut, input.direction),
+  };
 }
 
 export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {

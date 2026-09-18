@@ -99,6 +99,7 @@ import {
   nextRegionSelection,
   regionsStillInLibrary,
   seedRowLabel,
+  type ScopeCutInput,
   type ScopeHopsInput,
   type ScopeSeedRow,
 } from "./graphScopeRailModel";
@@ -149,7 +150,10 @@ import { updateCitationDataForItems } from "./citationUpdateService";
 import { createUpdateProgress } from "./updateProgressService";
 import { SerializedTaskQueue } from "./serializedTaskQueue";
 import { mapCooperatively } from "./backgroundTaskService";
-import { AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT } from "./relationshipRefreshPolicy";
+import {
+  AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT,
+  fillCutIntent,
+} from "./relationshipRefreshPolicy";
 import {
   ensureSourceMetricsForNodes,
   graphLayoutUsesSourceMetrics,
@@ -3788,6 +3792,33 @@ ${error instanceof Error ? error.message : String(error)}`,
     }));
   };
 
+  /**
+   * How the shown expanded papers' stored lists were cut. Read off the
+   * relationship mirror's summaries, never the works, since this runs on
+   * every rail rebuild.
+   */
+  const cutInput = (): ScopeCutInput => {
+    let mostCited = 0;
+    let arrival = 0;
+    if (hopModel && lastScope) {
+      for (const [key, entry] of hopModel.entries) {
+        if (!entry.expanded || !lastScope.visibleKeys.has(key)) continue;
+        const subject = hopSubject(key);
+        const summary = subject
+          ? getStoredRelationshipSummary(subject, hopDirection)
+          : null;
+        if (!summary) continue;
+        if (summary.order === "most-cited") mostCited += 1;
+        else arrival += 1;
+      }
+    }
+    return {
+      mostCited,
+      arrival,
+      intent: fillCutIntent(hopFillPagingProviders(hopDirection)),
+    };
+  };
+
   const scopeHopsInput = (): ScopeHopsInput => {
     const colouring = renderer?.getLayout().nodeColorMetric === "citation-hop";
     const assignment = colouring ? renderer?.getCategoryAssignment() : null;
@@ -3809,6 +3840,10 @@ ${error instanceof Error ? error.message : String(error)}`,
           )
         : null,
       fill: hopFill.state(),
+      drainedByHop: hopModel
+        ? hopFill.drainedByHop(hopModel.entries, hopDepth, hopDirection)
+        : [],
+      cut: cutInput(),
     };
   };
   // The camera's contents, in the canvas's own device pixels: the transform

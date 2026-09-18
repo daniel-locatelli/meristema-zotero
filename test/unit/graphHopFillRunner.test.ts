@@ -222,6 +222,45 @@ describe("createHopFillRunner", function () {
     expect(fake.calls.expanded.slice(2)).to.deep.equal(["a"]);
   });
 
+  it("reports every hop drained once the plan lands with nothing failed", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    expect(
+      runner.drainedByHop(fake.entries, 2, "cited-by"),
+      "no plan yet",
+    ).to.deep.equal([false, false, false]);
+    runner.wake();
+    await fake.settle();
+    // Hop 2 holds no paper, so nothing at it is left either.
+    expect(runner.drainedByHop(fake.entries, 2, "cited-by")).to.deep.equal([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("does not report a hop drained while a paper at it failed", async function () {
+    const fake = fakeHost();
+    fake.failing.add("a");
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    // "a" failed for the session: it left the plan, so `remaining` is 0 at
+    // hop 1, and that is exactly the case the failed set has to catch.
+    expect(runner.drainedByHop(fake.entries, 2, "cited-by")).to.deep.equal([
+      true,
+      false,
+      true,
+    ]);
+    // Failure is per direction: under References nothing has failed, and no
+    // plan has been made there yet, so nothing is drained either.
+    expect(runner.drainedByHop(fake.entries, 2, "references")).to.deep.equal([
+      false,
+      false,
+      false,
+    ]);
+  });
+
   it("drops a landing's effects when the epoch moved, and carries on", async function () {
     const fake = fakeHost();
     const runner = createHopFillRunner(fake.host);

@@ -160,6 +160,16 @@ export interface HopFillRunner {
     depth: number,
     direction: HopDirection,
   ): (number | null)[];
+  /**
+   * Per hop, whether nothing at it is left, waiting, deferred or failed this
+   * session, so the rail can call the hop below empty rather than pending.
+   * False for every hop until a plan exists.
+   */
+  drainedByHop(
+    entries: ReadonlyMap<string, { hop: number }>,
+    depth: number,
+    direction: HopDirection,
+  ): boolean[];
   /** The view is torn down: the epoch moves, the frame, timer and queue close. */
   dispose(): void;
 }
@@ -492,6 +502,22 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         totals[hop] = (totals[hop] ?? 0) + count;
       }
       return totals;
+    },
+    drainedByHop: (entries, depth, direction) => {
+      const drained = Array.from({ length: depth + 1 }, () => false);
+      if (!lastPlan || direction !== lastDirection) return drained;
+      const failedAt = new Set<number>();
+      for (const key of failed[direction]) {
+        const hop = entries.get(key)?.hop;
+        if (hop !== undefined) failedAt.add(hop);
+      }
+      for (let hop = 0; hop <= depth; hop += 1) {
+        // `remainingByHop` counts every qualifying paper not yet expanded, so
+        // in-flight, paused, waiting and deferred papers all keep it above 0.
+        drained[hop] =
+          (lastPlan.remainingByHop[hop] ?? 0) === 0 && !failedAt.has(hop);
+      }
+      return drained;
     },
     dispose: () => {
       disposed = true;

@@ -550,6 +550,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       segmented.appendChild(cell);
     }
     host.appendChild(segmented);
+    host.appendChild(text(document, "p", block.cutLine, "cm-scope-hop-cut"));
     const rows = element(document, "div", "cm-scope-hop-rows");
     for (const row of block.rows) {
       rows.appendChild(hopRowElement(row));

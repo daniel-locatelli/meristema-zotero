@@ -354,6 +354,7 @@ describe("scopeSquare", function () {
 });
 
 import {
+  cutLineText,
   formatRetryIn,
   type ScopeHopsInput,
 } from "../../src/services/graphScopeRailModel";
@@ -376,6 +377,8 @@ function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
     reportedByHop: [null, 1200, null],
     colours: null,
     fill: null,
+    drainedByHop: [true, false, false],
+    cut: { mostCited: 0, arrival: 0, intent: "most-cited" },
     ...overrides,
   };
 }
@@ -399,7 +402,7 @@ describe("the Citation hops block", function () {
     expect(railWithHops(null).hops).to.equal(null);
   });
 
-  it("lists Seeds and Hop 1 to Hop 6 with counts, not fetched, and the button", function () {
+  it("lists Seeds, the open hops and one Fetch row, nothing past it", function () {
     const block = railWithHops(hopsInput())!.hops!;
     expect(block.direction).to.equal("cited-by");
     expect(block.rows.map((row) => row.label)).to.deep.equal([
@@ -407,9 +410,6 @@ describe("the Citation hops block", function () {
       "Hop 1",
       "Hop 2",
       "Hop 3",
-      "Hop 4",
-      "Hop 5",
-      "Hop 6",
     ]);
     expect(block.rows[0]).to.include({
       count: "1",
@@ -429,11 +429,71 @@ describe("the Citation hops block", function () {
       dimmed: true,
       enabled: true,
     });
-    expect(block.rows[4]).to.include({
-      count: "not fetched",
+  });
+
+  it("offers no Fetch row while the deepest open hop is empty", function () {
+    const block = railWithHops(
+      hopsInput({
+        shownByHop: [1, 0, 0],
+        availableByHop: [1, 0, 0],
+        drainedByHop: [false, false, false],
+      }),
+    )!.hops!;
+    expect(block.rows.map((row) => row.label)).to.deep.equal([
+      "Seeds",
+      "Hop 1",
+      "Hop 2",
+    ]);
+    expect(block.rows[2]).to.include({ count: "0/0", fetchButton: false });
+  });
+
+  it("reads none yet once the hop above is drained, and none found under References", function () {
+    const citers = railWithHops(
+      hopsInput({
+        shownByHop: [1, 3, 0],
+        availableByHop: [1, 3, 0],
+        drainedByHop: [true, true, false],
+      }),
+    )!.hops!;
+    expect(citers.rows[2]).to.include({
+      count: "none yet",
       fetchButton: false,
-      dimmed: true,
     });
+    expect(citers.rows).to.have.length(3);
+    const references = railWithHops(
+      hopsInput({
+        direction: "references",
+        shownByHop: [1, 3, 0],
+        availableByHop: [1, 3, 0],
+        drainedByHop: [true, true, false],
+      }),
+    )!.hops!;
+    expect(references.rows[2]).to.include({ count: "none found" });
+  });
+
+  it("keeps 0/0 while the hop above has a paper in flight or one that failed", function () {
+    const block = railWithHops(
+      hopsInput({
+        shownByHop: [1, 3, 0],
+        availableByHop: [1, 3, 0],
+        drainedByHop: [true, false, false],
+      }),
+    )!.hops!;
+    expect(block.rows[2]).to.include({ count: "0/0" });
+  });
+
+  it("carries no Fetch row at depth 6", function () {
+    const block = railWithHops(
+      hopsInput({
+        depth: 6,
+        shownByHop: [1, 1, 1, 1, 1, 1, 1],
+        availableByHop: [1, 1, 1, 1, 1, 1, 1],
+        reportedByHop: [null, null, null, null, null, null, null],
+        drainedByHop: [true, true, true, true, true, true, false],
+      }),
+    )!.hops!;
+    expect(block.rows).to.have.length(7);
+    expect(block.rows.some((row) => row.fetchButton)).to.equal(false);
   });
 
   it("dims an unticked hop and carries no button at depth 6", function () {
@@ -444,6 +504,7 @@ describe("the Citation hops block", function () {
         shownByHop: [1, 1, 0, 0, 0, 0, 0],
         availableByHop: [1, 1, 1, 0, 0, 0, 0],
         reportedByHop: [null, null, null, null, null, null, null],
+        drainedByHop: [true, true, false, false, false, false, false],
       }),
     )!.hops!;
     expect(block.rows[2]).to.include({
@@ -461,7 +522,9 @@ describe("the Citation hops block", function () {
       hopsInput({ colours: ["#111", "#222", "#333"] }),
     )!.hops!;
     expect(coloured.rows[1].swatch).to.equal("#222");
-    expect(coloured.rows[5].swatch).to.equal(null);
+    // Row 3 is the Fetch row (hop 3); the colours array only reaches hop 2,
+    // so a hop the fill has not opened yet still falls back to no swatch.
+    expect(coloured.rows[3].swatch).to.equal(null);
   });
 
   it("prints the progress line in its three states under the deepest open hop", function () {
@@ -576,6 +639,47 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(block.progress).to.include({ action: "stop" });
     expect(block.progress!.text).to.match(/refusing$/);
+  });
+});
+
+describe("the cut line", function () {
+  it("states the fill's intent before anything is expanded", function () {
+    expect(
+      cutLineText(
+        { mostCited: 0, arrival: 0, intent: "most-cited" },
+        "cited-by",
+      ),
+    ).to.equal("Top 50 citers per paper, most cited first");
+    expect(
+      cutLineText(
+        { mostCited: 0, arrival: 0, intent: "arrival" },
+        "references",
+      ),
+    ).to.equal("First 50 references per paper, in the provider's order");
+  });
+
+  it("states how the shown lists were cut, never the intent, once some are stored", function () {
+    expect(
+      cutLineText({ mostCited: 4, arrival: 0, intent: "arrival" }, "cited-by"),
+    ).to.equal("Top 50 citers per paper, most cited first");
+    expect(
+      cutLineText(
+        { mostCited: 0, arrival: 4, intent: "most-cited" },
+        "cited-by",
+      ),
+    ).to.equal("First 50 citers per paper, in the provider's order");
+    expect(
+      cutLineText(
+        { mostCited: 3, arrival: 1, intent: "most-cited" },
+        "cited-by",
+      ),
+    ).to.equal("Top 50 citers per paper, most cited first for 3 of 4");
+  });
+
+  it("is on the block", function () {
+    expect(railWithHops(hopsInput())!.hops!.cutLine).to.equal(
+      "Top 50 citers per paper, most cited first",
+    );
   });
 });
 
