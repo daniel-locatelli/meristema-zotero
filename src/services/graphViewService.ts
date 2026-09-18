@@ -554,6 +554,10 @@ export function renderGraphView(
   let hopDirection: HopDirection = "cited-by";
   let hopDepth = 1;
   let hopEnabled: boolean[] = defaultHopEnabled();
+  /** The citation floor (spec: the citation floor), 0 when off. */
+  let floor = 0;
+  /** True from the first drag change to the release; the fill re-plans once at the end. */
+  let floorDragging = false;
   /** The current seeds' keys, in the hop model's own order; empty with no model. */
   const seedKeysOf = (): string[] =>
     hopModel?.seeds.map((seed) => seed.key) ?? [];
@@ -1397,7 +1401,7 @@ export function renderGraphView(
       fetchHop: (hop) => fetchHop(hop),
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
-      setFloor: () => undefined,
+      setFloor: (value) => setFloor(value),
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -1986,7 +1990,7 @@ export function renderGraphView(
     direction: hopDirection,
     depth: hopDepth,
     enabled: hopEnabled,
-    floor: 0,
+    floor,
   });
   /** The save panel's Explore row: the direction and depth it will save. */
   const capturedExplore = (
@@ -1994,10 +1998,11 @@ export function renderGraphView(
   ): string | null => {
     const explore = existing
       ? existing.explore
-      : { direction: hopDirection, hops: hopDepth };
+      : { direction: hopDirection, hops: hopDepth, floor };
     if (!explore) return null;
     const word = explore.direction === "references" ? "references" : "citers";
-    return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}`;
+    const floorPart = explore.floor ? `, floor ${explore.floor}` : "";
+    return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}${floorPart}`;
   };
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
@@ -2091,6 +2096,12 @@ export function renderGraphView(
         if (hopModel) rebuildCurrentFocus();
         notifyStateChange();
       }
+    }
+    if (chosen.explore?.floor !== undefined && chosen.explore.floor !== floor) {
+      // Applied through the same door as the rail's field, before the
+      // filters move, so the one `applyFilters` the filter change runs sees it.
+      floor = Math.max(0, Math.floor(chosen.explore.floor));
+      notifyStateChange();
     }
     // Appearance goes through the gear's own controller, so its selects, the
     // instance's live layout and the preference all move together.
@@ -3709,6 +3720,14 @@ ${error instanceof Error ? error.message : String(error)}`,
     // is in it (spec, "The fill").
     onHoverChange: () => scheduleHopFill(),
     onViewChange: () => scheduleHopFill(),
+    onFloorChange: (value) => {
+      floorDragging = true;
+      setFloor(value);
+    },
+    onFloorDragEnd: () => {
+      floorDragging = false;
+      scheduleHopFill();
+    },
     onOpenNode: (node) => {
       if (node.kind === "external" && node.externalWork) {
         const url = externalWorkURL(node.externalWork as ExternalWork);
@@ -4044,7 +4063,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           drawnRegions.map((region) => [region.collectionID, region.color]),
         ),
         hops: hopModel ? scopeHopsInput() : null,
-        floor: 0,
+        floor,
       }),
     );
   };
@@ -4117,7 +4136,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         const descriptor = graphFilterDescriptors.get(key);
         return descriptor ? graphFilter.matches(descriptor) : false;
       },
-      floor: 0,
+      floor,
     });
     lastScope = scope;
     // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
@@ -4136,6 +4155,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         .map((node) => node.key),
     );
     renderer?.setScopeKeys(scopeKeys);
+    renderer?.setFloor(floor, scope.belowFloorCount, false);
     renderer?.setVisibleKeys(visibleKeys, false);
     if (libraryEmphasisKeys) {
       const kept = new Set(
@@ -4150,7 +4170,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     updateSummary();
     refreshKeyRail();
     maybeShowGallery();
-    scheduleHopFill();
+    // A drag sweeps through many floors; the plan is rebuilt once, on release.
+    if (!floorDragging) scheduleHopFill();
   };
   const setHopDirection = (direction: HopDirection): void => {
     if (direction === hopDirection) return;
@@ -4173,6 +4194,14 @@ ${error instanceof Error ? error.message : String(error)}`,
     hopEnabled = hopEnabled.map((value, index) =>
       index === hop ? enabled : value,
     );
+    applyFilters();
+    notifyStateChange();
+  };
+  /** The floor from the rail's field or a view; a drag goes through the same door. */
+  const setFloor = (value: number): void => {
+    const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    if (next === floor) return;
+    floor = next;
     applyFilters();
     notifyStateChange();
   };
@@ -4776,6 +4805,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       includeUnfiled,
       includeExternal,
       hiddenKeys: [...hiddenKeys],
+      floor,
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),
@@ -4822,6 +4852,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       hopDirection = state.hops.direction;
       hopDepth = state.hops.depth;
       hopEnabled = [...state.hops.enabled];
+      floor = state.floor;
       if (state.migratedFromBothDirections) {
         // A saved graph fetched both directions until Stage 3; say once
         // what it shows now, through the path B42's read-only notice uses.
@@ -5040,6 +5071,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         hopDirection = options.initialState.hops.direction;
         hopDepth = options.initialState.hops.depth;
         hopEnabled = [...options.initialState.hops.enabled];
+        floor = options.initialState.floor;
         // The graph's folders live in the ticks the request already set; the
         // filter controller no longer scopes the graph by folder.
         graphFilter.setState({
