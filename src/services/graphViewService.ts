@@ -1397,6 +1397,7 @@ export function renderGraphView(
       fetchHop: (hop) => fetchHop(hop),
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
+      setFloor: () => undefined,
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -4042,6 +4043,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           drawnRegions.map((region) => [region.collectionID, region.color]),
         ),
         hops: hopModel ? scopeHopsInput() : null,
+        floor: 0,
       }),
     );
   };

@@ -23,6 +23,7 @@ import type { HopDirection } from "./graphHopModel";
 import {
   formatRetryIn,
   scopeSquare,
+  type ScopeFloorRow,
   type ScopeHopRow,
   type ScopeHopsBlock,
   type ScopeHopsProgress,
@@ -157,6 +158,8 @@ export interface ScopeRailHandlers {
   toggleHop(hop: number, enabled: boolean): void;
   /** Stop, Resume or Fetch more on the progress line. */
   fillControl(action: "stop" | "resume" | "more"): void;
+  /** The Citation floor field committed a value (Enter or blur). */
+  setFloor(value: number): void;
 }
 
 export interface KeyRailOptions {
@@ -235,6 +238,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   const scopeHost = element(document, "section", "cm-scope-section");
   /** The last Scope model actually drawn, serialised; null before the first. */
   let lastScopeSignature: string | null = null;
+  /** A Scope model that arrived while the floor field had focus. */
+  let pendingScope: ScopeRailModel | null | undefined = undefined;
   /** The refusal countdown's one interval, while a countdown is drawn. */
   let countdownTimer: number | null = null;
   const now = options.now ?? (() => Date.now());
@@ -525,6 +530,58 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     return wrapper;
   }
 
+  /**
+   * The floor's row: a number field and the count under it. The field is the
+   * only control when no axis shows citations, so it is always editable.
+   */
+  function floorRowElement(row: ScopeFloorRow): HTMLElement {
+    const wrapper = element(document, "div", "cm-scope-row cm-scope-floor-row");
+    wrapper.append(
+      text(document, "span", "Citation floor", "cm-scope-row-label"),
+    );
+    const field = element(document, "label", "cm-scope-floor-field");
+    field.append(text(document, "span", "≥"));
+    const input = element(
+      document,
+      "input",
+      "cm-scope-floor-input",
+    ) as HTMLInputElement;
+    input.type = "number";
+    input.min = "0";
+    input.step = "1";
+    input.value = String(row.value);
+    input.setAttribute("aria-label", "Citation floor");
+    const commit = (): void => {
+      const parsed = Math.floor(Number(input.value));
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        input.value = String(row.value);
+        return;
+      }
+      if (parsed !== row.value) options.onScope.setFloor(parsed);
+      else input.value = String(parsed);
+    };
+    input.addEventListener("change", commit);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+        input.blur();
+      }
+    });
+    input.addEventListener("blur", () => {
+      // A render that arrived while the reader was typing waits for this.
+      const pending = pendingScope;
+      pendingScope = undefined;
+      if (pending !== undefined) rail.renderScope(pending);
+    });
+    field.append(input);
+    wrapper.append(
+      field,
+      text(document, "span", row.belowText, "cm-scope-row-count"),
+    );
+    return wrapper;
+  }
+
   function hopsBlockElement(block: ScopeHopsBlock): HTMLElement {
     const host = element(document, "div", "cm-scope-hops");
     host.appendChild(
@@ -680,7 +737,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
 
   applyLayout();
 
-  return {
+  const rail: KeyRail = {
     root,
     toolbar,
     footer,
@@ -710,6 +767,15 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       // (the hop runner re-plans there), and the rebuild would take keyboard
       // focus off the Stop button the reader is reaching for. The model is
       // plain data, so an unchanged model is not a render at all.
+      const active = document.activeElement;
+      if (
+        active &&
+        scopeHost.contains(active) &&
+        active.classList.contains("cm-scope-floor-input")
+      ) {
+        pendingScope = model;
+        return;
+      }
       const signature = model === null ? "" : JSON.stringify(model);
       if (signature === lastScopeSignature) return;
       lastScopeSignature = signature;
@@ -735,6 +801,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       for (const row of model.rows) rows.appendChild(scopeRowElement(row));
       scopeHost.appendChild(rows);
       if (model.hops) scopeHost.appendChild(hopsBlockElement(model.hops));
+      scopeHost.appendChild(floorRowElement(model.floor));
       if (model.hiddenLine) {
         const hidden = element(document, "p", "cm-scope-hidden");
         hidden.append(text(document, "span", model.hiddenLine));
@@ -760,4 +827,5 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       root.remove();
     },
   };
+  return rail;
 }

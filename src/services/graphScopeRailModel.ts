@@ -149,6 +149,14 @@ export interface ScopeRailModel {
   hiddenLine: string | null;
   /** The Citation hops block, or null on a seedless graph. */
   hops: ScopeHopsBlock | null;
+  floor: ScopeFloorRow;
+}
+
+/** The Citation floor row: the field's value and the muted count beside it. */
+export interface ScopeFloorRow {
+  value: number;
+  /** `{n} below`, or `off` while the floor is 0. */
+  belowText: string;
 }
 
 export interface ScopeRailInput {
@@ -164,6 +172,8 @@ export interface ScopeRailInput {
   regionColors: ReadonlyMap<number, string>;
   /** The Citation hops block's input, or null on a seedless graph. */
   hops: ScopeHopsInput | null;
+  /** The citation floor, 0 when off. */
+  floor: number;
 }
 
 export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
@@ -421,5 +431,12 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
       ? `${COUNT_FORMAT.format(input.scope.hiddenCount)} hidden`
       : null,
     hops: input.hops ? buildScopeHopsBlock(input.hops) : null,
+    floor: {
+      value: input.floor,
+      belowText:
+        input.floor > 0
+          ? `${COUNT_FORMAT.format(input.scope.belowFloorCount)} below`
+          : "off",
+    },
   };
 }

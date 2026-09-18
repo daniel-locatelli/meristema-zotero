@@ -1785,3 +1785,26 @@
   color: var(--cm-muted);
   font-size: 11px;
 }
+.cm-scope-floor-row {
+  margin-top: 8px;
+}
+.cm-scope-floor-field {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  color: var(--cm-muted);
+  font-size: 11px;
+}
+.cm-scope-floor-input {
+  width: 48px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}

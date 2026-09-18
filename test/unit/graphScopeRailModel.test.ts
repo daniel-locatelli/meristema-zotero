@@ -67,9 +67,26 @@ function emptyScope(): GraphScopeResult {
   });
 }
 
+/** The shape every `buildScopeRailModel` call in this file starts from. */
+function baseInput() {
+  return {
+    floor: 0,
+    collections: TREE,
+    ticks: allCollectionsTicked(),
+    includeUnfiled: true,
+    includeExternal: true,
+    seeds: [],
+    scope: emptyScope(),
+    regions: [],
+    regionColors: new Map(),
+    hops: null,
+  };
+}
+
 describe("buildScopeRailModel", function () {
   it("prints shown of total papers", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -90,6 +107,7 @@ describe("buildScopeRailModel", function () {
 
   it("keeps the tree's order with plain labels, and closes it with the two rows", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -120,6 +138,7 @@ describe("buildScopeRailModel", function () {
 
   it("carries each folder's own count and its cascade", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -140,6 +159,7 @@ describe("buildScopeRailModel", function () {
 
   it("marks a selected folder and carries its region colour", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -165,6 +185,7 @@ describe("buildScopeRailModel", function () {
   it("draws a parent mixed when a descendant disagrees", function () {
     const ticks = setCollectionTicks(allCollectionsTicked(), [11], false);
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks,
       includeUnfiled: true,
@@ -182,6 +203,7 @@ describe("buildScopeRailModel", function () {
 
   it("reads Unfiled and the folder rows off the none base", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: onlyCollectionsTicked([2]),
       includeUnfiled: false,
@@ -215,6 +237,7 @@ describe("buildScopeRailModel", function () {
       floor: 0,
     });
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -243,6 +266,7 @@ describe("buildScopeRailModel", function () {
 
   it("passes the seeds through in order with their heading", function () {
     const model = buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: allCollectionsTicked(),
       includeUnfiled: true,
@@ -258,6 +282,22 @@ describe("buildScopeRailModel", function () {
     });
     expect(model.seedsHeading).to.equal("Seeds · 2");
     expect(model.seeds.map((seed) => seed.key)).to.deep.equal(["s1", "s2"]);
+  });
+});
+
+describe("the Citation floor row", function () {
+  it("prints the floor and how many sit under it", function () {
+    const model = buildScopeRailModel({
+      ...baseInput(),
+      floor: 20,
+      scope: { ...baseInput().scope, belowFloorCount: 143 },
+    });
+    expect(model.floor).to.deep.equal({ value: 20, belowText: "143 below" });
+  });
+
+  it("reads off at 0, on a seedless graph too", function () {
+    const model = buildScopeRailModel({ ...baseInput(), hops: null, floor: 0 });
+    expect(model.floor).to.deep.equal({ value: 0, belowText: "off" });
   });
 });
 
@@ -301,6 +341,7 @@ describe("scopeSquare", function () {
   // on the selected fill and the square is what tells two regions apart.
   function rows(regions: number[], untick: number[] = []) {
     return buildScopeRailModel({
+      floor: 0,
       collections: TREE,
       ticks: setCollectionTicks(allCollectionsTicked(), untick, false),
       includeUnfiled: true,
@@ -387,6 +428,7 @@ function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
 
 function railWithHops(hops: ScopeHopsInput | null) {
   return buildScopeRailModel({
+    floor: 0,
     collections: TREE,
     ticks: allCollectionsTicked(),
     includeUnfiled: true,
