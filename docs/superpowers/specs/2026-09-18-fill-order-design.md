@@ -148,7 +148,6 @@ lists the hops the rail draws, minus the Fetch row.
   takes `cited_by:`.
 - `src/services/graphScopeRailModel.ts`: the row rule and the cut line, fed
   the stored orders of the shown expanded papers and the failed count by hop.
-- `src/services/graphKeyModel.ts`: hops listed follow the rail's rows.
 - `src/services/externalWorkCacheService.ts`: the `cut_order` column.
 - `src/services/graphViewService.ts`: the runner passes `fill: true` and
   `order: "most-cited"`; Refresh passes `retryRefusals: false`.

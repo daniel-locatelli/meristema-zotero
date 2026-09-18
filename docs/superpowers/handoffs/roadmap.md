@@ -132,6 +132,13 @@ order of evaluation as a pure function with unit tests; label routing through
       B72's case, the only one pinning an exact hop-1 count. NOT confirmed at
       runtime — a fresh item has no citation-metrics record, so the fallback
       should not arm. First task: a test pinning `reportedCount` at runtime
+- [ ] B76 D8's keyless Zotero case is not written: the spec's second case (no
+      key, the rail reads `First 50 ... in the provider's order`, today's
+      provider order). The constraint is held by unit cases only
+      (`fillProviderOrder`, `fillCutIntent`)
+- [ ] B77 `relatedWorkSummaryService.ts` selects `referenced_works_count` on
+      the arrival references path and discards it; it is a free
+      `reportedCount`
 - [ ] B69 since B50 a refused OpenCitations lookup throws before its
       DOI-fallback page on manual paths (`externalDiscoveryService.ts:1202`);
       it used to fall through and still page on the DOI. The spec named only
@@ -362,6 +369,8 @@ any failure into a new entry above.
       external cache initialises without an error (the `cut_order` column
       is added on first init) and a list stored before it reads as arrival
       order in the rail's cut line.
+- [ ] D8: press Refresh on a seed with more than 50 citers; the cut line still
+      describes hop 1's cut, not the seed's 200-member list.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -373,7 +382,9 @@ any failure into a new entry above.
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-09-18 at
-`0507488` (90/0, clean), so count with `git log 0507488..main --oneline`.
+`0507488` (90/0, clean), so count with `git log 0507488..main --oneline`; the
+final review-fix commit after it touched `cutInput` and `drainedByHop` only,
+both unit-covered, and was not re-run.
 A clean run is 90 passed, 0 failed as of 2026-09-18
 (D8's case added); the last full green of all cases was 90 on 2026-09-18.
 
@@ -435,5 +446,5 @@ entries are in git history.
   window. Six isolated runs of the drain case; the full suite was not run (one
   attempt stopped: the Tools-menu hooks failed, the test window likely
   covered). Suite cadence set to every 4 or 5 commits. Next: D8.
-- 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits 7ea4374..HEAD of
-  d8-fill-order.
+- 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits ee3d3d6..d8-fill-order
+  tip.

@@ -261,6 +261,35 @@ describe("createHopFillRunner", function () {
     ]);
   });
 
+  it("reports nothing drained at a depth the plan was not made at", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(runner.drainedByHop(fake.entries, 2, "cited-by")).to.deep.equal([
+      true,
+      true,
+      true,
+    ]);
+    // Fetch deepens the walk and the rail rebuilds before the re-plan lands:
+    // the freshly opened hop reads pending, not empty, for that frame.
+    fake.setDepth(3);
+    expect(runner.drainedByHop(fake.entries, 3, "cited-by")).to.deep.equal([
+      false,
+      false,
+      false,
+      false,
+    ]);
+    runner.wake();
+    await fake.settle();
+    expect(runner.drainedByHop(fake.entries, 3, "cited-by")).to.deep.equal([
+      true,
+      true,
+      true,
+      true,
+    ]);
+  });
+
   it("drops a landing's effects when the epoch moved, and carries on", async function () {
     const fake = fakeHost();
     const runner = createHopFillRunner(fake.host);

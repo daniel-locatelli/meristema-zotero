@@ -163,7 +163,11 @@ export interface HopFillRunner {
   /**
    * Per hop, whether nothing at it is left, waiting, deferred or failed this
    * session, so the rail can call the hop below empty rather than pending.
-   * False for every hop until a plan exists.
+   * False for every hop until a plan exists for this direction and this
+   * depth: a Fetch deepens and renders before the re-plan lands, and the
+   * freshly opened hop must read pending, not empty, for that frame. The
+   * deepest slot is structurally true, since the planner never counts papers
+   * at the deepest hop as remaining.
    */
   drainedByHop(
     entries: ReadonlyMap<string, { hop: number }>,
@@ -222,6 +226,8 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
   let coolingUntil: number | null = null;
   let lastPlan: HopFillPlan | null = null;
   let lastDirection: HopDirection = "cited-by";
+  /** The depth the last plan was made at: a Fetch deepens before the re-plan. */
+  let lastDepth = 0;
 
   const capFor = (direction: HopDirection, hop: number): number =>
     caps[direction][hop] ?? HOP_EXPANSION_CAP;
@@ -237,6 +243,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     if (!input) return null;
     const { direction } = input;
     lastDirection = direction;
+    lastDepth = input.depth;
     const now = host.now();
     const deferredKeys = new Set<string>();
     for (const [key, { until }] of deferrals[direction]) {
@@ -505,7 +512,8 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     },
     drainedByHop: (entries, depth, direction) => {
       const drained = Array.from({ length: depth + 1 }, () => false);
-      if (!lastPlan || direction !== lastDirection) return drained;
+      if (!lastPlan || direction !== lastDirection || depth !== lastDepth)
+        return drained;
       const failedAt = new Set<number>();
       for (const key of failed[direction]) {
         const hop = entries.get(key)?.hop;

@@ -3795,7 +3795,10 @@ ${error instanceof Error ? error.message : String(error)}`,
   /**
    * How the shown expanded papers' stored lists were cut. Read off the
    * relationship mirror's summaries, never the works, since this runs on
-   * every rail rebuild.
+   * every rail rebuild. A list longer than the membership limit was not cut
+   * by the fill at all — the toolbar's Refresh fetches a seed on the
+   * aggregate path, at the larger focus limit — so it counts as neither
+   * order; otherwise the line would describe a cut the fill never made.
    */
   const cutInput = (): ScopeCutInput => {
     let mostCited = 0;
@@ -3808,6 +3811,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           ? getStoredRelationshipSummary(subject, hopDirection)
           : null;
         if (!summary) continue;
+        if (summary.count > AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT) continue;
         if (summary.order === "most-cited") mostCited += 1;
         else arrival += 1;
       }

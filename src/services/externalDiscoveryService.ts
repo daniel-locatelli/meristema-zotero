@@ -1274,7 +1274,10 @@ async function fetchProviderRelationshipSnapshot(
         : provider.fetchCitingWorks;
     const hasSummaryFetcher =
       providerID === "semantic-scholar" || providerID === "openalex";
-    /** The list answer's own total (OpenAlex `meta.count`), read off the first page. */
+    /**
+     * The list answer's own total (OpenAlex `meta.count`), kept from the
+     * first page that carries one.
+     */
     let listReportedCount: number | null = null;
     const fetcher = hasSummaryFetcher
       ? async (
@@ -1397,8 +1400,9 @@ async function fetchProviderRelationshipSnapshot(
       if (!Array.isArray(pageResult)) return failed();
       const page = pageResult;
       pages += 1;
-      // A hinted parent skipped the lookup, so the list answer is the only
-      // place a total can come from (spec, "Reported count for free").
+      // No total from the parent — it was hinted, so the lookup was skipped,
+      // or the lookup carried none — leaving the list answer as the only
+      // place one can come from (spec, "Reported count for free").
       if (reportedCount === null && listReportedCount !== null) {
         reportedCount = listReportedCount;
         knownReportedCount = reportedCount;
