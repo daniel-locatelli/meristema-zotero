@@ -65,29 +65,6 @@ order of evaluation as a pure function with unit tests; label routing through
 
 ## The hop fill
 
-- [ ] D8 the fill fetches far more than the reader needs. The rail offers
-      depth 6 but wall clock caps it at 3 ("another 2 hours just to start Hop
-      4"). Zotero's own panes stay responsive and only the plot lags, so that
-      cost is the graph's rebuild and redraw per landing. In the citers
-      direction the chain also runs out against the present (hop 5 is already
-      2026), so deep rows are structurally empty yet read the same as
-      `not fetched`: derive the offered depth from the data. Weigh: expanding
-      only what the reader asked for, most-cited parents first and stopping, a
-      reader-set budget, reusing the store before any request, whether hops
-      past 3 are offered at all. Measured 2026-09-16 on the user's profile
-      (B50+B63 code, 29.6 min, 432 requests, probe JSON
-      `%TEMP%\Zotero\meristema-fill-probe-2026-09-16T12-23-24-909Z.json`):
-      OpenCitations 393 requests, zero refusals, 13.5/min, avg 912 ms, 309
-      relation pages to 84 Meta lookups, so expansion and not hydration is
-      where requests go; Semantic Scholar asked 15 times (11 × 429), so B50's
-      sit-out works; OpenAlex answered 20 of 20, the user's key being live,
-      unlike the test profile; 50.5% of wall clock refusing to 46.4% expanding
-      over 6 windows; reached hop 3 at 401/401 of 820, never opened hop 4.
-      B64 and B67 are decided with it. B75 (fixed 2026-09-17): until then the
-      re-plan waited on `requestAnimationFrame`, which a covered or minimised
-      window delivers late or never, so the 29.6 min were measured on a fill
-      that slowed whenever Zotero sat behind another window; re-measure before
-      weighing wall clock
 - [ ] D7 the hop rail's numbers do not add up to a story. On screen:
       `Hop 3 1,557/1,557 of 2,726` over `expanding · 627 left · Stop`. Two
       units (papers, and parents queued to expand); `shown/available` is a
@@ -96,12 +73,14 @@ order of evaluation as a pure function with unit tests; label routing through
       so a design question: probably one number that converges plus a plain
       statement of what is unknown. The user proposed a progress bar; the one
       version the spec's reasoning does not rule out is a bar over the parent
-      count
+      count. The cut line (D8) is the plain statement; what remains is the
+      progress numbers themselves
 - [ ] D12 nothing says how complete a filled plot is. Three gaps are invisible
       and look like a paper with no citers: failed expansions (per session, not
       persisted), papers never reached because a cap or a Stop cut the plan,
       and papers drawn without metadata (D11). Wants one plain statement of
-      what is missing and why, not another count; decide with D7
+      what is missing and why, not another count; decide with D7. The cut line
+      (D8) is the plain statement; what remains is the other two gaps
 - [ ] D11 a reference fill lands many Unknowns. An expansion is membership
       first with summaries hydrated cooperatively, so an Unknown is an
       identifier whose summary has not hydrated or failed to. Two hypotheses:
@@ -153,12 +132,6 @@ order of evaluation as a pure function with unit tests; label routing through
       B72's case, the only one pinning an exact hop-1 count. NOT confirmed at
       runtime — a fresh item has no citation-metrics record, so the fallback
       should not arm. First task: a test pinning `reportedCount` at runtime
-- [ ] B64 a manual Refresh waits out the 15 s
-      `RELATIONSHIP_PROVIDER_TIMEOUT_MS` while Semantic Scholar answers 429 and
-      OpenCitations answers in ~50 ms. Seed Refresh keeps its retries by B50's
-      design (only "a refused snapshot is never stored": no windows, no
-      provider switching) and nothing on its path feeds the 60 s provider register.
-      Traced by two probe runs, not measured on pre-B50 code. Decide with D8
 - [ ] B69 since B50 a refused OpenCitations lookup throws before its
       DOI-fallback page on manual paths (`externalDiscoveryService.ts:1202`);
       it used to fall through and still page on the DOI. The spec named only
@@ -177,9 +150,6 @@ order of evaluation as a pure function with unit tests; label routing through
       endpoint 10 times. Only B50's and B72's cases stub the providers. Weigh:
       stubbing the ten live cases the same way, a key in the test profile, or
       one cache across cases
-- [ ] B67 the fill is inferred from `retryRefusals === false`. One caller
-      today; an explicit `fill` option stops the two meanings drifting. Decide
-      with D8, which may add fill-only paths
 - [ ] B68 the refresh's composition has no automated test: switching on a
       refusal, the no-candidate return publishing nothing, the
       `refusedBy`/`skipped`/`answeredBy` population, and a refused snapshot
@@ -379,6 +349,19 @@ any failure into a new entry above.
       window) for five minutes. On return the hop counts and `n left` have
       moved as far as they would have in view; before the fix the line sat
       where it was left.
+- [ ] D8: on your own profile (OpenAlex key set), open a fresh seeded graph.
+      The hop block reads Seeds, Hop 1, a Fetch hop 2 row and the cut line
+      `Top 50 citers per paper, most cited first`; no rows past that. Fill to
+      hop 3 and re-run the 2026-09-16 probe: requests per expansion, requests
+      by provider, time to hop 3, against 393 requests and 29.6 min. Under
+      Citers, fill until the chain runs into the present: the last row reads
+      `none yet` and offers no Fetch.
+- [ ] B64: with Semantic Scholar refusing, press Refresh on a seed. The
+      progress window closes in seconds, not after 15 s.
+- [ ] D8: on a profile whose plugin database predates this commit, the
+      external cache initialises without an error (the `cut_order` column
+      is added on first init) and a list stored before it reads as arrival
+      order in the rail's cut line.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -389,10 +372,10 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-09-17 at
-`89b7d91` (80/5, throttled), so count with `git log 89b7d91..main --oneline`.
-A clean run is 89 passed, 0 failed as of 2026-09-17
-(B71's case added); the last full green of all cases was 87 on 2026-09-16.
+runs alone under a temporary `describe.only`. Last full run: 2026-09-18 at
+`0507488` (90/0, clean), so count with `git log 0507488..main --oneline`.
+A clean run is 90 passed, 0 failed as of 2026-09-18
+(D8's case added); the last full green of all cases was 90 on 2026-09-18.
 
 - Ten Citation hops cases run against live providers on Semantic Scholar's
   keyless pool. When it answers 429 each expansion lands `0/0` after exactly
@@ -419,6 +402,13 @@ A clean run is 89 passed, 0 failed as of 2026-09-17
 - `savedGraphMenu.test.ts` "lists the saved graphs on the first showing" is
   intermittent (a focus or popup timing race on the real Tools menu is the
   first suspect). One failure there is not a regression.
+- The D8 case (`graphCitationHops.test.ts`, "with an OpenAlex key (D8)") sets
+  a fake OpenAlex key pref for its own block and restores it in `after`; it
+  answers every provider host itself (OpenAlex from a served set, the others
+  not-found) and waits the outer fixture's automatic update out (`untilQuiet`,
+  capped at 120 s, non-fatal) before counting requests. Its citers deliberately
+  omit `cited_by_count`, so the expansion takes the unknown-count path (real
+  data would make the total 2 requests, not 4).
 - An unidentified 42-passed/1-failed run from 2026-09-10 never reproduced in
   twelve logged runs and its case was never named. Keep the full log
   (`npm test 2>&1 | tee <file>`) on any branch that touches the region code,
@@ -445,3 +435,5 @@ entries are in git history.
   window. Six isolated runs of the drain case; the full suite was not run (one
   attempt stopped: the Tools-menu hooks failed, the test window likely
   covered). Suite cadence set to every 4 or 5 commits. Next: D8.
+- 2026-09-18: D8, B64, B67 shipped (ADR 0015); commits 7ea4374..HEAD of
+  d8-fill-order.

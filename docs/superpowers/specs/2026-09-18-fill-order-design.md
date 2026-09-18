@@ -136,7 +136,9 @@ lists the hops the rail draws, minus the Fetch row.
 
 - `src/providers/types.ts`: `order` on `ProviderRequestOptions`; the list
   fetchers may return `{ works, reportedCount }` (OpenAlex) or an array.
-- `src/providers/openAlexProvider.ts`: `sort`, `cited_by`, `meta.count`.
+- `src/services/relatedWorkSummaryService.ts`: `sort`, `cited_by`,
+  `meta.count` (the fill's OpenAlex pages are served here, not by the
+  provider file).
 - `src/services/relationshipRefreshPolicy.ts`: `fillProviderOrder`.
 - `src/services/externalDiscoveryService.ts`: `fill` option, `order` passed
   through, `reportedCount` from the list, `order` on the snapshot.
@@ -147,6 +149,7 @@ lists the hops the rail draws, minus the Fetch row.
 - `src/services/graphScopeRailModel.ts`: the row rule and the cut line, fed
   the stored orders of the shown expanded papers and the failed count by hop.
 - `src/services/graphKeyModel.ts`: hops listed follow the rail's rows.
+- `src/services/externalWorkCacheService.ts`: the `cut_order` column.
 - `src/services/graphViewService.ts`: the runner passes `fill: true` and
   `order: "most-cited"`; Refresh passes `retryRefusals: false`.
 - `docs/adr/0015-*.md`: the fill asks OpenAlex first and cuts most-cited

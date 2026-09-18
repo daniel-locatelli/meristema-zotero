@@ -158,6 +158,12 @@ The number of expansions the fill may make per hop per direction in a seeded
 graph before it waits for Fetch more.
 _Avoid_: budget, quota, limit (a per-list size)
 
+**Cut**:
+How a stored list was trimmed to its limit: most cited first, when the
+answering provider sorts, or in arrival order, as the provider returns it.
+The rail's cut line says which the shown lists carry.
+_Avoid_: truncation, top-N, sample
+
 **Refresh**:
 The toolbar action that re-fetches the seeds' own lists in the current
 direction. It never refreshes hop papers; those are refreshed one at a time
