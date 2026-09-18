@@ -44,7 +44,9 @@ paper, unchanged up to the last step:
 4. **the floor** removes it when its `citationCount` is a number below
    `floor`. A null count passes.
 
-`GraphScopeResult` gains `belowFloorCount`: papers step 4 removed. Since the
+`GraphScopeResult` gains `belowFloorCount`: papers step 4 removed, so a
+paper a facet already hid is not in it and `n below` never counts a paper
+twice. Since the
 hop rule reads a parent's visibility and papers are walked in hop order, a
 parent under the floor takes its hop-children with it unless another parent
 or a ticked folder admits them; since the fill expands shown papers, none of
@@ -75,13 +77,17 @@ is under the domain (a log axis whose domain starts at 1 still shows the
 `off` line on the bottom edge) or over it; null when neither axis is
 citations. It is the one place that knows the plot box.
 
-Drag: on pointerdown, after the node hit-test finds nothing, a pointer within
-5 CSS px of the line grabs it: the pointer is captured, the cursor reads
-`ns-resize` or `ew-resize`, and no pan starts. Each move converts the
+Drag: on pointerdown the hit order is the tag, then a node, then the line
+within 5 CSS px. The tag always grabs the floor, so papers clustered on the
+threshold cannot block it; a node wins over the bare line. A grab captures
+the pointer, sets the cursor to `ns-resize` or `ew-resize`, and starts no
+pan; the capture holds the cursor for the whole drag. Each move converts the
 pointer's plot coordinate through `inverseScaleValue` and `roundFloor`, and
-reports the value through `onFloorChange(value)` when it changed; pointerup
-or pointercancel ends the drag and reports `onFloorDragEnd()`. Hovering the
-line shows the resize cursor.
+reports the value through `onFloorChange(value)` when it changed; a pointer
+at or past the plot's bottom (or left) edge reads 0 on every scale, since a
+log domain starting at 1 could otherwise never reach `off`. Pointerup or
+pointercancel ends the drag and reports `onFloorDragEnd()`. Hovering the tag
+or the line shows the resize cursor.
 
 `roundFloor(value)` is pure: the nearest integer under 20, the nearest
 multiple of 5 to 100, of 10 to 1,000, of 100 above; never below 0.
@@ -113,8 +119,8 @@ above 0, and is the only control when no axis shows citations. Model side:
 - `GraphViewState` gains `floor: number`, default 0, and goes to version 6; a
   version-5 record parses with floor 0 (the existing empty-default pattern).
 - `GraphViewExplore` gains `floor?: number`. A view whose `explore` carries a
-  floor applies it; one without leaves the floor as it is, as `enabled[]`
-  does not travel. `captureGraphView` records the live floor, and the Save
+  floor applies it, and `floor: 0` switches it off; one without leaves the
+  floor as it is, as `enabled[]` does not travel. `captureGraphView` records the live floor, and the Save
   current as view panel lists it with the direction and depth.
 - Cornerstones: `explore: { direction: "references", hops: 2, floor: 10 }`,
   summary "Seeds, 2 hops of references, floor 10, colour citations. What the
@@ -161,7 +167,9 @@ Unit (`test/unit`):
   a view without it leaves the live floor alone.
 - The renderer doubles: `setFloor` draws the line only when an axis shows
   citations; a drag sequence reports rounded values and one drag end; a
-  pointerdown on a node near the line drags the node, not the floor.
+  pointerdown on a node near the line drags the node, not the floor; one on
+  the tag grabs the floor even over a node; a drag past the bottom edge on a
+  log axis reports 0.
 - The label scene: no label rectangle overlaps the tag's.
 
 Zotero (`test/zotero/graphScopeRail.test.ts`), one case on a seeded graph
