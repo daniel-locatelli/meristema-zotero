@@ -3896,8 +3896,9 @@ ${error instanceof Error ? error.message : String(error)}`,
           mode: "automatic",
           providerStrategy: "native-first",
           providerLimit: 1,
-          // A refusal is not a failure (ADR 0013): no 429 retries, and the
-          // providers sitting out a window are not asked.
+          // The fill (ADR 0013): no 429 retries, and the providers sitting
+          // out a window are not asked.
+          fill: true,
           retryRefusals: false,
           excludeProviders: control.excludeProviders,
           queueBackgroundHydration: true,

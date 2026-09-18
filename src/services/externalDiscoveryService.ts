@@ -1246,6 +1246,7 @@ async function fetchProviderRelationshipSnapshot(
   maximum: number,
   providerWorkIDs: ProviderIdentityHints = {},
   requestOptions?: ProviderRequestOptions,
+  fill = false,
 ): Promise<RelationshipProviderSnapshot> {
   const failed = (): RelationshipProviderSnapshot => ({
     provider: providerID,
@@ -1387,7 +1388,7 @@ async function fetchProviderRelationshipSnapshot(
       if (!page.length) {
         if (
           unbackedEmptyList({
-            fill: requestOptions?.retryRefusals === false,
+            fill,
             firstPageEmpty: pages === 1 && collectedWorks.length === 0,
             matched: Boolean(match),
             reportedCount,
@@ -1536,10 +1537,12 @@ export interface ExternalRelationshipRefreshOptions {
   providerStrategy?: RelationshipProviderStrategy;
   providerLimit?: number;
   /**
-   * False for the hop fill (ADR 0013): a 429 is not retried, a refused
-   * provider moves the expansion to the next paging provider, and an empty
-   * first page needs a lookup match or a reported count behind it.
+   * The hop fill (ADR 0013, ADR 0014): paging providers only, one at a time,
+   * never one sitting out a window, and an empty first page needs backing.
+   * Explicit, so nothing infers it from `retryRefusals` (B67).
    */
+  fill?: boolean;
+  /** False when the caller backs off from refusals itself: a 429 comes back at once, unretried. */
   retryRefusals?: boolean;
   /** Providers sitting out a window in the fill; never asked (ADR 0013). */
   excludeProviders?: readonly CitationProviderID[];
@@ -1869,25 +1872,24 @@ async function runExternalRelationshipRefresh(
     // A fill expansion asks paging providers only, one at a time, and never
     // one sitting out a window (ADR 0013). When the windows leave nobody to
     // ask, nothing is requested and nothing is published.
-    const fillCandidates =
-      options.retryRefusals === false
-        ? fillRelationshipCandidates({
-            ordered: orderedRelationshipProviders(
+    const fillCandidates = options.fill
+      ? fillRelationshipCandidates({
+          ordered: orderedRelationshipProviders(
+            node,
+            direction,
+            "native-first",
+            true,
+          ),
+          isPaging: pagingProviderTest(direction),
+          supportsPaper: (provider) =>
+            providerSupportsPaper(
+              provider,
               node,
-              direction,
-              "native-first",
-              true,
+              options.providerWorkIDs ?? {},
             ),
-            isPaging: pagingProviderTest(direction),
-            supportsPaper: (provider) =>
-              providerSupportsPaper(
-                provider,
-                node,
-                options.providerWorkIDs ?? {},
-              ),
-            excluded: options.excludeProviders ?? [],
-          })
-        : null;
+          excluded: options.excludeProviders ?? [],
+        })
+      : null;
     if (fillCandidates && !fillCandidates.candidates.length) {
       const output = existingResult();
       options.onMembershipResolved?.({
@@ -1942,6 +1944,7 @@ async function runExternalRelationshipRefresh(
               maximum,
               options.providerWorkIDs,
               { signal: options.signal, retryRefusals: false },
+              true,
             ),
           cancelled,
         )
