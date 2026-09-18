@@ -71,10 +71,9 @@ switch, the cut line, stating how the shown expanded papers' stored lists
 were actually cut, never what the fill intended, since a fallback provider
 cuts in arrival order whatever was asked:
 
-- every stored list `most-cited`: `Top 50 citers per paper, most cited
-first` (References: `Top 50 references per paper, most cited first`);
-- every stored list `arrival`: `First 50 citers per paper, in the
-provider's order`;
+- all `most-cited`: `Top 50 citers per paper, most cited first`, and under
+  References `Top 50 references per paper, most cited first`;
+- all `arrival`: `First 50 citers per paper, in the provider's order`;
 - mixed: `Top 50 citers per paper, most cited first for {n} of {m}`;
 - nothing expanded yet: the fill's intent, from `fillProviderOrder`'s head,
   in the first or second wording.
