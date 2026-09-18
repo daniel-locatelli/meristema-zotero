@@ -2560,6 +2560,9 @@ ${error instanceof Error ? error.message : String(error)}`,
                 queueBackgroundHydration: true,
                 showBackgroundProgress: true,
                 mode: "manual",
+                // A refusing provider costs this refresh one answer, not the
+                // 15 s timeout (B64); no windows, no fill semantics.
+                retryRefusals: false,
                 ...(seed.itemID <= 0
                   ? {
                       providerLimit: 3,

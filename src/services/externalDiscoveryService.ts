@@ -1968,7 +1968,7 @@ async function runExternalRelationshipRefresh(
               direction,
               maximum,
               options.providerWorkIDs,
-              { signal: options.signal },
+              { signal: options.signal, retryRefusals: options.retryRefusals },
             );
           },
           {
