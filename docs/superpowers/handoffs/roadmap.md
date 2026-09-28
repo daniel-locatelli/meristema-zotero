@@ -171,6 +171,12 @@ opacity grade).
       from an abandoned operation is unhandled. Unreachable from today's
       callers; add a no-op `.catch` when the file is next touched
 
+- [ ] B78 seed links undercount: a hop-1 paper linked to seeds A and B that
+      made only A's cut of 50 reads 1 (shared citers' spec, "The cut
+      undercounts"). The fix would check a hop-1 paper's own reference list
+      (or citer list, under References) against the seeds. Weigh after
+      shared citers ships
+
 ## The rail and the Key
 
 - [ ] D10 hop depth is encoded as opacity, the wrong channel. The ramp
