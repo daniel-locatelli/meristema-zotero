@@ -26,7 +26,8 @@ Inputs (do not re-derive them):
 
 ## Next
 
-1. Shared citers' brainstorm and spec (Stage 4's second half); the floor shipped.
+1. Shared citers' plan, from
+   `docs/superpowers/specs/2026-09-28-shared-citers-design.md`.
 
 Working rules: a feature branch per change, `npm run check` as the gate
 (prettier covers `docs/` and `README.md`), the full Zotero suite every 4 or 5
@@ -53,12 +54,13 @@ Built and merged from `docs/superpowers/specs/2026-09-12-citation-hops-design.md
 
 Depends on Stage 3 and D8. Two specs: the floor
 (`docs/superpowers/specs/2026-09-18-citation-floor-design.md`, ADR 0016) and
-shared citers (Off, Dim, Only with the grading formula and Key tiers; label
-routing through `graphLabelBudget.ts`; brainstorm not yet held).
+shared citers (`docs/superpowers/specs/2026-09-28-shared-citers-design.md`:
+a Seeds linked colouring and a shared rule after the floor, not the design's
+opacity grade).
 
 - [x] floor: brainstorm, spec, plan, implemented, reviewed, merged
 - [ ] floor: manual walk-through by the user
-- [ ] shared citers: brainstorm and spec
+- [x] shared citers: brainstorm and spec
 - [ ] shared citers: plan
 - [ ] shared citers: implemented, reviewed, merged, XPI built, pushed
 - [ ] shared citers: manual walk-through by the user
@@ -468,3 +470,5 @@ entries are in git history.
   Next: Stage 4.
 - 2026-09-18, later: the citation floor shipped (ADR 0016); commits
   `dc0fa65..cc83d22` plus this log line. Next: shared citers.
+- 2026-09-28: shared citers brainstormed and specified (the grade a
+  colouring, Only a scope rule). Next: its plan.
