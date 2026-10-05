@@ -39,6 +39,7 @@ export const CATEGORICAL_COLOR_LABELS: Record<string, string> = {
   "open-access": "Open Access",
   retraction: "Retraction",
   "citation-hop": "Citation hop",
+  "seed-links": "Seeds linked",
 };
 
 export function isCategoricalColorMetric(
@@ -284,13 +285,17 @@ function colorSection(input: KeyModelInput): KeySection {
 
   // A node now belongs to exactly one category, so no paper is ever split
   // between two colours; the note that used to flag that case has nothing
-  // left to say.
+  // left to say. Seeds linked is the one colouring that still has something
+  // to say here: only hop 1 carries a count.
   return {
     kind: "color",
     heading,
     subheading,
     entries: counted,
-    note: null,
+    note:
+      metric === "seed-links"
+        ? "Only hop 1 is graded, by the links fetched."
+        : null,
   };
 }
 

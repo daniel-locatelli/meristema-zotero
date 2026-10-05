@@ -61,6 +61,29 @@ describe("CitationGraphRenderer hops", function () {
     expect(assignment.labelFor(node("s"))).to.equal("Seed");
   });
 
+  it("feeds the Seeds linked assignment from the seed marks", function () {
+    const renderer = makeRenderer([node("s"), node("t"), node("a")], {
+      nodeColorMetric: "seed-links",
+    });
+    renderer.setSeedMarks(
+      {
+        ...EMPTY_SEED_MARKS,
+        seedKeys: new Set(["s", "t"]),
+        hops: new Map([
+          ["s", 0],
+          ["t", 0],
+          ["a", 1],
+        ]),
+        seedLinks: new Map([["a", 2]]),
+        direction: "cited-by",
+      },
+      false,
+    );
+    const assignment = renderer.getCategoryAssignment();
+    expect(assignment.labelFor(node("a"))).to.equal("Cite all 2 seeds");
+    expect(assignment.labelFor(node("s"))).to.equal("Not graded");
+  });
+
   it("fades a node's alpha by hop and leaves unmapped nodes whole", function () {
     const renderer = makeRenderer([node("s"), node("a"), node("lib")], {});
     renderer.setSeedMarks(

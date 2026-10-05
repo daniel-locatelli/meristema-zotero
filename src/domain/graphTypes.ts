@@ -47,6 +47,7 @@ export type GraphNodeColorMetric =
   | "open-access"
   | "retraction"
   | "citation-hop"
+  | "seed-links"
   | MetricID;
 export type GraphNodeLabelMode = "title" | "author-year" | "none";
 

@@ -279,3 +279,54 @@ describe("the Citation hop colouring", function () {
     expect(assignment.labelFor(node("x", { hop: 2 }))).to.equal("Hop 2");
   });
 });
+
+describe("the Seeds linked colouring", function () {
+  const links = new Map([
+    ["a", 2],
+    ["b", 1],
+    ["c", 1],
+  ]);
+  const source = {
+    of: (key: string) => links.get(key),
+    seedCount: 2,
+    direction: "cited-by" as const,
+  };
+  const nodes = ["s", "t", "a", "b", "c", "deep"].map((key) => node(key));
+
+  it("orders tiers highest first and colours them from the ramp", function () {
+    const assignment = assignCategories(nodes, "seed-links", LIGHT, {
+      ledger: emptySwatchLedger(),
+      seedLinks: source,
+    });
+    expect(assignment.entries.map((e) => [e.label, e.count])).to.deep.equal([
+      ["Cite all 2 seeds", 1],
+      ["Cite 1 seed", 2],
+    ]);
+    expect(assignment.entries[0].color).to.equal(LIGHT.ramp[4]);
+    expect(assignment.entries[1].color).to.equal(LIGHT.ramp[0]);
+    expect(assignment.other).to.equal(null);
+  });
+
+  it("names everything without a count Not graded", function () {
+    const assignment = assignCategories(nodes, "seed-links", LIGHT, {
+      ledger: emptySwatchLedger(),
+      seedLinks: source,
+    });
+    expect(assignment.noValue?.label).to.equal("Not graded");
+    expect(assignment.noValue?.count).to.equal(3);
+    expect(assignment.labelFor(node("deep"))).to.equal("Not graded");
+    expect(assignment.keyFor(node("a"))).to.equal("links:2");
+    expect(assignment.colorFor(node("deep"))).to.equal(
+      LIGHT.categorical.noValue,
+    );
+  });
+
+  it("leaves the swatch ledger as it found it", function () {
+    const ledger = emptySwatchLedger();
+    const assignment = assignCategories(nodes, "seed-links", LIGHT, {
+      ledger,
+      seedLinks: source,
+    });
+    expect(assignment.ledger).to.equal(ledger);
+  });
+});

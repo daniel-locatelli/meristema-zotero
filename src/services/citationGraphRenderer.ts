@@ -998,6 +998,13 @@ export class CitationGraphRenderer {
           labels: { labelFor: (id) => this.collectionLabels.get(id) ?? null },
           ledger: this.categorySwatchLedger,
           hopOf: (nodeKey) => this.seedMarks?.hops.get(nodeKey),
+          seedLinks: this.seedMarks
+            ? {
+                of: (nodeKey) => this.seedMarks?.seedLinks.get(nodeKey),
+                seedCount: this.seedMarks.seedKeys.size,
+                direction: this.seedMarks.direction,
+              }
+            : undefined,
         },
       );
       this.categorySwatchLedger = this.categoryAssignment.ledger;

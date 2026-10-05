@@ -12,6 +12,12 @@ import {
   swatchIndexFor,
   type SwatchLedgerState,
 } from "./graphSwatchLedger";
+import {
+  seedLinkRampIndex,
+  seedLinkTierKey,
+  seedLinkTierLabel,
+  type SeedLinkSource,
+} from "./graphSeedLinks";
 
 /**
  * Which categories a colour metric can split nodes into, and which swatch
@@ -52,6 +58,8 @@ const RESERVED_PREFIX = String.fromCharCode(0);
 const NO_VALUE_KEY = `${RESERVED_PREFIX}no-value`;
 /** The collapsed remainder is grouped under this reserved key. */
 const OTHER_KEY = `${RESERVED_PREFIX}other`;
+/** Seeds linked's no-value label: seeds and papers past hop 1 are not graded. */
+const NOT_GRADED = "Not graded";
 
 export interface CategoryEntry {
   /** Stable identity — a provider ID, a type name. */
@@ -111,7 +119,16 @@ export function nodeCategory(
   node: CitationGraphNode,
   metric: GraphNodeColorMetric,
   hopOf?: (key: string) => number | undefined,
+  seedLinks?: SeedLinkSource,
 ): CategoryRef | null {
+  if (metric === "seed-links") {
+    const k = seedLinks?.of(node.key);
+    if (k === undefined || !seedLinks) return null;
+    return {
+      key: seedLinkTierKey(k),
+      label: seedLinkTierLabel(k, seedLinks.seedCount, seedLinks.direction),
+    };
+  }
   if (metric === "citation-hop") {
     const hop = hopOf ? hopOf(node.key) : (node.hop ?? undefined);
     if (hop === undefined || hop === null) return null;
@@ -156,6 +173,11 @@ export interface AssignCategoriesOptions {
    * for fixtures.
    */
   hopOf?: (key: string) => number | undefined;
+  /**
+   * The Seeds linked colouring's source: each hop-1 paper's seed links, the
+   * seed count and the direction, from the seed marks (ADR 0008).
+   */
+  seedLinks?: SeedLinkSource;
 }
 
 export function assignCategories(
@@ -164,6 +186,9 @@ export function assignCategories(
   theme: GraphTheme,
   options: AssignCategoriesOptions,
 ): CategoryAssignment {
+  if (metric === "seed-links")
+    return assignSeedLinkTiers(nodes, theme, options);
+
   const counts = new Map<string, { label: string; count: number }>();
   let noValueCount = 0;
 
@@ -242,6 +267,67 @@ export function assignCategories(
     },
     keyFor(node) {
       return firstCategory(node)?.key ?? null;
+    },
+  };
+}
+
+/**
+ * Seeds linked is categorical but ordered: tiers are named highest first and
+ * coloured from the theme's sequential ramp by k of S, so a tier's colour is
+ * fixed and the swatch ledger is neither read nor moved. No tier collapses
+ * into Other; there are at most as many tiers as seeds.
+ */
+function assignSeedLinkTiers(
+  nodes: CitationGraphNode[],
+  theme: GraphTheme,
+  options: AssignCategoriesOptions,
+): CategoryAssignment {
+  const source = options.seedLinks;
+  const counts = new Map<number, number>();
+  let noValueCount = 0;
+  for (const node of nodes) {
+    const k = source?.of(node.key);
+    if (k === undefined) noValueCount += 1;
+    else counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const seedCount = source?.seedCount ?? 0;
+  const direction = source?.direction ?? "cited-by";
+  const entries: CategoryEntry[] = [...counts.entries()]
+    .sort((left, right) => right[0] - left[0])
+    .map(([k, count]) => ({
+      key: seedLinkTierKey(k),
+      label: seedLinkTierLabel(k, seedCount, direction),
+      count,
+      color: theme.ramp[seedLinkRampIndex(k, seedCount, theme.ramp.length)],
+    }));
+  const colorByKey = new Map(entries.map((entry) => [entry.key, entry.color]));
+  const noValue: CategoryEntry | null = noValueCount
+    ? {
+        key: NO_VALUE_KEY,
+        label: NOT_GRADED,
+        count: noValueCount,
+        color: theme.categorical.noValue,
+      }
+    : null;
+  const ref = (node: CitationGraphNode): CategoryRef | null =>
+    nodeCategory(node, "seed-links", options.hopOf, source);
+  return {
+    metric: "seed-links",
+    entries,
+    other: null,
+    noValue,
+    ledger: options.ledger,
+    colorFor(node) {
+      const found = ref(node);
+      return found
+        ? (colorByKey.get(found.key) ?? theme.categorical.noValue)
+        : theme.categorical.noValue;
+    },
+    labelFor(node) {
+      return ref(node)?.label ?? NOT_GRADED;
+    },
+    keyFor(node) {
+      return ref(node)?.key ?? null;
     },
   };
 }

@@ -153,7 +153,8 @@ function ghostColor(
     metric === "publication-type" ||
     metric === "provider" ||
     metric === "open-access" ||
-    metric === "citation-hop"
+    metric === "citation-hop" ||
+    metric === "seed-links"
   ) {
     return theme.categorical.noValue;
   }

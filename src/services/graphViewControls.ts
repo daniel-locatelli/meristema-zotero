@@ -452,6 +452,13 @@ export function createAxesAppearance(
         "Colour nodes by how many citation hops they sit from the nearest seed.",
       available: colourOptionHasData(nodes, "citation-hop"),
     },
+    {
+      value: "seed-links",
+      label: "Seeds linked",
+      description:
+        "Colour hop-1 papers by how many of your seeds they are linked to.",
+      available: colourOptionHasData(nodes, "seed-links"),
+    },
   ];
   for (const definition of categoricalDefinitions) {
     if (!definition.available) continue;

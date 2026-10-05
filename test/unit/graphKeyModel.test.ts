@@ -344,3 +344,42 @@ describe("Graph key model", () => {
     expect(sized.entries[0]!.matches).to.equal(null);
   });
 });
+
+describe("the Key under Seeds linked", function () {
+  it("lists the tiers in the direction's words, then Not graded, with the note", function () {
+    const nodes = [node(1), node(2), node(3), node(4)];
+    const links = new Map([
+      ["k1", 3],
+      ["k2", 2],
+      ["k3", 1],
+    ]);
+    const layout = { ...LAYOUT, nodeColorMetric: "seed-links" as const };
+    const assignment = assignCategories(nodes, "seed-links", theme, {
+      ledger: emptySwatchLedger(),
+      seedLinks: {
+        of: (key) => links.get(key),
+        seedCount: 3,
+        direction: "references",
+      },
+    });
+    const model = buildKeyModel({
+      layout,
+      assignment,
+      nodes,
+      theme,
+      edgeCount: 0,
+      states: QUIET,
+    });
+    const color = model.sections.find((s) => s.kind === "color")!;
+    expect(color.subheading).to.equal("Seeds linked");
+    expect(color.entries.map((e) => e.label)).to.deep.equal([
+      "Cited by all 3 seeds",
+      "Cited by 2 of 3 seeds",
+      "Cited by 1 seed",
+      "Not graded",
+    ]);
+    expect(color.entries[0].matches!(node(1))).to.equal(true);
+    expect(color.entries[0].matches!(node(2))).to.equal(false);
+    expect(color.note).to.equal("Only hop 1 is graded, by the links fetched.");
+  });
+});

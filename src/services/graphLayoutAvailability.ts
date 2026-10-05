@@ -52,6 +52,7 @@ export function colourOptionHasData(
     case "retraction":
       return nodes.some((node) => node.isRetracted !== null);
     case "citation-hop":
+    case "seed-links":
       return true;
     default:
       return metricHasData(nodes, colour);
