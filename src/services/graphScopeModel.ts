@@ -6,6 +6,7 @@
  * order, so this is one function with tests rather than a sequence of early
  * returns inside `applyFilters`.
  */
+import { seedLinkCount } from "./graphSeedLinks";
 
 /**
  * Folder ticks as a base and its exceptions, never as a list of ticked
@@ -157,6 +158,13 @@ export interface GraphScopeInput {
    * rule of the order, so a paper a facet already hid is not counted below it.
    */
   floor: number;
+  /**
+   * The seed links a hop-1 paper needs to be shown (the shared rule); absent
+   * or 1 is off, and a value above the seed count reads as the seed count.
+   * Inert with fewer than two seeds. After the floor, so a paper under the
+   * floor is not counted twice.
+   */
+  shared?: number;
 }
 
 export interface GraphScopeResult {
@@ -180,6 +188,8 @@ export interface GraphScopeResult {
    * parent check, so a floored parent's under-floor child is counted too.
    */
   belowFloorCount: number;
+  /** Hop-1 papers the shared rule removed, after every other rule. */
+  belowSharedCount: number;
 }
 
 /**
@@ -201,7 +211,9 @@ export interface GraphScopeResult {
  * order: a parent is settled before its children ask about it. The floor is
  * the last rule: it reads a fact about the paper itself and, like the facets,
  * applies to a folder-admitted paper as much as to a citer; a seed is never
- * under it.
+ * under it. The shared rule comes after it: a hop-1 paper linked to fewer
+ * seeds than it asks for is not shown, however it was admitted, since the
+ * rule reads the paper's place in the hops.
  */
 export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   const visibleKeys = new Set<string>();
@@ -210,6 +222,11 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   let externalCount = 0;
   let hiddenCount = 0;
   let belowFloorCount = 0;
+  let belowSharedCount = 0;
+  const shared =
+    input.seedKeys.size >= 2
+      ? Math.min(Math.floor(input.shared ?? 1), input.seedKeys.size)
+      : 1;
   const depth = input.hops.depth;
   const shownByHop = Array.from({ length: depth + 1 }, () => 0);
   const availableByHop = Array.from({ length: depth + 1 }, () => 0);
@@ -262,6 +279,14 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
       belowFloorCount += 1;
       continue;
     }
+    if (
+      shared >= 2 &&
+      entry?.hop === 1 &&
+      (seedLinkCount(entry, input.seedKeys) ?? 0) < shared
+    ) {
+      belowSharedCount += 1;
+      continue;
+    }
     const hopAdmitted =
       hopCanBeAdmitted &&
       entry!.parents.some((parent) => visibleKeys.has(parent));
@@ -279,6 +304,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     externalCount,
     hiddenCount,
     belowFloorCount,
+    belowSharedCount,
     shownByHop,
     availableByHop,
   };

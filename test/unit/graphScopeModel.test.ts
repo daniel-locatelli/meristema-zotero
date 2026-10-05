@@ -442,3 +442,93 @@ describe("computeGraphScope with a floor", function () {
     expect(result.belowFloorCount).to.equal(0);
   });
 });
+
+describe("computeGraphScope with the shared rule", function () {
+  // Seeds s and t. a cites both; b cites s only; c is b's citer at hop 2;
+  // d is a's citer at hop 2 and b's as well.
+  const hops: GraphScopeHops = {
+    entries: new Map([
+      ["s", { hop: 0, parents: [] }],
+      ["t", { hop: 0, parents: [] }],
+      ["a", { hop: 1, parents: ["s", "t"] }],
+      ["b", { hop: 1, parents: ["s"] }],
+      ["c", { hop: 2, parents: ["b"] }],
+      ["d", { hop: 2, parents: ["a", "b"] }],
+    ]),
+    depth: 2,
+    enabled: [true, true, true],
+  };
+  const papers = ["s", "t", "a", "b", "c", "d"].map((key) =>
+    paper(key, [], false, 50),
+  );
+  const seedKeys = new Set(["s", "t"]);
+
+  it("hides a hop-1 paper with too few seed links, and its only-parent child", function () {
+    const result = scope({ papers, seedKeys, hops, shared: 2 });
+    expect([...result.visibleKeys].sort()).to.deep.equal(["a", "d", "s", "t"]);
+    expect(result.belowSharedCount).to.equal(1);
+    expect(result.shownByHop).to.deep.equal([2, 1, 1]);
+  });
+
+  it("removes nothing when off or absent", function () {
+    expect(
+      scope({ papers, seedKeys, hops, shared: 1 }).visibleKeys.size,
+    ).to.equal(6);
+    expect(scope({ papers, seedKeys, hops }).belowSharedCount).to.equal(0);
+  });
+
+  it("reads a value above the seed count as the seed count", function () {
+    const result = scope({ papers, seedKeys, hops, shared: 5 });
+    expect(result.visibleKeys.has("a")).to.equal(true);
+    expect(result.visibleKeys.has("b")).to.equal(false);
+  });
+
+  it("is inert with one seed", function () {
+    const result = scope({
+      papers: papers.filter((p) => p.key !== "t"),
+      seedKeys: new Set(["s"]),
+      hops,
+      shared: 2,
+    });
+    expect(result.visibleKeys.has("b")).to.equal(true);
+    expect(result.belowSharedCount).to.equal(0);
+  });
+
+  it("hides a folder-admitted hop-1 paper: its hop decides", function () {
+    const result = scope({
+      papers: [
+        paper("s", [], true, 50),
+        paper("t", [], true, 50),
+        paper("b", [1], true, 50),
+      ],
+      seedKeys,
+      hops,
+      shared: 2,
+    });
+    expect(result.visibleKeys.has("b")).to.equal(false);
+  });
+
+  it("leaves a folder-admitted paper no hop reached alone", function () {
+    const result = scope({
+      papers: [...papers, paper("lib", [1], true, 50)],
+      seedKeys,
+      hops,
+      shared: 2,
+    });
+    expect(result.visibleKeys.has("lib")).to.equal(true);
+  });
+
+  it("does not count a paper the floor already removed", function () {
+    const result = scope({
+      papers: papers.map((p) =>
+        p.key === "b" ? { ...p, citationCount: 1 } : p,
+      ),
+      seedKeys,
+      hops,
+      floor: 10,
+      shared: 2,
+    });
+    expect(result.belowFloorCount).to.equal(1);
+    expect(result.belowSharedCount).to.equal(0);
+  });
+});
