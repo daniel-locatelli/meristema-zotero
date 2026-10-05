@@ -279,6 +279,33 @@ describe("buildGraphHopModel", function () {
     expect(within.seedKeys.has("s")).to.equal(true);
   });
 
+  it("carries each hop-1 paper's seed links and the direction", function () {
+    const s = node("s");
+    const t = node("t");
+    const walk = buildGraphHopModel({
+      seeds: [s, t],
+      direction: "cited-by",
+      depth: 2,
+      // "a" cites both seeds, "b" cites one, "c" is at hop 2.
+      neighbours: lookup({ s: ["a", "b"], t: ["a"], a: ["c"] }),
+    })!;
+    const merged = additiveGraphModel({ nodes: [s, t], edges: [] }, walk);
+    const marks = seedMarks(walk, merged, {
+      seedColors: new Map(),
+      isLibraryPaper: () => false,
+    });
+    expect(marks.direction).to.equal("cited-by");
+    expect(marks.seedLinks.get("a")).to.equal(2);
+    expect(marks.seedLinks.get("b")).to.equal(1);
+    expect(marks.seedLinks.has("c")).to.equal(false);
+    expect(marks.seedLinks.has("s")).to.equal(false);
+
+    const within = seedMarksWithin(marks, new Set(["s", "t", "b"]));
+    expect(within.seedLinks.has("a")).to.equal(false);
+    expect(within.seedLinks.get("b")).to.equal(1);
+    expect(within.direction).to.equal("cited-by");
+  });
+
   it("reads each non-leaf list once and never reads a leaf's", function () {
     // Reading a list is a store lookup and a fragment clone. A non-leaf key
     // used to be read twice (its entry's `expanded`, then as a frontier

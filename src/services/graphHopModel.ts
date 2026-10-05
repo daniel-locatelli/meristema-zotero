@@ -11,6 +11,7 @@ import {
   seedRelativeCitationSequence,
   type CitationSide,
 } from "./citationSequenceService";
+import { seedLinkCount } from "./graphSeedLinks";
 
 export type HopDirection = "cited-by" | "references";
 
@@ -238,6 +239,10 @@ export interface SeedMarks {
   /** Each reached paper's hop; absent means a library paper no hop reached. */
   hops: ReadonlyMap<string, number>;
   citationSequence: ReadonlyMap<string, number>;
+  /** The walk's direction, so the Key words a tier as citing or cited by. */
+  direction: HopDirection;
+  /** Each hop-1 paper's seed links (graphSeedLinks.ts); deeper papers have none. */
+  seedLinks: ReadonlyMap<string, number>;
 }
 
 /** A seeded graph with nothing on it yet; tests spread one field over it. */
@@ -247,6 +252,8 @@ export const EMPTY_SEED_MARKS: SeedMarks = {
   inLibraryReachedKeys: new Set(),
   hops: new Map(),
   citationSequence: new Map(),
+  direction: "cited-by",
+  seedLinks: new Map(),
 };
 
 export function seedMarks(
@@ -270,7 +277,19 @@ export function seedMarks(
     ),
     hops: hopByKey(model),
     citationSequence: citationSequenceByKey(model, merged),
+    direction: model.direction,
+    seedLinks: seedLinksOf(model),
   };
+}
+
+/** Each hop-1 paper's seed links; the colouring, Key and labels read these. */
+export function seedLinksOf(model: GraphHopModel): Map<string, number> {
+  const links = new Map<string, number>();
+  for (const entry of model.entries.values()) {
+    const k = seedLinkCount(entry, model.seedKeys);
+    if (k !== undefined) links.set(entry.key, k);
+  }
+  return links;
 }
 
 /** The marks for the papers still in the model, after nodes left it. */
@@ -287,6 +306,8 @@ export function seedMarksWithin(
     citationSequence: new Map(
       [...marks.citationSequence].filter(([key]) => keep(key)),
     ),
+    direction: marks.direction,
+    seedLinks: new Map([...marks.seedLinks].filter(([key]) => keep(key))),
   };
 }
 
