@@ -169,6 +169,14 @@ opacity grade).
       `onTimeout` leaves the timeout promise unsettled, and a late rejection
       from an abandoned operation is unhandled. Unreachable from today's
       callers; add a no-op `.catch` when the file is next touched
+- [ ] B79 the seed-link check's deferred review findings (final review,
+      2026-10-06): a fresh not-found on one alias hides a success on another
+      (`storedSeedLinkCheck` and the scheduler's `collect` stop at the first
+      known alias); key or provider changes take effect only on the next
+      rebuild; a save while the store closes counts as landed with no
+      backoff; the Zotero fixture's run tag (`Date.now() % 1_000_000`)
+      repeats every ~17 min; there is no negative gate test (no key, OpenAlex
+      off, one seed)
 
 ## The rail and the Key
 
