@@ -129,6 +129,39 @@ const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** The layout a graph opens with, kept out here for the same reason. */
 const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;
+/**
+ * The shared-citers block's fixtures (Stage 4, B78). Unique per run: the
+ * check's answers persist in the test profile.
+ */
+const RUN = String(Date.now() % 1_000_000).padStart(6, "0");
+const W = (n: number): string => `W9${RUN}${n}`;
+const SEED_A = {
+  doi: `10.5555/shared.${RUN}.a`,
+  id: W(50),
+  title: `${FIXTURE_TITLE} (shared A)`,
+};
+const SEED_B = {
+  doi: `10.5555/shared.${RUN}.b`,
+  id: W(60),
+  title: `${FIXTURE_TITLE} (shared B)`,
+};
+/**
+ * W51 cites both seeds; W52 cites A only; W53 cites B only. W54 cites
+ * both but made only A's list: the cut dropped it from B's (B78), and
+ * only its reference list says it cites B.
+ */
+const CITERS_OF: Record<string, string[]> = {
+  [SEED_A.id]: [W(51), W(52), W(54)],
+  [SEED_B.id]: [W(51), W(53)],
+};
+const REFERENCES_OF: Record<string, string[]> = {
+  [W(51)]: [SEED_A.id, SEED_B.id],
+  [W(52)]: [SEED_A.id],
+  [W(53)]: [SEED_B.id],
+  [W(54)]: [SEED_A.id, SEED_B.id],
+};
+const citerDOI = (id: string): string => `10.5555/shared.${id.toLowerCase()}`;
+
 /** A provider sitting out a window: a refusal, never an error (ADR 0013). */
 function providerRefusal(): unknown {
   return { status: 429, responseText: "", getResponseHeader: () => null };
@@ -2798,21 +2831,6 @@ describe("Citation hops (Stage 3)", function () {
   });
 
   describe("with shared citers (Stage 4)", function () {
-    const SEED_A = {
-      doi: "10.5555/shared.a",
-      id: "W950",
-      title: `${FIXTURE_TITLE} (shared A)`,
-    };
-    const SEED_B = {
-      doi: "10.5555/shared.b",
-      id: "W960",
-      title: `${FIXTURE_TITLE} (shared B)`,
-    };
-    /** W951 cites both seeds; W952 cites A only; W953 cites B only. */
-    const CITERS_OF: Record<string, string[]> = {
-      W950: ["W951", "W952"],
-      W960: ["W951", "W953"],
-    };
     let previousKey: unknown = undefined;
     let previousAppearance: unknown = undefined;
     let itemIDs: number[] = [];
@@ -2872,17 +2890,39 @@ describe("Citation hops (Stage 3)", function () {
             : notFound();
         }
         const filter = parsed.searchParams.get("filter") ?? "";
-        const cited = /^cites:(W9\d\d)$/.exec(filter)?.[1];
+        if (parsed.searchParams.get("select") === "id,doi,referenced_works") {
+          // The seed-link check (B78): answer by ID or DOI, every value of
+          // the OR filter.
+          const [field, rest = ""] = filter.split(":", 2);
+          const known = [
+            { id: SEED_A.id, doi: SEED_A.doi },
+            { id: SEED_B.id, doi: SEED_B.doi },
+            ...[W(51), W(52), W(53), W(54)].map((id) => ({
+              id,
+              doi: citerDOI(id),
+            })),
+          ];
+          const values = rest.split("|");
+          return providerAnswer(
+            JSON.stringify({
+              results: known
+                .filter((w) => values.includes(field === "doi" ? w.doi : w.id))
+                .map((w) => ({
+                  id: `https://openalex.org/${w.id}`,
+                  doi: `https://doi.org/${w.doi}`,
+                  referenced_works: (REFERENCES_OF[w.id] ?? []).map(
+                    (r) => `https://openalex.org/${r}`,
+                  ),
+                })),
+            }),
+          );
+        }
+        const cited = /^cites:(W\d+)$/.exec(filter)?.[1];
         const citers = cited ? (CITERS_OF[cited] ?? []) : [];
         return providerAnswer(
           JSON.stringify({
             results: citers.map((id) =>
-              work(
-                id,
-                `10.5555/shared.${id.toLowerCase()}`,
-                `Shared paper ${id}`,
-                2021,
-              ),
+              work(id, citerDOI(id), `Shared paper ${id}`, 2021),
             ),
             meta: { count: citers.length },
           }),
@@ -2979,18 +3019,18 @@ describe("Citation hops (Stage 3)", function () {
       itemIDs = [];
     });
 
-    it("colours the paper citing both seeds into the top tier, and the rule keeps only it", async function () {
+    it("colours both papers citing both seeds into the top tier, one found only by the check, and the rule keeps them", async function () {
       this.timeout(180_000);
       (await nodeMenuEntry("Add as seed", SEED_A.title)).click();
       await waitFor(() => hopCounts(1)?.available ?? null, 60_000);
       (await nodeMenuEntry("Add as seed", SEED_B.title)).click();
       const filled = await waitFor(
-        () => (hopCounts(1)?.available === 3 ? hopCounts(1) : null),
+        () => (hopCounts(1)?.available === 4 ? hopCounts(1) : null),
         60_000,
       );
       expect(filled, `hop 1 read "${hopRowText(1)}"`).to.deep.equal({
-        shown: 3,
-        available: 3,
+        shown: 4,
+        available: 4,
       });
 
       const option = graphRoot().querySelector(
@@ -3001,17 +3041,14 @@ describe("Citation hops (Stage 3)", function () {
       const select = option!.parentElement as HTMLSelectElement;
       select.value = "seed-links";
       select.dispatchEvent(new win.Event("change", { bubbles: true }));
-      const tiers = await waitFor(() => {
-        const entries = keyEntries();
-        return entries.some((e) => e.startsWith("Cite all 2 seeds"))
-          ? entries
-          : null;
-      }, 10_000);
+      const tiers = await waitFor(
+        () =>
+          tierCount("Cite all 2 seeds") === COUNT_FORMAT.format(2)
+            ? keyEntries()
+            : null,
+        30_000,
+      );
       expect(tiers, `the Key read: ${keyEntries().join(" | ")}`).to.exist;
-      expect(
-        tierCount("Cite all 2 seeds"),
-        `Key: ${tiers!.join(" | ")}`,
-      ).to.equal(COUNT_FORMAT.format(1));
       expect(tierCount("Cite 1 seed"), `Key: ${tiers!.join(" | ")}`).to.equal(
         COUNT_FORMAT.format(2),
       );
@@ -3020,13 +3057,13 @@ describe("Citation hops (Stage 3)", function () {
       input.value = "2";
       input.dispatchEvent(new win.Event("change", { bubbles: true }));
       const narrowed = await waitFor(
-        () => (hopCounts(1)?.shown === 1 ? hopCounts(1) : null),
+        () => (hopCounts(1)?.shown === 2 ? hopCounts(1) : null),
         10_000,
       );
       expect(
         narrowed,
         `hop 1 read "${hopRowText(1)}"; the row read "${sharedRowText()}"`,
-      ).to.deep.equal({ shown: 1, available: 3 });
+      ).to.deep.equal({ shown: 2, available: 4 });
       expect(sharedRowText()).to.include("2 below");
     });
   });

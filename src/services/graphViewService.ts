@@ -249,7 +249,20 @@ import {
   resetGraphAppearance,
   setFocusGraphAppearance,
   setGraphAppearance,
+  getEnabledProviders,
+  getOpenAlexAPIKey,
 } from "./citationPreferences";
+import { openAlexIdentifiersOf, type SeedLinkCheck } from "./graphSeedLinks";
+import { checkPaperAliases, type CheckPaper } from "./openAlexReferenceLists";
+import { checkOpenAlexReferences } from "./openAlexSeedLinkService";
+import {
+  createSeedLinkCheckScheduler,
+  type SeedLinkCheckScheduler,
+} from "./seedLinkCheckScheduler";
+import {
+  lookupOpenAlexReferenceCheck,
+  saveOpenAlexReferenceRows,
+} from "./externalWorkCacheService";
 import { normalizedScopeItemIDs } from "./graphScopePolicy";
 import {
   bindZoteroPane,
@@ -334,6 +347,47 @@ const LOCAL_CITATION_WARMUP_DELAY_MS = 1200;
 const COLLAPSED_DETAIL_WIDTH = "36px";
 
 const cleanupByMount = new WeakMap<Element, () => void>();
+
+/** One for every open graph, so two tabs never ask for the same paper. */
+let seedLinkChecks: SeedLinkCheckScheduler | null = null;
+function seedLinkCheckScheduler(): SeedLinkCheckScheduler {
+  seedLinkChecks ??= createSeedLinkCheckScheduler({
+    store: {
+      lookup: lookupOpenAlexReferenceCheck,
+      save: saveOpenAlexReferenceRows,
+    },
+    check: (papers, signal) =>
+      checkOpenAlexReferences(papers, {
+        apiKey: getOpenAlexAPIKey(),
+        signal,
+      }),
+    defer: (run) => void setTimeout(run, 0),
+    now: () => Date.now(),
+  });
+  return seedLinkChecks;
+}
+
+/** ADR 0018's gate: an OpenAlex key, OpenAlex on, two or more seeds. */
+function seedLinkCheckOpen(seedCount: number): boolean {
+  return (
+    seedCount >= 2 &&
+    Boolean(getOpenAlexAPIKey()) &&
+    getEnabledProviders().includes("openalex")
+  );
+}
+
+function storedSeedLinkCheck(
+  node: CitationGraphNode,
+): SeedLinkCheck | undefined {
+  for (const alias of checkPaperAliases({
+    key: node.key,
+    ...openAlexIdentifiersOf(node),
+  })) {
+    const check = lookupOpenAlexReferenceCheck(alias);
+    if (check !== undefined) return check ?? undefined;
+  }
+  return undefined;
+}
 const controllerByMount = new WeakMap<Element, GraphViewController>();
 
 export function getGraphViewController(
@@ -2427,6 +2481,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       depth: hopDepth,
       neighbours: hopNeighbourhood,
       seedEdges,
+      checkOf: seedLinkCheckOpen(seeds.length)
+        ? storedSeedLinkCheck
+        : undefined,
     });
   };
 
@@ -2486,6 +2543,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     drainExpandedFitSeeds();
     updateFocusBar();
     notifyStateChange();
+    seedLinkCheckScheduler().markDirty();
   };
 
   const rebuildCurrentFocus = (options: { fit?: boolean } = {}): boolean => {
@@ -3946,6 +4004,39 @@ ${error instanceof Error ? error.message : String(error)}`,
    * provider call for one shown paper (automatic mode, one page, one
    * provider), and what a landing does to the walk.
    */
+  // The seed-link check (ADR 0018): this graph's seeds and hop-1 papers,
+  // while the gate is open; a landing rebuilds, as a fill landing does. The
+  // scheduler calls both from its own loop, and a throw there would stall it
+  // for every graph, so neither lets one out.
+  const unregisterSeedLinkChecks = seedLinkCheckScheduler().register({
+    papers: (): CheckPaper[] => {
+      try {
+        if (!hopModel || !seedLinkCheckOpen(hopModel.seeds.length)) return [];
+        const papers: CheckPaper[] = [];
+        for (const node of hopModel.nodes) {
+          const hop = hopModel.entries.get(node.key)?.hop;
+          if (hop !== 0 && hop !== 1) continue;
+          const paper = { key: node.key, ...openAlexIdentifiersOf(node) };
+          if (paper.openAlexID || paper.doi) papers.push(paper);
+        }
+        return papers;
+      } catch (error) {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        return [];
+      }
+    },
+    landed: () => {
+      try {
+        if (!cleaned) rebuildCurrentFocus();
+      } catch (error) {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
+    },
+  });
   const hopFill = createHopFillRunner({
     planInput: () => {
       if (!hopModel || !lastScope) return null;
@@ -5228,6 +5319,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     // fired rather than dropped: the coalescing timer is module-global, and
     // an unflushed one would fire up to ten seconds after this graph is gone.
     hopFill.dispose();
+    unregisterSeedLinkChecks();
     flushHopSnapshot();
     flushCoalescedPresentationRefresh();
     cancelCameraFrame();
