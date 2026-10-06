@@ -1992,6 +1992,7 @@ export function renderGraphView(
     depth: hopDepth,
     enabled: hopEnabled,
     floor,
+    shared: 1,
   });
   /** The save panel's Explore row: the direction and depth it will save. */
   const capturedExplore = (
@@ -4807,6 +4808,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       includeExternal,
       hiddenKeys: [...hiddenKeys],
       floor,
+      shared: 1,
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),

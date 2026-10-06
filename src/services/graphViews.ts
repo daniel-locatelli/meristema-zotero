@@ -26,7 +26,7 @@ import type { IconName } from "./uiIconService";
 
 export const GRAPH_VIEW_WIRE_VERSION = 1;
 
-export type GraphViewNeeds = "shared-citers" | "reading-state";
+export type GraphViewNeeds = "reading-state";
 export type GraphViewAvailability = "ready" | { needs: GraphViewNeeds };
 export type GraphViewRequires = "none" | "seed" | "two-seeds";
 /** Folder names, every ticked subtree top, or leave the regions alone. */
@@ -39,12 +39,13 @@ export type GraphViewFilters = Partial<
 /**
  * Stage 3: the direction and the depth a view opens. Stage 4: an optional
  * `floor`; a view that carries one applies it (0 switches it off), a view
- * without leaves the live floor alone.
+ * without leaves the live floor alone. An optional `shared`, carried the same way.
  */
 export interface GraphViewExplore {
   direction: HopDirection;
   hops: number;
   floor?: number;
+  shared?: number;
 }
 
 export interface GraphViewLiveHops {
@@ -53,6 +54,8 @@ export interface GraphViewLiveHops {
   enabled: readonly boolean[];
   /** The live citation floor, 0 when off. */
   floor: number;
+  /** The live shared rule, 1 when off. */
+  shared: number;
 }
 
 export interface GraphViewDefinition {
@@ -128,17 +131,17 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "who-cites-whom",
     name: "Who cites whom",
-    summary: "Shared citers graded, 1 hop. Bridges between your seeds.",
-    // draft: reconcile with boards 3a/3b
+    summary:
+      "Seeds linked, 1 hop, shared by 2 or more. Bridges between your seeds.",
     paragraph:
-      "One citation step out from each seed, with the papers that cite more than one of your seeds drawn darker, so the bridges between your starting points stand out from the rest. Seeds and collections are untouched.",
+      "One citation step out from your seeds, keeping only the papers that cite at least two of them, coloured by how many they cite, so the bridges between your starting points stand out. Seeds and collections are untouched.",
     icon: "view-who-cites-whom",
-    appearance: { ...BASE },
+    appearance: { ...BASE, nodeColorMetric: "seed-links" },
     regions: null,
     filters: null,
-    explore: null,
+    explore: { direction: "cited-by", hops: 1, shared: 2 },
     requires: "two-seeds",
-    availability: { needs: "shared-citers" },
+    availability: "ready",
   },
   {
     id: "folder-map",
@@ -168,7 +171,6 @@ export function isShippedViewName(name: string): boolean {
 }
 
 const NEEDS_LINE: Record<GraphViewNeeds, string> = {
-  "shared-citers": "Arrives with shared citers",
   "reading-state": "Arrives with reading state",
 };
 
@@ -398,6 +400,12 @@ export function graphViewIsEdited(
     ) {
       return true;
     }
+    if (
+      view.explore.shared !== undefined &&
+      live.hops.shared !== view.explore.shared
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -413,6 +421,7 @@ function metricWord(metric: string): string {
     "open-access": "open access",
     retraction: "retraction",
     "citation-hop": "citation hop",
+    "seed-links": "seeds linked",
   };
   if (special[metric]) return special[metric];
   return getMetricDefinition(metric as MetricID).label.toLowerCase();
@@ -439,7 +448,7 @@ export function tutorialChips(
   ];
   if (view.explore) {
     chips.push(
-      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}${view.explore.floor ? ` · floor ${view.explore.floor}` : ""}`,
+      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}${view.explore.floor ? ` · floor ${view.explore.floor}` : ""}${view.explore.shared && view.explore.shared > 1 ? ` · shared ≥ ${view.explore.shared}` : ""}`,
     );
   }
   if (application.regions !== null) {
@@ -578,6 +587,7 @@ const COLOUR_METRICS = new Set<string>([
   "open-access",
   "retraction",
   "citation-hop",
+  "seed-links",
 ]);
 const SCALES = new Set<string>(["linear", "log"]);
 const LABELS = new Set<string>(["title", "author-year", "none"]);
@@ -702,10 +712,21 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
         return { ok: false, field: "explore.floor" };
       }
     }
+    const rawShared = raw.explore.shared;
+    if (rawShared !== undefined) {
+      if (
+        typeof rawShared !== "number" ||
+        !Number.isFinite(rawShared) ||
+        rawShared < 1
+      ) {
+        return { ok: false, field: "explore.shared" };
+      }
+    }
     explore = {
       direction,
       hops: clampHopDepth(raw.explore.hops),
       ...(rawFloor === undefined ? {} : { floor: Math.floor(rawFloor) }),
+      ...(rawShared === undefined ? {} : { shared: Math.floor(rawShared) }),
     };
   }
   return {
@@ -763,6 +784,7 @@ export function captureGraphView(input: CaptureInput): GraphViewDefinition {
       direction: input.hops.direction,
       hops: input.hops.depth,
       floor: input.hops.floor,
+      shared: input.hops.shared,
     },
     requires: "none",
     availability: "ready",

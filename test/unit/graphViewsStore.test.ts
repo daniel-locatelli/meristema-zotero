@@ -51,7 +51,7 @@ function view(name: string): GraphViewDefinition {
     regions: [],
     filters: defaultPaperListFilterState(),
     folders: [],
-    hops: { direction: "cited-by", depth: 1, enabled: [], floor: 0 },
+    hops: { direction: "cited-by", depth: 1, enabled: [], floor: 0, shared: 1 },
   });
 }
 

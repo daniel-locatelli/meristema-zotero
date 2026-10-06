@@ -104,6 +104,7 @@ const liveHops = {
   depth: 1,
   enabled: [true, true, true, true, true, true, true],
   floor: 0,
+  shared: 1,
 };
 
 describe("the shipped views", function () {
@@ -128,7 +129,9 @@ describe("the shipped views", function () {
       expect(view.explore, view.id).to.deep.equal(
         view.id === "cornerstones"
           ? { direction: "references", hops: 2, floor: 10 }
-          : null,
+          : view.id === "who-cites-whom"
+            ? { direction: "cited-by", hops: 1, shared: 2 }
+            : null,
       );
     }
     const cornerstones = SHIPPED_GRAPH_VIEWS.find(
@@ -149,7 +152,7 @@ describe("the shipped views", function () {
       graphViewAvailabilityLine(
         SHIPPED_GRAPH_VIEWS.find((v) => v.id === "who-cites-whom")!,
       ),
-    ).to.equal("Arrives with shared citers");
+    ).to.equal(null);
     expect(graphViewRequirementLine(overview)).to.equal(null);
     expect(
       graphViewRequirementLine(
@@ -691,6 +694,7 @@ describe("explore on a view", function () {
     depth: 2,
     enabled: [true, true, true, true, true, true, true],
     floor: 10,
+    shared: 1,
   };
 
   it("reads edited when direction, depth or a hop within the depth differs", function () {
@@ -762,6 +766,7 @@ describe("explore on a view", function () {
       direction: "references",
       hops: 2,
       floor: 10,
+      shared: 1,
     });
   });
 
@@ -780,6 +785,7 @@ describe("explore on a view", function () {
       direction: "references",
       hops: 2,
       floor: 10,
+      shared: 1,
     });
     const raw = JSON.parse(encodeGraphView(view));
     raw.explore = { direction: "references", hops: 40 };
@@ -802,6 +808,59 @@ describe("explore on a view", function () {
     );
   });
 
+  it("decodes, encodes, captures and compares the shared rule", function () {
+    const record = JSON.parse(
+      encodeGraphView({
+        ...SHIPPED_GRAPH_VIEWS[0]!,
+        explore: { direction: "cited-by", hops: 1, shared: 2 },
+      }),
+    );
+    expect(record.explore).to.deep.equal({
+      direction: "cited-by",
+      hops: 1,
+      shared: 2,
+    });
+    const decoded = decodeGraphViewRecord(record);
+    expect(decoded.ok && decoded.view.explore?.shared).to.equal(2);
+    expect(
+      decodeGraphViewRecord({
+        ...record,
+        explore: { direction: "cited-by", hops: 1, shared: 0 },
+      }).ok,
+    ).to.equal(false);
+    const captured = captureGraphView({
+      name: "Mine",
+      paragraph: "",
+      layout: SHIPPED_GRAPH_VIEWS[0]!.appearance,
+      regions: [],
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: { ...liveHops, shared: 3 },
+    });
+    expect(captured.explore?.shared).to.equal(3);
+
+    const whoCites = SHIPPED_GRAPH_VIEWS.find(
+      (v) => v.id === "who-cites-whom",
+    )!;
+    expect(whoCites.availability).to.equal("ready");
+    expect(whoCites.appearance.nodeColorMetric).to.equal("seed-links");
+    const live = {
+      layout: whoCites.appearance,
+      regions: [],
+      filters: defaultPaperListFilterState(),
+      folders,
+      nodes,
+      hops: { ...liveHops, shared: 2 },
+    };
+    expect(graphViewIsEdited(whoCites, live)).to.equal(false);
+    expect(
+      graphViewIsEdited(whoCites, {
+        ...live,
+        hops: { ...live.hops, shared: 1 },
+      }),
+    ).to.equal(true);
+  });
+
   it("adds the hops chip and the traffic footnote for a view with explore", function () {
     const plan = planGraphView(cornerstones, {
       nodes,
@@ -812,6 +871,19 @@ describe("explore on a view", function () {
     });
     expect(tutorialChips(cornerstones, plan, 8)).to.include(
       "hops 2 · references · floor 10",
+    );
+    const whoCites = SHIPPED_GRAPH_VIEWS.find(
+      (v) => v.id === "who-cites-whom",
+    )!;
+    const whoPlan = planGraphView(whoCites, {
+      nodes,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: under,
+    });
+    expect(tutorialChips(whoCites, whoPlan, 8)).to.include(
+      "hops 1 · citers · shared ≥ 2",
     );
     expect(tutorialFootnote(plan, cornerstones)).to.include(
       "Opening hops fetches citations from the providers.",

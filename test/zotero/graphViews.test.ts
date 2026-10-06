@@ -508,14 +508,14 @@ describe("Graph views (D4)", function () {
     this.timeout(30_000);
     const before = chipName();
     await openChipMenu();
-    // Cornerstones is ready as of Stage 3, so the greyed example is now the
-    // one view still waiting on a stage: Who cites whom, on shared citers.
-    const row = viewRow("who-cites-whom");
+    // Who cites whom is ready as of Stage 4, so the greyed example is the one
+    // view still waiting: Reading plan, on reading state.
+    const row = viewRow("reading-plan");
     expect(
       row.getAttribute("aria-disabled"),
-      `Who cites whom waits on shared citers; the row read "${normalize(row.textContent)}"`,
+      `Reading plan waits on reading state; the row read "${normalize(row.textContent)}"`,
     ).to.equal("true");
-    expect(normalize(row.textContent)).to.contain("Arrives with shared citers");
+    expect(normalize(row.textContent)).to.contain("Arrives with reading state");
     row.click();
     // A fixed window on purpose: nothing is meant to happen, so there is no
     // state to wait for. The menu-still-open assertion below carries it — a
@@ -711,7 +711,13 @@ describe("Graph views (D4)", function () {
         regions: [],
         filters: defaultPaperListFilterState(),
         folders: [],
-        hops: { direction: "cited-by", depth: 1, enabled: [], floor: 0 },
+        hops: {
+          direction: "cited-by",
+          depth: 1,
+          enabled: [],
+          floor: 0,
+          shared: 1,
+        },
       }),
     );
     importPath = PathUtils.join(

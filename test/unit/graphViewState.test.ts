@@ -181,6 +181,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
     title: "My graph",
     ticksNeedDescendants: false,
     floor: 25,
+    shared: 2,
   };
 
   it("round-trips through JSON", function () {
@@ -196,7 +197,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 7 });
+    const other = JSON.stringify({ ...state, version: 8 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -206,6 +207,23 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
       ...emptyGraphViewState(),
       ticksNeedDescendants: false,
     });
+  });
+
+  it("parses a version 6 record with the shared rule off", function () {
+    const six = JSON.stringify({ ...state, version: 6, shared: undefined });
+    expect(parseGraphViewState(six)?.shared).to.equal(1);
+  });
+
+  it("drops a malformed shared rule to 1 and floors a fraction", function () {
+    expect(
+      parseGraphViewState(JSON.stringify({ ...state, shared: "two" }))?.shared,
+    ).to.equal(1);
+    expect(
+      parseGraphViewState(JSON.stringify({ ...state, shared: 0 }))?.shared,
+    ).to.equal(1);
+    expect(
+      parseGraphViewState(JSON.stringify({ ...state, shared: 3.7 }))?.shared,
+    ).to.equal(3);
   });
 
   it("parses a version 5 record with the floor off", function () {
@@ -341,7 +359,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 7 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 8 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -610,7 +628,7 @@ describe("hops in the state", function () {
     };
     const parsed = parseGraphViewState(serializeGraphViewState(state))!;
     expect(parsed.hops).to.deep.equal(state.hops);
-    expect(parsed.version).to.equal(6);
+    expect(parsed.version).to.equal(7);
     expect("migratedFromBothDirections" in parsed).to.equal(false);
     const clamped = parseGraphViewState(
       JSON.stringify({
@@ -637,6 +655,6 @@ describe("hops in the state", function () {
       }),
     )!;
     expect(v3.hops.direction).to.equal("references");
-    expect(v3.version).to.equal(6);
+    expect(v3.version).to.equal(7);
   });
 });
