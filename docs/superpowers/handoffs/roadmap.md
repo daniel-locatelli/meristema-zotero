@@ -61,7 +61,7 @@ opacity grade).
 - [ ] floor: manual walk-through by the user
 - [x] shared citers: brainstorm and spec
 - [x] shared citers: plan
-- [ ] shared citers: implemented, reviewed, merged, XPI built, pushed
+- [x] shared citers: implemented, reviewed, merged, XPI built, pushed
 - [ ] shared citers: manual walk-through by the user
 
 ## The hop fill
@@ -393,7 +393,8 @@ any failure into a new entry above.
 - [ ] Shared citers: two seeds with a shared citer, both themes: Seeds linked
       colours the top tier strongest, the tiers read apart, the shared
       citer's edges to its seeds take the seeds' colours, and its label is
-      drawn.
+      drawn. On light, the top stop is the ramp's yellow: say if it reads
+      weakest rather than strongest.
 - [ ] Shared citers: hover a Key tier: that tier is emphasised; hover
       `Not graded`: the seeds and the papers past hop 1 are emphasised.
 - [ ] Shared citers: set `Shared by ≥ 2`: hop counts drop, `n below` reads,
@@ -414,12 +415,16 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-09-18 at
-`449365f` (91/0, clean), so count with `git log 449365f..main --oneline`; the
-commits after it are docs and one comment.
-A clean run is 91 passed, 0 failed as of 2026-09-18
-(the floor's case added); the last full green of all cases was 91 on
-2026-09-18.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-06 at
+`761b4e0` (93/0, clean), so count with `git log 761b4e0..main --oneline`.
+A clean run is 93 passed, 0 failed as of 2026-10-06 (the shared citers and
+covered-window cases added).
+
+- A new graph tab mounted only on an animation frame, and a covered window
+  gets none, so new tabs stayed empty while the test window was covered (1 to
+  9 cases a run, "Scope section: expected null to exist"). Since `761b4e0` the
+  mount falls back to a 250 ms timer (`createFrameOrTimer`), and
+  `graphTabMountsCovered.test.ts` stubs frames away to hold it.
 
 - Ten Citation hops cases run against live providers on Semantic Scholar's
   keyless pool. When it answers 429 each expansion lands `0/0` after exactly
@@ -491,3 +496,6 @@ entries are in git history.
   `dc0fa65..cc83d22` plus this log line. Next: shared citers.
 - 2026-09-28: shared citers brainstormed and specified (the grade a
   colouring, Only a scope rule). Next: its plan.
+- 2026-10-06: shared citers shipped (ADR 0017), with the fix for new graph
+  tabs on a covered window; commits `aa4b429..761b4e0` plus this log line.
+  Next: the open bugs.
