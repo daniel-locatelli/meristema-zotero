@@ -20,7 +20,10 @@ function harness() {
   const deferred: Array<() => void> = [];
   const asked: CheckPaper[][] = [];
   const signals: CancellationSignal[] = [];
-  const pending: Array<(outcome: CheckOutcome) => void> = [];
+  const pending: Array<{
+    resolve: (outcome: CheckOutcome) => void;
+    reject: (error: Error) => void;
+  }> = [];
   let now = 0;
   const scheduler = createSeedLinkCheckScheduler({
     store: {
@@ -38,7 +41,9 @@ function harness() {
     check: (papers, signal) => {
       asked.push([...papers]);
       signals.push(signal);
-      return new Promise((resolve) => pending.push(resolve));
+      return new Promise((resolve, reject) =>
+        pending.push({ resolve, reject }),
+      );
     },
     defer: (run) => deferred.push(run),
     now: () => now,
@@ -48,13 +53,20 @@ function harness() {
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   const land = async (outcome: CheckOutcome): Promise<void> => {
-    pending.shift()!(outcome);
+    pending.shift()!.resolve(outcome);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
+  };
+  const fail = async (): Promise<void> => {
+    pending.shift()!.reject(new Error("offline"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await flush();
   };
   return {
     scheduler,
     known,
+    deferred,
+    fail,
     asked,
     signals,
     flush,
@@ -150,7 +162,7 @@ describe("seedLinkCheckScheduler", function () {
     const h = harness();
     const unregister = h.scheduler.register(client([P]));
     const stays = client([Q]);
-    h.scheduler.register(stays);
+    const unregisterStays = h.scheduler.register(stays);
     h.scheduler.markDirty();
     await h.flush();
     expect(h.asked[0]).to.have.length(2);
@@ -160,6 +172,8 @@ describe("seedLinkCheckScheduler", function () {
     const unregisterLast = h.scheduler.register(client([]));
     unregisterLast();
     expect(h.signals[0].cancelled).to.equal(false);
+    unregisterStays();
+    expect(h.signals[0].cancelled, "nothing wants Q now").to.equal(true);
   });
 
   it("cancels when the last graph wanting the papers closes, and saves nothing", async function () {
@@ -178,5 +192,80 @@ describe("seedLinkCheckScheduler", function () {
       failed: [],
     });
     expect(h.known.size).to.equal(0);
+  });
+
+  it("backs nothing off after a cancelled check", async function () {
+    const h = harness();
+    const unregister = h.scheduler.register(client([P]));
+    h.scheduler.markDirty();
+    await h.flush();
+    unregister();
+    await h.land({ rows: [], failed: [P] });
+    h.scheduler.register(client([P]));
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.have.length(2);
+  });
+
+  it("sends one check at a time and keeps the dirty mark for after it", async function () {
+    const h = harness();
+    h.scheduler.register(client([P]));
+    h.scheduler.markDirty();
+    await h.flush();
+    h.scheduler.register(client([Q]));
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.have.length(1);
+    await h.land({
+      rows: referenceListRows(
+        [{ openAlexID: "W1", references: [], aliases: [] }],
+        [],
+        AT,
+      ),
+      failed: [],
+    });
+    expect(h.asked[1]).to.deep.equal([Q]);
+  });
+
+  it("notifies only clients whose papers share an alias with a saved row", async function () {
+    const h = harness();
+    const wants = client([P]);
+    const unrelated = client([Q]);
+    h.scheduler.register(wants);
+    h.scheduler.register(unrelated);
+    h.scheduler.markDirty();
+    await h.flush();
+    await h.land({
+      rows: referenceListRows(
+        [{ openAlexID: "W1", references: [], aliases: [] }],
+        [],
+        AT,
+      ),
+      failed: [],
+    });
+    expect(wants.count).to.equal(1);
+    expect(unrelated.count).to.equal(0);
+  });
+
+  it("backs every paper off when the check throws", async function () {
+    const h = harness();
+    h.scheduler.register(client([P]));
+    h.scheduler.markDirty();
+    await h.flush();
+    await h.fail();
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.have.length(1);
+    h.advance(CHECK_BACKOFF_MS[0] + 1);
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.have.length(2);
+  });
+
+  it("defers one dispatch however often it is marked dirty", function () {
+    const h = harness();
+    h.scheduler.markDirty();
+    h.scheduler.markDirty();
+    expect(h.deferred).to.have.length(1);
   });
 });
