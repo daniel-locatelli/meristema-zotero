@@ -18,6 +18,16 @@ import {
 } from "./cacheDecoders";
 import { createCooperativeCheckpoint } from "./backgroundTaskService";
 import { RelationshipMetadataDependencyIndex } from "./relationshipMetadataDependencyIndex";
+import type { SeedLinkCheck } from "./graphSeedLinks";
+import {
+  ReferenceListMirror,
+  REFERENCE_LIST_NOT_FOUND_MAX_AGE_MS,
+  REFERENCE_LIST_SUCCESS_MAX_AGE_MS,
+  referenceListRowFromDB,
+  referenceListRowToDB,
+  type ReferenceListDBRow,
+  type ReferenceListRow,
+} from "./openAlexReferenceLists";
 
 export type ExternalWorkCacheStatus =
   "success" | "not-found" | "rate-limited" | "network-error" | "provider-error";
@@ -79,6 +89,14 @@ CREATE TABLE IF NOT EXISTS external_relationships_v2 (
   works_json       TEXT NOT NULL,
   fetched_at       TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS openalex_reference_lists (
+  identity_key       TEXT PRIMARY KEY,
+  status             TEXT NOT NULL,
+  openalex_id        TEXT,
+  reference_ids_json TEXT,
+  fetched_at         TEXT NOT NULL
+);
 `;
 
 const SUCCESS_MAX_AGE_MS = 180 * 86400000;
@@ -96,6 +114,8 @@ let initPromise: Promise<void> | null = null;
 let closing = false;
 let mirror = new Map<string, ExternalWorkCacheEntry>();
 let relationshipMirror = new Map<string, ExternalRelationshipCacheEntry>();
+/** The seed-link check's answers (ADR 0018), loaded whole at init. */
+const referenceLists = new ReferenceListMirror();
 const hydratedRelationshipMirror = new Map<string, RelatedWorkMetadata[]>();
 const relationshipDependencyIndex = new RelationshipMetadataDependencyIndex();
 const writeQueue = new SerializedTaskQueue();
@@ -355,6 +375,19 @@ export function initExternalWorkCache(): Promise<void> {
         "ALTER TABLE external_relationships_v2 ADD COLUMN cut_order TEXT",
       );
     }
+    // The check's answers age out as works do; prune before loading.
+    const now = Date.now();
+    await connection.queryAsync(
+      `DELETE FROM openalex_reference_lists
+       WHERE fetched_at < ? OR (status = 'not-found' AND fetched_at < ?)`,
+      [
+        new Date(now - REFERENCE_LIST_SUCCESS_MAX_AGE_MS).toISOString(),
+        new Date(now - REFERENCE_LIST_NOT_FOUND_MAX_AGE_MS).toISOString(),
+      ],
+    );
+    const referenceListDBRows = (await connection.queryAsync(
+      "SELECT * FROM openalex_reference_lists",
+    )) as ReferenceListDBRow[];
     const rows = (await connection.queryAsync(
       "SELECT * FROM external_works_v2",
     )) as ExternalWorkCacheRow[];
@@ -388,12 +421,18 @@ export function initExternalWorkCache(): Promise<void> {
     }
     db = connection;
     mirror = nextMirror;
+    referenceLists.clear();
+    referenceLists.put(
+      (referenceListDBRows ?? [])
+        .map(referenceListRowFromDB)
+        .filter((row): row is ReferenceListRow => row !== null),
+    );
     relationshipMirror = nextRelationshipMirror;
     hydratedRelationshipMirror.clear();
     relationshipDependencyIndex.clear();
     initialized = true;
     Zotero.debug(
-      `Meristema: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists`,
+      `Meristema: external cache initialized with ${mirror.size} works and ${relationshipMirror.size} relationship lists, ${referenceLists.size} reference-list rows`,
     );
   })().finally(() => {
     initPromise = null;
@@ -410,6 +449,7 @@ export async function closeExternalWorkCache(): Promise<void> {
   initialized = false;
   mirror.clear();
   relationshipMirror.clear();
+  referenceLists.clear();
   hydratedRelationshipMirror.clear();
   relationshipDependencyIndex.clear();
 }
@@ -421,11 +461,41 @@ export async function clearExternalWorkCache(): Promise<void> {
     await connection.executeTransaction(async () => {
       await connection.queryAsync("DELETE FROM external_works_v2");
       await connection.queryAsync("DELETE FROM external_relationships_v2");
+      await connection.queryAsync("DELETE FROM openalex_reference_lists");
     });
     mirror.clear();
     relationshipMirror.clear();
+    referenceLists.clear();
     hydratedRelationshipMirror.clear();
     relationshipDependencyIndex.clear();
+  });
+}
+
+/** A fresh check; `null` for a fresh not-found; `undefined` when unknown. */
+export function lookupOpenAlexReferenceCheck(
+  alias: string,
+): SeedLinkCheck | null | undefined {
+  if (!initialized) return undefined;
+  return referenceLists.lookup(alias, Date.now());
+}
+
+export async function saveOpenAlexReferenceRows(
+  rows: readonly ReferenceListRow[],
+): Promise<void> {
+  if (!rows.length || !(await ensureExternalWorkCache())) return;
+  await queueWrite(async () => {
+    const connection = requireDB();
+    await connection.executeTransaction(async () => {
+      for (const row of rows) {
+        await connection.queryAsync(
+          `INSERT OR REPLACE INTO openalex_reference_lists
+           (identity_key, status, openalex_id, reference_ids_json, fetched_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          referenceListRowToDB(row),
+        );
+      }
+    });
+    referenceLists.put(rows);
   });
 }
 
