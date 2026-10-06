@@ -1216,7 +1216,7 @@ export function renderGraphView(
   // Not when the restored layout already is Citation hop: a saved seeded
   // graph arrives with the colouring chosen and its seeds a moment behind,
   // and disabling a selected option knocks it back to Uniform and persists
-  // that.
+  // that. The same holds for Seeds linked, guarded just below.
   if (currentLayout.nodeColorMetric !== "citation-hop") {
     appearance.setColourOptionAvailable("citation-hop", false);
   }
@@ -1997,7 +1997,10 @@ export function renderGraphView(
     depth: hopDepth,
     enabled: hopEnabled,
     floor,
-    shared,
+    // The effective rule, as the rail shows it: min(shared, seeds). The raw
+    // `shared` stays in the state and the recipe, since a restoring graph
+    // sets it before its seeds land.
+    shared: Math.min(shared, Math.max(1, hopModel?.seeds.length ?? 0)),
   });
   /** The save panel's Explore row: the direction and depth it will save. */
   const capturedExplore = (
@@ -2005,7 +2008,12 @@ export function renderGraphView(
   ): string | null => {
     const explore = existing
       ? existing.explore
-      : { direction: hopDirection, hops: hopDepth, floor, shared };
+      : {
+          direction: hopDirection,
+          hops: hopDepth,
+          floor,
+          shared: liveHops().shared,
+        };
     if (!explore) return null;
     const word = explore.direction === "references" ? "references" : "citers";
     const floorPart = explore.floor ? `, floor ${explore.floor}` : "";

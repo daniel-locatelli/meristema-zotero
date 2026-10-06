@@ -118,13 +118,14 @@ const META_LOOKUP = /opencitations\.net\/meta\/v1\/metadata\//i;
  */
 const PROVIDER_HOST =
   /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
+/** Grouped digits as the machine locale prints them (de-CH: 1'200). */
+const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 /**
  * The OpenAlex key pref the D8 block sets for itself. It lives out here rather
  * than in the block: reading `config.prefsPrefix` inside a `describe` body is a
  * member expression at collection time, which `mocha/no-setup-in-describe`
  * refuses.
  */
-const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** The layout a graph opens with, kept out here for the same reason. */
 const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;

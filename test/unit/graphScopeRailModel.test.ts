@@ -758,6 +758,7 @@ describe("the Shared by row", function () {
     });
     expect(model.shared).to.deep.equal({
       value: 2,
+      stored: 2,
       max: 3,
       belowText: "4 below",
     });
@@ -769,12 +770,21 @@ describe("the Shared by row", function () {
         ...baseInput(),
         shared: { value: 1, seedCount: 2 },
       }).shared,
-    ).to.deep.equal({ value: 1, max: 2, belowText: "off" });
+    ).to.deep.equal({ value: 1, stored: 1, max: 2, belowText: "off" });
     expect(
       buildScopeRailModel({
         ...baseInput(),
         shared: { value: 5, seedCount: 2 },
       }).shared?.value,
     ).to.equal(2);
+  });
+
+  it("keeps the stored value beside the clamped one", function () {
+    const row = buildScopeRailModel({
+      ...baseInput(),
+      shared: { value: 5, seedCount: 2 },
+    }).shared;
+    expect(row?.value).to.equal(2);
+    expect(row?.stored).to.equal(5);
   });
 });

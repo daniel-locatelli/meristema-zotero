@@ -542,6 +542,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     kind: "floor" | "shared";
     label: string;
     value: number;
+    /** What a typed number is compared against; defaults to `value`. */
+    stored?: number;
     min: number;
     max: number | null;
     suffix: string | null;
@@ -577,7 +579,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
         input.value = String(spec.value);
         return;
       }
-      if (parsed !== spec.value) spec.commit(parsed);
+      if (parsed !== (spec.stored ?? spec.value)) spec.commit(parsed);
       else input.value = String(parsed);
     };
     input.addEventListener("change", commit);
@@ -625,6 +627,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       kind: "shared",
       label: "Shared by",
       value: row.value,
+      stored: row.stored,
       min: 1,
       max: row.max,
       suffix: "seeds",

@@ -165,6 +165,8 @@ export interface ScopeFloorRow {
 export interface ScopeSharedRow {
   /** Already clamped to 1..max. */
   value: number;
+  /** The stored value, unclamped: what a typed number is compared against. */
+  stored: number;
   /** The seed count. */
   max: number;
   /** `{n} below`, or `off` while the value is 1. */
@@ -400,12 +402,11 @@ function sharedRow(
   shared: { value: number; seedCount: number },
   below: number,
 ): ScopeSharedRow {
-  const value = Math.min(
-    shared.seedCount,
-    Math.max(1, Math.floor(shared.value)),
-  );
+  const stored = Math.max(1, Math.floor(shared.value));
+  const value = Math.min(shared.seedCount, stored);
   return {
     value,
+    stored,
     max: shared.seedCount,
     belowText: value >= 2 ? `${COUNT_FORMAT.format(below)} below` : "off",
   };

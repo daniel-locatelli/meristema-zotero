@@ -394,8 +394,8 @@ any failure into a new entry above.
       colours the top tier strongest, the tiers read apart, the shared
       citer's edges to its seeds take the seeds' colours, and its label is
       drawn.
-- [ ] Shared citers: hover a Key tier: that tier is emphasised; the
-      `Not graded` entry does nothing.
+- [ ] Shared citers: hover a Key tier: that tier is emphasised; hover
+      `Not graded`: the seeds and the papers past hop 1 are emphasised.
 - [ ] Shared citers: set `Shared by ≥ 2`: hop counts drop, `n below` reads,
       and the fill's `n left` drops.
 - [ ] Shared citers: remove a seed down to one: the row and the colouring go,

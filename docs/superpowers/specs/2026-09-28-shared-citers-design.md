@@ -48,10 +48,10 @@ bridge, shared citer (the Citers case only).
 
 ### The rule
 
-`ScopePaper` is unchanged; `GraphScopeInput` gains `shared: number`, an integer at
-or above 1, where 1 is off; k is read from the entries' parents, so the map
-is not passed. The order per
-paper gains a fifth step after the floor:
+`ScopePaper` is unchanged; `GraphScopeInput` gains `shared?: number` (absent
+is off), an integer at or above 1, where 1 is off; k is read from the
+entries' parents, so the map is not passed. The order per paper gains a fifth
+step after the floor:
 
 5. **the shared rule** removes a hop-1 paper whose seed links are below
    `min(shared, S)`, where S is the seed count. Inert while S < 2. Seeds,
@@ -196,8 +196,8 @@ both. Choose Seeds linked: the Key lists `Cite all 2 seeds · 1` and
 - Two seeds with a shared citer, both themes: Seeds linked colours the top
   tier strongest, the tiers read apart, the shared citer's edges to its seeds
   take the seeds' colours, and its label is drawn.
-- Hover a Key tier: that tier is emphasised; the `Not graded` entry does
-  nothing.
+- Hover a Key tier: that tier is emphasised; hover `Not graded`: the seeds
+  and the papers past hop 1 are emphasised.
 - Set `Shared by ≥ 2`: hop counts drop, `n below` reads, and the fill's
   `n left` drops.
 - Remove a seed down to one: the row and the colouring go, the colouring falls
