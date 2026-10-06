@@ -41,7 +41,8 @@ _Avoid_: focus paper, root, origin
 
 **Scope**:
 The rule that decides which papers of the graph are shown: the folder rule,
-the hop rule and the floor taken together, followed by the reader's filters.
+the hop rule, the floor and the shared rule taken together, followed by the
+reader's filters.
 _Avoid_: filter (filters come after scope), visibility, focus
 
 **Folder rule**:
@@ -59,6 +60,12 @@ The citation count a paper needs to be shown. A paper under it is not shown
 and is not followed by the fill; one with no count passes. Seeds are never
 under it. Set by dragging the line on the plot or typing in the rail.
 _Avoid_: threshold, cutoff, min citations
+
+**Shared rule**:
+The seed links a hop-1 paper needs to be shown, set in the rail; 1 is off.
+A hop-1 paper under it is not shown, however it was admitted, and is not
+followed by the fill. Inert with fewer than two seeds.
+_Avoid_: Only, shared filter
 
 **Tick**:
 The reader's on/off choice on a folder or a hop row in the rail.
@@ -116,6 +123,16 @@ _Avoid_: chain depth, loaded depth, hop count
 
 **Parents**:
 The papers one hop shallower that link to a paper. A paper keeps all of them.
+
+**Seed links**:
+The number of seeds among a hop-1 paper's parents: under Citers, the seeds it
+cites; under References, the seeds that cite it. Counts only the links the
+graph holds. Deeper papers have none.
+_Avoid_: shared count, bridge score, k
+
+**Shared paper**:
+A hop-1 paper with two or more seed links.
+_Avoid_: bridge, shared citer (the Citers case only)
 
 **Expanded**:
 A paper whose own list in the current direction has been fetched and stored,

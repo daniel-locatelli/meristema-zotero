@@ -19,13 +19,13 @@ since D4.
 | question            | decision                                                                                                                                                                                                                                                |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The channel         | **A colouring, Seeds linked**, in the gear's colour list, not the design's opacity grade. Opacity already carries the hop ramp and emphasis dimming (ADR 0009, D10); a third meaning on it would make all three unreadable. D10 stays its own decision. |
-| Hop 2 and deeper    | **Not graded.** They take the colouring's no-value colour, as No data does; the Key says so. The bridges are hop 1.                                                                                                                                     |
+| Hop 2 and deeper    | **Not graded.** They take the colouring's no-value colour, as No data does; the Key says so with a `Not graded` entry. The bridges are hop 1.                                                                                                           |
 | Only                | **A scope rule, `Shared by ≥ N seeds`**, N from 1 (off) to S, after the floor. Not a three-way Off/Dim/Only switch: Dim is choosing the colouring.                                                                                                      |
-| Tier colours        | **Fixed by k of S** on an ordered ramp, strongest at S. No kmax normalisation: a tier's colour does not move while the fill runs or the floor is dragged. Replaces the design's formula.                                                                |
+| Tier colours        | **Fixed by k of S** on the theme's sequential ramp, strongest at S. No kmax normalisation: a tier's colour does not move while the fill runs or the floor is dragged. Replaces the design's formula.                                                    |
 | Edges               | Under the colouring only, an edge from a paper with k ≥ 2 to a seed takes that seed's colour. Otherwise edges are as today (D13 is separate).                                                                                                           |
 | Labels              | Under the colouring, ordered selected, hovered, seeds, k descending, citations; the existing budget decides where to stop. No cap of 18.                                                                                                                |
 | One seed            | The colouring and the rail row are unavailable; the rule is inert while S < 2, and N is read as `min(N, S)`.                                                                                                                                            |
-| The cut undercounts | Stated, not fixed. k counts the links the graph holds, and a seed's hop-1 list is cut at 50 (D8), so a paper citing A and B that made only A's cut reads k = 1. The Key says so while a seed's list is cut.                                             |
+| The cut undercounts | Stated, not fixed. k counts the links the graph holds, and a seed's hop-1 list is cut at 50 (D8), so a paper citing A and B that made only A's cut reads k = 1. The Key's note says so under the colouring.                                             |
 | Out of scope        | Presets; D10's opacity ramp; D13's edge density; grading hop ≥ 2; checking a hop-1 paper's own reference list against the seeds (filed as an entry).                                                                                                    |
 
 ## Design
@@ -48,8 +48,9 @@ bridge, shared citer (the Citers case only).
 
 ### The rule
 
-`ScopePaper` is unchanged; `GraphScopeInput` gains `seedLinks` (the map) and
-`shared: number`, an integer at or above 1, where 1 is off. The order per
+`ScopePaper` is unchanged; `GraphScopeInput` gains `shared: number`, an integer at
+or above 1, where 1 is off; k is read from the entries' parents, so the map
+is not passed. The order per
 paper gains a fifth step after the floor:
 
 5. **the shared rule** removes a hop-1 paper whose seed links are below
@@ -82,13 +83,11 @@ marks' map: key `links:k`, label by direction and S, as below; a paper with
 no entry has no category and takes the no-value colour. Seeds keep their
 bullseye in their own colour, as under every colouring.
 
-Tier colours come from a new ordered ramp per scheme in `graphTheme.ts`,
-`SEED_LINK_RAMP`, of eight steps (the categorical seed palette's size, so the
-most seeds a graph can colour). Tier k of S takes step
-`round((k − 1) / (S − 1) × 7)`, so k = S is always the strongest and k = 1 the
-faintest; colours are held by key in the existing ledger, never dealt by
-rank. The ramp must read against both plot backgrounds and stay distinct
-from the seed palette; colour literals only in `graphTheme.ts`.
+Tier colours come from the theme's existing sequential ramp, `theme.ramp`,
+of five stops. Tier k of S takes stop `round((k − 1) / (S − 1) × 4)`, so
+k = S is always the strongest and k = 1 the faintest; colours are held by key
+in the existing ledger, never dealt by rank. No new ramp is added to
+`graphTheme.ts`, which stays the only home of colour literals.
 
 The option is available while the graph has two or more seeds, toggled where
 Citation hop's availability is toggled today (`graphViewService.ts`),
@@ -106,10 +105,10 @@ among shown papers, highest first:
   `Cited by 1 seed`.
 
 each with its count and a predicate, so hovering or pinning an entry
-emphasises that tier through the Key's existing emphasis path. Then one entry
-without a predicate, `Hop 2 and deeper: not graded`, when any shown paper is
-at hop ≥ 2. The note line reads, while any seed's hop-1 list is cut (D8's cut
-line is showing): `Counts the links fetched; a seed's list is cut at 50.`
+emphasises that tier through the Key's existing emphasis path. Then the
+colouring's no-value entry, `Not graded`, with its count, when any shown paper
+has no seed links. The note line always reads, under the colouring:
+`Only hop 1 is graded, by the links fetched.`
 
 ### Edges
 
@@ -128,7 +127,7 @@ papers by k descending, then citations as today. The budget is unchanged.
 ### The rail row
 
 In Scope, after the floor row, shown while S ≥ 2: `Shared by ≥ [N] seeds`,
-a number field 1 to S, reading `off` at 1 and `{n} hidden` otherwise from
+a number field 1 to S, reading `off` at 1 and `{n} below` otherwise from
 `belowSharedCount`. Built in `buildScopeRailModel`, as the floor's row is.
 
 ### Persistence and views
@@ -155,13 +154,12 @@ rule after the floor.
 
 - `src/services/graphHopModel.ts`: `SeedMarks.seedLinks`, computed in
   `seedMarks`.
-- `src/services/graphScopeModel.ts`: `shared`, `seedLinks`, step 5,
+- `src/services/graphScopeModel.ts`: `shared`, step 5,
   `belowSharedCount`.
 - `src/domain/graphTypes.ts`, `graphCategoryAssignment.ts`,
   `graphKeyModel.ts`, `graphViewControls.ts`, `graphLayoutAvailability.ts`,
   `dataSourceTooltipService.ts`: the `seed-links` metric wherever
   `citation-hop` is handled.
-- `src/services/graphTheme.ts`: `SEED_LINK_RAMP` per scheme.
 - `src/services/graphEdgeStyle.ts`, `graphRendererScene.ts`: seed-coloured
   edges and the label order.
 - `src/services/graphScopeRailModel.ts`, `graphKeyRail.ts`: the row.
@@ -180,9 +178,9 @@ Unit (`test/unit`):
   paper is removed; seeds and hop-2 papers are untouched; S = 1 makes it
   inert; N > S reads as S; `belowSharedCount` excludes papers under the
   floor; N = 1 removes nothing.
-- `nodeCategory` and the ramp step for k of S at S = 2, 3 and 8.
+- `nodeCategory` and the ramp stop for k of S at S = 2, 3 and 8.
 - `buildKeyModel`: tier labels in both directions, highest first, the
-  not-graded entry, the cut note.
+  `Not graded` entry, the note.
 - The edge style function and the label order.
 - `graphViewState`: version 7 round-trips `shared`; version 6 parses with 1.
 - `graphViews`: `explore.shared` decodes and encodes; Who cites whom is ready
@@ -191,18 +189,16 @@ Unit (`test/unit`):
 Zotero (`test/zotero/graphCitationHops.test.ts`, a block on the fake-provider
 harness, not live providers, per B74): two seeds, three citers, one citing
 both. Choose Seeds linked: the Key lists `Cite all 2 seeds · 1` and
-`Cite 1 seed · 2`. Set the row to 2: hop 1 reads `1/3`, the row `2 hidden`.
-Apply Who cites whom on a one-seed graph: the Add seed panel opens with the
-view queued.
+`Cite 1 seed · 2`. Set the row to 2: hop 1 reads `1/3`, the row `2 below`.
 
 ## Manual verification
 
 - Two seeds with a shared citer, both themes: Seeds linked colours the top
   tier strongest, the tiers read apart, the shared citer's edges to its seeds
   take the seeds' colours, and its label is drawn.
-- Hover a Key tier: that tier is emphasised; the not-graded entry does
+- Hover a Key tier: that tier is emphasised; the `Not graded` entry does
   nothing.
-- Set `Shared by ≥ 2`: hop counts drop, `n hidden` reads, and the fill's
+- Set `Shared by ≥ 2`: hop counts drop, `n below` reads, and the fill's
   `n left` drops.
 - Remove a seed down to one: the row and the colouring go, the colouring falls
   back to Uniform.

@@ -21,13 +21,12 @@ Inputs (do not re-derive them):
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
-- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0016).
+- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0017).
 - Ledger of finished plans: `.superpowers/sdd/progress.md`.
 
 ## Next
 
-1. Shared citers' plan, from
-   `docs/superpowers/specs/2026-09-28-shared-citers-design.md`.
+1. The open bugs.
 
 Working rules: a feature branch per change, `npm run check` as the gate
 (prettier covers `docs/` and `README.md`), the full Zotero suite every 4 or 5
@@ -61,7 +60,7 @@ opacity grade).
 - [x] floor: brainstorm, spec, plan, implemented, reviewed, merged
 - [ ] floor: manual walk-through by the user
 - [x] shared citers: brainstorm and spec
-- [ ] shared citers: plan
+- [x] shared citers: plan
 - [ ] shared citers: implemented, reviewed, merged, XPI built, pushed
 - [ ] shared citers: manual walk-through by the user
 
@@ -391,6 +390,20 @@ any failure into a new entry above.
       rail and the summary; apply Overview afterwards: the floor stays 10.
 - [ ] Floor: reopen a saved graph that had a floor: the floor is back; a graph
       saved before this change opens at `off`.
+- [ ] Shared citers: two seeds with a shared citer, both themes: Seeds linked
+      colours the top tier strongest, the tiers read apart, the shared
+      citer's edges to its seeds take the seeds' colours, and its label is
+      drawn.
+- [ ] Shared citers: hover a Key tier: that tier is emphasised; the
+      `Not graded` entry does nothing.
+- [ ] Shared citers: set `Shared by ≥ 2`: hop counts drop, `n below` reads,
+      and the fill's `n left` drops.
+- [ ] Shared citers: remove a seed down to one: the row and the colouring go,
+      the colouring falls back to Uniform.
+- [ ] Shared citers: apply Who cites whom on a two-seed graph: colouring,
+      hop 1 and `≥ 2` set.
+- [ ] Shared citers: reopen a saved graph with the rule set: it is back; one
+      saved before opens at `off`.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
