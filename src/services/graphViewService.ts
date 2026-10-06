@@ -3998,12 +3998,6 @@ ${error instanceof Error ? error.message : String(error)}`,
     setTimeout: (run, ms) => setTimeout(run, ms) as unknown as number,
     clearTimeout: (handle) => clearTimeout(handle),
   });
-  /**
-   * The fill (graphHopFillRunner.ts) owns its queue, epoch, counts, caps and
-   * failures; this is its host: the plan's inputs read off the graph, the
-   * provider call for one shown paper (automatic mode, one page, one
-   * provider), and what a landing does to the walk.
-   */
   // The seed-link check (ADR 0018): this graph's seeds and hop-1 papers,
   // while the gate is open; a landing rebuilds, as a fill landing does. The
   // scheduler calls both from its own loop, and a throw there would stall it
@@ -4037,6 +4031,12 @@ ${error instanceof Error ? error.message : String(error)}`,
       }
     },
   });
+  /**
+   * The fill (graphHopFillRunner.ts) owns its queue, epoch, counts, caps and
+   * failures; this is its host: the plan's inputs read off the graph, the
+   * provider call for one shown paper (automatic mode, one page, one
+   * provider), and what a landing does to the walk.
+   */
   const hopFill = createHopFillRunner({
     planInput: () => {
       if (!hopModel || !lastScope) return null;

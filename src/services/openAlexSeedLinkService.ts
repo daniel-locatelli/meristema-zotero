@@ -108,9 +108,14 @@ export async function checkOpenAlexReferences(
       return;
     }
     if (SPLIT_STATUSES.has(response.status)) {
-      // One paper the filter cannot carry (a DOI with a comma) rejects its
-      // whole batch: halve until it stands alone, and let it be missed.
-      if (batch.length === 1) return;
+      // A 413/414 means the batch is too long, and a 400 may come from one
+      // paper alone: halve until each paper stands alone. A paper rejected on
+      // its own is failed, never missed: a 400 that hits every request must
+      // not record a 30-day not-found, and a failed paper backs off.
+      if (batch.length === 1) {
+        failed.set(batch[0].key, batch[0]);
+        return;
+      }
       const half = Math.ceil(batch.length / 2);
       await ask(field, batch.slice(0, half));
       await ask(field, batch.slice(half));

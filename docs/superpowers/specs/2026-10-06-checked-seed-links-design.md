@@ -62,8 +62,9 @@ Cache aliases are `openalex:W…` (upper case W, as the batch code sends) and
   queue the fill uses.
 - A refused (429) or failed batch returns no checks for its papers. A batch
   OpenAlex rejects outright (other 4xx) is split in half and each half asked
-  again, down to single papers; a single paper rejected is recorded
-  not-found.
+  again, down to single papers; a single paper rejected is failed, not
+  not-found, so it backs off for the session and a rejection of every request
+  records nothing.
 
 ### The store
 
@@ -188,7 +189,8 @@ change. Three readers of parents change behaviour, as intended:
   batches by kind at the policy size; a paper with no identifier never sent;
   an ID miss retried by DOI; a not-found recorded under its asked alias; a
   merged ID stored as an alias; a 429 records nothing; a 400 split down to
-  the offending paper.
+  the offending paper, which is failed; a 400 on every request fails every
+  paper and saves no row.
 - Unit, the scheduler: a paper in flight not collected again by a landing;
   collection at dispatch, not at the trigger; a refused paper backs off; a
   fresh store entry never collected; nothing sent outside the gate; abort

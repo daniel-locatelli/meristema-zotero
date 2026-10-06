@@ -172,7 +172,7 @@ describe("checkOpenAlexReferences", function () {
     expect(outcome.failed).to.have.length(2);
   });
 
-  it("splits a rejected batch down to the paper OpenAlex rejects", async function () {
+  it("splits a rejected batch, and fails the paper OpenAlex rejects alone", async function () {
     respond = (url) => {
       const { values } = filterValues(url);
       return values.includes("W2")
@@ -190,12 +190,26 @@ describe("checkOpenAlexReferences", function () {
       ],
       options,
     );
-    expect(outcome.failed).to.deep.equal([]);
+    expect(outcome.failed.map((p) => p.key)).to.deep.equal(["b"]);
     expect(outcome.rows.map((r) => [r.identityKey, r.status])).to.deep.equal([
       ["openalex:W1", "success"],
       ["openalex:W3", "success"],
-      ["openalex:W2", "not-found"],
     ]);
+  });
+
+  it("fails every paper, and saves no row, when every request is rejected", async function () {
+    respond = () => failed(400);
+    const papers = Array.from({ length: 4 }, (_, i) => ({
+      key: `k${i}`,
+      openAlexID: `W${i + 1}`,
+      doi: `10.1234/${i}`,
+    }));
+    const outcome = await checkOpenAlexReferences(papers, options);
+    expect(outcome.rows).to.deep.equal([]);
+    expect(outcome.failed.map((p) => p.key)).to.have.members(
+      papers.map((p) => p.key),
+    );
+    expect(calls).to.have.length(7);
   });
 
   it("matches results by value, not by position", async function () {
@@ -231,7 +245,7 @@ describe("checkOpenAlexReferences", function () {
     ]);
   });
 
-  it("retries by DOI a paper rejected alone in the ID pass", async function () {
+  it("fails a paper rejected alone in the ID pass, without a DOI retry", async function () {
     respond = (url) => {
       const { field, values } = filterValues(url);
       if (field === "ids.openalex") {
@@ -252,15 +266,10 @@ describe("checkOpenAlexReferences", function () {
       { field: "ids.openalex", values: ["W1", "W2"] },
       { field: "ids.openalex", values: ["W1"] },
       { field: "ids.openalex", values: ["W2"] },
-      { field: "doi", values: ["10.1234/two"] },
     ]);
-    expect(outcome.failed).to.deep.equal([]);
-    expect(
-      outcome.rows.map((r) => [r.identityKey, r.status, r.referenceIDs]),
-    ).to.deep.equal([
-      ["openalex:W1", "success", []],
-      ["openalex:W2", "success", ["W5"]],
-      ["doi:10.1234/two", "alias", null],
+    expect(outcome.failed.map((p) => p.key)).to.deep.equal(["b"]);
+    expect(outcome.rows.map((r) => [r.identityKey, r.status])).to.deep.equal([
+      ["openalex:W1", "success"],
     ]);
   });
 });
