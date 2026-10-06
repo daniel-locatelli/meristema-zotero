@@ -8,6 +8,8 @@
  * CSS pixels; the caller multiplies by the frame's device pixel scale.
  */
 
+import type { SeedMarks } from "./graphHopModel";
+
 export interface EdgeEndpoint {
   x: number;
   y: number;
@@ -20,6 +22,10 @@ export interface EdgeLike {
 
 /** How far the apex of a curved edge sits off the straight chord, in CSS px. */
 export const EDGE_CURVE_APEX_CSS = 8;
+
+/** A shared paper's edge to a seed, under Seeds linked (spec: shared citers). */
+export const SEED_LINK_EDGE_ALPHA = 0.85;
+export const SEED_LINK_EDGE_WIDTH_CSS = 1.2;
 
 /** The arrowhead's length along the edge, in CSS px. */
 export const ARROWHEAD_SIZE_CSS = 6;
@@ -161,4 +167,25 @@ export function edgeLineInset(
 ): number {
   if (!headDrawn) return tipInset;
   return tipInset + Math.max(0, headSize - seamOverlap);
+}
+
+/**
+ * The seed's colour for an edge between a seed and a hop-1 paper linked to
+ * two or more seeds, either way round (the seed is the cited paper under
+ * Citers and the citer under References); null for every other edge.
+ */
+export function seedLinkEdgeColor(
+  source: string,
+  target: string,
+  marks: Pick<SeedMarks, "seedKeys" | "seedColors" | "seedLinks">,
+): string | null {
+  const seed = marks.seedKeys.has(target)
+    ? target
+    : marks.seedKeys.has(source)
+      ? source
+      : null;
+  if (seed === null) return null;
+  const other = seed === target ? source : target;
+  if ((marks.seedLinks.get(other) ?? 0) < 2) return null;
+  return marks.seedColors.get(seed) ?? null;
 }

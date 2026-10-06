@@ -216,6 +216,73 @@ describe("CitationGraphRenderer hops", function () {
     expect(hop2Label, "the hop-2 node's label was drawn").to.exist;
     expect(hop2Label!.globalAlpha, "hop-2 node's label alpha").to.equal(0.8);
   });
+
+  it("draws a shared paper's edge to a seed in that seed's colour, only under Seeds linked", function () {
+    const graphModel: CitationGraphModel = {
+      nodes: [node("s"), node("t"), node("a")],
+      edges: [
+        {
+          key: "a>s",
+          source: "a",
+          target: "s",
+          provenance: "test",
+          manual: false,
+        },
+      ],
+      statistics: { nodes: 3, resolvedNodes: 3, edges: 1, isolatedNodes: 1 },
+    };
+    const marks = {
+      ...EMPTY_SEED_MARKS,
+      seedKeys: new Set(["s", "t"]),
+      seedColors: new Map([
+        ["s", "#123456"],
+        ["t", "#654321"],
+      ]),
+      hops: new Map([
+        ["s", 0],
+        ["t", 0],
+        ["a", 1],
+      ]),
+      seedLinks: new Map([["a", 2]]),
+    };
+    const strokesUnder = (metric: GraphLayoutOptions["nodeColorMetric"]) => {
+      const canvas = new FakeCanvas();
+      const renderer = new CitationGraphRenderer({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        model: graphModel,
+        layout: { ...FREE_LAYOUT, nodeColorMetric: metric },
+        collectionLabels: new Map(),
+        onSelectionChange: () => undefined,
+        onOpenNode: () => undefined,
+      });
+      attachView(canvas);
+      renderer.setNodePositions(
+        new Map([
+          ["s", { x: 400, y: 300 }],
+          ["t", { x: 600, y: 300 }],
+          ["a", { x: 200, y: 300 }],
+        ]),
+      );
+      canvas.context.calls = [];
+      // `setSeedMarks` draws unless told not to; `draw` itself is private.
+      renderer.setSeedMarks(marks);
+      return canvas.context.calls.filter((call) => call.method === "stroke");
+    };
+    // Edges draw before nodes, and there is one edge, so the first stroke is
+    // its line. A seed's ring is stroked in the seed's colour too, so matching
+    // any stroke by colour would find the ring.
+    const [linked] = strokesUnder("seed-links");
+    expect(linked.strokeStyle, "the edge took seed s's colour").to.equal(
+      "#123456",
+    );
+    // 0.85, times the citer's hop-1 alpha of 0.9.
+    expect(linked.globalAlpha).to.be.closeTo(0.765, 1e-9);
+    const [plain] = strokesUnder("uniform");
+    expect(
+      plain.strokeStyle,
+      "no seed-coloured edge under another colouring",
+    ).to.not.equal("#123456");
+  });
 });
 
 /**

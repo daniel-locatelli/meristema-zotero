@@ -61,6 +61,8 @@ export interface RendererSceneContext {
   worldLengthForScreen(cssPixels: number): number;
   selectedKey: string | null;
   hoverKey: string | null;
+  /** Label priority past selection and hover; 0 for all but Seeds linked. */
+  labelRankFor(key: string): number;
   ghostPreview: GhostPreview | null;
   layoutNodes(): CitationGraphNode[];
   visibleNodes(): CitationGraphNode[];
@@ -569,6 +571,27 @@ export function hitTestRenderer(
   return best;
 }
 
+/**
+ * Label candidates in importance order: selected, hovered, then the
+ * colouring's rank (Seeds linked: seeds, then seed links), then citations.
+ */
+export function orderLabelCandidates(
+  nodes: readonly CitationGraphNode[],
+  selectedKey: string | null,
+  hoverKey: string | null,
+  rankFor: (key: string) => number,
+): CitationGraphNode[] {
+  const priority = (node: CitationGraphNode): number =>
+    node.key === selectedKey ? 3 : node.key === hoverKey ? 2 : 1;
+  return [...nodes].sort(
+    (left, right) =>
+      priority(right) - priority(left) ||
+      rankFor(right.key) - rankFor(left.key) ||
+      (right.citationCount ?? -1) - (left.citationCount ?? -1) ||
+      left.key.localeCompare(right.key),
+  );
+}
+
 export function drawRendererLabels(
   renderer: RendererSceneContext,
   nodes: CitationGraphNode[],
@@ -579,19 +602,12 @@ export function drawRendererLabels(
   // No node-count cliff any more: every node is a candidate, ordered by
   // importance, and the budget below decides where to stop. A 219-node graph
   // and a 221-node one now differ by one label rather than by all of them.
-  const ordered = [...nodes].sort((left, right) => {
-    const priority = (node: CitationGraphNode): number =>
-      node.key === renderer.selectedKey
-        ? 3
-        : node.key === renderer.hoverKey
-          ? 2
-          : 1;
-    return (
-      priority(right) - priority(left) ||
-      (right.citationCount ?? -1) - (left.citationCount ?? -1) ||
-      left.key.localeCompare(right.key)
-    );
-  });
+  const ordered = orderLabelCandidates(
+    nodes,
+    renderer.selectedKey,
+    renderer.hoverKey,
+    (key) => renderer.labelRankFor(key),
+  );
 
   const ratio = renderer.ratio;
   const bounds = labelBounds(renderer);

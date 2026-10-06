@@ -7,6 +7,7 @@ import {
   edgeBaseOpacity,
   edgeLineInset,
   reciprocalEdgeKeys,
+  seedLinkEdgeColor,
   shouldDrawArrowhead,
   ARROWHEAD_MIN_ZOOM,
 } from "../../src/services/graphEdgeStyle";
@@ -112,5 +113,30 @@ describe("Graph edge style", () => {
     expect(shouldDrawArrowhead(0.2, false)).to.equal(false);
     expect(shouldDrawArrowhead(ARROWHEAD_MIN_ZOOM, false)).to.equal(false);
     expect(shouldDrawArrowhead(1, false)).to.equal(true);
+  });
+});
+
+describe("seedLinkEdgeColor", function () {
+  const marks = {
+    seedKeys: new Set(["s", "t"]),
+    seedColors: new Map([
+      ["s", "seed-s"],
+      ["t", "seed-t"],
+    ]),
+    seedLinks: new Map([
+      ["a", 2],
+      ["b", 1],
+    ]),
+  };
+
+  it("takes the seed's colour on an edge between a shared paper and a seed", function () {
+    expect(seedLinkEdgeColor("a", "s", marks)).to.equal("seed-s");
+    // Under References the seed is the citer, so the edge runs seed → paper.
+    expect(seedLinkEdgeColor("t", "a", marks)).to.equal("seed-t");
+  });
+
+  it("is null for a paper linked to one seed, or an edge that misses the seeds", function () {
+    expect(seedLinkEdgeColor("b", "s", marks)).to.equal(null);
+    expect(seedLinkEdgeColor("a", "b", marks)).to.equal(null);
   });
 });
