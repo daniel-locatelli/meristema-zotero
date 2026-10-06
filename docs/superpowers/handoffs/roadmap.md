@@ -170,12 +170,6 @@ opacity grade).
       from an abandoned operation is unhandled. Unreachable from today's
       callers; add a no-op `.catch` when the file is next touched
 
-- [ ] B78 seed links undercount: a hop-1 paper linked to seeds A and B that
-      made only A's cut of 50 reads 1 (shared citers' spec, "The cut
-      undercounts"). The fix would check a hop-1 paper's own reference list
-      (or citer list, under References) against the seeds. Weigh after
-      shared citers ships
-
 ## The rail and the Key
 
 - [ ] D10 hop depth is encoded as opacity, the wrong channel. The ramp
@@ -405,6 +399,13 @@ any failure into a new entry above.
       hop 1 and `≥ 2` set.
 - [ ] Shared citers: reopen a saved graph with the rule set: it is back; one
       saved before opens at `off`.
+- [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
+      only one seed's cut of 50 (two seeds in one field with many citers).
+      Under Seeds linked the citer reads `Cite all 2 seeds` and draws an edge
+      to each seed in its colour; `Shared by ≥ 2` keeps it. Repeat under
+      References. Close and reopen the graph: the grading is back with no
+      check request. Remove the key and reopen: the citer reads
+      `Cite 1 seed` again.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -415,11 +416,16 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-06 at
-`761b4e0` (93/0, clean), so count with `git log 761b4e0..main --oneline`.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-06 at `ec0c3f6` (93/0), so count with
+`git log ec0c3f6..main --oneline`.
 A clean run is 93 passed, 0 failed as of 2026-10-06 (the shared citers and
 covered-window cases added).
 
+- The floor drag case ("hides under the floor…", the drag leaving the field at
+  its floor) and B50's countdown case ("the line was rebuilt while counting
+  down") each failed once on 2026-10-06 and passed on rerun. The floor case
+  failed one of two runs of its file: treat a single failure as a flake and
+  rerun before debugging.
 - A new graph tab mounted only on an animation frame, and a covered window
   gets none, so new tabs stayed empty while the test window was covered (1 to
   9 cases a run, "Scope section: expected null to exist"). Since `761b4e0` the
@@ -499,3 +505,5 @@ entries are in git history.
 - 2026-10-06: shared citers shipped (ADR 0017), with the fix for new graph
   tabs on a covered window; commits `aa4b429..761b4e0` plus this log line.
   Next: the open bugs.
+- 2026-10-06, later: B78 shipped (ADR 0018): seed links checked against
+  OpenAlex reference lists; commits `0d588c1..ec0c3f6` plus this log line.

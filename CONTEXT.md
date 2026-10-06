@@ -126,8 +126,8 @@ The papers one hop shallower that link to a paper. A paper keeps all of them.
 
 **Seed links**:
 The number of seeds among a hop-1 paper's parents: under Citers, the seeds it
-cites; under References, the seeds that cite it. Counts only the links the
-graph holds. Deeper papers have none.
+cites; under References, the seeds that cite it. Counts the links the graph knows: the stored lists and, with an OpenAlex key,
+the reference lists OpenAlex holds for the seeds and hop-1 papers. Deeper papers have none.
 _Avoid_: shared count, bridge score, k
 
 **Shared paper**:
