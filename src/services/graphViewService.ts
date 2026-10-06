@@ -1997,8 +1997,9 @@ export function renderGraphView(
     depth: hopDepth,
     enabled: hopEnabled,
     floor,
-    // The effective rule, as the rail shows it: min(shared, seeds). The raw
-    // `shared` stays in the state and the recipe, since a restoring graph
+    // The effective rule, as the rail shows it: min(shared, seeds). It serves
+    // capture and the summary text; the edited compare uses the raw rule. The
+    // raw `shared` stays in the state and the recipe, since a restoring graph
     // sets it before its seeds land.
     shared: Math.min(shared, Math.max(1, hopModel?.seeds.length ?? 0)),
   });
@@ -2054,7 +2055,9 @@ export function renderGraphView(
       regions,
       filters: graphFilter.state(),
       folders: viewFolders(),
-      hops: liveHops(),
+      // The raw rule, state to state like the apply path: a view applied to
+      // a graph with fewer seeds than its `shared` is not edited by that.
+      hops: { ...liveHops(), shared },
     });
     viewsMenu.setLabel(active.name, edited);
     viewsMenu.setActive(active.id);
