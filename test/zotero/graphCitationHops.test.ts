@@ -124,6 +124,7 @@ const PROVIDER_HOST =
  * member expression at collection time, which `mocha/no-setup-in-describe`
  * refuses.
  */
+const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** The layout a graph opens with, kept out here for the same reason. */
 const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;
@@ -2792,6 +2793,240 @@ describe("Citation hops (Stage 3)", function () {
         [...pagedFilters()].sort(),
         `pages after the drag: ${pagedFilters().join(" | ")}`,
       ).to.deep.equal(["cites:W901", "cites:W902"]);
+    });
+  });
+
+  describe("with shared citers (Stage 4)", function () {
+    const SEED_A = {
+      doi: "10.5555/shared.a",
+      id: "W950",
+      title: `${FIXTURE_TITLE} (shared A)`,
+    };
+    const SEED_B = {
+      doi: "10.5555/shared.b",
+      id: "W960",
+      title: `${FIXTURE_TITLE} (shared B)`,
+    };
+    /** W951 cites both seeds; W952 cites A only; W953 cites B only. */
+    const CITERS_OF: Record<string, string[]> = {
+      W950: ["W951", "W952"],
+      W960: ["W951", "W953"],
+    };
+    let previousKey: unknown = undefined;
+    let previousAppearance: unknown = undefined;
+    let itemIDs: number[] = [];
+    let tabID: string | null = null;
+    let realRequest: any = null;
+
+    function work(
+      id: string,
+      doi: string,
+      title: string,
+      year: number,
+    ): unknown {
+      return {
+        id: `https://openalex.org/${id}`,
+        doi: `https://doi.org/${doi}`,
+        display_name: title,
+        publication_year: year,
+        publication_date: `${year}-01-01`,
+        cited_by_count: 10,
+        referenced_works_count: 0,
+        authorships: [
+          {
+            author: {
+              id: "https://openalex.org/A1",
+              display_name: "A. Author",
+            },
+          },
+        ],
+        primary_location: null,
+      };
+    }
+
+    function notFound(): unknown {
+      return { status: 404, responseText: "", getResponseHeader: () => null };
+    }
+
+    /** Answers from install, as the floor's block does, for the same reason. */
+    function serve(): void {
+      if (realRequest) return;
+      realRequest = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) => {
+        if (!PROVIDER_HOST.test(url))
+          return realRequest.call(Zotero.HTTP, method, url, options);
+        if (!/^https:\/\/api\.openalex\.org\//.test(url)) return notFound();
+        const parsed = new URL(url);
+        const path = decodeURIComponent(parsed.pathname);
+        if (/\/works\/doi/i.test(path)) {
+          const seed = [SEED_A, SEED_B].find((s) => path.includes(s.doi));
+          return seed
+            ? providerAnswer(
+                JSON.stringify(work(seed.id, seed.doi, seed.title, 2019)),
+              )
+            : notFound();
+        }
+        const filter = parsed.searchParams.get("filter") ?? "";
+        const cited = /^cites:(W9\d\d)$/.exec(filter)?.[1];
+        const citers = cited ? (CITERS_OF[cited] ?? []) : [];
+        return providerAnswer(
+          JSON.stringify({
+            results: citers.map((id) =>
+              work(
+                id,
+                `10.5555/shared.${id.toLowerCase()}`,
+                `Shared paper ${id}`,
+                2021,
+              ),
+            ),
+            meta: { count: citers.length },
+          }),
+        );
+      };
+    }
+
+    function restore(): void {
+      if (!realRequest) return;
+      (Zotero.HTTP as any).request = realRequest;
+      realRequest = null;
+    }
+
+    function keyEntries(): string[] {
+      return [...graphRoot().querySelectorAll(".cm-key-entry")].map((entry) =>
+        normalize(entry?.textContent),
+      );
+    }
+
+    /** The count span of the Key entry whose label starts with `prefix`. */
+    function tierCount(prefix: string): string | null {
+      for (const entry of graphRoot().querySelectorAll(
+        ".cm-key-entry",
+      ) as unknown as Iterable<Element>) {
+        const label = normalize(
+          entry.querySelector(".cm-key-entry-label")?.textContent,
+        );
+        if (label.startsWith(prefix))
+          return normalize(
+            entry.querySelector(".cm-key-entry-count")?.textContent,
+          );
+      }
+      return null;
+    }
+
+    function sharedInput(): HTMLInputElement {
+      const input = graphRoot().querySelector(
+        ".cm-scope-shared-input",
+      ) as HTMLInputElement | null;
+      expect(input, "the Shared by field").to.exist;
+      return input!;
+    }
+
+    function sharedRowText(): string {
+      return normalize(
+        graphRoot().querySelector(".cm-scope-shared-row")?.textContent,
+      );
+    }
+
+    before(async function () {
+      this.timeout(240_000);
+      previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
+      Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, "shared-test-key", true);
+      previousAppearance = Zotero.Prefs.get(GRAPH_APPEARANCE_PREF, true);
+      serve();
+      for (const seed of [SEED_A, SEED_B]) {
+        const item = new Zotero.Item("journalArticle");
+        item.libraryID = Zotero.Libraries.userLibraryID;
+        item.setField("title", seed.title);
+        item.setField("date", "2019");
+        item.setField("DOI", seed.doi);
+        itemIDs.push(await item.saveTx());
+      }
+      tabID = await openNewGraphTab();
+      currentTabID = tabID;
+      win.Zotero_Tabs.select(tabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(tabID)?.querySelector(".cm-scope-section .cm-scope-count"),
+        30_000,
+      );
+      expect(rail, "the shared tab's Scope section").to.exist;
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      restore();
+      if (previousKey === undefined || previousKey === null)
+        Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
+      else Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, previousKey as string, true);
+      if (previousAppearance === undefined || previousAppearance === null)
+        Zotero.Prefs.clear(GRAPH_APPEARANCE_PREF, true);
+      else
+        Zotero.Prefs.set(
+          GRAPH_APPEARANCE_PREF,
+          previousAppearance as string,
+          true,
+        );
+      if (tabID) win.Zotero_Tabs.close(tabID);
+      await delay(500);
+      tabID = null;
+      currentTabID = null;
+      for (const id of itemIDs) await Zotero.Items.erase(id);
+      itemIDs = [];
+    });
+
+    it("colours the paper citing both seeds into the top tier, and the rule keeps only it", async function () {
+      this.timeout(180_000);
+      (await nodeMenuEntry("Add as seed", SEED_A.title)).click();
+      await waitFor(() => hopCounts(1)?.available ?? null, 60_000);
+      (await nodeMenuEntry("Add as seed", SEED_B.title)).click();
+      const filled = await waitFor(
+        () => (hopCounts(1)?.available === 3 ? hopCounts(1) : null),
+        60_000,
+      );
+      expect(filled, `hop 1 read "${hopRowText(1)}"`).to.deep.equal({
+        shown: 3,
+        available: 3,
+      });
+
+      const option = graphRoot().querySelector(
+        'option[data-metric="seed-links"]',
+      ) as HTMLOptionElement | null;
+      expect(option, "the Seeds linked option").to.exist;
+      expect(option!.disabled, "offered with two seeds").to.equal(false);
+      const select = option!.parentElement as HTMLSelectElement;
+      select.value = "seed-links";
+      select.dispatchEvent(new win.Event("change", { bubbles: true }));
+      const tiers = await waitFor(() => {
+        const entries = keyEntries();
+        return entries.some((e) => e.startsWith("Cite all 2 seeds"))
+          ? entries
+          : null;
+      }, 10_000);
+      expect(tiers, `the Key read: ${keyEntries().join(" | ")}`).to.exist;
+      expect(
+        tierCount("Cite all 2 seeds"),
+        `Key: ${tiers!.join(" | ")}`,
+      ).to.equal(COUNT_FORMAT.format(1));
+      expect(tierCount("Cite 1 seed"), `Key: ${tiers!.join(" | ")}`).to.equal(
+        COUNT_FORMAT.format(2),
+      );
+
+      const input = sharedInput();
+      input.value = "2";
+      input.dispatchEvent(new win.Event("change", { bubbles: true }));
+      const narrowed = await waitFor(
+        () => (hopCounts(1)?.shown === 1 ? hopCounts(1) : null),
+        10_000,
+      );
+      expect(
+        narrowed,
+        `hop 1 read "${hopRowText(1)}"; the row read "${sharedRowText()}"`,
+      ).to.deep.equal({ shown: 1, available: 3 });
+      expect(sharedRowText()).to.include("2 below");
     });
   });
 });
