@@ -556,6 +556,8 @@ export function renderGraphView(
   let hopEnabled: boolean[] = defaultHopEnabled();
   /** The citation floor (spec: the citation floor), 0 when off. */
   let floor = 0;
+  /** The shared rule (spec: shared citers), 1 when off. */
+  let shared = 1;
   /** True from the first drag change to the release; the fill re-plans once at the end. */
   let floorDragging = false;
   /** The current seeds' keys, in the hop model's own order; empty with no model. */
@@ -1218,6 +1220,9 @@ export function renderGraphView(
   if (currentLayout.nodeColorMetric !== "citation-hop") {
     appearance.setColourOptionAvailable("citation-hop", false);
   }
+  if (currentLayout.nodeColorMetric !== "seed-links") {
+    appearance.setColourOptionAvailable("seed-links", false);
+  }
   /*
    * Both of these panels used to close only by pressing their own button
    * again, which is not how a menu behaves anywhere else in Zotero. The
@@ -1402,7 +1407,7 @@ export function renderGraphView(
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
       setFloor: (value) => setFloor(value),
-      setShared: () => undefined,
+      setShared: (value) => setShared(value),
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });
@@ -1992,7 +1997,7 @@ export function renderGraphView(
     depth: hopDepth,
     enabled: hopEnabled,
     floor,
-    shared: 1,
+    shared,
   });
   /** The save panel's Explore row: the direction and depth it will save. */
   const capturedExplore = (
@@ -2000,11 +2005,15 @@ export function renderGraphView(
   ): string | null => {
     const explore = existing
       ? existing.explore
-      : { direction: hopDirection, hops: hopDepth, floor };
+      : { direction: hopDirection, hops: hopDepth, floor, shared };
     if (!explore) return null;
     const word = explore.direction === "references" ? "references" : "citers";
     const floorPart = explore.floor ? `, floor ${explore.floor}` : "";
-    return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}${floorPart}`;
+    const sharedPart =
+      explore.shared && explore.shared > 1
+        ? `, shared ≥ ${explore.shared}`
+        : "";
+    return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}${floorPart}${sharedPart}`;
   };
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
   const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
@@ -2103,6 +2112,13 @@ export function renderGraphView(
       // Applied through the same door as the rail's field, before the
       // filters move, so the one `applyFilters` the filter change runs sees it.
       floor = Math.max(0, Math.floor(chosen.explore.floor));
+      notifyStateChange();
+    }
+    if (
+      chosen.explore?.shared !== undefined &&
+      chosen.explore.shared !== shared
+    ) {
+      shared = Math.max(1, Math.floor(chosen.explore.shared));
       notifyStateChange();
     }
     // Appearance goes through the gear's own controller, so its selects, the
@@ -2453,6 +2469,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     ensureSwatchesFor();
     renderer?.setSeedMarks(seedMarksFor(next, merged), false);
     appearance.setColourOptionAvailable("citation-hop", true);
+    appearance.setColourOptionAvailable("seed-links", next.seeds.length >= 2);
     applyFilters();
     if (options.fit) scheduleFocusFit();
     drainExpandedFitSeeds();
@@ -2829,6 +2846,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     renderer?.syncModel({ draw: false });
     renderer?.setSeedMarks(null, false);
     appearance.setColourOptionAvailable("citation-hop", false);
+    appearance.setColourOptionAvailable("seed-links", false);
     ensureSwatchesFor();
     updateFocusBar();
     applyFilters();
@@ -4066,6 +4084,9 @@ ${error instanceof Error ? error.message : String(error)}`,
         ),
         hops: hopModel ? scopeHopsInput() : null,
         floor,
+        shared: hopModel
+          ? { value: shared, seedCount: hopModel.seeds.length }
+          : undefined,
       }),
     );
   };
@@ -4139,6 +4160,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         return descriptor ? graphFilter.matches(descriptor) : false;
       },
       floor,
+      shared,
     });
     lastScope = scope;
     // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
@@ -4204,6 +4226,14 @@ ${error instanceof Error ? error.message : String(error)}`,
     const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
     if (next === floor) return;
     floor = next;
+    applyFilters();
+    notifyStateChange();
+  };
+  /** The shared rule from the rail's field or a view. */
+  const setShared = (value: number): void => {
+    const next = Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+    if (next === shared) return;
+    shared = next;
     applyFilters();
     notifyStateChange();
   };
@@ -4808,7 +4838,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       includeExternal,
       hiddenKeys: [...hiddenKeys],
       floor,
-      shared: 1,
+      shared,
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),
@@ -4846,7 +4876,10 @@ ${error instanceof Error ? error.message : String(error)}`,
    * option closes, the way `clearSeeds` closes it (re-review N4).
    */
   const seedlessColouring = (): void => {
-    if (!hopModel) appearance.setColourOptionAvailable("citation-hop", false);
+    if (!hopModel) {
+      appearance.setColourOptionAvailable("citation-hop", false);
+      appearance.setColourOptionAvailable("seed-links", false);
+    }
   };
   const applyState = (state: GraphViewState): GraphFocusResult => {
     // Opening a saved graph, or restoring a tab, selects a seed of its own
@@ -4856,6 +4889,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       hopDepth = state.hops.depth;
       hopEnabled = [...state.hops.enabled];
       floor = state.floor;
+      shared = state.shared;
       if (state.migratedFromBothDirections) {
         // A saved graph fetched both directions until Stage 3; say once
         // what it shows now, through the path B42's read-only notice uses.
@@ -5075,6 +5109,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         hopDepth = options.initialState.hops.depth;
         hopEnabled = [...options.initialState.hops.enabled];
         floor = options.initialState.floor;
+        shared = options.initialState.shared;
         // The graph's folders live in the ticks the request already set; the
         // filter controller no longer scopes the graph by folder.
         graphFilter.setState({
