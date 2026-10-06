@@ -11,7 +11,11 @@ import {
   seedRelativeCitationSequence,
   type CitationSide,
 } from "./citationSequenceService";
-import { seedLinkCount } from "./graphSeedLinks";
+import {
+  checkedSeedLinks,
+  seedLinkCount,
+  type SeedLinkCheck,
+} from "./graphSeedLinks";
 
 export type HopDirection = "cited-by" | "references";
 
@@ -75,6 +79,12 @@ export interface GraphHopInput {
   neighbours: HopNeighbourLookup;
   /** Library edges between seeds, kept as they are. */
   seedEdges?: readonly CitationGraphEdge[];
+  /**
+   * What the OpenAlex check learned about a seed or hop-1 paper (ADR 0018);
+   * undefined outside the check's gate. A hop-1 paper gains as parents the
+   * seeds the check links it to, and an edge to each.
+   */
+  checkOf?: (node: CitationGraphNode) => SeedLinkCheck | undefined;
 }
 
 export function clampHopDepth(value: unknown): number {
@@ -192,6 +202,33 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
       }
     }
     frontier = next;
+  }
+
+  // The cut at 50 drops links (ADR 0015); the check finds them (ADR 0018).
+  // Only parents and edges grow: hop membership and the counts stay.
+  const checkOf = input.checkOf;
+  if (checkOf) {
+    const hop1 = [...entries.values()].filter((entry) => entry.hop === 1);
+    const links = checkedSeedLinks(
+      input.direction,
+      seeds.map((seed) => ({ key: seed.key, check: checkOf(seed) })),
+      hop1.map((entry) => ({
+        key: entry.key,
+        check: checkOf(nodes.get(entry.key)!),
+      })),
+    );
+    for (const [key, linkedSeeds] of links) {
+      const entry = entries.get(key)!;
+      for (const seedKey of linkedSeeds) {
+        if (entry.parents.includes(seedKey)) continue;
+        entry.parents.push(seedKey);
+        const edge =
+          input.direction === "references"
+            ? hopEdge(seedKey, key, "openalex")
+            : hopEdge(key, seedKey, "openalex");
+        if (!edges.has(edge.key)) edges.set(edge.key, edge);
+      }
+    }
   }
 
   const availableByHop = Array.from({ length: depth + 1 }, () => 0);

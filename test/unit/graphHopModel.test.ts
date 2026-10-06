@@ -375,3 +375,94 @@ describe("buildGraphHopModel", function () {
     });
   });
 });
+
+describe("buildGraphHopModel with checked seed links", function () {
+  const checks: Record<string, { openAlexID: string; references: string[] }> = {
+    a: { openAlexID: "W1", references: [] },
+    b: { openAlexID: "W2", references: [] },
+    p: { openAlexID: "W10", references: ["W1", "W2"] },
+  };
+  const checkOf = (n: CitationGraphNode) => checks[n.key];
+
+  it("gives a paper in one seed's list the other seed it cites, with an edge", function () {
+    const model = buildGraphHopModel({
+      seeds: [node("a"), node("b")],
+      direction: "cited-by",
+      depth: 1,
+      neighbours: lookup({ a: ["p"], b: [] }),
+      checkOf,
+    })!;
+    expect([...model.entries.get("p")!.parents].sort()).to.deep.equal([
+      "a",
+      "b",
+    ]);
+    expect(model.edges.map((edge) => edge.key).sort()).to.deep.equal([
+      "p>a:hop",
+      "p>b:hop",
+    ]);
+    expect(model.edges.find((edge) => edge.key === "p>b:hop")).to.deep.include({
+      source: "p",
+      target: "b",
+      provenance: "openalex",
+    });
+    expect(model.availableByHop).to.deep.equal([2, 1]);
+  });
+
+  it("does not duplicate a seed that is already a parent", function () {
+    const model = buildGraphHopModel({
+      seeds: [node("a"), node("b")],
+      direction: "cited-by",
+      depth: 1,
+      neighbours: lookup({ a: ["p"], b: ["p"] }),
+      checkOf,
+    })!;
+    expect([...model.entries.get("p")!.parents].sort()).to.deep.equal([
+      "a",
+      "b",
+    ]);
+    expect(model.edges).to.have.length(2);
+  });
+
+  it("under References, draws the added edge from the seed", function () {
+    const model = buildGraphHopModel({
+      seeds: [node("a"), node("b")],
+      direction: "references",
+      depth: 1,
+      neighbours: lookup({ a: ["p"], b: [] }),
+      checkOf: (n) =>
+        n.key === "b"
+          ? { openAlexID: "W2", references: ["W10"] }
+          : checks[n.key],
+    })!;
+    expect(model.entries.get("p")!.parents).to.deep.equal(["a", "b"]);
+    expect(model.edges.find((edge) => edge.key === "b>p:hop")).to.deep.include({
+      source: "b",
+      target: "p",
+    });
+  });
+
+  it("leaves hop 2 and deeper alone", function () {
+    const model = buildGraphHopModel({
+      seeds: [node("a"), node("b")],
+      direction: "cited-by",
+      depth: 2,
+      neighbours: lookup({ a: ["x"], b: [], x: ["p"] }),
+      checkOf,
+    })!;
+    expect(model.entries.get("p")).to.deep.include({
+      hop: 2,
+      parents: ["x"],
+    });
+    expect(model.availableByHop).to.deep.equal([2, 1, 1]);
+  });
+
+  it("changes nothing without checkOf", function () {
+    const model = buildGraphHopModel({
+      seeds: [node("a"), node("b")],
+      direction: "cited-by",
+      depth: 1,
+      neighbours: lookup({ a: ["p"], b: [] }),
+    })!;
+    expect(model.entries.get("p")!.parents).to.deep.equal(["a"]);
+  });
+});
