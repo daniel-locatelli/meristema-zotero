@@ -434,6 +434,7 @@ describe("Graph view, looked at", function () {
         toggleHop: () => undefined,
         fillControl: () => undefined,
         setFloor: () => undefined,
+        setShared: () => undefined,
       },
     });
     stage.main.insertBefore(rail.root, stage.graphArea);

@@ -1402,6 +1402,7 @@ export function renderGraphView(
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
       setFloor: (value) => setFloor(value),
+      setShared: () => undefined,
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
   });

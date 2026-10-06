@@ -738,3 +738,43 @@ describe("formatRetryIn", function () {
     expect(formatRetryIn(-500)).to.equal("retry in 0 s");
   });
 });
+
+describe("the Shared by row", function () {
+  it("is absent without two seeds", function () {
+    expect(buildScopeRailModel(baseInput()).shared).to.equal(null);
+    expect(
+      buildScopeRailModel({
+        ...baseInput(),
+        shared: { value: 2, seedCount: 1 },
+      }).shared,
+    ).to.equal(null);
+  });
+
+  it("prints the value, its ceiling and how many it removed", function () {
+    const model = buildScopeRailModel({
+      ...baseInput(),
+      shared: { value: 2, seedCount: 3 },
+      scope: { ...baseInput().scope, belowSharedCount: 4 },
+    });
+    expect(model.shared).to.deep.equal({
+      value: 2,
+      max: 3,
+      belowText: "4 below",
+    });
+  });
+
+  it("reads off at 1 and clamps a value above the seed count", function () {
+    expect(
+      buildScopeRailModel({
+        ...baseInput(),
+        shared: { value: 1, seedCount: 2 },
+      }).shared,
+    ).to.deep.equal({ value: 1, max: 2, belowText: "off" });
+    expect(
+      buildScopeRailModel({
+        ...baseInput(),
+        shared: { value: 5, seedCount: 2 },
+      }).shared?.value,
+    ).to.equal(2);
+  });
+});

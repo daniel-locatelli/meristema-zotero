@@ -150,12 +150,24 @@ export interface ScopeRailModel {
   /** The Citation hops block, or null on a seedless graph. */
   hops: ScopeHopsBlock | null;
   floor: ScopeFloorRow;
+  /** The Shared by row, or null with fewer than two seeds. */
+  shared: ScopeSharedRow | null;
 }
 
 /** The Citation floor row: the field's value and the muted count beside it. */
 export interface ScopeFloorRow {
   value: number;
   /** `{n} below`, or `off` while the floor is 0. */
+  belowText: string;
+}
+
+/** The Shared by row: the field's value, its ceiling, and the count beside it. */
+export interface ScopeSharedRow {
+  /** Already clamped to 1..max. */
+  value: number;
+  /** The seed count. */
+  max: number;
+  /** `{n} below`, or `off` while the value is 1. */
   belowText: string;
 }
 
@@ -174,6 +186,8 @@ export interface ScopeRailInput {
   hops: ScopeHopsInput | null;
   /** The citation floor, 0 when off. */
   floor: number;
+  /** The shared rule and the seed count; absent on a seedless graph. */
+  shared?: { value: number; seedCount: number };
 }
 
 export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
@@ -382,6 +396,21 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
   };
 }
 
+function sharedRow(
+  shared: { value: number; seedCount: number },
+  below: number,
+): ScopeSharedRow {
+  const value = Math.min(
+    shared.seedCount,
+    Math.max(1, Math.floor(shared.value)),
+  );
+  return {
+    value,
+    max: shared.seedCount,
+    belowText: value >= 2 ? `${COUNT_FORMAT.format(below)} below` : "off",
+  };
+}
+
 export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
   const rows: ScopeRow[] = input.collections.map((collection) => {
     const descendants = descendantsOf(collection);
@@ -438,5 +467,9 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
           ? `${COUNT_FORMAT.format(input.scope.belowFloorCount)} below`
           : "off",
     },
+    shared:
+      input.shared && input.shared.seedCount >= 2
+        ? sharedRow(input.shared, input.scope.belowSharedCount)
+        : null,
   };
 }

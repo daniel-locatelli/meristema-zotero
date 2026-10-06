@@ -224,6 +224,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       cutLine: "Top 50 citers per paper, most cited first",
     },
     floor: { value: 0, belowText: "off" },
+    shared: null,
   };
 
   /**
@@ -261,6 +262,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
             toggleHop: () => undefined,
             fillControl: () => undefined,
             setFloor: () => undefined,
+            setShared: () => undefined,
           },
         });
         rail.renderScope(HOP_ROW_MODEL);

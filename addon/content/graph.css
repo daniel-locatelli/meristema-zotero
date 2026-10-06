@@ -1785,10 +1785,12 @@
   color: var(--cm-muted);
   font-size: 11px;
 }
-.cm-scope-floor-row {
+.cm-scope-floor-row,
+.cm-scope-shared-row {
   margin-top: 8px;
 }
-.cm-scope-floor-field {
+.cm-scope-floor-field,
+.cm-scope-shared-field {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -1796,7 +1798,8 @@
   color: var(--cm-muted);
   font-size: 11px;
 }
-.cm-scope-floor-input {
+.cm-scope-floor-input,
+.cm-scope-shared-input {
   width: 48px;
   height: 20px;
   padding: 0 4px;

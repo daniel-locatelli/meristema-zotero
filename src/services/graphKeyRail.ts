@@ -24,6 +24,7 @@ import {
   formatRetryIn,
   scopeSquare,
   type ScopeFloorRow,
+  type ScopeSharedRow,
   type ScopeHopRow,
   type ScopeHopsBlock,
   type ScopeHopsProgress,
@@ -160,6 +161,8 @@ export interface ScopeRailHandlers {
   fillControl(action: "stop" | "resume" | "more"): void;
   /** The Citation floor field committed a value (Enter or blur). */
   setFloor(value: number): void;
+  /** The Shared by field committed a value (Enter or blur). */
+  setShared(value: number): void;
 }
 
 export interface KeyRailOptions {
@@ -531,33 +534,50 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   }
 
   /**
-   * The floor's row: a number field and the count under it. The field is the
-   * only control when no axis shows citations, so it is always editable.
+   * A Scope row whose control is a number field: the floor's and the shared
+   * rule's. A render that arrives while the field has focus waits for its
+   * blur (see `renderScope`).
    */
-  function floorRowElement(row: ScopeFloorRow): HTMLElement {
-    const wrapper = element(document, "div", "cm-scope-row cm-scope-floor-row");
-    wrapper.append(
-      text(document, "span", "Citation floor", "cm-scope-row-label"),
+  function numberRowElement(spec: {
+    kind: "floor" | "shared";
+    label: string;
+    value: number;
+    min: number;
+    max: number | null;
+    suffix: string | null;
+    countText: string;
+    commit: (value: number) => void;
+  }): HTMLElement {
+    const wrapper = element(
+      document,
+      "div",
+      `cm-scope-row cm-scope-${spec.kind}-row`,
     );
-    const field = element(document, "label", "cm-scope-floor-field");
+    wrapper.append(text(document, "span", spec.label, "cm-scope-row-label"));
+    const field = element(document, "label", `cm-scope-${spec.kind}-field`);
     field.append(text(document, "span", "≥"));
     const input = element(
       document,
       "input",
-      "cm-scope-floor-input",
+      `cm-scope-${spec.kind}-input`,
     ) as HTMLInputElement;
     input.type = "number";
-    input.min = "0";
+    input.min = String(spec.min);
+    if (spec.max !== null) input.max = String(spec.max);
     input.step = "1";
-    input.value = String(row.value);
-    input.setAttribute("aria-label", "Citation floor");
+    input.value = String(spec.value);
+    input.setAttribute("aria-label", spec.label);
     const commit = (): void => {
       const parsed = Math.floor(Number(input.value));
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        input.value = String(row.value);
+      if (
+        !Number.isFinite(parsed) ||
+        parsed < spec.min ||
+        (spec.max !== null && parsed > spec.max)
+      ) {
+        input.value = String(spec.value);
         return;
       }
-      if (parsed !== row.value) options.onScope.setFloor(parsed);
+      if (parsed !== spec.value) spec.commit(parsed);
       else input.value = String(parsed);
     };
     input.addEventListener("change", commit);
@@ -575,11 +595,42 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       if (pending !== undefined) rail.renderScope(pending);
     });
     field.append(input);
+    if (spec.suffix) field.append(text(document, "span", spec.suffix));
     wrapper.append(
       field,
-      text(document, "span", row.belowText, "cm-scope-row-count"),
+      text(document, "span", spec.countText, "cm-scope-row-count"),
     );
     return wrapper;
+  }
+
+  /**
+   * The floor's row: a number field and the count under it. The field is the
+   * only control when no axis shows citations, so it is always editable.
+   */
+  function floorRowElement(row: ScopeFloorRow): HTMLElement {
+    return numberRowElement({
+      kind: "floor",
+      label: "Citation floor",
+      value: row.value,
+      min: 0,
+      max: null,
+      suffix: null,
+      countText: row.belowText,
+      commit: (value) => options.onScope.setFloor(value),
+    });
+  }
+
+  function sharedRowElement(row: ScopeSharedRow): HTMLElement {
+    return numberRowElement({
+      kind: "shared",
+      label: "Shared by",
+      value: row.value,
+      min: 1,
+      max: row.max,
+      suffix: "seeds",
+      countText: row.belowText,
+      commit: (value) => options.onScope.setShared(value),
+    });
   }
 
   function hopsBlockElement(block: ScopeHopsBlock): HTMLElement {
@@ -771,7 +822,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       if (
         active &&
         scopeHost.contains(active) &&
-        active.classList.contains("cm-scope-floor-input")
+        (active.classList.contains("cm-scope-floor-input") ||
+          active.classList.contains("cm-scope-shared-input"))
       ) {
         pendingScope = model;
         return;
@@ -802,6 +854,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       scopeHost.appendChild(rows);
       if (model.hops) scopeHost.appendChild(hopsBlockElement(model.hops));
       scopeHost.appendChild(floorRowElement(model.floor));
+      if (model.shared) scopeHost.appendChild(sharedRowElement(model.shared));
       if (model.hiddenLine) {
         const hidden = element(document, "p", "cm-scope-hidden");
         hidden.append(text(document, "span", model.hiddenLine));
