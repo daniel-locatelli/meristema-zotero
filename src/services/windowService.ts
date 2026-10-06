@@ -29,6 +29,7 @@ import {
   renameSavedGraph,
   updateSavedGraph,
 } from "./savedGraphService";
+import { createFrameOrTimer } from "./frameOrTimer";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import {
   installDataSourceHoverTooltips,
@@ -1287,12 +1288,15 @@ function renderTab(
   const generation = instance.renderGeneration;
   prepareContainer(win, instance, container);
   installDataSourceHoverTooltips(win.document);
+  // A covered window is delivered no frames, and a tab whose first render
+  // waits on one alone never mounts; the timer fallback mounts it anyway.
+  const frames = createFrameOrTimer(() => (win.closed ? null : win), win);
   let attempts = 10;
   const render = (): void => {
     if (win.closed || generation !== instance.renderGeneration) return;
     if (!container.isConnected && attempts > 0) {
       attempts -= 1;
-      win.setTimeout(() => win.requestAnimationFrame(render), 50);
+      win.setTimeout(() => frames.request(render), 50);
       return;
     }
     const request = consumePendingRequest(instance);
@@ -1338,7 +1342,7 @@ function renderTab(
         }),
     );
   };
-  win.requestAnimationFrame(render);
+  frames.request(render);
 }
 
 function instanceMount(
