@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
+  canonicalOpenAlexID,
+  checkedSeedLinks,
+  openAlexIdentifiersOf,
   seedLinkCount,
   seedLinkLabelRank,
   seedLinkRampIndex,
@@ -79,5 +82,107 @@ describe("seedLinkLabelRank", function () {
     expect(seedLinkLabelRank("a", marks)).to.equal(2);
     expect(seedLinkLabelRank("b", marks)).to.equal(1);
     expect(seedLinkLabelRank("deep", marks)).to.equal(0);
+  });
+});
+
+describe("openAlexIdentifiersOf", function () {
+  const bare = {
+    provider: null,
+    providerWorkID: null,
+    sourceMetrics: null,
+    externalWork: null,
+    doi: null,
+  };
+
+  it("takes the node's own ID when OpenAlex is its provider", function () {
+    expect(
+      openAlexIdentifiersOf({
+        ...bare,
+        provider: "openalex",
+        providerWorkID: "https://openalex.org/w123",
+        sourceMetrics: {
+          libraryUpdateState: { providerWorkIDs: { openalex: "W9" } },
+        } as never,
+      }),
+    ).to.deep.equal({ openAlexID: "W123", doi: null });
+  });
+
+  it("falls back to the library update's IDs, then the external work's", function () {
+    expect(
+      openAlexIdentifiersOf({
+        ...bare,
+        provider: "semantic-scholar",
+        providerWorkID: "abc",
+        sourceMetrics: {
+          libraryUpdateState: { providerWorkIDs: { openalex: "W77" } },
+        } as never,
+      }).openAlexID,
+    ).to.equal("W77");
+    expect(
+      openAlexIdentifiersOf({
+        ...bare,
+        externalWork: { provider: "openalex", providerWorkID: "W5" } as never,
+      }).openAlexID,
+    ).to.equal("W5");
+  });
+
+  it("rejects an ID that is not a work ID", function () {
+    expect(canonicalOpenAlexID("A123")).to.equal(null);
+    expect(canonicalOpenAlexID("")).to.equal(null);
+    expect(
+      openAlexIdentifiersOf({
+        ...bare,
+        provider: "openalex",
+        providerWorkID: "S42",
+      }).openAlexID,
+    ).to.equal(null);
+  });
+
+  it("normalises the DOI, from the node or its external work", function () {
+    expect(
+      openAlexIdentifiersOf({ ...bare, doi: "https://doi.org/10.1234/ABC" })
+        .doi,
+    ).to.equal("10.1234/abc");
+    expect(
+      openAlexIdentifiersOf({
+        ...bare,
+        externalWork: { provider: "crossref", doi: "10.2345/X" } as never,
+      }).doi,
+    ).to.equal("10.2345/x");
+  });
+});
+
+describe("checkedSeedLinks", function () {
+  const A = { key: "a", check: { openAlexID: "W1", references: [] } };
+  const B = { key: "b", check: { openAlexID: "W2", references: ["W10"] } };
+
+  it("under Citers, links a paper to every seed in its references", function () {
+    const links = checkedSeedLinks(
+      "cited-by",
+      [A, B],
+      [{ key: "p", check: { openAlexID: "W10", references: ["W1", "W2"] } }],
+    );
+    expect(links.get("p")).to.deep.equal(["a", "b"]);
+  });
+
+  it("under References, links a paper to every seed whose references hold it", function () {
+    const links = checkedSeedLinks(
+      "references",
+      [A, B],
+      [{ key: "p", check: { openAlexID: "W10", references: [] } }],
+    );
+    expect(links.get("p")).to.deep.equal(["b"]);
+  });
+
+  it("learns nothing from a seed or a paper with no check", function () {
+    const links = checkedSeedLinks(
+      "cited-by",
+      [{ key: "a" }, B],
+      [
+        { key: "p", check: { openAlexID: "W10", references: ["W1"] } },
+        { key: "q" },
+      ],
+    );
+    expect(links.size).to.equal(0);
   });
 });

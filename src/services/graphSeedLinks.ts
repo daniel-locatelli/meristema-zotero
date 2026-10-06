@@ -4,9 +4,14 @@
  * the colouring, the Key and the label order read one definition.
  *
  * Only hop 1 has a count. Deeper papers are not graded, and a seed is a seed.
- * The count is of the links the graph holds: a seed's hop-1 list is cut at 50
- * (ADR 0015), so a paper citing two seeds that made one cut reads 1.
+ * The count is of the links the graph knows: the stored lists, cut at 50
+ * (ADR 0015), and, with an OpenAlex key, the reference lists OpenAlex holds
+ * for the seeds and hop-1 papers (ADR 0018), which find the links the cut
+ * dropped.
  */
+import type { CitationGraphNode } from "../domain/graphTypes";
+import { normalizeDOI } from "../domain/workIdentity";
+import { shortOpenAlexID } from "../providers/providerIdentifiers";
 import type { HopDirection, SeedMarks } from "./graphHopModel";
 
 /** What the colouring reads, per paper, and what its labels need. */
@@ -70,4 +75,77 @@ export function seedLinkLabelRank(
 ): number {
   if (marks.seedKeys.has(key)) return Number.MAX_SAFE_INTEGER;
   return marks.seedLinks.get(key) ?? 0;
+}
+
+/** What the check learned about one paper (ADR 0018). */
+export interface SeedLinkCheck {
+  openAlexID: string;
+  references: readonly string[];
+}
+
+export interface OpenAlexIdentifiers {
+  openAlexID: string | null;
+  doi: string | null;
+}
+
+/** An OpenAlex work ID in the one form the check stores, or null. */
+export function canonicalOpenAlexID(value: unknown): string | null {
+  const id = shortOpenAlexID(value);
+  return id && /^W\d+$/i.test(id) ? id.toLocaleUpperCase() : null;
+}
+
+/** The identifiers the check asks OpenAlex by, for a seed or a hop-1 paper. */
+export function openAlexIdentifiersOf(
+  node: Pick<
+    CitationGraphNode,
+    "provider" | "providerWorkID" | "sourceMetrics" | "externalWork" | "doi"
+  >,
+): OpenAlexIdentifiers {
+  const candidates = [
+    node.provider === "openalex" ? node.providerWorkID : null,
+    node.sourceMetrics?.libraryUpdateState?.providerWorkIDs?.openalex,
+    node.externalWork?.provider === "openalex"
+      ? node.externalWork.providerWorkID
+      : null,
+  ];
+  let openAlexID: string | null = null;
+  for (const candidate of candidates) {
+    openAlexID = canonicalOpenAlexID(candidate);
+    if (openAlexID) break;
+  }
+  return {
+    openAlexID,
+    doi: normalizeDOI(node.doi ?? node.externalWork?.doi),
+  };
+}
+
+export interface CheckedPaper {
+  key: string;
+  check?: SeedLinkCheck;
+}
+
+/**
+ * The seeds each hop-1 paper links to by the check: under Citers the seeds in
+ * its references, under References the seeds whose references hold it.
+ */
+export function checkedSeedLinks(
+  direction: HopDirection,
+  seeds: readonly CheckedPaper[],
+  hop1: readonly CheckedPaper[],
+): Map<string, string[]> {
+  const links = new Map<string, string[]>();
+  for (const paper of hop1) {
+    if (!paper.check) continue;
+    const found: string[] = [];
+    for (const seed of seeds) {
+      if (!seed.check || seed.key === paper.key) continue;
+      const linked =
+        direction === "references"
+          ? seed.check.references.includes(paper.check.openAlexID)
+          : paper.check.references.includes(seed.check.openAlexID);
+      if (linked) found.push(seed.key);
+    }
+    if (found.length) links.set(paper.key, found);
+  }
+  return links;
 }
