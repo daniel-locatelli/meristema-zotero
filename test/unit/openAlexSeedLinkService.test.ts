@@ -33,6 +33,10 @@ const { checkOpenAlexReferences, CHECK_SELECT } =
 
 const AT = new Date("2026-10-06T00:00:00Z");
 const options = { apiKey: "k", now: () => AT };
+const signal = {
+  cancelled: false,
+  subscribe: () => () => undefined,
+};
 
 function filterValues(url: URL): { field: string; values: string[] } {
   const [field, rest] = (url.searchParams.get("filter") ?? "").split(":", 2);
@@ -76,7 +80,7 @@ describe("checkOpenAlexReferences", function () {
         { key: "a", openAlexID: "W1", doi: null },
         { key: "b", openAlexID: null, doi: "10.1234/b" },
       ],
-      options,
+      { ...options, signal },
     );
     expect(calls.map((c) => filterValues(new URL(c.url)))).to.deep.equal([
       { field: "ids.openalex", values: ["W1"] },
@@ -87,6 +91,7 @@ describe("checkOpenAlexReferences", function () {
     expect(url.searchParams.get("per_page")).to.equal("200");
     expect(url.searchParams.get("api_key")).to.equal("k");
     expect(calls[0].options.retryRefusals).to.equal(false);
+    expect(calls[0].options.signal).to.equal(signal);
     expect(outcome.failed).to.deep.equal([]);
     expect(
       outcome.rows.map((r) => [r.identityKey, r.status, r.referenceIDs]),
@@ -190,6 +195,72 @@ describe("checkOpenAlexReferences", function () {
       ["openalex:W1", "success"],
       ["openalex:W3", "success"],
       ["openalex:W2", "not-found"],
+    ]);
+  });
+
+  it("matches results by value, not by position", async function () {
+    const work = (id: string, ref: string) => ({
+      id: `https://openalex.org/${id}`,
+      doi: null,
+      referenced_works: [`https://openalex.org/${ref}`],
+    });
+    respond = (url) =>
+      filterValues(url).field === "ids.openalex"
+        ? ok([work("W3", "W30"), work("W1", "W10")])
+        : ok([]);
+    const outcome = await checkOpenAlexReferences(
+      [
+        { key: "a", openAlexID: "W1", doi: null },
+        { key: "b", openAlexID: "W2", doi: "10.1234/two" },
+        { key: "c", openAlexID: "W3", doi: null },
+      ],
+      options,
+    );
+    expect(calls.map((c) => filterValues(new URL(c.url)))).to.deep.equal([
+      { field: "ids.openalex", values: ["W1", "W2", "W3"] },
+      { field: "doi", values: ["10.1234/two"] },
+    ]);
+    expect(outcome.failed).to.deep.equal([]);
+    expect(
+      outcome.rows.map((r) => [r.identityKey, r.status, r.referenceIDs]),
+    ).to.deep.equal([
+      ["openalex:W1", "success", ["W10"]],
+      ["openalex:W3", "success", ["W30"]],
+      ["openalex:W2", "not-found", null],
+      ["doi:10.1234/two", "not-found", null],
+    ]);
+  });
+
+  it("retries by DOI a paper rejected alone in the ID pass", async function () {
+    respond = (url) => {
+      const { field, values } = filterValues(url);
+      if (field === "ids.openalex") {
+        return values.includes("W2")
+          ? failed(400)
+          : answering([{ id: "W1", refs: [] }])(url);
+      }
+      return answering([{ id: "W2", doi: "10.1234/two", refs: ["W5"] }])(url);
+    };
+    const outcome = await checkOpenAlexReferences(
+      [
+        { key: "a", openAlexID: "W1", doi: null },
+        { key: "b", openAlexID: "W2", doi: "10.1234/two" },
+      ],
+      options,
+    );
+    expect(calls.map((c) => filterValues(new URL(c.url)))).to.deep.equal([
+      { field: "ids.openalex", values: ["W1", "W2"] },
+      { field: "ids.openalex", values: ["W1"] },
+      { field: "ids.openalex", values: ["W2"] },
+      { field: "doi", values: ["10.1234/two"] },
+    ]);
+    expect(outcome.failed).to.deep.equal([]);
+    expect(
+      outcome.rows.map((r) => [r.identityKey, r.status, r.referenceIDs]),
+    ).to.deep.equal([
+      ["openalex:W1", "success", []],
+      ["openalex:W2", "success", ["W5"]],
+      ["doi:10.1234/two", "alias", null],
     ]);
   });
 });
