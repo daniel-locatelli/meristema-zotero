@@ -199,14 +199,12 @@ change. Three readers of parents change behaviour, as intended:
   `|` and answering both `ids.openalex:` and `doi:`. A new fourth citer sits
   only in seed A's list, and its `referenced_works` holds B. The case's tier
   counts and `n below` are recomputed for four citers, and it asserts the new
-  citer reads `Cite all 2 seeds` and survives `Shared by ≥ 2`. Its `before()`
-  clears the new table, so no earlier run's entries answer for the fake.
-- Zotero, the D8 case: its "no hydration" assertion matches any
-  `filter=ids.openalex|doi` URL naming a hop-1 citer, which the check now
-  sends. It excludes URLs carrying `select=id%2Cdoi%2Creferenced_works` (as
-  encoded), and asserts there is at most one such request. The floor block's
-  fake answers unknown filters with no results, so its papers are recorded
-  not-found; nothing there should change, and the run confirms it.
+  citer reads `Cite all 2 seeds` and survives `Shared by ≥ 2`. Its OpenAlex
+  IDs and DOIs are unique per run: the table persists in the test profile,
+  and the test bundle is a second copy of the plugin that cannot clear the
+  plugin's own mirror.
+- Zotero, the D8 and floor cases seed one paper each, so the gate stays
+  closed and their URL assertions are untouched; the full run confirms it.
 
 ## Manual verification
 
