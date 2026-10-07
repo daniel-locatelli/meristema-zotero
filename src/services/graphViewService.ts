@@ -1264,6 +1264,10 @@ export function renderGraphView(
     (layout) => {
       currentLayout = layout;
       renderer?.setLayout(layout);
+      // A layout change does not end in `updateSummary`, so the Key is
+      // rebuilt here: without it the rail went on naming the last colouring
+      // until something else happened to refresh it (B52).
+      refreshKeyRail();
       fitCurrentGraph();
       refreshSourceMetricsForLayout(layout);
       refreshViewChip();

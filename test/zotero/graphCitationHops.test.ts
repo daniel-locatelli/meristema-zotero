@@ -3234,5 +3234,55 @@ describe("Citation hops (Stage 3)", function () {
       expect(back, `the Key read: ${keyEntries().join(" | ")}`).to.exist;
       expect(checkRequests, "checks asked with the key back").to.equal(asked);
     });
+
+    /**
+     * B52: the Key follows the gear's colouring on its own. A layout change
+     * never reached `updateSummary`, so on a graph whose fill had gone quiet
+     * the rail went on naming the hop colours under Uniform. The Key is read
+     * straight after the change, before anything else can rebuild it.
+     */
+    it("drops the hop colours from the Key when the colouring leaves Citation hop", async function () {
+      this.timeout(120_000);
+      const colouring = (metric: string): void => {
+        const option = graphRoot().querySelector(
+          `option[data-metric="${metric}"]`,
+        ) as HTMLOptionElement | null;
+        expect(option, `the ${metric} option`).to.exist;
+        const select = option!.parentElement as HTMLSelectElement;
+        select.value = metric;
+        select.dispatchEvent(new win.Event("change", { bubbles: true }));
+      };
+      const hopRows = (): string[] =>
+        // "Seed" is also a state row, so only the hop rows tell the
+        // colouring apart.
+        keyEntries().filter((entry) => /^Hop \d/.test(entry));
+
+      let seen = openAlexRequests;
+      let since = Date.now();
+      const deadline = since + 60_000;
+      while (Date.now() < deadline && Date.now() - since < 3_000) {
+        await delay(500);
+        if (openAlexRequests !== seen) {
+          seen = openAlexRequests;
+          since = Date.now();
+        }
+      }
+
+      colouring("citation-hop");
+      expect(
+        hopRows(),
+        `under Citation hop the Key read: ${keyEntries().join(" | ")}`,
+      ).to.not.be.empty;
+
+      colouring("uniform");
+      expect(
+        hopRows(),
+        `under Uniform the Key read: ${keyEntries().join(" | ")}`,
+      ).to.be.empty;
+      expect(
+        keyEntries().some((entry) => entry.startsWith("Paper")),
+        `under Uniform the Key read: ${keyEntries().join(" | ")}`,
+      ).to.equal(true);
+    });
   });
 });

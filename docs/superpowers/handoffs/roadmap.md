@@ -150,9 +150,6 @@ opacity grade).
 - [ ] D9 under the Citation hop colouring the rail shows the hop colours
       twice, on the hop rows and in the Key's Color section. Both are
       specified; decide which yields
-- [ ] B52 the Key keeps the hop colours after the colouring changes away from
-      Citation hop, so the rail states a colouring the plot is not using.
-      Distinct from D9
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
