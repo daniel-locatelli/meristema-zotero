@@ -393,8 +393,8 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `96005c5` (94/0, B77),
-so count with `git log 96005c5..main --oneline`.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `ca206aa` (94/0, B65, B66, B68),
+so count with `git log ca206aa..main --oneline`.
 A clean run is 94 passed, 0 failed as of 2026-10-07 (B79's key-removal case
 added).
 
@@ -493,3 +493,7 @@ entries are in git history.
 - 2026-10-07, later: B77 fixed: OpenAlex's arrival references page reports
   `referenced_works_count` (never below the list's length), cached with the
   IDs; it agreed with the list on 75 sampled works.
+- 2026-10-07, later: B65, B66 and B68 shipped in parallel worktrees
+  (`2425de6..ca206aa`): a throwing `onTimeout` settles its call, one
+  `providerHintFor` rule, the refresh's refusal composition under unit tests.
+  Full suite 94/0 at `ca206aa`.
