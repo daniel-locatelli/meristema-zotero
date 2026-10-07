@@ -1,8 +1,13 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import type { CitationProviderID } from "../../src/domain/citationTypes";
+import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import type { RelationshipProviderSnapshot } from "../../src/providers/relationshipPolicy";
-import { askUntilNotRefused } from "../../src/services/externalDiscoveryService";
+import {
+  askUntilNotRefused,
+  providerHintFor,
+  providerSupportsPaper,
+} from "../../src/services/externalDiscoveryService";
 
 /** A snapshot that succeeded with no works, unless told otherwise. */
 function snapshot(
@@ -99,5 +104,93 @@ describe("askUntilNotRefused", function () {
     );
     expect(asked).to.deep.equal([]);
     expect(results).to.deep.equal([]);
+  });
+});
+
+/**
+ * A paper OpenAlex cannot reach by identifier or title, so only a work ID
+ * hint makes it askable.
+ */
+function bareNode(over: Partial<CitationGraphNode> = {}): CitationGraphNode {
+  return {
+    title: "",
+    authors: [],
+    doi: null,
+    sourceTitle: null,
+    year: null,
+    externalWork: null,
+    provider: null,
+    providerWorkID: null,
+    ...over,
+  } as unknown as CitationGraphNode;
+}
+
+describe("providerSupportsPaper", function () {
+  it("cannot ask a provider with no identifier, title or work ID", function () {
+    expect(providerSupportsPaper("openalex", bareNode(), {})).to.equal(false);
+  });
+
+  it("asks a provider the hints hold a work ID for", function () {
+    expect(
+      providerSupportsPaper("openalex", bareNode(), { openalex: "W1" }),
+    ).to.equal(true);
+  });
+
+  it("asks the paper's own provider with its work ID", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "W1" });
+    expect(providerSupportsPaper("openalex", node, {})).to.equal(true);
+  });
+
+  it("ignores the work ID of another provider", function () {
+    const node = bareNode({
+      provider: "semantic-scholar",
+      providerWorkID: "abc",
+    });
+    expect(providerSupportsPaper("openalex", node, {})).to.equal(false);
+  });
+
+  it("falls back past an empty hint to the paper's own work ID", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "W1" });
+    expect(providerSupportsPaper("openalex", node, { openalex: "" })).to.equal(
+      true,
+    );
+  });
+
+  it("takes a whitespace-only work ID for none", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "  " });
+    expect(providerSupportsPaper("openalex", node, {})).to.equal(false);
+  });
+});
+
+describe("providerHintFor", function () {
+  it("prefers the caller's hint to the paper's own work ID", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "W1" });
+    expect(providerHintFor(node, { openalex: "W2" }, "openalex")).to.equal(
+      "W2",
+    );
+  });
+
+  it("falls back past an empty hint to the paper's own work ID", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "W1" });
+    expect(providerHintFor(node, { openalex: "" }, "openalex")).to.equal("W1");
+  });
+
+  it("takes a whitespace-only work ID for none", function () {
+    const node = bareNode({ provider: "openalex", providerWorkID: "  " });
+    expect(providerHintFor(node, {}, "openalex")).to.equal(null);
+  });
+
+  it("trims the work ID it hands back", function () {
+    expect(
+      providerHintFor(bareNode(), { openalex: " W2 " }, "openalex"),
+    ).to.equal("W2");
+  });
+
+  it("ignores the work ID of another provider", function () {
+    const node = bareNode({
+      provider: "semantic-scholar",
+      providerWorkID: "abc",
+    });
+    expect(providerHintFor(node, {}, "openalex")).to.equal(null);
   });
 });

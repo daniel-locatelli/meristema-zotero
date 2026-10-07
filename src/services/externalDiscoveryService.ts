@@ -1299,10 +1299,11 @@ async function fetchProviderRelationshipSnapshot(
           return page.works;
         }
       : nativeFetcher;
-    const hintedProviderWorkID =
-      providerWorkIDs[providerID] ??
-      (providerID === node.provider ? node.providerWorkID : null) ??
-      null;
+    const hintedProviderWorkID = providerHintFor(
+      node,
+      providerWorkIDs,
+      providerID,
+    );
     const match = hintedProviderWorkID
       ? null
       : await withProviderTimeout(
@@ -1686,10 +1687,31 @@ export function hopFillPagingProviders(
 }
 
 /**
+ * The provider's work ID for this paper, if one is already known: the
+ * caller's hint, else the paper's own ID when the provider is its own. Blank
+ * IDs count as none (B66).
+ *
+ * Exported for its own unit test.
+ */
+export function providerHintFor(
+  node: CitationGraphNode,
+  hints: ProviderIdentityHints,
+  providerID: CitationProviderID,
+): string | null {
+  return (
+    hints[providerID]?.trim() ||
+    (providerID === node.provider ? node.providerWorkID?.trim() : null) ||
+    null
+  );
+}
+
+/**
  * Whether a provider can be asked for this paper's list at all: it takes one
  * of the paper's identifiers, holds a work ID for it, or can search its title.
+ *
+ * Exported for its own unit test (B66).
  */
-function providerSupportsPaper(
+export function providerSupportsPaper(
   providerID: CitationProviderID,
   node: CitationGraphNode,
   providerWorkIDs: ProviderIdentityHints,
@@ -1698,8 +1720,7 @@ function providerSupportsPaper(
   const identifiers = workIdentifiersForGraphNode(node);
   return (
     provider.supports(identifiers) ||
-    Boolean(providerWorkIDs[providerID]) ||
-    (providerID === node.provider && Boolean(node.providerWorkID?.trim())) ||
+    providerHintFor(node, providerWorkIDs, providerID) !== null ||
     Boolean(provider.searchExactTitle && identifiers.normalizedTitle)
   );
 }

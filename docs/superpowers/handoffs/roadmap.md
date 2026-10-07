@@ -149,9 +149,6 @@ opacity grade).
       refusal, the no-candidate return publishing nothing, the
       `refusedBy`/`skipped`/`answeredBy` population, and a refused snapshot
       dropped from an aggregate manual refresh are exercised only by probe runs
-- [ ] B66 `providerSupportsPaper` duplicates the hint logic in
-      `externalDiscoveryService.ts`; extract one
-      `providerHintFor(node, hints, provider)`
 
 ## The rail and the Key
 
