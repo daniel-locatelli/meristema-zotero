@@ -13,28 +13,30 @@ import { delay } from "./visualHarness";
 
 const COLLECTION_NAME = "Stage 3 hops";
 /**
- * One library paper, and a DOI the providers know in both directions. An open
- * access article on purpose: a hop expansion asks one provider only, the first
- * of the automatic order, and that is Semantic Scholar for both directions —
- * which serves no reference list at all for a paper whose publisher elides it
- * (an Elsevier DOI here left References stuck at 0/0 while the aggregating
- * Refresh button found twenty). Nine citers and sixty-two references at the
- * time of writing: small enough that a hop-2 fill lands in seconds, large
- * enough that every count the ladder shows is non-zero.
+ * Every fixture DOI and work ID carries the whole clock, never a slice of it
+ * that repeats (B79): lists and checks persist in the test profile, and a
+ * paper an earlier run stored is one the fill never asks for again.
+ */
+const RUN = String(Date.now());
+/**
+ * One library paper, served by the suite's own index (B74) in both
+ * directions. Six citers and three references: small enough that a hop-2
+ * fill lands in seconds, large enough that every count the ladder shows is
+ * non-zero.
  */
 const FIXTURE_TITLE = "Stage 3 hop fixture";
-const FIXTURE_DOI = "10.1371/journal.pone.0146320";
+const FIXTURE_DOI = `10.5555/hops.${RUN}.seed`;
 const SAVED_GRAPH_NAME = "Stage 3 hop graph";
 const V4_GRAPH_NAME = "Stage 3 v4 both";
 /** The one-time notice a version 4 `both` record earns on open. */
 const BOTH_NOTICE = "Directions are now one at a time; showing Citers";
 /**
- * B50's paper: one the fill has never expanded, whose DOI OpenCitations
- * indexes with citers (32 on 2026-09-15), so once the providers answer again
- * hop 1 fills from whichever answers first.
+ * B50's paper: one the fill has never expanded, with citers in the served
+ * index, so once the providers answer again hop 1 fills from whichever
+ * answers first.
  */
 const REFUSAL_TITLE = "Stage 3 refusal fixture";
-const REFUSAL_DOI = "10.1371/journal.pone.0043136";
+const REFUSAL_DOI = `10.5555/hops.${RUN}.refusal`;
 /** Every provider a fill may ask. The wrapper answers these with HTTP 429. */
 const REFUSED_URL =
   /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org)\//;
@@ -130,11 +132,9 @@ const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** The layout a graph opens with, kept out here for the same reason. */
 const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;
 /**
- * The shared-citers block's fixtures (Stage 4, B78). Unique per run, the
- * whole clock and not a slice of it that repeats (B79): the check's answers
- * persist in the test profile for up to 180 days.
+ * The shared-citers block's fixtures (Stage 4, B78), unique per run: the
+ * check's answers persist in the test profile for up to 180 days.
  */
-const RUN = String(Date.now());
 const W = (n: number): string => `W9${RUN}${n}`;
 const SEED_A = {
   doi: `10.5555/shared.${RUN}.a`,
@@ -170,6 +170,172 @@ function providerRefusal(): unknown {
 /** A provider answering, with the body the case wants it to answer. */
 function providerAnswer(responseText: string): unknown {
   return { status: 200, responseText, getResponseHeader: () => null };
+}
+/** A provider that does not know the paper: final, unlike a refusal. */
+function providerNotFound(): unknown {
+  return { status: 404, responseText: "", getResponseHeader: () => null };
+}
+
+/**
+ * The index the whole suite is served from (B74). Keyless Semantic Scholar
+ * throttled the suite against itself: a second full run within the hour was
+ * refused, and the hop cases read `0/0` with nothing broken. So every
+ * provider host is answered here, and nothing reaches the network.
+ *
+ * Semantic Scholar is first in both automatic orders, so it carries the
+ * fills; OpenCitations answers too, for B50's seed while Semantic Scholar is
+ * still sitting out its window. Every count is honest (a list as long as the
+ * count beside it), so no fill moves on to another provider. Each answer
+ * waits a little, as a real one does: the Refresh case needs a fill it can
+ * catch running.
+ *
+ * The blocks after the ten cases install wrappers of their own over this
+ * one. Each answers its own provider traffic and hands the rest down, so
+ * they run as they did before.
+ */
+interface ServedPaper {
+  id: string;
+  doi: string;
+  title: string;
+  year: number;
+  cites: readonly string[];
+}
+const SERVED_LATENCY_MS = 400;
+const served = (n: string, title: string, year: number, cites: string[]) => ({
+  id: `hops${RUN}${n}`,
+  doi: `10.5555/hops.${RUN}.${n}`,
+  title,
+  year,
+  cites,
+});
+const servedID = (n: string): string => `hops${RUN}${n}`;
+/**
+ * The fixture cites three papers, one of which cites a fourth, so References
+ * reaches hop 2. Six papers cite the fixture, and one paper cites all six,
+ * so every hop-1 expansion under Citers finds a citer and the fill stays
+ * busy for six round trips.
+ */
+const HOP_CITERS = ["c1", "c2", "c3", "c4", "c5", "c6"];
+const SERVED_PAPERS: readonly ServedPaper[] = [
+  {
+    ...served("seed", FIXTURE_TITLE, 2015, ["r1", "r2", "r3"].map(servedID)),
+    doi: FIXTURE_DOI,
+  },
+  served("r1", "Stage 3 reference one", 2010, [servedID("r4")]),
+  served("r2", "Stage 3 reference two", 2011, []),
+  served("r3", "Stage 3 reference three", 2012, []),
+  served("r4", "Stage 3 reference of a reference", 2005, []),
+  ...HOP_CITERS.map((n, index) =>
+    served(n, `Stage 3 citer ${n}`, 2016 + index, [servedID("seed")]),
+  ),
+  served("d1", "Stage 3 citer of citers", 2023, HOP_CITERS.map(servedID)),
+  {
+    ...served("refusal", REFUSAL_TITLE, 2012, []),
+    doi: REFUSAL_DOI,
+  },
+  served("e1", "Stage 3 refusal citer one", 2014, [servedID("refusal")]),
+  served("e2", "Stage 3 refusal citer two", 2015, [servedID("refusal")]),
+];
+
+function servedPaper(identifier: string): ServedPaper | undefined {
+  const doi = /^doi:(.+)$/i.exec(identifier)?.[1]?.toLowerCase();
+  return SERVED_PAPERS.find((paper) =>
+    doi ? paper.doi.toLowerCase() === doi : paper.id === identifier,
+  );
+}
+
+function citersOf(paper: ServedPaper): ServedPaper[] {
+  return SERVED_PAPERS.filter((other) => other.cites.includes(paper.id));
+}
+
+function referencesOf(paper: ServedPaper): ServedPaper[] {
+  return paper.cites.map((id) => servedPaper(id)!);
+}
+
+function semanticScholarPaper(paper: ServedPaper): unknown {
+  return {
+    paperId: paper.id,
+    externalIds: { DOI: paper.doi },
+    title: paper.title,
+    year: paper.year,
+    publicationDate: `${paper.year}-01-01`,
+    authors: [{ authorId: "1", name: "A. Author" }],
+    citationCount: citersOf(paper).length,
+    referenceCount: paper.cites.length,
+  };
+}
+
+/** Semantic Scholar's lookup, relation pages and batch, from the index. */
+function semanticScholarAnswer(url: URL, options: any): unknown {
+  if (url.pathname.endsWith("/paper/batch")) {
+    const ids = (JSON.parse(String(options?.body ?? "{}")).ids ??
+      []) as string[];
+    return providerAnswer(
+      JSON.stringify(
+        ids.map((id) => {
+          const paper = servedPaper(id);
+          return paper ? semanticScholarPaper(paper) : null;
+        }),
+      ),
+    );
+  }
+  const match =
+    /^\/graph\/v1\/paper\/([^/]+)(?:\/(citations|references))?$/.exec(
+      url.pathname,
+    );
+  const paper = match ? servedPaper(decodeURIComponent(match[1]!)) : undefined;
+  if (!paper) return providerNotFound();
+  if (!match![2])
+    return providerAnswer(JSON.stringify(semanticScholarPaper(paper)));
+  const rows =
+    match![2] === "citations"
+      ? citersOf(paper).map((p) => ({ citingPaper: semanticScholarPaper(p) }))
+      : referencesOf(paper).map((p) => ({
+          citedPaper: semanticScholarPaper(p),
+        }));
+  const offset = Number(url.searchParams.get("offset") ?? 0);
+  const limit = Number(url.searchParams.get("limit") ?? 100);
+  const page = rows.slice(offset, offset + limit);
+  return providerAnswer(
+    JSON.stringify({
+      data: page,
+      ...(offset + limit < rows.length ? { next: offset + limit } : {}),
+    }),
+  );
+}
+
+/** OpenCitations' citation and reference rows, from the index. */
+function openCitationsAnswer(url: URL): unknown {
+  const match = /\/index\/v1\/(citations|references)\/(.+)$/.exec(url.pathname);
+  const paper = match
+    ? servedPaper(`doi:${decodeURIComponent(match[2]!)}`)
+    : undefined;
+  if (!paper) return providerAnswer("[]");
+  return providerAnswer(
+    JSON.stringify(
+      match![1] === "citations"
+        ? citersOf(paper).map((p) => ({
+            citing: p.doi,
+            creation: `${p.year}-01-01`,
+          }))
+        : referencesOf(paper).map((p) => ({ cited: p.doi })),
+    ),
+  );
+}
+
+/** Every provider host, answered from the index; anything else goes out. */
+function serveIndex(live: any): (...args: any[]) => Promise<unknown> {
+  return async (method: string, url: string, options?: unknown) => {
+    if (!PROVIDER_HOST.test(url))
+      return live.call(Zotero.HTTP, method, url, options);
+    await delay(SERVED_LATENCY_MS);
+    const parsed = new URL(url);
+    if (SEMANTIC_SCHOLAR_HOST.test(url))
+      return semanticScholarAnswer(parsed, options);
+    if (/opencitations\.net$/.test(parsed.hostname))
+      return openCitationsAnswer(parsed);
+    return providerNotFound();
+  };
 }
 
 function shown(popup: Element): Promise<void> {
@@ -212,10 +378,10 @@ function normalize(value: string | null | undefined): string {
 /**
  * The citation hop ladder, walked through the plugin's own chrome. The test
  * bundle is a second copy of the plugin, so nothing here reaches into a view:
- * a graph is opened from Tools › Meristema › New Graph, a library paper with
- * a real DOI is made a seed from the plot's own node menu, and every outcome
- * is read from the rendered rail. The providers are live, so the waits are
- * generous and every failure carries the counts it saw.
+ * a graph is opened from Tools › Meristema › New Graph, a library paper the
+ * served index knows is made a seed from the plot's own node menu, and every
+ * outcome is read from the rendered rail. Every failure carries the counts it
+ * saw.
  *
  * The cases run in order against that one graph: the seed the first adds is
  * the ladder the rest walk, and the sixth saves what the first five left.
@@ -240,6 +406,8 @@ describe("Citation hops (Stage 3)", function () {
   /** Set while File › Save's name dialog is answered by the suite. */
   let promptStubbed = false;
   let realPrompt: any = null;
+  /** `Zotero.HTTP.request` as the suite found it, while the index serves. */
+  let liveRequest: any = null;
 
   function tabContent(id: string | null): HTMLElement | null {
     if (!id) return null;
@@ -732,6 +900,10 @@ describe("Citation hops (Stage 3)", function () {
   before(async function () {
     this.timeout(90_000);
     win = Zotero.getMainWindows()[0];
+    // Before the fixture is saved: saving it queues an automatic update that
+    // asks the providers about it.
+    liveRequest = Zotero.HTTP.request;
+    (Zotero.HTTP as any).request = serveIndex(liveRequest);
     const libraryID = Zotero.Libraries.userLibraryID;
     const collection = new Zotero.Collection();
     collection.libraryID = libraryID;
@@ -828,12 +1000,14 @@ describe("Citation hops (Stage 3)", function () {
     } catch (error) {
       record(error);
     }
+    if (liveRequest) (Zotero.HTTP as any).request = liveRequest;
+    liveRequest = null;
     if (failure !== null) throw failure;
   });
 
   it("fills hop 1 once the paper becomes a seed", async function () {
     // The seed path no longer fetches anything (Task 12): hop 1 is the
-    // runner's first landing, so this wait covers a real provider round-trip.
+    // runner's first landing, so this wait covers a served round-trip.
     this.timeout(120_000);
     (await nodeMenuEntry("Add as seed", FIXTURE_TITLE)).click();
     const row = await waitFor(() => hopRow(1), 20_000);
@@ -2839,6 +3013,8 @@ describe("Citation hops (Stage 3)", function () {
     let realRequest: any = null;
     let checkRequests = 0;
     let openAlexRequests = 0;
+    /** The seeds whose own lookup the fake has answered. */
+    const lookedUp = new Set<string>();
 
     function work(
       id: string,
@@ -2887,6 +3063,7 @@ describe("Citation hops (Stage 3)", function () {
         const path = decodeURIComponent(parsed.pathname);
         if (/\/works\/doi/i.test(path)) {
           const seed = [SEED_A, SEED_B].find((s) => path.includes(s.doi));
+          if (seed) lookedUp.add(seed.doi);
           return seed
             ? providerAnswer(
                 JSON.stringify(work(seed.id, seed.doi, seed.title, 2019)),
@@ -3000,6 +3177,23 @@ describe("Citation hops (Stage 3)", function () {
         30_000,
       );
       expect(rail, "the shared tab's Scope section").to.exist;
+      // Start blank and fit, as every other block does, but only once both
+      // seeds are on the plot: the camera keeps the extent it fits to, and
+      // with the outer fixture served (B74) that extent no longer happened
+      // to cover the seeds.
+      await dismissGallery(tabID);
+      const looked = await waitFor(() => lookedUp.size === 2, 60_000);
+      expect(looked, `seeds looked up: ${[...lookedUp].join(", ")}`).to.exist;
+      await delay(1_000);
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the shared tab's fit button").to.exist;
+      fit!.click();
     });
 
     after(async function () {
