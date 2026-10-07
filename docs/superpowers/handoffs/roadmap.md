@@ -127,7 +127,8 @@ opacity grade).
       Citation hops block runs before it: `nodeMenuEntry` finds only the outer
       fixture on the new tab's canvas, never `... (D8 order)`. Predates batch
       2: block runs failed 1/2 at `9e78074` and 2/2 at `32542c5`; the D8
-      block alone 3/3 and with B72's block 3/3 passed; full runs 3/5 failed.
+      block alone 3/3 and with B72's block 3/3 passed; full runs 3/6 failed
+      (passed at `cbe97e4`).
       First task: where the D8 paper is drawn (or whether it is in the model)
 - [ ] B81 a hop node hydrated from another index keeps OpenCitations as its
       `citationCountProvider` over that index's count
@@ -392,9 +393,9 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `32542c5` (94/1, the 1 is B83),
-so count with `git log 32542c5..main --oneline`.
-A clean run is 95 passed, 0 failed as of 2026-10-07 (B52's Key case added);
+runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `cbe97e4` (97/0),
+so count with `git log cbe97e4..main --oneline`.
+A clean run is 97 passed, 0 failed as of 2026-10-07 (B82's two cases added);
 until B83 is fixed, a D8 failure alone is B83.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
@@ -506,4 +507,4 @@ entries are in git history.
   B83 bisected to before the batch.
 - 2026-10-07, evening: batch 3, B80 (an Index fault rejects instead of reading
   as no citers; 404 stays a miss) and B82 (late source metrics and a theme flip
-  rebuild the Key). B84 filed from B80.
+  rebuild the Key). B84 filed from B80. Full suite 97/0 at `cbe97e4`.
