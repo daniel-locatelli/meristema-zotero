@@ -56,7 +56,7 @@ const DRAIN_SEED_DOI = "10.5555/b72.drain.seed";
  * raw or percent-encoded.
  */
 const SEED_CITATIONS = new RegExp(
-  `opencitations\\.net/index/v1/citations/(${DRAIN_SEED_DOI.replace(
+  `opencitations\\.net/index/v2/citations/doi:(${DRAIN_SEED_DOI.replace(
     /[.]/g,
     "\\.",
   )}|${encodeURIComponent(DRAIN_SEED_DOI).replace(/[.]/g, "\\.")})`,
@@ -107,7 +107,7 @@ const DRAIN_HOP_1 = DRAIN_CITERS.length;
 const DRAIN_PLANNED = DRAIN_CITERS.length + 1;
 /** The seed's citation page in OpenCitations' own row shape. */
 const DRAIN_CITER_LIST = JSON.stringify(
-  DRAIN_CITERS.map((doi) => ({ citing: doi })),
+  DRAIN_CITERS.map((doi) => ({ citing: `doi:${doi}` })),
 );
 /** Semantic Scholar's own host: the provider this case keeps sitting out. */
 const SEMANTIC_SCHOLAR_HOST = /^https:\/\/api\.semanticscholar\.org\//;
@@ -306,7 +306,9 @@ function semanticScholarAnswer(url: URL, options: any): unknown {
 
 /** OpenCitations' citation and reference rows, from the index. */
 function openCitationsAnswer(url: URL): unknown {
-  const match = /\/index\/v1\/(citations|references)\/(.+)$/.exec(url.pathname);
+  const match = /\/index\/v2\/(citations|references)\/doi:(.+)$/.exec(
+    url.pathname,
+  );
   const paper = match
     ? servedPaper(`doi:${decodeURIComponent(match[2]!)}`)
     : undefined;
@@ -315,10 +317,10 @@ function openCitationsAnswer(url: URL): unknown {
     JSON.stringify(
       match![1] === "citations"
         ? citersOf(paper).map((p) => ({
-            citing: p.doi,
+            citing: `doi:${p.doi}`,
             creation: `${p.year}-01-01`,
           }))
-        : referencesOf(paper).map((p) => ({ cited: p.doi })),
+        : referencesOf(paper).map((p) => ({ cited: `doi:${p.doi}` })),
     ),
   );
 }
@@ -1815,7 +1817,7 @@ describe("Citation hops (Stage 3)", function () {
         asked.push(url);
         mark(url.replace(/^https:\/\/([^/]+)\/.*?([^/?]*)(\?.*)?$/, "$1 …$2"));
         // The seed's citers, and then nothing for each of them.
-        if (/opencitations\.net\/index\/v1\/citations\//.test(url))
+        if (/opencitations\.net\/index\/v2\/citations\//.test(url))
           return providerAnswer(
             SEED_CITATIONS.test(url) ? DRAIN_CITER_LIST : "[]",
           );
@@ -2018,7 +2020,7 @@ describe("Citation hops (Stage 3)", function () {
             DRAIN_CITERS.every((doi) =>
               asked.some(
                 (url) =>
-                  /index\/v1\/citations\//i.test(url) && urlNames(url, doi),
+                  /index\/v2\/citations\//i.test(url) && urlNames(url, doi),
               ),
             ) || null,
           120_000,
@@ -2095,7 +2097,7 @@ describe("Citation hops (Stage 3)", function () {
         // backing at all.
         const expanded = DRAIN_CITERS.filter((doi) =>
           asked.some(
-            (url) => /index\/v1\/citations\//i.test(url) && urlNames(url, doi),
+            (url) => /index\/v2\/citations\//i.test(url) && urlNames(url, doi),
           ),
         );
         expect(

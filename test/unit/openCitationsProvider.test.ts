@@ -162,19 +162,117 @@ describe("the OpenCitations lookup after the metadata route's 410 (B63)", functi
     respond = () =>
       answered([
         {
-          citing: "10.3389/fphar.2022.1071114",
-          cited: DOI,
+          citing: "omid:br/06101 doi:10.3389/fphar.2022.1071114",
+          cited: `omid:br/06190834283 doi:${DOI}`,
           creation: "2022-12-15",
         },
       ]);
     const works = await openCitationsProvider.fetchCitingWorks!(DOI, 50, 0);
     expect(works).to.have.length(1);
     expect(calls[0].url, calls[0].url).to.include(
-      "api.opencitations.net/index/v1/citations/",
+      "api.opencitations.net/index/",
     );
     expect(
       calls[0].url,
       "the legacy host costs a 301 per request",
     ).to.not.include("opencitations.net/index/coci");
+  });
+});
+
+/**
+ * Index v2 rows as OpenCitations really answers them for
+ * 10.1038/nature12373 (probed 2026-10-07), trimmed. Each side is a composite
+ * of every identifier the work carries, in no fixed order, and a citer the
+ * Index knows only by arXiv ID carries no DOI at all. v1 answered the same
+ * rows in the same order with the bare DOI, and `''` for that arXiv citer.
+ */
+const V2_DOI = "10.1038/nature12373";
+const V2_CITATIONS = [
+  {
+    oci: "06010048871-06120344846",
+    citing: "omid:br/06010048871 openalex:W4409995113 doi:10.1063/5.0251893",
+    cited:
+      "omid:br/06120344846 doi:10.1038/nature12373 pmid:23903748 openalex:W2159974629",
+    creation: "2025-05-01",
+    timespan: "P11Y9M1D",
+    journal_sc: "no",
+    author_sc: "no",
+  },
+  {
+    oci: "06022292673-06120344846",
+    citing: "omid:br/06022292673 arxiv:1611.02427",
+    cited:
+      "omid:br/06120344846 doi:10.1038/nature12373 pmid:23903748 openalex:W2159974629",
+    creation: "2016-11-08",
+    timespan: "P3Y3M8D",
+    journal_sc: "no",
+    author_sc: "no",
+  },
+  {
+    oci: "06010126079-06120344846",
+    citing:
+      "omid:br/06010126079 doi:10.1021/acsanm.5c00276 openalex:W4409314817",
+    cited:
+      "omid:br/06120344846 doi:10.1038/nature12373 pmid:23903748 openalex:W2159974629",
+    creation: "2025-04-10",
+    timespan: "P11Y8M10D",
+    journal_sc: "no",
+    author_sc: "no",
+  },
+];
+const V2_REFERENCES = [
+  {
+    oci: "06120344846-061101490124",
+    citing:
+      "omid:br/06120344846 doi:10.1038/nature12373 pmid:23903748 openalex:W2159974629",
+    cited:
+      "omid:br/061101490124 pmid:23288346 doi:10.1007/s10549-012-2393-x openalex:W2093130510",
+    creation: "2013-07-31",
+    timespan: "P0Y6M27D",
+    journal_sc: "no",
+    author_sc: "no",
+  },
+];
+
+describe("the OpenCitations relation pages on Index v2 (B70)", function () {
+  it("asks Index v2 for citers, with the doi: prefix v2 requires", async function () {
+    // v2 answers 400 for a bare DOI: its `id` must name its scheme.
+    respond = () => answered([]);
+    await openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0);
+    expect(calls[0].url).to.equal(
+      "https://api.opencitations.net/index/v2/citations/doi:10.1038%2Fnature12373",
+    );
+  });
+
+  it("asks Index v2 for references the same way", async function () {
+    respond = () => answered([]);
+    await openCitationsProvider.fetchReferencedWorks!(V2_DOI, 50, 0);
+    expect(calls[0].url).to.equal(
+      "https://api.opencitations.net/index/v2/references/doi:10.1038%2Fnature12373",
+    );
+  });
+
+  it("reads each citer's DOI out of v2's composite identifiers", async function () {
+    respond = () => answered(V2_CITATIONS);
+    const works = await openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0);
+    expect(works.map((work) => work.doi)).to.deep.equal([
+      "10.1063/5.0251893",
+      "10.1021/acsanm.5c00276",
+    ]);
+    expect(works[0].providerWorkID).to.equal("10.1063/5.0251893");
+    expect(works[0].year).to.equal(2025);
+    expect(works[0].publicationDate).to.equal("2025-05-01");
+  });
+
+  it("reads each reference's DOI wherever it sits in the composite", async function () {
+    respond = () => answered(V2_REFERENCES);
+    const works = await openCitationsProvider.fetchReferencedWorks!(
+      V2_DOI,
+      50,
+      0,
+    );
+    expect(works.map((work) => work.doi)).to.deep.equal([
+      "10.1007/s10549-012-2393-x",
+    ]);
   });
 });

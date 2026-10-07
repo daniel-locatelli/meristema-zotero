@@ -137,10 +137,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B70 the OpenCitations relation pages still use Index v1, which
-      OpenCitations calls legacy. v2 (`/index/v2/citations/doi:{doi}`) answers
-      today and its composite `citing`/`cited` strings already parse through
-      `normalizeDOI`, so the migration is small
 
 ## The rail and the Key
 

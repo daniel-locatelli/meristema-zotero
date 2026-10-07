@@ -37,6 +37,12 @@ interface OCMetaRecord {
   pub_date?: string;
   venue?: string;
 }
+/**
+ * An Index v2 row. `citing` and `cited` are composites of every identifier
+ * the work carries (`omid:br/… doi:10.… pmid:…`), in no fixed order, and a
+ * work known only by arXiv ID carries no DOI; normalizeDOI takes the DOI
+ * wherever it sits and answers null for the rest (B70).
+ */
 interface OCLink {
   citing?: string;
   cited?: string;
@@ -84,7 +90,7 @@ async function fetchLinks(
 ): Promise<RelatedWorkMetadata[]> {
   const response = await requestJSON<OCLink[]>(
     "opencitations",
-    `${API}/index/v1/${direction}/${encodeURIComponent(doi)}`,
+    `${API}/index/v2/${direction}/doi:${encodeURIComponent(doi)}`,
     { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
   if (response.status === 429) throw new ProviderRefusedError("opencitations");
