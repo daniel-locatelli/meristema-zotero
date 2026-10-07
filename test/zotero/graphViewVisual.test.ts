@@ -16,6 +16,14 @@ import {
 } from "./visualHarness";
 import { setGraphAppearance } from "../../src/services/citationPreferences";
 import {
+  getCitationMetricRecord,
+  saveCitationMetricRecord,
+} from "../../src/services/citationMetricsStore";
+import type {
+  CitationMetricRecord,
+  SourceMetrics,
+} from "../../src/domain/citationTypes";
+import {
   getGraphViewController,
   renderGraphView,
 } from "../../src/services/graphViewService";
@@ -1561,5 +1569,74 @@ describe("Graph view, as the product builds it", function () {
     await settle(view.window, 4);
     expect(reported, "a gesture reports exactly once").to.deep.equal([null]);
     expect(detailTitle(), "and clears the pane").to.equal("Paper details");
+  });
+
+  /**
+   * B82: source metrics that land after the colouring changed reach the Key.
+   * The gear's change rebuilds the Key (B52) and only then copies the stored
+   * journal metrics into the papers that lacked them, and that redraw left
+   * the Key printing the range it had read before they arrived. One paper
+   * carries an h-index of 10 when the view opens, so the gear offers the
+   * colouring; another is a real Zotero item whose h-index of 50 is only in
+   * the store, so 50 can reach the Key by the late copy alone.
+   */
+  it("prints the range late source metrics give the colour ramp", async function () {
+    this.timeout(60_000);
+    const item = new Zotero.Item("journalArticle");
+    item.libraryID = Zotero.Libraries.userLibraryID;
+    item.setField("title", "Late source metrics fixture");
+    const itemID = await item.saveTx();
+    try {
+      const metrics = (hIndex: number): SourceMetrics => ({
+        sourceID: null,
+        sourceTitle: "Harness Journal",
+        twoYearMeanCitedness: null,
+        hIndex,
+        i10Index: null,
+        updatedAt: null,
+      });
+      // This bundle's store is never opened, so the write to its database
+      // fails; the in-memory record the late copy reads is set before it.
+      // Only `sourceMetrics` is read off the record.
+      await saveCitationMetricRecord({
+        libraryID: item.libraryID,
+        itemKey: item.key,
+        sourceMetrics: metrics(50),
+      } as unknown as CitationMetricRecord).catch(() => undefined);
+      expect(
+        getCitationMetricRecord(item.libraryID, item.key)?.sourceMetrics
+          ?.hIndex,
+        "the store holds the late h-index",
+      ).to.equal(50);
+
+      const corpus = makeCorpus({ nodes: 12 });
+      corpus.nodes[0]!.sourceMetrics = metrics(10);
+      corpus.nodes[1]!.itemID = itemID;
+      corpus.nodes[1]!.itemKey = item.key;
+      stage = await openViewStage(corpus);
+      const active = stage;
+      await settle(active.window, 8);
+
+      const option = active.root.querySelector(
+        'option[data-metric="journal-h-index"]',
+      ) as HTMLOptionElement | null;
+      expect(option, "the gear offers Journal h-index").to.exist;
+      const select = option!.parentElement as HTMLSelectElement;
+      select.value = "journal-h-index";
+      select.dispatchEvent(
+        new (active.window as any).Event("change", { bubbles: true }),
+      );
+      await settle(active.window, 4);
+
+      const entries = railEntries(active.root);
+      expect(
+        entries.some((entry) => entry.startsWith("10 – 50")),
+        `the ramp spans both h-indices; the Key read: ${entries.join(" | ")}`,
+      ).to.equal(true);
+    } finally {
+      stage?.close();
+      stage = null;
+      await Zotero.Items.erase(itemID);
+    }
   });
 });

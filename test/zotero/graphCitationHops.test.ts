@@ -2,6 +2,7 @@
 import { expect } from "chai";
 import { config } from "../../package.json";
 import { getOpenAlexAPIKey } from "../../src/services/citationPreferences";
+import { graphThemeFor } from "../../src/services/graphTheme";
 import { emptyGraphViewState } from "../../src/services/graphViewState";
 import { getPluginDatabase } from "../../src/services/pluginDatabase";
 import {
@@ -12,6 +13,8 @@ import {
 import { delay } from "./visualHarness";
 
 const COLLECTION_NAME = "Stage 3 hops";
+/** Zotero's appearance: 0 dark, 1 light, 2 follow the OS. */
+const APPEARANCE_PREF = "browser.theme.toolbar-theme";
 /**
  * Every fixture DOI and work ID carries the whole clock, never a slice of it
  * that repeats (B79): lists and checks persist in the test profile, and a
@@ -3285,6 +3288,64 @@ describe("Citation hops (Stage 3)", function () {
         keyEntries().some((entry) => entry.startsWith("Paper")),
         `under Uniform the Key read: ${keyEntries().join(" | ")}`,
       ).to.equal(true);
+    });
+
+    /**
+     * B82: a theme flip repaints the Key. The renderer's notice refreshed only
+     * the Scope rail, so the Key's swatches kept the old theme's colours. The
+     * Paper swatch under Uniform is the theme's own neutral, read off the Key
+     * with nothing but the flip between the two readings.
+     */
+    it("repaints the Key's swatches when the appearance flips", async function () {
+      this.timeout(60_000);
+      const select = graphRoot().querySelector(
+        'option[data-metric="citation-hop"]',
+      )?.parentElement as HTMLSelectElement | null;
+      expect(select, "the colour select").to.exist;
+      select!.value = "uniform";
+      select!.dispatchEvent(new win.Event("change", { bubbles: true }));
+      const paperFill = (): string | null => {
+        for (const entry of graphRoot().querySelectorAll(
+          ".cm-key-entry",
+        ) as unknown as Iterable<Element>) {
+          const label = normalize(
+            entry.querySelector(".cm-key-entry-label")?.textContent,
+          );
+          if (label.startsWith("Paper"))
+            return entry.querySelector("circle")?.getAttribute("fill") ?? null;
+        }
+        return null;
+      };
+      const scheme = (): string | undefined => graphRoot().dataset.cmScheme;
+
+      const original = Services.prefs.getIntPref(APPEARANCE_PREF, 2);
+      try {
+        Services.prefs.setIntPref(APPEARANCE_PREF, 1);
+        await delay(800);
+        const light = { scheme: scheme(), fill: paperFill() };
+        Services.prefs.setIntPref(APPEARANCE_PREF, 0);
+        await delay(1_500);
+        const dark = { scheme: scheme(), fill: paperFill() };
+        const evidence =
+          `light: scheme=${light.scheme} fill=${light.fill}; ` +
+          `dark: scheme=${dark.scheme} fill=${dark.fill}; ` +
+          `the Key read: ${keyEntries().join(" | ")}`;
+
+        // The flip happened, and the Key had the light neutral before it.
+        expect(light.scheme, `light first (${evidence})`).to.equal("light");
+        expect(dark.scheme, `the chrome went dark (${evidence})`).to.equal(
+          "dark",
+        );
+        expect(light.fill, `the light Paper swatch (${evidence})`).to.equal(
+          graphThemeFor("light").states.uniformFill,
+        );
+        expect(dark.fill, `the dark Paper swatch (${evidence})`).to.equal(
+          graphThemeFor("dark").states.uniformFill,
+        );
+      } finally {
+        Services.prefs.setIntPref(APPEARANCE_PREF, original);
+        await delay(300);
+      }
     });
   });
 });

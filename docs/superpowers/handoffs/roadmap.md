@@ -137,10 +137,6 @@ opacity grade).
 
 ## The rail and the Key
 
-- [ ] B82 two more paths redraw the plot without rebuilding the Key (found
-      fixing B52): late source metrics (`refreshSourceMetricsForLayout`) can
-      leave a ramp's range stale, and a theme change refreshes only the Scope
-      rail, so Key swatches keep the old theme's colours
 - [ ] D10 hop depth is encoded as opacity, the wrong channel. The ramp
       `1, .9, .8, .7, .6, .5, .4` makes adjacent early hops untellable, and the
       spec applies it under every colouring, so under Citation hop one variable
@@ -377,6 +373,10 @@ any failure into a new entry above.
       Uniform in the gear: the Key drops the hop rows at once.
 - [ ] B70: press Refresh on a seed with a DOI and no OpenAlex key: the
       OpenCitations citers still arrive (Index v2).
+- [ ] B82: with the Key showing, switch Appearance between Light and Dark:
+      the Key's swatches change with the plot. Colour by Journal h-index
+      right after a library update fills in journal metrics: the Key's range
+      matches the plot's.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

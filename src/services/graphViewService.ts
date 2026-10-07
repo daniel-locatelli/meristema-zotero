@@ -1250,6 +1250,11 @@ export function renderGraphView(
           return;
         }
         renderer?.setLayout(currentLayout);
+        // Late metrics move the ramp's ends and the radii, and this redraw
+        // does not end in `updateSummary`, so the Key is rebuilt here or it
+        // goes on printing the range it read before they arrived (B82). Once,
+        // when the batch lands: `onUpdate` fires for every paper.
+        refreshKeyRail();
         fitCurrentGraph();
         if (selectedNode) renderOverview(selectedNode);
       })
@@ -3848,10 +3853,12 @@ ${error instanceof Error ? error.message : String(error)}`,
     onNodeContextMenu: openNodeMenu,
     // Region and seed colours are strings chosen off the theme at the time
     // they were pushed, so a flip re-reads them here; the redraw that follows
-    // the notice carries them (B29). `refreshScopeRail` also repaints the
-    // rail's region legend and the seed rows' marks off the new theme.
+    // the notice carries them (B29). `refreshKeyRail` repaints the Key's
+    // swatches off the new theme and then the Scope rail's region legend and
+    // seed rows' marks; the Scope rail alone left the Key in the old colours
+    // (B82).
     onThemeChange: () => {
-      refreshScopeRail();
+      refreshKeyRail();
       if (hopModel) {
         renderer?.setSeedMarks(seedMarksFor(hopModel), false);
       }
