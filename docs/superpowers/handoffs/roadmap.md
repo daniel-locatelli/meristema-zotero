@@ -145,10 +145,6 @@ opacity grade).
       OpenCitations calls legacy. v2 (`/index/v2/citations/doi:{doi}`) answers
       today and its composite `citing`/`cited` strings already parse through
       `normalizeDOI`, so the migration is small
-- [ ] B68 the refresh's composition has no automated test: switching on a
-      refusal, the no-candidate return publishing nothing, the
-      `refusedBy`/`skipped`/`answeredBy` population, and a refused snapshot
-      dropped from an aggregate manual refresh are exercised only by probe runs
 
 ## The rail and the Key
 
