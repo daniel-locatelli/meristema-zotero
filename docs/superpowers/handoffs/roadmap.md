@@ -188,8 +188,6 @@ opacity grade).
 - [ ] D14 the gallery's inset leaves a sliver showing an axis label and a
       tick. Either fill the full plot area or widen the margin until it reads
       as a card floating over a graph
-- [ ] B53 the File menu runs Open's saved-graph rows into Save and Save as…
-      with no separator
 
 ## Seeds, selection and the detail surfaces
 

@@ -886,10 +886,20 @@ export function renderGraphView(
     "cm-graph-menu-heading",
   );
   const graphMenuList = element(document, "div", "cm-graph-menu-list");
+  // The rule that closes the Open group, the View menu's own (B53). The list
+  // always holds rows or a one-line message, so it never sits doubled under
+  // the heading's rule.
+  const graphMenuRule = text(
+    document,
+    "div",
+    "",
+    "cm-graph-menu-heading cm-view-menu-rule",
+  );
   graphMenu.append(
     newGraphButton,
     graphMenuHeading,
     graphMenuList,
+    graphMenuRule,
     saveButton,
     saveAsButton,
   );

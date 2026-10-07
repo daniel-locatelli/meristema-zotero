@@ -1426,6 +1426,15 @@ describe("Graph view, as the product builds it", function () {
       rows[0]?.querySelector('button[data-action="open"]')?.textContent,
       "named, with its date",
     ).to.include("PhD map");
+    const rule = menu.querySelector(".cm-graph-menu-list")?.nextElementSibling;
+    expect(
+      rule?.classList.contains("cm-view-menu-rule"),
+      "a rule closes the Open group",
+    ).to.equal(true);
+    expect(
+      (rule?.nextElementSibling as HTMLElement | null)?.dataset.action,
+      "Save follows the rule",
+    ).to.equal("save");
 
     (
       menu.querySelector('button[data-action="save"]') as HTMLButtonElement
