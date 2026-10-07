@@ -119,20 +119,6 @@ opacity grade).
       without fresh expansions, and that per-hop caps resetting each session
       does not restart the fill. Known leak: failed papers come back after
       every reopen
-- [ ] B73 a citer total attributed to one index truncates another index's
-      list, still marked complete. `reportedCount`
-      (`externalDiscoveryService.ts:1300-1309`) falls back to the node's stored
-      count when the asking provider is its `citationCountProvider`; `target`
-      (`:1351-1354`) and `requested` (`:1374-1376`) then bound the fetch,
-      `fetchLinks` slices the raw array before parsing
-      (`openCitationsProvider.ts:92-95`), and `reachedReportedCount`
-      (`:1432-1435`) marks it complete. Armed by OpenCitations stamping itself
-      owner of a null `citationCount` (`openCitationsProvider.ts:176-179`)
-      while declaring `citationCount: false` (`:109-111`). Signature: a bare
-      `1/1` in the rail where a dedupe would read `1/1 of 2`. Found building
-      B72's case, the only one pinning an exact hop-1 count. NOT confirmed at
-      runtime — a fresh item has no citation-metrics record, so the fallback
-      should not arm. First task: a test pinning `reportedCount` at runtime
 - [ ] B76 D8's keyless Zotero case is not written: the spec's second case (no
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only

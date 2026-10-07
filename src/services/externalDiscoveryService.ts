@@ -1321,14 +1321,19 @@ async function fetchProviderRelationshipSnapshot(
           (options) =>
             lookupProviderRecord(providerID, identifiers, options, fill),
         );
+    // A provider that reports no count cannot own the node's: a hop node
+    // hydrated from another index keeps its first provider's name over that
+    // index's count, which would otherwise cut this list short (B73).
     let reportedCount =
       direction === "references"
         ? (match?.referenceCount ??
-          (providerID === node.referenceCountProvider
+          (provider.capabilities.referenceCount &&
+          providerID === node.referenceCountProvider
             ? node.referenceCount
             : null))
         : (match?.citationCount ??
-          (providerID === node.citationCountProvider
+          (provider.capabilities.citationCount &&
+          providerID === node.citationCountProvider
             ? node.citationCount
             : null));
     knownReportedCount = reportedCount;
