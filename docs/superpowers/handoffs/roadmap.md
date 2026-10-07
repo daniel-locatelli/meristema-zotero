@@ -137,9 +137,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B77 `relatedWorkSummaryService.ts` selects `referenced_works_count` on
-      the arrival references path and discards it; it is a free
-      `reportedCount`
 - [ ] B69 since B50 a refused OpenCitations lookup throws before its
       DOI-fallback page on manual paths (`externalDiscoveryService.ts:1202`);
       it used to fall through and still page on the DOI. The spec named only
@@ -504,3 +501,6 @@ entries are in git history.
   key on a live graph (it failed against a gate that ignored the key).
 - 2026-10-07, later: B74 fixed: the Citation hops suite answers every
   provider from a served index, so back-to-back full runs both read 94/0.
+- 2026-10-07, later: B77 fixed: OpenAlex's arrival references page reports
+  `referenced_works_count` (never below the list's length), cached with the
+  IDs; it agreed with the list on 75 sampled works.

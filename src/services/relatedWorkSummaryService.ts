@@ -47,12 +47,19 @@ const SEMANTIC_SCHOLAR_SUMMARY_FIELDS = [
   "citationCount",
   "referenceCount",
 ].join(",");
-const openAlexReferenceIDsCache = new Map<string, string[]>();
+/** A work's reference list, with the total it reports for itself. */
+interface OpenAlexReferenceList {
+  ids: string[];
+  reportedCount: number;
+}
+const openAlexReferenceIDsCache = new Map<string, OpenAlexReferenceList>();
 const OPENALEX_REFERENCE_CACHE_MAX_ENTRIES = 6;
 const OPENALEX_REFERENCE_CACHE_MAX_IDS = 20000;
 let openAlexReferenceIDsCached = 0;
 
-function cachedOpenAlexReferenceIDs(workID: string): string[] | null {
+function cachedOpenAlexReferenceIDs(
+  workID: string,
+): OpenAlexReferenceList | null {
   const cached = openAlexReferenceIDsCache.get(workID);
   if (!cached) return null;
   // Refresh insertion order so active paginated retrievals stay resident.
@@ -61,23 +68,26 @@ function cachedOpenAlexReferenceIDs(workID: string): string[] | null {
   return cached;
 }
 
-function cacheOpenAlexReferenceIDs(workID: string, ids: string[]): void {
+function cacheOpenAlexReferenceIDs(
+  workID: string,
+  list: OpenAlexReferenceList,
+): void {
   const previous = openAlexReferenceIDsCache.get(workID);
   if (previous) {
-    openAlexReferenceIDsCached -= previous.length;
+    openAlexReferenceIDsCached -= previous.ids.length;
     openAlexReferenceIDsCache.delete(workID);
   }
-  openAlexReferenceIDsCache.set(workID, ids);
-  openAlexReferenceIDsCached += ids.length;
+  openAlexReferenceIDsCache.set(workID, list);
+  openAlexReferenceIDsCached += list.ids.length;
   while (
     openAlexReferenceIDsCache.size > OPENALEX_REFERENCE_CACHE_MAX_ENTRIES ||
     openAlexReferenceIDsCached > OPENALEX_REFERENCE_CACHE_MAX_IDS
   ) {
     const oldest = openAlexReferenceIDsCache.entries().next().value as
-      [string, string[]] | undefined;
+      [string, OpenAlexReferenceList] | undefined;
     if (!oldest) break;
     openAlexReferenceIDsCache.delete(oldest[0]);
-    openAlexReferenceIDsCached -= oldest[1].length;
+    openAlexReferenceIDsCached -= oldest[1].ids.length;
   }
 }
 
@@ -620,8 +630,8 @@ export async function fetchRelatedWorkSummaryPage(
     );
   }
 
-  let referenceIDs = cachedOpenAlexReferenceIDs(normalizedID);
-  if (!referenceIDs) {
+  let references = cachedOpenAlexReferenceIDs(normalizedID);
+  if (!references) {
     const source = await requestJSON<OpenAlexReferenceSource>(
       "openalex",
       openAlexPathURL(`/works/${encodeURIComponent(normalizedID)}`, {
@@ -634,12 +644,17 @@ export async function fetchRelatedWorkSummaryPage(
     );
     if (source.status === 429) throw new ProviderRefusedError("openalex");
     if (!source.ok || !source.data) return none;
-    referenceIDs = (source.data.referenced_works ?? [])
+    const ids = (source.data.referenced_works ?? [])
       .map(shortOpenAlexID)
       .filter((id): id is string => Boolean(id));
-    cacheOpenAlexReferenceIDs(normalizedID, referenceIDs);
+    // The count and the list agreed on every sampled work. Should the count
+    // ever fall short, the list wins, so the total never bounds the pager
+    // below what it can reach.
+    const count = numberOrNull(source.data.referenced_works_count) ?? 0;
+    references = { ids, reportedCount: Math.max(count, ids.length) };
+    cacheOpenAlexReferenceIDs(normalizedID, references);
   }
-  const identifiers = referenceIDs.slice(start, start + requested);
+  const identifiers = references.ids.slice(start, start + requested);
   if (!identifiers.length) return none;
   const summaries: RelatedWorkMetadata[] = identifiers.map((id) => ({
     provider: "openalex",
@@ -657,7 +672,7 @@ export async function fetchRelatedWorkSummaryPage(
   );
   return {
     works: summaries.filter((work) => Boolean(work.title)),
-    reportedCount: null,
+    reportedCount: references.reportedCount,
   };
 }
 

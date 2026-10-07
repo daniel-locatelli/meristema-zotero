@@ -331,6 +331,72 @@ describe("an OpenAlex page cut most-cited first", function () {
     expect(page.works.map((entry) => entry.providerWorkID)).to.deep.equal([
       "W30",
     ]);
-    expect(page.reportedCount).to.equal(null);
+  });
+});
+
+describe("an OpenAlex references page in arrival order", function () {
+  const work = (id: string) => ({
+    id: `https://openalex.org/${id}`,
+    display_name: `Paper ${id}`,
+    publication_year: 2020,
+    authorships: [],
+  });
+  const source = (ids: string[], count: number) =>
+    answered({
+      referenced_works: ids.map((id) => `https://openalex.org/${id}`),
+      referenced_works_count: count,
+    });
+
+  it("reports the selected referenced_works_count, not the page length", async function () {
+    respond = (url) =>
+      url.includes("/works/W3?")
+        ? source(["W30", "W31", "W32"], 3)
+        : answered({ results: [work("W30")] });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W3",
+      "references",
+      1,
+      0,
+    );
+    expect(page.works.map((entry) => entry.providerWorkID)).to.deep.equal([
+      "W30",
+    ]);
+    expect(page.reportedCount).to.equal(3);
+  });
+
+  it("reports the count on a later page served from the cached list", async function () {
+    respond = (url) =>
+      url.includes("/works/W3?")
+        ? source(["W30", "W31", "W32"], 3)
+        : answered({ results: [work("W30"), work("W31")] });
+    await fetchRelatedWorkSummaryPage("openalex", "W3", "references", 1, 0);
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W3",
+      "references",
+      1,
+      1,
+    );
+    expect(
+      calls.filter((call) => call.url.includes("/works/W3?")),
+      "the source was read once",
+    ).to.have.length(1);
+    expect(page.reportedCount).to.equal(3);
+  });
+
+  it("never reports fewer than the list holds", async function () {
+    respond = (url) =>
+      url.includes("/works/W3?")
+        ? source(["W30", "W31", "W32"], 2)
+        : answered({ results: [work("W30")] });
+    const page = await fetchRelatedWorkSummaryPage(
+      "openalex",
+      "W3",
+      "references",
+      1,
+      0,
+    );
+    expect(page.reportedCount).to.equal(3);
   });
 });
