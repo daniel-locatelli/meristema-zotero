@@ -3243,14 +3243,16 @@ describe("Citation hops (Stage 3)", function () {
      */
     it("drops the hop colours from the Key when the colouring leaves Citation hop", async function () {
       this.timeout(120_000);
+      // Uniform carries no `data-metric`, so the colour select is found by
+      // its Citation hop option and driven by value.
       const colouring = (metric: string): void => {
-        const option = graphRoot().querySelector(
-          `option[data-metric="${metric}"]`,
-        ) as HTMLOptionElement | null;
-        expect(option, `the ${metric} option`).to.exist;
-        const select = option!.parentElement as HTMLSelectElement;
-        select.value = metric;
-        select.dispatchEvent(new win.Event("change", { bubbles: true }));
+        const select = graphRoot().querySelector(
+          'option[data-metric="citation-hop"]',
+        )?.parentElement as HTMLSelectElement | null;
+        expect(select, "the colour select").to.exist;
+        select!.value = metric;
+        expect(select!.value, `the ${metric} option`).to.equal(metric);
+        select!.dispatchEvent(new win.Event("change", { bubbles: true }));
       };
       const hopRows = (): string[] =>
         // "Seed" is also a state row, so only the hop rows tell the
