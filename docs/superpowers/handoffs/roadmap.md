@@ -46,8 +46,8 @@ shipped and walked.
 
 Built and merged from `docs/superpowers/specs/2026-09-12-citation-hops-design.md`.
 
-- [ ] manual walk-through by the user (part-walked 2026-09-13; what is left
-      is under Manual verification, and D7 holds the progress-line check open)
+- [x] manual walk-through by the user (2026-10-07; D7 holds the progress
+      numbers open, and the refusal checks wait under Manual verification)
 
 ### Stage 4: citation floor and shared citers
 
@@ -58,11 +58,13 @@ a Seeds linked colouring and a shared rule after the floor, not the design's
 opacity grade).
 
 - [x] floor: brainstorm, spec, plan, implemented, reviewed, merged
-- [ ] floor: manual walk-through by the user
+- [x] floor: manual walk-through by the user (2026-10-07; D21 asks about
+      papers with no count)
 - [x] shared citers: brainstorm and spec
 - [x] shared citers: plan
 - [x] shared citers: implemented, reviewed, merged, XPI built, pushed
-- [ ] shared citers: manual walk-through by the user
+- [x] shared citers: manual walk-through by the user (2026-10-07; B78 waits
+      under Manual verification, D20 asks about the view's naming)
 
 ## The hop fill
 
@@ -76,6 +78,7 @@ opacity grade).
       version the spec's reasoning does not rule out is a bar over the parent
       count. The cut line (D8) is the plain statement; what remains is the
       progress numbers themselves
+      2026-10-07 walk: the user still cannot read `Hop 2 182/182 of 394`
 - [ ] D12 nothing says how complete a filled plot is. Three gaps are invisible
       and look like a paper with no citers: failed expansions (per session, not
       persisted), papers never reached because a cap or a Stop cut the plan,
@@ -140,6 +143,10 @@ opacity grade).
       OpenAlex relation page, the Semantic Scholar summary page and the
       OpenAlex references source read a non-OK answer as an empty list. First
       task: which of these are stored as complete
+- [ ] D21 a paper with no citation count stays when the floor rises (user,
+      2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
+      read it as a bug. Decide whether the floor hides count-less papers, or
+      the plot says why they stay
 
 ## The rail and the Key
 
@@ -157,6 +164,19 @@ opacity grade).
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
       rows (Link, Reference, Cited by) on a channel the reader cannot use
+      2026-10-07 walk: a seed with many citers piles the nodes up into a mess
+      that says nothing; the nodes need the same answer as the edges (B89)
+- [ ] B89 pan and zoom lag badly on a seed with many citers (user,
+      2026-10-07). Not measured. B34 is the region-path cost on folders; this
+      is a seeded graph, so profile the node and edge draw first
+- [ ] B91 a hop row reads `182/182  of 394` with two spaces before `of`
+      (B71 follow-up, 2026-10-07)
+- [ ] B86 the line joining sibling subfolders' checkboxes in the Scope rail
+      shows on the laptop screen but not on the external HDMI screen, and
+      where it shows it runs behind the checkboxes, visible through an
+      empty one. Likely a sub-pixel width that rounds to zero at one DPI;
+      check both monitors' scaling
+- [ ] B92 the floor arrow, zoom in and zoom out icons are too small
 - [ ] F11 clicking a Seeds row should select that seed, and selecting a seed
       node should light its row
 
@@ -180,13 +200,23 @@ opacity grade).
 - [ ] D14 the gallery's inset leaves a sliver showing an axis label and a
       tick. Either fill the full plot area or widen the margin until it reads
       as a card floating over a graph
+- [ ] D18 the View dropdown (user, 2026-10-07): mark the active view with
+      a style like the hover highlight rather than a check; the description
+      and the status lines (`needs a seed`) sit in two columns and fight for
+      width, so move the description under the name; more space above
+      "Save current as view…"
+- [ ] D19 the user did not understand what Folder map is for (2026-10-07).
+      The gallery card and the tutorial card do not carry its goal
+- [ ] D20 Who cites whom: the name is unclear, and `Shared by ≥ 2` is not
+      intuitive (user, 2026-10-07)
 
 ## Seeds, selection and the detail surfaces
 
 - [ ] F7 a graph made from selected papers should open scoped to those seeds,
       not over the whole library (its gallery asked about all 69 papers); the
       library comes in by a deliberate tick. It also decides what N the
-      gallery's heading counts
+      gallery's heading counts. 2026-10-07: the user wants any graph started
+      with seeds to open with folders off
 - [ ] B15 adding a seed from the search panel takes two clicks: the row
       itself should be the target, not the `+` icon. Reported twice
 - [ ] B45 the seed search panel's title and author lines sit too close; this
@@ -200,8 +230,13 @@ opacity grade).
       (brainstorm: add or replace, tick or not, which window, the cap)
 - [ ] F5 the node's context menu should offer what the detail pane offers, and
       Refresh vs Update connections should say which scope each acts on
-- [ ] F4 show the selected paper's abstract in the graph (decide the surface)
-- [ ] F13 show a paper's full title in the graph; today it ellipsises
+- [ ] F4 show the selected paper's abstract; the user chose the Paper details
+      pane (2026-10-07)
+- [ ] F13 show a paper's full title in the graph; today it ellipsises. The
+      user wants it at once on hover; a faster tooltip would already do
+- [ ] B90 narrowing Zotero past some width makes the Paper details pane
+      widen and take the plot's space, where the rail shrinks. It looks
+      maxed out instead of compacting (user, 2026-10-07)
 - [ ] F8 nothing says why a paper has no metrics; the exact-title fallback
       decides that for a paper with no DOI
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
@@ -220,6 +255,11 @@ opacity grade).
       folder's `Path2D` every frame, off-screen loops included, and the zoom
       tightening fragments a large folder into many small loops. Later, the
       user said so
+- [ ] B87 light theme (user, 2026-10-07): the plugin's text looks slightly
+      scaled down with pixels out of place (check for a fractional transform
+      or scale), and the fill behind the arrows of a selected seed is black,
+      fine on dark, wrong on light
+- [ ] B93 the plugin ignores Zotero's View › Font Size › Bigger/Smaller
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -243,66 +283,8 @@ user to verify right away. Install the XPI from `.scaffold/build/meristema.xpi`
 (built from the latest main), then walk the list; tick what passes, and turn
 any failure into a new entry above.
 
-- [ ] B31: click a folder's name to draw it as a region, then switch
-      Appearance to Dark. The whole row fills with the accent blue, the label
-      and count are white, and the square is the region's swatch with a white
-      edge; a second folder's row reads as the same blue with a different
-      square. Walkable since B59; walk every clause, on both themes.
-- [ ] D4: open the View dropdown. Five rows with icon, name, one-liner; the
-      two greyed ones (Reading plan, Who cites whom) read "Arrives with reading
-      state / shared citers" in muted text and do nothing on click; contrast is
-      readable on both themes. Walkable since B44.
-- [ ] D4: apply Overview. The chip and the 300px tutorial card passed on
-      2026-09-13. What is left is the narrow case, since B56: the card holds
-      300px down to a 328px plot, and below that it is compact by design (the
-      view's name, × and "Don't show for this view again"); widening brings the
-      whole card back. Both themes.
-- [ ] Stage 3: the progress line. Passed: the line under the deepest open hop,
-      Stop and Resume, and the fast fill, where the line appears, counts down
-      and disappears. Left: the Fetch more state on a seed with hundreds, never
-      reached at the fill's rate, and D7. An unjudged wart: paused, the line
-      still reads `expanding · 627 left · Resume`.
-- [ ] B44: open a graph from a folder's context menu so the gallery greets it
-      **in a tab, not a detached window**. Every card's icon, name, paragraph
-      and note sit inside its own rounded container, and "Start blank" and
-      "Import view JSON…" sit in their own cell rather than over the third
-      card.
-- [ ] B44: on that same graph open the View dropdown. All five rows read
-      inside their own boxes and the pointer lands on the row it is over:
-      hovering Folder map highlights Folder map, and clicking it applies it.
-- [ ] B59: tick a folder in the Scope rail. The accent blue runs behind the
-      whole row, through the name and the count, not around a box containing
-      them. The hover is a neutral grey tint, not blue.
-- [ ] B44/B59 together: walk the plot toolbar, the rail's buttons and the
-      detail pane's tabs once. The fix lifted a height clamp from every plugin
-      button, so watch for a control grown taller than its 28px slot.
-- [ ] B58: with a graph open on the real library, rename a folder in Zotero's
-      collection tree. The rail shows the new name at once; a stopped hop fill
-      stays stopped; a graph opened after the rename shows the new name. Open
-      a graph from that folder's context menu and rename the folder again: the
-      tab's title follows. Rename the tab yourself, rename the folder once
-      more, and the tab keeps the name you typed.
-- [ ] B60, closed as Zotero's own state: in a folder, click a paper, then
-      Ctrl+click it so it deselects, and note the dotted ring left on the row.
-      Repeat B30's walk — select a paper in the list, click a graph node whose
-      paper is outside the folder, click back into the list. The row keeps the
-      same dotted ring, no more, and ↑/↓ move from it in both cases. If the two
-      look different, B60 reopens.
-- [ ] B46: on both themes, point at "+ Add seed", at Stop or Resume on a
-      running fill, at Show all, and at the tutorial card's "Don't show for
-      this view again". Each underlines and paints no box behind it; the ×
-      beside a seed still goes to full ink and heavier.
-- [ ] B57: open Save current as view… and type a shipped view's name, such as
-      Overview. The refusal reads at the same size as "Name" above it, amber in
-      light and a lighter amber in dark, easy to read on both.
-- [ ] B61: on both themes, point at an entry in the Key rail: a faint grey
-      tint, not blue. Click to pin: a light blue tint while pinned, gone when a
-      click on the graph releases the pin. The rows keep their height.
-- [ ] B62: open a graph whose toolbar shows "Directions are now one at a time;
-      showing Citers" (one saved before Stage 3 with direction `both`). While
-      the notice shows, trash any paper: the graph redraws and the notice
-      stays. Then right-click the tab › Move › Move to New Window: the new
-      window shows the notice, and trashing another paper keeps it.
+- Refusals were not reached on 2026-10-07 (hop 3 ran without errors), so
+  B50, B72 and B64 wait for a session where Semantic Scholar refuses.
 - [ ] B50: on your own profile (no Semantic Scholar key), fill a seeded graph
       to hop 3 under Citers. While Semantic Scholar refuses, the hop counts
       keep climbing and the line reads `expanding · {n} left`. If it reads
@@ -315,56 +297,8 @@ any failure into a new entry above.
       alternating expanding and refusing — `n left` reaches zero. A 2026
       frontier paper reads as expanded with no citers, not re-asked; on
       2026-09-16 the same ~20 DOIs were fetched 10 to 16 times.
-- [ ] B71: open a seeded graph. Every hop row reads with a space between label
-      and count — `Hop 1` then `73/173`, and `Seeds` then its number — and so
-      does a row carrying `of {reported}`. A folder row in the same rail is
-      unchanged, still filling with the accent blue when selected (B59).
-- [ ] B75: start a hop-3 fill, then minimise Zotero (or cover it with another
-      window) for five minutes. On return the hop counts and `n left` have
-      moved as far as they would have in view; before the fix the line sat
-      where it was left.
-- [ ] D8: on your own profile (OpenAlex key set), open a fresh seeded graph.
-      The hop block reads Seeds, Hop 1, a Fetch hop 2 row and the cut line
-      `Top 50 citers per paper, most cited first`; no rows past that. Fill to
-      hop 3 and re-run the 2026-09-16 probe: requests per expansion, requests
-      by provider, time to hop 3, against 393 requests and 29.6 min. Under
-      Citers, fill until the chain runs into the present: the last row reads
-      `none yet` and offers no Fetch.
 - [ ] B64: with Semantic Scholar refusing, press Refresh on a seed. The
       progress window closes in seconds, not after 15 s.
-- [ ] D8: on a profile whose plugin database predates this commit, the
-      external cache initialises without an error (the `cut_order` column
-      is added on first init) and a list stored before it reads as arrival
-      order in the rail's cut line.
-- [ ] D8: press Refresh on a seed with more than 50 citers; the cut line still
-      describes hop 1's cut, not the seed's 200-member list.
-- [ ] Floor: on both themes, drag the floor on a filled seeded graph: the line,
-      band and tag follow the pointer in steps, hop counts and `n below` move,
-      the fill's `n left` drops after release, and no label sits under the tag.
-- [ ] Floor: put citations on X: the line is vertical, the tag at its bottom,
-      the cursor `ew-resize`. Put citations on neither axis: no line; the rail
-      field still sets the floor.
-- [ ] Floor: on a log Y: the `off` line sits on the axis and the first drag
-      step reads a round number.
-- [ ] Floor: apply Cornerstones on a seeded graph: the floor reads 10 in the
-      rail and the summary; apply Overview afterwards: the floor stays 10.
-- [ ] Floor: reopen a saved graph that had a floor: the floor is back; a graph
-      saved before this change opens at `off`.
-- [ ] Shared citers: two seeds with a shared citer, both themes: Seeds linked
-      colours the top tier strongest, the tiers read apart, the shared
-      citer's edges to its seeds take the seeds' colours, and its label is
-      drawn. On light, the top stop is the ramp's yellow: say if it reads
-      weakest rather than strongest.
-- [ ] Shared citers: hover a Key tier: that tier is emphasised; hover
-      `Not graded`: the seeds and the papers past hop 1 are emphasised.
-- [ ] Shared citers: set `Shared by ≥ 2`: hop counts drop, `n below` reads,
-      and the fill's `n left` drops.
-- [ ] Shared citers: remove a seed down to one: the row and the colouring go,
-      the colouring falls back to Uniform.
-- [ ] Shared citers: apply Who cites whom on a two-seed graph: colouring,
-      hop 1 and `≥ 2` set.
-- [ ] Shared citers: reopen a saved graph with the rule set: it is back; one
-      saved before opens at `off`.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Under Seeds linked the citer reads `Cite all 2 seeds` and draws an edge
@@ -373,12 +307,8 @@ any failure into a new entry above.
       check request. Clear the key in Settings with the graph open: the
       citer reads `Cite 1 seed` at once, no reopen; put it back and it reads
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B53: open the graph's File menu with saved graphs: a rule separates the
-      last saved graph from Save.
 - [ ] B52: on a filled seeded graph, switch the colouring from Citation hop to
       Uniform in the gear: the Key drops the hop rows at once.
-- [ ] B70: press Refresh on a seed with a DOI and no OpenAlex key: the
-      OpenCitations citers still arrive (Index v2).
 - [ ] B82: with the Key showing, switch Appearance between Light and Dark:
       the Key's swatches change with the plot. Colour by Journal h-index
       right after a library update fills in journal metrics: the Key's range
