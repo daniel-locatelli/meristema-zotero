@@ -93,8 +93,7 @@ records rather than summaries.
 the exact total in the direction. `listByFilter` returns it, and the
 snapshot's `reportedCount` takes it when the lookup was skipped (a hinted
 parent has no match to read a count from). A hinted parent then reads
-`of {reported}` in the rail instead of nothing, and B73's null-count arm
-does not arise for OpenAlex.
+`of {reported}` in the rail instead of nothing.
 
 ### The rail shows what exists
 

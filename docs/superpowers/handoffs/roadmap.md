@@ -134,6 +134,11 @@ opacity grade).
       (`externalWorkToFocusNode`); B73 stopped the count bounding the list,
       but the label is still wrong. Nothing records which index a merged
       count came from
+- [ ] B84 B80's fault-as-empty pattern outside OpenCitations: Semantic
+      Scholar `fetchRelations` and, in `relatedWorkSummaryService`, the
+      OpenAlex relation page, the Semantic Scholar summary page and the
+      OpenAlex references source read a non-OK answer as an empty list. First
+      task: which of these are stored as complete
 
 ## The rail and the Key
 
@@ -499,3 +504,6 @@ entries are in git history.
   DOI by hand), B70 (Index v2), B52 (the Key follows the gear), B73 (a count
   OpenCitations cannot report no longer bounds its list). B80 to B83 filed;
   B83 bisected to before the batch.
+- 2026-10-07, evening: batch 3, B80 (an Index fault rejects instead of reading
+  as no citers; 404 stays a miss) and B82 (late source metrics and a theme flip
+  rebuild the Key). B84 filed from B80.
