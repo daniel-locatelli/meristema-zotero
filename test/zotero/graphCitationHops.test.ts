@@ -2838,6 +2838,7 @@ describe("Citation hops (Stage 3)", function () {
     let tabID: string | null = null;
     let realRequest: any = null;
     let checkRequests = 0;
+    let openAlexRequests = 0;
 
     function work(
       id: string,
@@ -2881,6 +2882,7 @@ describe("Citation hops (Stage 3)", function () {
         if (!PROVIDER_HOST.test(url))
           return realRequest.call(Zotero.HTTP, method, url, options);
         if (!/^https:\/\/api\.openalex\.org\//.test(url)) return notFound();
+        openAlexRequests += 1;
         const parsed = new URL(url);
         const path = decodeURIComponent(parsed.pathname);
         if (/\/works\/doi/i.test(path)) {
@@ -3078,6 +3080,19 @@ describe("Citation hops (Stage 3)", function () {
      */
     it("drops the check's link as soon as the key goes, and takes it back from the store", async function () {
       this.timeout(120_000);
+      // Clearing the key remounts the graph, which cancels a check still in
+      // flight, and that paper is rightly asked again once the key is back;
+      // so the fill and the check go quiet first.
+      let seen = openAlexRequests;
+      let since = Date.now();
+      const deadline = since + 60_000;
+      while (Date.now() < deadline && Date.now() - since < 3_000) {
+        await delay(500);
+        if (openAlexRequests !== seen) {
+          seen = openAlexRequests;
+          since = Date.now();
+        }
+      }
       const asked = checkRequests;
       Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
       const dropped = await waitFor(
