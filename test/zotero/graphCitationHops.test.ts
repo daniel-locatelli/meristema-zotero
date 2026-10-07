@@ -338,6 +338,85 @@ function serveIndex(live: any): (...args: any[]) => Promise<unknown> {
   };
 }
 
+/**
+ * Lays a block's own answers over whatever answers now (the served index,
+ * unless another block has wrapped it), and returns the undo. A URL `hosts`
+ * does not match goes down to the layer beneath.
+ */
+function interceptProviders(
+  answer: (url: string) => unknown,
+  hosts: RegExp = PROVIDER_HOST,
+): () => void {
+  const below = Zotero.HTTP.request;
+  (Zotero.HTTP as any).request = async (
+    method: string,
+    url: string,
+    options?: unknown,
+  ) =>
+    hosts.test(url)
+      ? answer(url)
+      : below.call(Zotero.HTTP, method, url, options);
+  return () => {
+    (Zotero.HTTP as any).request = below;
+  };
+}
+
+/**
+ * One OpenAlex record. A null `count` leaves `cited_by_count` out, which real
+ * OpenAlex never does; D8 needs it absent (see its CITERS).
+ */
+function openAlexWork(paper: {
+  id: string;
+  doi: string;
+  title: string;
+  year: number;
+  count: number | null;
+}): unknown {
+  return {
+    id: `https://openalex.org/${paper.id}`,
+    doi: `https://doi.org/${paper.doi}`,
+    display_name: paper.title,
+    publication_year: paper.year,
+    publication_date: `${paper.year}-01-01`,
+    ...(paper.count === null ? {} : { cited_by_count: paper.count }),
+    referenced_works_count: 0,
+    authorships: [
+      {
+        author: { id: "https://openalex.org/A1", display_name: "A. Author" },
+      },
+    ],
+    primary_location: null,
+  };
+}
+
+/**
+ * Hold until `count()` has stood still for `idleMs`, so a case starts from a
+ * quiet baseline. Saving a library item queues an automatic citation-data
+ * update of its own (automaticUpdateCoordinator.ts, 1.2 s after the save), and
+ * that update is what puts the paper on the plot at all, so it cannot be
+ * turned off — D8's run 2 turned it off and the node-menu walk was offered the
+ * outer fixture alone. It is not the fill's traffic either, and counting it
+ * would read like the fill asking providers it never asked, so the case waits
+ * it out instead.
+ */
+async function untilQuiet(
+  count: () => number,
+  idleMs: number,
+  capMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + capMs;
+  let seen = count();
+  let since = Date.now();
+  while (Date.now() < deadline) {
+    await delay(500);
+    if (count() !== seen) {
+      seen = count();
+      since = Date.now();
+    } else if (Date.now() - since >= idleMs) return true;
+  }
+  return false;
+}
+
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
     if ((popup as any).state === "open") return resolve();
@@ -1481,25 +1560,15 @@ describe("Citation hops (Stage 3)", function () {
   describe("under provider refusals (B50)", function () {
     let refusalTabID: string | null = null;
     let refusalItemID: number | null = null;
-    let realRequest: any = null;
+    let undo: (() => void) | null = null;
 
     function refuseProviders(): void {
-      if (realRequest) return;
-      realRequest = Zotero.HTTP.request;
-      (Zotero.HTTP as any).request = async (
-        method: string,
-        url: string,
-        options?: unknown,
-      ) =>
-        REFUSED_URL.test(url)
-          ? { status: 429, responseText: "", getResponseHeader: () => null }
-          : realRequest.call(Zotero.HTTP, method, url, options);
+      undo ??= interceptProviders(providerRefusal, REFUSED_URL);
     }
 
     function answerAgain(): void {
-      if (!realRequest) return;
-      (Zotero.HTTP as any).request = realRequest;
-      realRequest = null;
+      undo?.();
+      undo = null;
     }
 
     function countdownText(): string {
@@ -1684,7 +1753,7 @@ describe("Citation hops (Stage 3)", function () {
     let drainTabID: string | null = null;
     let drainItemID: number | null = null;
     let anchorItemID: number | null = null;
-    let realRequest: any = null;
+    let undo: (() => void) | null = null;
     /** Every provider URL the case saw, as the evidence it asserts on. */
     let asked: string[] = [];
     /**
@@ -1742,15 +1811,7 @@ describe("Citation hops (Stage 3)", function () {
      * host still goes out, so Zotero's own traffic is untouched.
      */
     function serveProvidersOffline(): void {
-      if (realRequest) return;
-      realRequest = Zotero.HTTP.request;
-      (Zotero.HTTP as any).request = async (
-        method: string,
-        url: string,
-        options?: unknown,
-      ) => {
-        if (!PROVIDER_HOST.test(url))
-          return realRequest.call(Zotero.HTTP, method, url, options);
+      undo ??= interceptProviders((url) => {
         asked.push(url);
         mark(url.replace(/^https:\/\/([^/]+)\/.*?([^/?]*)(\?.*)?$/, "$1 …$2"));
         // The seed's citers, and then nothing for each of them.
@@ -1766,13 +1827,12 @@ describe("Citation hops (Stage 3)", function () {
         if (META_LOOKUP.test(url)) return providerAnswer("[]");
         // Every other provider sits out the window.
         return providerRefusal();
-      };
+      });
     }
 
     function answerAgain(): void {
-      if (!realRequest) return;
-      (Zotero.HTTP as any).request = realRequest;
-      realRequest = null;
+      undo?.();
+      undo = null;
     }
 
     /**
@@ -2112,7 +2172,7 @@ describe("Citation hops (Stage 3)", function () {
     let previousKey: unknown = undefined;
     let seedItemID: number | null = null;
     let tabID: string | null = null;
-    let realRequest: any = null;
+    let undo: (() => void) | null = null;
     let asked: string[] = [];
     /**
      * What the provider line carried before the case began, as evidence: the
@@ -2133,31 +2193,6 @@ describe("Citation hops (Stage 3)", function () {
      */
     let serving = false;
 
-    function openAlexWork(
-      id: string,
-      doi: string,
-      count: number | null,
-    ): unknown {
-      return {
-        id: `https://openalex.org/${id}`,
-        doi: `https://doi.org/${doi}`,
-        display_name: `D8 paper ${id}`,
-        publication_year: 2021,
-        publication_date: "2021-01-01",
-        ...(count === null ? {} : { cited_by_count: count }),
-        referenced_works_count: 0,
-        authorships: [
-          {
-            author: {
-              id: "https://openalex.org/A1",
-              display_name: "A. Author",
-            },
-          },
-        ],
-        primary_location: null,
-      };
-    }
-
     /**
      * The seed's own record, carrying the LIBRARY item's title and year. A
      * lookup answer whose title contradicts the local one and shares no author
@@ -2169,28 +2204,17 @@ describe("Citation hops (Stage 3)", function () {
      * contradict, so they keep the generic shape.
      */
     function seedWork(): unknown {
-      return {
-        ...(openAlexWork("W801", SEED_DOI, CITERS.length) as object),
-        display_name: SEED_TITLE,
-        publication_year: 2019,
-        publication_date: "2019-01-01",
-      };
-    }
-
-    function notFound(): unknown {
-      return { status: 404, responseText: "", getResponseHeader: () => null };
+      return openAlexWork({
+        id: "W801",
+        doi: SEED_DOI,
+        title: SEED_TITLE,
+        year: 2019,
+        count: CITERS.length,
+      });
     }
 
     function serveOpenAlex(): void {
-      if (realRequest) return;
-      realRequest = Zotero.HTTP.request;
-      (Zotero.HTTP as any).request = async (
-        method: string,
-        url: string,
-        options?: unknown,
-      ) => {
-        if (!PROVIDER_HOST.test(url))
-          return realRequest.call(Zotero.HTTP, method, url, options);
+      undo ??= interceptProviders((url) => {
         asked.push(url);
         // Not a refusal: a 429 makes the automatic update come back on a
         // cool-down (30 s, 1 min, 2 min) and land in the middle of a case
@@ -2199,7 +2223,7 @@ describe("Citation hops (Stage 3)", function () {
         // providers would answer is not this case's evidence anyway — the
         // case asserts that none of them was asked at all.
         if (!serving || !/^https:\/\/api\.openalex\.org\//.test(url))
-          return notFound();
+          return providerNotFound();
         const parsed = new URL(url);
         const path = decodeURIComponent(parsed.pathname);
         // The seed is a library paper: its own expansion looks the DOI up.
@@ -2209,14 +2233,19 @@ describe("Citation hops (Stage 3)", function () {
         if (/\/works\/doi/i.test(path)) {
           return path.includes(SEED_DOI)
             ? providerAnswer(JSON.stringify(seedWork()))
-            : notFound();
+            : providerNotFound();
         }
         const filter = parsed.searchParams.get("filter") ?? "";
         if (filter === "cites:W801") {
           return providerAnswer(
             JSON.stringify({
               results: CITERS.map((citer) =>
-                openAlexWork(citer.id, citer.doi, null),
+                openAlexWork({
+                  ...citer,
+                  title: `D8 paper ${citer.id}`,
+                  year: 2021,
+                  count: null,
+                }),
               ),
               meta: { count: CITERS.length },
             }),
@@ -2227,13 +2256,12 @@ describe("Citation hops (Stage 3)", function () {
         return providerAnswer(
           JSON.stringify({ results: [], meta: { count: 0 } }),
         );
-      };
+      });
     }
 
     function answerAgain(): void {
-      if (!realRequest) return;
-      (Zotero.HTTP as any).request = realRequest;
-      realRequest = null;
+      undo?.();
+      undo = null;
     }
 
     function cutLine(): string {
@@ -2287,30 +2315,6 @@ describe("Citation hops (Stage 3)", function () {
       });
     }
 
-    /**
-     * Hold until the provider line has been silent for `idleMs`, so the case
-     * starts from a quiet baseline. Saving a library item queues an automatic
-     * citation-data update of its own (automaticUpdateCoordinator.ts, 1.2 s
-     * after the save), and that update is what puts the paper on the plot at
-     * all, so it cannot be turned off — run 2 turned it off and the node-menu
-     * walk was offered the outer fixture alone. It is not the fill's traffic
-     * either, and counting it would read like the fill asking providers it
-     * never asked, so the case waits it out instead.
-     */
-    async function untilQuiet(idleMs: number, capMs: number): Promise<boolean> {
-      const deadline = Date.now() + capMs;
-      let seen = asked.length;
-      let since = Date.now();
-      while (Date.now() < deadline) {
-        await delay(500);
-        if (asked.length !== seen) {
-          seen = asked.length;
-          since = Date.now();
-        } else if (Date.now() - since >= idleMs) return true;
-      }
-      return false;
-    }
-
     before(async function () {
       this.timeout(240_000);
       previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
@@ -2341,7 +2345,7 @@ describe("Citation hops (Stage 3)", function () {
       );
       expect(fit, "the D8 tab's fit button").to.exist;
       fit!.click();
-      wentQuiet = await untilQuiet(10_000, 120_000);
+      wentQuiet = await untilQuiet(() => asked.length, 10_000, 120_000);
       settledAfter = asked.length;
     });
 
@@ -2541,36 +2545,14 @@ describe("Citation hops (Stage 3)", function () {
     let seedItemID: number | null = null;
     let noDataItemID: number | null = null;
     let tabID: string | null = null;
-    let realRequest: any = null;
+    let undo: (() => void) | null = null;
     let asked: string[] = [];
     /** Evidence for the messages: the line's state when the case took over. */
     let settledAfter = 0;
     let wentQuiet = false;
-    /** One OpenAlex record, with the citation count the case gives it. */
-    function work(id: string, doi: string, count: number): unknown {
-      return {
-        id: `https://openalex.org/${id}`,
-        doi: `https://doi.org/${doi}`,
-        display_name: `Floor paper ${id}`,
-        publication_year: 2021,
-        publication_date: "2021-01-01",
-        cited_by_count: count,
-        referenced_works_count: 0,
-        authorships: [
-          {
-            author: {
-              id: "https://openalex.org/A1",
-              display_name: "A. Author",
-            },
-          },
-        ],
-        primary_location: null,
-      };
-    }
-
-    function notFound(): unknown {
-      return { status: 404, responseText: "", getResponseHeader: () => null };
-    }
+    /** A citer, or the seed's citer's citer, with the count the case gives it. */
+    const work = (id: string, doi: string, count: number): unknown =>
+      openAlexWork({ id, doi, title: `Floor paper ${id}`, year: 2021, count });
 
     /**
      * The fake, answering from the moment it is installed — which is where
@@ -2590,19 +2572,12 @@ describe("Citation hops (Stage 3)", function () {
      * and not a hop — is exactly what the case reads.
      */
     function serve(): void {
-      if (realRequest) return;
-      realRequest = Zotero.HTTP.request;
-      (Zotero.HTTP as any).request = async (
-        method: string,
-        url: string,
-        options?: unknown,
-      ) => {
-        if (!PROVIDER_HOST.test(url))
-          return realRequest.call(Zotero.HTTP, method, url, options);
+      undo ??= interceptProviders((url) => {
         asked.push(url);
         // A not-found is final; a 429 would bring the automatic update back on
         // a cool-down in the middle of a case that counts requests (D8).
-        if (!/^https:\/\/api\.openalex\.org\//.test(url)) return notFound();
+        if (!/^https:\/\/api\.openalex\.org\//.test(url))
+          return providerNotFound();
         const parsed = new URL(url);
         const path = decodeURIComponent(parsed.pathname);
         // The seed's own record carries the LIBRARY item's title and year: a
@@ -2611,14 +2586,17 @@ describe("Citation hops (Stage 3)", function () {
         if (/\/works\/doi/i.test(path)) {
           return path.includes(SEED_DOI)
             ? providerAnswer(
-                JSON.stringify({
-                  ...(work("W900", SEED_DOI, CITERS.length) as object),
-                  display_name: SEED_TITLE,
-                  publication_year: 2019,
-                  publication_date: "2019-01-01",
-                }),
+                JSON.stringify(
+                  openAlexWork({
+                    id: "W900",
+                    doi: SEED_DOI,
+                    title: SEED_TITLE,
+                    year: 2019,
+                    count: CITERS.length,
+                  }),
+                ),
               )
-            : notFound();
+            : providerNotFound();
         }
         const filter = parsed.searchParams.get("filter") ?? "";
         if (filter === "cites:W900") {
@@ -2647,13 +2625,12 @@ describe("Citation hops (Stage 3)", function () {
         return providerAnswer(
           JSON.stringify({ results: [], meta: { count: 0 } }),
         );
-      };
+      });
     }
 
     function restore(): void {
-      if (!realRequest) return;
-      (Zotero.HTTP as any).request = realRequest;
-      realRequest = null;
+      undo?.();
+      undo = null;
     }
 
     /** The citer pages the fill asked for, in the order it asked. */
@@ -2790,27 +2767,6 @@ describe("Citation hops (Stage 3)", function () {
       );
     }
 
-    /**
-     * Hold until the provider line has been silent for `idleMs`: the library's
-     * own update of the new item runs before the case clicks anything, and
-     * counting it would read like the fill asking for lists it never asked for
-     * (D8's own note; the update cannot be turned off, since it is what puts
-     * the paper on the plot at all).
-     */
-    async function untilQuiet(idleMs: number, capMs: number): Promise<boolean> {
-      const deadline = Date.now() + capMs;
-      let seen = asked.length;
-      let since = Date.now();
-      while (Date.now() < deadline) {
-        await delay(500);
-        if (asked.length !== seen) {
-          seen = asked.length;
-          since = Date.now();
-        } else if (Date.now() - since >= idleMs) return true;
-      }
-      return false;
-    }
-
     before(async function () {
       this.timeout(240_000);
       previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
@@ -2840,7 +2796,7 @@ describe("Citation hops (Stage 3)", function () {
       // Red run 5 opened the tab first, so no paper had a citation count when
       // the gear was built, Overview came out as year × free, and with neither
       // axis showing citations the renderer drew no floor at all.
-      wentQuiet = await untilQuiet(10_000, 120_000);
+      wentQuiet = await untilQuiet(() => asked.length, 10_000, 120_000);
       settledAfter = asked.length;
       tabID = await openNewGraphTab();
       currentTabID = tabID;
@@ -3010,54 +2966,21 @@ describe("Citation hops (Stage 3)", function () {
     let previousAppearance: unknown = undefined;
     let itemIDs: number[] = [];
     let tabID: string | null = null;
-    let realRequest: any = null;
+    let undo: (() => void) | null = null;
     let checkRequests = 0;
     let openAlexRequests = 0;
     /** The seeds whose own lookup the fake has answered. */
     const lookedUp = new Set<string>();
 
-    function work(
-      id: string,
-      doi: string,
-      title: string,
-      year: number,
-    ): unknown {
-      return {
-        id: `https://openalex.org/${id}`,
-        doi: `https://doi.org/${doi}`,
-        display_name: title,
-        publication_year: year,
-        publication_date: `${year}-01-01`,
-        cited_by_count: 10,
-        referenced_works_count: 0,
-        authorships: [
-          {
-            author: {
-              id: "https://openalex.org/A1",
-              display_name: "A. Author",
-            },
-          },
-        ],
-        primary_location: null,
-      };
-    }
-
-    function notFound(): unknown {
-      return { status: 404, responseText: "", getResponseHeader: () => null };
-    }
+    /** Every paper here carries ten citations; the case reads links, not counts. */
+    const work = (id: string, doi: string, title: string, year: number) =>
+      openAlexWork({ id, doi, title, year, count: 10 });
 
     /** Answers from install, as the floor's block does, for the same reason. */
     function serve(): void {
-      if (realRequest) return;
-      realRequest = Zotero.HTTP.request;
-      (Zotero.HTTP as any).request = async (
-        method: string,
-        url: string,
-        options?: unknown,
-      ) => {
-        if (!PROVIDER_HOST.test(url))
-          return realRequest.call(Zotero.HTTP, method, url, options);
-        if (!/^https:\/\/api\.openalex\.org\//.test(url)) return notFound();
+      undo ??= interceptProviders((url) => {
+        if (!/^https:\/\/api\.openalex\.org\//.test(url))
+          return providerNotFound();
         openAlexRequests += 1;
         const parsed = new URL(url);
         const path = decodeURIComponent(parsed.pathname);
@@ -3068,7 +2991,7 @@ describe("Citation hops (Stage 3)", function () {
             ? providerAnswer(
                 JSON.stringify(work(seed.id, seed.doi, seed.title, 2019)),
               )
-            : notFound();
+            : providerNotFound();
         }
         const filter = parsed.searchParams.get("filter") ?? "";
         if (parsed.searchParams.get("select") === "id,doi,referenced_works") {
@@ -3109,13 +3032,12 @@ describe("Citation hops (Stage 3)", function () {
             meta: { count: citers.length },
           }),
         );
-      };
+      });
     }
 
     function restore(): void {
-      if (!realRequest) return;
-      (Zotero.HTTP as any).request = realRequest;
-      realRequest = null;
+      undo?.();
+      undo = null;
     }
 
     function keyEntries(): string[] {

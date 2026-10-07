@@ -86,20 +86,26 @@ describe("A new graph tab mounts on a covered window", function () {
     win.cancelAnimationFrame = () => undefined;
     try {
       const toolsPopup = doc.getElementById("menu_ToolsPopup")!;
-      let showing = shown(toolsPopup);
-      (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
-      await showing;
-      const tools = customMenu(toolsPopup, `${config.addonRef}-tools-submenu`);
-      showing = shown(tools.menupopup);
-      tools.openMenu(true);
-      await showing;
-      command(
-        customMenu(
-          tools.menupopup,
-          `${config.addonRef}-new-graph-view-command`,
-        ),
-      );
-      (toolsPopup as any).hidePopup();
+      try {
+        let showing = shown(toolsPopup);
+        (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
+        await showing;
+        const tools = customMenu(
+          toolsPopup,
+          `${config.addonRef}-tools-submenu`,
+        );
+        showing = shown(tools.menupopup);
+        tools.openMenu(true);
+        await showing;
+        command(
+          customMenu(
+            tools.menupopup,
+            `${config.addonRef}-new-graph-view-command`,
+          ),
+        );
+      } finally {
+        (toolsPopup as any).hidePopup();
+      }
 
       const tab = await waitFor(
         () => graphTabs().find((candidate) => !already.has(candidate.id)),
