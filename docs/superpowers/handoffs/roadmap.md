@@ -148,16 +148,6 @@ opacity grade).
       OpenCitations calls legacy. v2 (`/index/v2/citations/doi:{doi}`) answers
       today and its composite `citing`/`cited` strings already parse through
       `normalizeDOI`, so the migration is small
-- [ ] B74 the Zotero suite throttles itself against Semantic Scholar and
-      reports the damage as failures: two full runs an hour apart on 2026-09-17
-      gave 88/1 then 80/5, the hop cases reading `0/0`.
-      `zotero-plugin.config.ts` sets only `visualOutDir` in `test.prefs`, so
-      every run is keyless; ten Citation hops cases run live
-      (`graphCitationHops.test.ts:789-1178`) and re-seed the same DOI; and one
-      expansion is 55 requests across 16 URLs (B72's ledger), the batch
-      endpoint 10 times. Only B50's and B72's cases stub the providers. Weigh:
-      stubbing the ten live cases the same way, a key in the test profile, or
-      one cache across cases
 - [ ] B68 the refresh's composition has no automated test: switching on a
       refusal, the no-candidate return publishing nothing, the
       `refusedBy`/`skipped`/`answeredBy` population, and a refused snapshot
@@ -417,9 +407,8 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `af039b8` (92/2: B50's countdown flake, and
-B79's new key-removal case, whose race `dab8463` fixed; not rerun in full), so
-count with `git log af039b8..main --oneline`.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `ff8a3cc` (94/0, twice inside the hour, B74),
+so count with `git log ff8a3cc..main --oneline`.
 A clean run is 94 passed, 0 failed as of 2026-10-07 (B79's key-removal case
 added).
 
@@ -434,11 +423,11 @@ added).
   mount falls back to a 250 ms timer (`createFrameOrTimer`), and
   `graphTabMountsCovered.test.ts` stubs frames away to hold it.
 
-- Ten Citation hops cases run against live providers on Semantic Scholar's
-  keyless pool. When it answers 429 each expansion lands `0/0` after exactly
-  15 s and those cases fail: the provider, not a regression. A second full run
-  inside the same hour poisons them (B74), so a re-run confirms nothing until
-  the window has passed.
+- `graphCitationHops.test.ts` is served offline (B74): its outer `before`
+  wraps `Zotero.HTTP.request` with a served index (`serveIndex`, Semantic
+  Scholar and OpenCitations, every other provider host not-found, 400 ms per
+  answer), and the nested blocks wrap that in turn. Its fixture DOIs carry the
+  run's clock. A hop case reading `0/0` is now a regression, not a refusal.
 - B72's drain case prints a timeline and a frame probe when it stalls. B75 was
   `frames DO NOT fire in 3 s, visibility hidden`: the test window was covered
   and the fill re-planned on a frame alone. Minimising the window in the case
@@ -513,3 +502,5 @@ entries are in git history.
   (`storedCheckOf`), the gate a pure `seedLinkCheckOpen`, a save refused while
   the store closes, the fixture tag the whole clock; a Zotero case clears the
   key on a live graph (it failed against a gate that ignored the key).
+- 2026-10-07, later: B74 fixed: the Citation hops suite answers every
+  provider from a served index, so back-to-back full runs both read 94/0.
