@@ -123,9 +123,27 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
+- [ ] B80 after a refused OpenCitations Meta lookup, a manual refresh pages
+      the Index on the DOI (B69); an Index error other than 429 becomes an
+      empty list in `fetchLinks` and is stored as complete. Predates B50
+- [ ] B83 the D8 case ("fills through OpenAlex alone") fails when the whole
+      Citation hops block runs before it: `nodeMenuEntry` finds only the outer
+      fixture on the new tab's canvas, never `... (D8 order)`. Predates batch
+      2: block runs failed 1/2 at `9e78074` and 2/2 at `32542c5`; the D8
+      block alone 3/3 and with B72's block 3/3 passed; full runs 3/5 failed.
+      First task: where the D8 paper is drawn (or whether it is in the model)
+- [ ] B81 a hop node hydrated from another index keeps OpenCitations as its
+      `citationCountProvider` over that index's count
+      (`externalWorkToFocusNode`); B73 stopped the count bounding the list,
+      but the label is still wrong. Nothing records which index a merged
+      count came from
 
 ## The rail and the Key
 
+- [ ] B82 two more paths redraw the plot without rebuilding the Key (found
+      fixing B52): late source metrics (`refreshSourceMetricsForLayout`) can
+      leave a ramp's range stale, and a theme change refreshes only the Scope
+      rail, so Key swatches keep the old theme's colours
 - [ ] D10 hop depth is encoded as opacity, the wrong channel. The ramp
       `1, .9, .8, .7, .6, .5, .4` makes adjacent early hops untellable, and the
       spec applies it under every colouring, so under Citation hop one variable
@@ -356,6 +374,12 @@ any failure into a new entry above.
       check request. Clear the key in Settings with the graph open: the
       citer reads `Cite 1 seed` at once, no reopen; put it back and it reads
       `Cite all 2 seeds` again, with no check request (B79).
+- [ ] B53: open the graph's File menu with saved graphs: a rule separates the
+      last saved graph from Save.
+- [ ] B52: on a filled seeded graph, switch the colouring from Citation hop to
+      Uniform in the gear: the Key drops the hop rows at once.
+- [ ] B70: press Refresh on a seed with a DOI and no OpenAlex key: the
+      OpenCitations citers still arrive (Index v2).
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -366,10 +390,10 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `ca206aa` (94/0, B65, B66, B68),
-so count with `git log ca206aa..main --oneline`.
-A clean run is 94 passed, 0 failed as of 2026-10-07 (B79's key-removal case
-added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `32542c5` (94/1, the 1 is B83),
+so count with `git log 32542c5..main --oneline`.
+A clean run is 95 passed, 0 failed as of 2026-10-07 (B52's Key case added);
+until B83 is fixed, a D8 failure alone is B83.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -404,6 +428,9 @@ added).
   `Zotero.hideZoteroPaneOverlays()`, as
   `graphSelectionOutsideFolder.test.ts` does; a detached window is not under
   it.
+- One full run at `8ede40c` failed 8 Stage 3 cases at once: hop 1 read
+  `0/0`, then the whole ladder (Seeds row too) vanished within 216 ms. It
+  did not recur in the next six runs touching that block. Name it if it does.
 - `savedGraphMenu.test.ts` "lists the saved graphs on the first showing" is
   intermittent (a focus or popup timing race on the real Tools menu is the
   first suspect). One failure there is not a regression.
@@ -470,3 +497,8 @@ entries are in git history.
   (`2425de6..ca206aa`): a throwing `onTimeout` settles its call, one
   `providerHintFor` rule, the refresh's refusal composition under unit tests.
   Full suite 94/0 at `ca206aa`.
+- 2026-10-07, later: batch 2 in parallel worktrees, `a9dd176..32542c5`: B53
+  (File menu rule), B69 (a refused Meta lookup still pages the Index on the
+  DOI by hand), B70 (Index v2), B52 (the Key follows the gear), B73 (a count
+  OpenCitations cannot report no longer bounds its list). B80 to B83 filed;
+  B83 bisected to before the batch.
