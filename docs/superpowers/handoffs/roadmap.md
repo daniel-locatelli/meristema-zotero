@@ -123,9 +123,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B80 after a refused OpenCitations Meta lookup, a manual refresh pages
-      the Index on the DOI (B69); an Index error other than 429 becomes an
-      empty list in `fetchLinks` and is stored as complete. Predates B50
 - [ ] B83 the D8 case ("fills through OpenAlex alone") fails when the whole
       Citation hops block runs before it: `nodeMenuEntry` finds only the outer
       fixture on the new tab's canvas, never `... (D8 order)`. Predates batch

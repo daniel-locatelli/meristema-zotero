@@ -466,6 +466,24 @@ describe("an aggregate manual refresh", function () {
     expect(resolution!.answeredBy).to.equal("opencitations");
   });
 
+  it("stores nothing when the Index faults on that DOI page (B80)", async function () {
+    // The page fetcher throws on an Index error other than 429; the snapshot
+    // fails, so the fault is never stored as a complete empty citer list.
+    plan = ["opencitations"];
+    lookups = { opencitations: refusedLookup("opencitations") };
+    answers = {
+      opencitations: () =>
+        Promise.reject(new Error("OpenCitations Index answered HTTP 503")),
+    };
+    const { resolution } = await refresh({ mode: "manual" }, ["opencitations"]);
+    expect(asked, "the Index was paged on the DOI").to.deep.equal([
+      "opencitations",
+    ]);
+    expect(commits, "a faulted page is never stored").to.deep.equal([]);
+    expect(resolution).to.include({ answeredBy: null, complete: false });
+    expect(resolution!.refusedBy, "a fault is not a refusal").to.deep.equal([]);
+  });
+
   it("asks a refusing provider whose pages need its own record no further", async function () {
     plan = ["inspire", "crossref"];
     lookups = { inspire: refusedLookup("inspire") };

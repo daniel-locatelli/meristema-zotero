@@ -276,3 +276,59 @@ describe("the OpenCitations relation pages on Index v2 (B70)", function () {
     ]);
   });
 });
+
+describe("an OpenCitations Index fault (B80)", function () {
+  /** The rejection a faulted page must produce. */
+  async function rejection(promise: Promise<unknown>): Promise<unknown> {
+    try {
+      await promise;
+    } catch (error) {
+      return error;
+    }
+    return expect.fail("the page was expected to fail, not answer a list");
+  }
+
+  function failing(status: number): HTTPResult<unknown> {
+    return { ok: false, status, data: null, message: `HTTP ${status}` };
+  }
+
+  it("fails the page on a server error, rather than answering no citers", async function () {
+    // An empty list is stored as the paper's complete citer list; a 5xx says
+    // nothing about the paper at all.
+    respond = () => failing(503);
+    const error = await rejection(
+      openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0),
+    );
+    expect(error).to.be.instanceOf(Error);
+    expect(String(error)).to.include("503");
+  });
+
+  it("fails the page on a dropped connection and on a 410 the same way", async function () {
+    // A 410 is how the Index retired a route before (B63).
+    respond = () => failing(0);
+    await rejection(openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0));
+    respond = () => failing(410);
+    await rejection(openCitationsProvider.fetchReferencedWorks!(V2_DOI, 50, 0));
+  });
+
+  it("reads a 404 as a miss, an empty list, as the lookup does", async function () {
+    // failureStatusFromHTTP calls a 404 not-found; whether an empty list is
+    // trusted is unbackedEmptyList's call, as for the Index's 200 and `[]`.
+    respond = () => failing(404);
+    expect(
+      await openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0),
+    ).to.deep.equal([]);
+  });
+
+  it("fails the page on an answer that is not a list", async function () {
+    respond = () => answered({ error: "unexpected" });
+    await rejection(openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0));
+  });
+
+  it("still reads the Index's empty list as no citers", async function () {
+    respond = () => answered([]);
+    expect(
+      await openCitationsProvider.fetchCitingWorks!(V2_DOI, 50, 0),
+    ).to.deep.equal([]);
+  });
+});

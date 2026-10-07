@@ -94,7 +94,17 @@ async function fetchLinks(
     { signal: options?.signal, retryRefusals: options?.retryRefusals },
   );
   if (response.status === 429) throw new ProviderRefusedError("opencitations");
-  if (!response.ok || !Array.isArray(response.data)) return [];
+  // A miss (404, as the lookup reads one) is an empty list, as the Index's own
+  // 200 and `[]` for an unindexed DOI is. A server error, a dropped connection
+  // or a body that is not a list is a fault: returned as `[]` it was stored as
+  // the paper's complete list, thrown it fails the snapshot (B80).
+  if (!response.ok && failureStatusFromHTTP(response.status) === "not-found")
+    return [];
+  if (!response.ok || !Array.isArray(response.data)) {
+    throw new Error(
+      `OpenCitations Index page failed: ${response.message || `HTTP ${response.status}`}`,
+    );
+  }
   return response.data
     .slice(offset, offset + Math.min(MAX_RELATION_RESULTS, maximum))
     .map((link) => relatedFromLink(link, direction))
