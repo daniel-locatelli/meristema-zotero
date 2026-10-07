@@ -8,6 +8,7 @@ import {
   referenceListRowFromDB,
   referenceListRowToDB,
   referenceListRows,
+  storedCheckOf,
 } from "../../src/services/openAlexReferenceLists";
 
 const T0 = Date.parse("2026-10-06T00:00:00Z");
@@ -169,5 +170,40 @@ describe("the reference list DB codec", function () {
         fetched_at: AT,
       }),
     ).to.equal(null);
+  });
+});
+
+describe("storedCheckOf", function () {
+  const check = { openAlexID: "W2", references: ["W9"] };
+  const stored =
+    (entries: Record<string, typeof check | null>) => (alias: string) =>
+      alias in entries ? entries[alias] : undefined;
+
+  it("does not let a not-found on one alias hide a check on another", function () {
+    expect(
+      storedCheckOf(
+        ["openalex:W1", "doi:10.1234/x"],
+        stored({ "openalex:W1": null, "doi:10.1234/x": check }),
+      ),
+    ).to.deep.equal(check);
+  });
+
+  it("reads not-found only when every alias says so", function () {
+    expect(
+      storedCheckOf(
+        ["openalex:W1", "doi:10.1234/x"],
+        stored({ "openalex:W1": null, "doi:10.1234/x": null }),
+      ),
+    ).to.equal(null);
+    expect(
+      storedCheckOf(
+        ["openalex:W1", "doi:10.1234/x"],
+        stored({ "openalex:W1": null }),
+      ),
+    ).to.equal(undefined);
+  });
+
+  it("knows nothing of a paper with no alias", function () {
+    expect(storedCheckOf([], stored({}))).to.equal(undefined);
   });
 });

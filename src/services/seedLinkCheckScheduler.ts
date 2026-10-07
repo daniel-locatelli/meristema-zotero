@@ -13,6 +13,7 @@ import {
 import type { SeedLinkCheck } from "./graphSeedLinks";
 import {
   checkPaperAliases,
+  storedCheckOf,
   type CheckPaper,
   type ReferenceListRow,
 } from "./openAlexReferenceLists";
@@ -63,17 +64,20 @@ export function createSeedLinkCheckScheduler(
   let dirty = false;
   let deferred = false;
 
-  const blocked = (alias: string): boolean =>
-    deps.store.lookup(alias) !== undefined ||
-    inFlight.has(alias) ||
-    (backoff.get(alias)?.until ?? 0) > deps.now();
+  const busy = (alias: string): boolean =>
+    inFlight.has(alias) || (backoff.get(alias)?.until ?? 0) > deps.now();
 
   const collect = (): CheckPaper[] => {
     const chosen = new Map<string, CheckPaper>();
     for (const client of clients) {
       for (const paper of client.papers()) {
         const aliases = checkPaperAliases(paper);
-        if (!aliases.length || aliases.some(blocked)) continue;
+        if (
+          !aliases.length ||
+          storedCheckOf(aliases, deps.store.lookup) !== undefined ||
+          aliases.some(busy)
+        )
+          continue;
         if (aliases.some((alias) => chosen.has(alias))) continue;
         for (const alias of aliases) chosen.set(alias, paper);
       }

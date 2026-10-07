@@ -27,6 +27,24 @@ export function checkPaperAliases(paper: CheckPaper): string[] {
   return aliases;
 }
 
+/**
+ * A paper's stored answer across its aliases: a check on any alias wins, and
+ * not-found only when every alias says so, so a not-found reached by one
+ * identifier never hides a list reached by the other.
+ */
+export function storedCheckOf(
+  aliases: readonly string[],
+  lookup: (alias: string) => SeedLinkCheck | null | undefined,
+): SeedLinkCheck | null | undefined {
+  let notFound = 0;
+  for (const alias of aliases) {
+    const check = lookup(alias);
+    if (check) return check;
+    if (check === null) notFound += 1;
+  }
+  return aliases.length && notFound === aliases.length ? null : undefined;
+}
+
 export type ReferenceListStatus = "success" | "alias" | "not-found";
 
 export interface ReferenceListRow {

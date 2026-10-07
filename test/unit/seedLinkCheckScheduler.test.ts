@@ -138,6 +138,28 @@ describe("seedLinkCheckScheduler", function () {
     expect(h.asked).to.have.length(0);
   });
 
+  it("asks again for a paper one of whose aliases is not-found and the other unknown", async function () {
+    const h = harness();
+    const both = { key: "b", openAlexID: "W1", doi: "10.1234/b" };
+    h.known.set("openalex:W1", null);
+    h.scheduler.register(client([both]));
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.deep.equal([[both]]);
+  });
+
+  it("does not ask for a paper whose other alias holds a check", async function () {
+    const h = harness();
+    h.known.set("openalex:W1", null);
+    h.known.set("doi:10.1234/b", { openAlexID: "W2", references: [] });
+    h.scheduler.register(
+      client([{ key: "b", openAlexID: "W1", doi: "10.1234/b" }]),
+    );
+    h.scheduler.markDirty();
+    await h.flush();
+    expect(h.asked).to.have.length(0);
+  });
+
   it("backs a failed paper off on the schedule", async function () {
     const h = harness();
     h.scheduler.register(client([P]));
