@@ -51,8 +51,8 @@ Built and merged from `docs/superpowers/specs/2026-09-12-citation-hops-design.md
 
 ### Stage 4: citation floor and shared citers
 
-Depends on Stage 3 and D8. Two specs: the floor
-(`docs/superpowers/specs/2026-09-18-citation-floor-design.md`, ADR 0016) and
+Depends on Stage 3 and D8. The floor is settled in ADR 0016 (its spec, retired,
+is `git show cc42c4a:docs/superpowers/specs/2026-09-18-citation-floor-design.md`);
 shared citers (`docs/superpowers/specs/2026-09-28-shared-citers-design.md`:
 a Seeds linked colouring and a shared rule after the floor, not the design's
 opacity grade).

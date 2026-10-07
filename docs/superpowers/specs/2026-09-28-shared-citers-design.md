@@ -1,7 +1,7 @@
 # Shared Citers
 
 Brainstormed 2026-09-28. The second half of Stage 4; the floor
-(`2026-09-18-citation-floor-design.md`, ADR 0016) is the first. The design
+(ADR 0016) is the first. The design
 reference is option 6a in `docs/design_handoff_citation_chain_depth/README.md`
 (Shared citers, Key tiers); this spec departs from it on the channel, as the
 decisions say.
