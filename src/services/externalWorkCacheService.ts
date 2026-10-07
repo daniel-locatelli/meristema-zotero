@@ -482,7 +482,11 @@ export function lookupOpenAlexReferenceCheck(
 export async function saveOpenAlexReferenceRows(
   rows: readonly ReferenceListRow[],
 ): Promise<void> {
-  if (!rows.length || !(await ensureExternalWorkCache())) return;
+  if (!rows.length) return;
+  // A refusal, not a quiet return: the check would count a lost save as
+  // landed and ask again with no backoff.
+  if (!(await ensureExternalWorkCache()))
+    throw new Error("Meristema external-work cache is closing.");
   await queueWrite(async () => {
     const connection = requireDB();
     await connection.executeTransaction(async () => {
