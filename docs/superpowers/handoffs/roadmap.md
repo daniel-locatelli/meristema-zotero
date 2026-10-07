@@ -417,10 +417,11 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-06 at `ec0c3f6` (93/0), so count with
-`git log ec0c3f6..main --oneline`.
-A clean run is 93 passed, 0 failed as of 2026-10-06 (the shared citers and
-covered-window cases added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `af039b8` (92/2: B50's countdown flake, and
+B79's new key-removal case, whose race `dab8463` fixed; not rerun in full), so
+count with `git log af039b8..main --oneline`.
+A clean run is 94 passed, 0 failed as of 2026-10-07 (B79's key-removal case
+added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
