@@ -21,7 +21,7 @@ Inputs (do not re-derive them):
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
-- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0017).
+- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0018).
 - Ledger of finished plans: `.superpowers/sdd/progress.md`.
 
 ## Next
@@ -169,14 +169,6 @@ opacity grade).
       `onTimeout` leaves the timeout promise unsettled, and a late rejection
       from an abandoned operation is unhandled. Unreachable from today's
       callers; add a no-op `.catch` when the file is next touched
-- [ ] B79 the seed-link check's deferred review findings (final review,
-      2026-10-06): a fresh not-found on one alias hides a success on another
-      (`storedSeedLinkCheck` and the scheduler's `collect` stop at the first
-      known alias); key or provider changes take effect only on the next
-      rebuild; a save while the store closes counts as landed with no
-      backoff; the Zotero fixture's run tag (`Date.now() % 1_000_000`)
-      repeats every ~17 min; there is no negative gate test (no key, OpenAlex
-      off, one seed)
 
 ## The rail and the Key
 
@@ -412,8 +404,9 @@ any failure into a new entry above.
       Under Seeds linked the citer reads `Cite all 2 seeds` and draws an edge
       to each seed in its colour; `Shared by ≥ 2` keeps it. Repeat under
       References. Close and reopen the graph: the grading is back with no
-      check request. Remove the key and reopen: the citer reads
-      `Cite 1 seed` again.
+      check request. Clear the key in Settings with the graph open: the
+      citer reads `Cite 1 seed` at once, no reopen; put it back and it reads
+      `Cite all 2 seeds` again, with no check request (B79).
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -515,3 +508,7 @@ entries are in git history.
   Next: the open bugs.
 - 2026-10-06, later: B78 shipped (ADR 0018): seed links checked against
   OpenAlex reference lists; commits `0d588c1..ec0c3f6` plus this log line.
+- 2026-10-07: B79 fixed: a paper's stored check read across its aliases
+  (`storedCheckOf`), the gate a pure `seedLinkCheckOpen`, a save refused while
+  the store closes, the fixture tag the whole clock; a Zotero case clears the
+  key on a live graph (it failed against a gate that ignored the key).

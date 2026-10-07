@@ -87,6 +87,10 @@ CREATE TABLE IF NOT EXISTS openalex_reference_lists (
   canonical ID) is a row with `status = 'alias'` and `openalex_id` only.
   Reference lists are stored once.
 - A not-found is one row per asked alias, `status = 'not-found'`, no ID.
+- A paper is read across its aliases (`storedCheckOf`): a success on any
+  alias wins, and it is not-found only when every alias is (B79).
+- A save while the store is closing is refused, so the scheduler backs the
+  papers off rather than counting it landed (B79).
 - A success is fresh for 180 days, a not-found for 30, matching
   `external_works_v2` (`SUCCESS_MAX_AGE_MS`, `failureRetryAt`). Stale rows are
   pruned at init; the rest load into the mirror.
@@ -106,8 +110,8 @@ when; `graphViewService.ts` only calls it.
   hop-1 papers. It marks the scheduler dirty; it does not collect yet.
 - At dispatch (one request in flight at a time across all graph tabs, so the
   scheduler is module-level), it collects the papers that have an identifier,
-  no fresh store entry, are not in flight, and are not backing off. Nothing
-  collected, nothing sent.
+  no stored answer (`storedCheckOf`), are not in flight, and are not backing
+  off. Nothing collected, nothing sent.
 - A paper whose batch was refused or failed backs off for this session on
   `failureRetryAt`'s schedule (5 min, 30 min, 6 h, 1 day). Landings during a
   refusing OpenAlex therefore send nothing until the backoff passes.
@@ -117,6 +121,8 @@ when; `graphViewService.ts` only calls it.
 - A graph's close aborts its share: the signal is per dispatch, aborted once
   no open graph still wants any of its papers.
 - The first open of a graph checks; a reopen reads the store.
+- A change to the key or the providers refreshes the open graphs (the
+  preference observer), so the gate opens or closes without a reopen.
 
 ### Deriving the links
 
