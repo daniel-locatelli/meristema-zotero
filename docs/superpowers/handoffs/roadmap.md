@@ -137,10 +137,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B69 since B50 a refused OpenCitations lookup throws before its
-      DOI-fallback page on manual paths (`externalDiscoveryService.ts:1202`);
-      it used to fall through and still page on the DOI. The spec named only
-      the skipped title search. B63's fix makes this live, so decide now
 - [ ] B70 the OpenCitations relation pages still use Index v1, which
       OpenCitations calls legacy. v2 (`/index/v2/citations/doi:{doi}`) answers
       today and its composite `citing`/`cited` strings already parse through

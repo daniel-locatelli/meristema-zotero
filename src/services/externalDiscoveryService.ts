@@ -1194,6 +1194,7 @@ async function lookupProviderRecord(
   providerID: CitationProviderID,
   identifiers: WorkIdentifiers,
   requestOptions?: ProviderRequestOptions,
+  fill = false,
 ) {
   const provider = getCitationProvider(providerID);
   const lookup = provider.lookupForRelations ?? provider.lookup;
@@ -1203,7 +1204,14 @@ async function lookupProviderRecord(
   // A refusal is not "no match": a title search straight after it is a
   // second request to a provider that just refused (B50).
   const step = lookupStep(match?.status ?? null);
-  if (step === "refuse") throw new ProviderRefusedError(providerID);
+  if (step === "refuse") {
+    // OpenCitations' record comes from Meta, its relation pages from the
+    // Index, a separate service keyed on the DOI alone, so a manual refresh
+    // still pages on the DOI (B69). A fill keeps the refusal: it moves the
+    // expansion on, and an unmatched empty page would read as a failure.
+    if (!fill && providerID === "opencitations" && identifiers.doi) return null;
+    throw new ProviderRefusedError(providerID);
+  }
   if (
     step === "search" &&
     provider.searchExactTitle &&
@@ -1310,7 +1318,8 @@ async function fetchProviderRelationshipSnapshot(
           providerID,
           direction,
           requestOptions,
-          (options) => lookupProviderRecord(providerID, identifiers, options),
+          (options) =>
+            lookupProviderRecord(providerID, identifiers, options, fill),
         );
     let reportedCount =
       direction === "references"

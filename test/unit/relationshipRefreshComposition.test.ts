@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import { expect } from "chai";
 import type {
   CitationProviderID,
+  ProviderLookupResult,
   RelatedWorkMetadata,
 } from "../../src/domain/citationTypes";
 import type { CitationGraphNode } from "../../src/domain/graphTypes";
@@ -18,13 +19,18 @@ import type { RelationshipPublicationEvent } from "../../src/services/relationsh
  * replaced by scripts, and everything between them — snapshot fetching, the
  * fill's candidate walk, membership selection, publication — is the real
  * code. Each provider's citing list is scripted per case; a provider asked
- * for its list is recorded, so a case can assert who was asked.
+ * for its list is recorded, so a case can assert who was asked. A lookup is
+ * scripted only where a case leaves the provider unhinted.
  */
 type Answer = () => Promise<RelatedWorkMetadata[]>;
 
 let plan: CitationProviderID[] = [];
 let answers: Partial<Record<CitationProviderID, Answer>> = {};
+let lookups: Partial<Record<CitationProviderID, ProviderLookupResult>> = {};
 const asked: CitationProviderID[] = [];
+/** The work ID each asked provider's first page was keyed on. */
+const pagedOn: Partial<Record<CitationProviderID, string>> = {};
+const searched: CitationProviderID[] = [];
 const commits: RelatedWorkMetadata[][] = [];
 
 function fakeProvider(id: CitationProviderID): CitationProvider {
@@ -33,11 +39,25 @@ function fakeProvider(id: CitationProviderID): CitationProvider {
     label: id,
     capabilities: {} as CitationProvider["capabilities"],
     supports: () => true,
-    lookup: () => Promise.reject(new Error(`${id} was looked up`)),
-    fetchCitingWorks: (_workID, _maximum, offset) => {
+    lookup: () => {
+      const result = lookups[id];
+      return result
+        ? Promise.resolve(result)
+        : Promise.reject(new Error(`${id} was looked up`));
+    },
+    searchExactTitle: () => {
+      searched.push(id);
+      return Promise.resolve({
+        status: "not-found",
+        provider: id,
+        message: "no title match",
+      });
+    },
+    fetchCitingWorks: (workID, _maximum, offset) => {
       // Only the first page is scripted; a later one ends the list.
       if (offset) return Promise.resolve([]);
       asked.push(id);
+      pagedOn[id] = workID;
       const answer = answers[id];
       return answer ? answer() : Promise.resolve([]);
     },
@@ -189,26 +209,38 @@ function seed(): CitationGraphNode {
 interface Refreshed {
   resolution: RelationshipRefreshResolution | null;
   publications: RelationshipPublicationEvent[];
+  subject: CitationGraphNode;
 }
 
-/** One citing-list refresh, every provider hinted so none is looked up. */
+function refusedLookup(provider: CitationProviderID): ProviderLookupResult {
+  return { status: "rate-limited", provider, message: "HTTP 429" };
+}
+
+/**
+ * One citing-list refresh, every provider hinted so none is looked up, save
+ * those named in `unhinted`.
+ */
 async function refresh(
   options: ExternalRelationshipRefreshOptions,
+  unhinted: readonly CitationProviderID[] = [],
 ): Promise<Refreshed> {
+  const subject = seed();
   const publications: RelationshipPublicationEvent[] = [];
   const unsubscribe = subscribeRelationshipPublications((event) => {
     publications.push(event);
   });
   let resolution: RelationshipRefreshResolution | null = null;
   try {
-    await refreshExternalRelationships(seed(), [], "cited-by", {
+    await refreshExternalRelationships(subject, [], "cited-by", {
       refreshMembership: true,
       silent: true,
       queueBackgroundHydration: false,
       metadataHydrationLimit: 0,
       summaryLookupLimit: 0,
       providerWorkIDs: Object.fromEntries(
-        plan.map((provider) => [provider, `${provider}-W1`]),
+        plan
+          .filter((provider) => !unhinted.includes(provider))
+          .map((provider) => [provider, `${provider}-W1`]),
       ),
       onMembershipResolved: (resolved) => {
         resolution = resolved;
@@ -218,7 +250,7 @@ async function refresh(
   } finally {
     unsubscribe();
   }
-  return { resolution, publications };
+  return { resolution, publications, subject };
 }
 
 /** The hop fill's options (graphViewService's hop expansion). */
@@ -237,7 +269,11 @@ beforeEach(function () {
   previousZotero = (globalThis as Record<string, unknown>).Zotero;
   plan = [];
   answers = {};
+  lookups = {};
   asked.length = 0;
+  for (const id of Object.keys(pagedOn) as CitationProviderID[])
+    delete pagedOn[id];
+  searched.length = 0;
   commits.length = 0;
   (globalThis as Record<string, unknown>).Zotero = {
     Prefs: { get: () => undefined, set: () => undefined },
@@ -332,6 +368,23 @@ describe("a fill expansion's refresh", function () {
     expect(resolution).to.include({ answeredBy: null, complete: false });
     expect(resolution!.refusedBy).to.deep.equal(["opencitations", "inspire"]);
   });
+
+  it("moves on from a refused OpenCitations lookup without paging on the DOI", async function () {
+    plan = ["opencitations", "inspire"];
+    lookups = { opencitations: refusedLookup("opencitations") };
+    answers = {
+      opencitations: answering("opencitations", 1),
+      inspire: answering("inspire", 1),
+    };
+    const { resolution } = await refresh(FILL, ["opencitations"]);
+    expect(
+      asked,
+      "the fill treats the lookup's refusal as the provider's (B69)",
+    ).to.deep.equal(["inspire"]);
+    expect(searched).to.deep.equal([]);
+    expect(resolution!.refusedBy).to.deep.equal(["opencitations"]);
+    expect(resolution!.answeredBy).to.equal("inspire");
+  });
 });
 
 describe("an aggregate manual refresh", function () {
@@ -387,5 +440,44 @@ describe("an aggregate manual refresh", function () {
       resolution!.answeredBy,
       "inspire's empty list is usable but contributed nothing",
     ).to.equal("opencitations");
+  });
+
+  it("still pages OpenCitations on the DOI after its record lookup refuses", async function () {
+    plan = ["opencitations"];
+    lookups = { opencitations: refusedLookup("opencitations") };
+    answers = { opencitations: answering("opencitations", 2) };
+    const { resolution, subject } = await refresh({ mode: "manual" }, [
+      "opencitations",
+    ]);
+    expect(
+      searched,
+      "no title search after a refusal: a second request to a provider that just refused (B50)",
+    ).to.deep.equal([]);
+    expect(
+      pagedOn.opencitations,
+      "the Index is a separate service keyed on the DOI (B69)",
+    ).to.equal(subject.doi);
+    expect(commits).to.have.lengthOf(1);
+    expect(commits[0].map((work) => work.doi)).to.deep.equal([
+      "10.1000/opencitations.1",
+      "10.1000/opencitations.2",
+    ]);
+    expect(resolution!.refusedBy).to.deep.equal([]);
+    expect(resolution!.answeredBy).to.equal("opencitations");
+  });
+
+  it("asks a refusing provider whose pages need its own record no further", async function () {
+    plan = ["inspire", "crossref"];
+    lookups = { inspire: refusedLookup("inspire") };
+    answers = {
+      inspire: answering("inspire", 1),
+      crossref: answering("crossref", 1),
+    };
+    const { resolution } = await refresh({ mode: "manual" }, ["inspire"]);
+    expect(searched).to.deep.equal([]);
+    expect(asked, "inspire's pages are not fetched").to.deep.equal([
+      "crossref",
+    ]);
+    expect(resolution!.refusedBy).to.deep.equal(["inspire"]);
   });
 });
