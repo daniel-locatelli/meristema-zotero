@@ -60,7 +60,8 @@ export function cancellationRequested(
  * Run `operation` under a scope that the timer, or the parent's cancel,
  * cancels. Resolves the operation's value, or null once `ms` has passed; the
  * timer cancels what it abandoned instead of leaving it retrying behind the
- * caller (B50). A rejection passes through.
+ * caller (B50). A rejection passes through, as does a throw from `onTimeout`;
+ * the race already observes a late rejection from the abandoned operation.
  */
 export async function withTimeoutScope<T>(
   operation: (signal: CancellationSignal) => Promise<T>,
@@ -74,12 +75,16 @@ export async function withTimeoutScope<T>(
   try {
     return await Promise.race([
       operation(scope.signal),
-      new Promise<null>((resolve) => {
+      new Promise<null>((resolve, reject) => {
         timer = setTimeout(() => {
           timer = null;
           scope.cancel();
-          onTimeout();
-          resolve(null);
+          try {
+            onTimeout();
+            resolve(null);
+          } catch (error) {
+            reject(error);
+          }
         }, ms);
       }),
     ]);

@@ -152,10 +152,6 @@ opacity grade).
 - [ ] B66 `providerSupportsPaper` duplicates the hint logic in
       `externalDiscoveryService.ts`; extract one
       `providerHintFor(node, hints, provider)`
-- [ ] B65 `withTimeoutScope` (`src/services/cancellationScope.ts`): a throwing
-      `onTimeout` leaves the timeout promise unsettled, and a late rejection
-      from an abandoned operation is unhandled. Unreachable from today's
-      callers; add a no-op `.catch` when the file is next touched
 
 ## The rail and the Key
 

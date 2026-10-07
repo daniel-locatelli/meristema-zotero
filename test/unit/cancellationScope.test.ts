@@ -104,4 +104,57 @@ describe("withTimeoutScope", function () {
     }
     expect(String(caught)).to.include("refused");
   });
+
+  it("settles with the error when onTimeout throws", async function () {
+    const pending = withTimeoutScope(
+      () => new Promise<string>(() => undefined),
+      15_000,
+      undefined,
+      () => {
+        throw new Error("onTimeout failed");
+      },
+    ).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    try {
+      mock.timers.tick(15_000);
+    } catch {
+      // A throw escaping the timer is the bug; the race below names it.
+    }
+    const hung = Symbol("hung");
+    const outcome = await Promise.race([
+      pending,
+      new Promise<typeof hung>((resolve) => setImmediate(() => resolve(hung))),
+    ]);
+    expect(outcome, "the call settles").to.not.equal(hung);
+    expect(String((outcome as { error?: unknown }).error)).to.include(
+      "onTimeout failed",
+    );
+  });
+
+  it("handles a late rejection from the operation it abandoned", async function () {
+    const unhandled: unknown[] = [];
+    const listen = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", listen);
+    try {
+      let reject: (error: Error) => void = () => undefined;
+      const pending = withTimeoutScope(
+        () =>
+          new Promise<string>((_resolve, rejectOperation) => {
+            reject = rejectOperation;
+          }),
+        15_000,
+        undefined,
+        () => undefined,
+      );
+      mock.timers.tick(15_000);
+      expect(await pending).to.equal(null);
+      reject(new Error("late"));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(unhandled).to.deep.equal([]);
+    } finally {
+      process.off("unhandledRejection", listen);
+    }
+  });
 });
