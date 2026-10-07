@@ -78,6 +78,19 @@ export function seedLinkLabelRank(
 }
 
 /** What the check learned about one paper (ADR 0018). */
+/** ADR 0018's gate: an OpenAlex key, OpenAlex on, two or more seeds. */
+export function seedLinkCheckOpen(options: {
+  seedCount: number;
+  apiKey: string;
+  enabledProviders: readonly string[];
+}): boolean {
+  return (
+    options.seedCount >= 2 &&
+    Boolean(options.apiKey) &&
+    options.enabledProviders.includes("openalex")
+  );
+}
+
 export interface SeedLinkCheck {
   openAlexID: string;
   references: readonly string[];

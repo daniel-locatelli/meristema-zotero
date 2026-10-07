@@ -252,8 +252,16 @@ import {
   getEnabledProviders,
   getOpenAlexAPIKey,
 } from "./citationPreferences";
-import { openAlexIdentifiersOf, type SeedLinkCheck } from "./graphSeedLinks";
-import { checkPaperAliases, type CheckPaper } from "./openAlexReferenceLists";
+import {
+  openAlexIdentifiersOf,
+  seedLinkCheckOpen,
+  type SeedLinkCheck,
+} from "./graphSeedLinks";
+import {
+  checkPaperAliases,
+  storedCheckOf,
+  type CheckPaper,
+} from "./openAlexReferenceLists";
 import { checkOpenAlexReferences } from "./openAlexSeedLinkService";
 import {
   createSeedLinkCheckScheduler,
@@ -367,26 +375,23 @@ function seedLinkCheckScheduler(): SeedLinkCheckScheduler {
   return seedLinkChecks;
 }
 
-/** ADR 0018's gate: an OpenAlex key, OpenAlex on, two or more seeds. */
-function seedLinkCheckOpen(seedCount: number): boolean {
-  return (
-    seedCount >= 2 &&
-    Boolean(getOpenAlexAPIKey()) &&
-    getEnabledProviders().includes("openalex")
-  );
+/** ADR 0018's gate, on today's preferences. */
+function seedLinkCheckOpenFor(seedCount: number): boolean {
+  return seedLinkCheckOpen({
+    seedCount,
+    apiKey: getOpenAlexAPIKey(),
+    enabledProviders: getEnabledProviders(),
+  });
 }
 
 function storedSeedLinkCheck(
   node: CitationGraphNode,
 ): SeedLinkCheck | undefined {
-  for (const alias of checkPaperAliases({
+  const aliases = checkPaperAliases({
     key: node.key,
     ...openAlexIdentifiersOf(node),
-  })) {
-    const check = lookupOpenAlexReferenceCheck(alias);
-    if (check !== undefined) return check ?? undefined;
-  }
-  return undefined;
+  });
+  return storedCheckOf(aliases, lookupOpenAlexReferenceCheck) ?? undefined;
 }
 const controllerByMount = new WeakMap<Element, GraphViewController>();
 
@@ -2481,7 +2486,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       depth: hopDepth,
       neighbours: hopNeighbourhood,
       seedEdges,
-      checkOf: seedLinkCheckOpen(seeds.length)
+      checkOf: seedLinkCheckOpenFor(seeds.length)
         ? storedSeedLinkCheck
         : undefined,
     });
@@ -4005,7 +4010,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   const unregisterSeedLinkChecks = seedLinkCheckScheduler().register({
     papers: (): CheckPaper[] => {
       try {
-        if (!hopModel || !seedLinkCheckOpen(hopModel.seeds.length)) return [];
+        if (!hopModel || !seedLinkCheckOpenFor(hopModel.seeds.length))
+          return [];
         const papers: CheckPaper[] = [];
         for (const node of hopModel.nodes) {
           const hop = hopModel.entries.get(node.key)?.hop;

@@ -4,6 +4,7 @@ import {
   canonicalOpenAlexID,
   checkedSeedLinks,
   openAlexIdentifiersOf,
+  seedLinkCheckOpen,
   seedLinkCount,
   seedLinkLabelRank,
   seedLinkRampIndex,
@@ -184,5 +185,21 @@ describe("checkedSeedLinks", function () {
       ],
     );
     expect(links.size).to.equal(0);
+  });
+});
+
+describe("seedLinkCheckOpen", function () {
+  const open = { seedCount: 2, apiKey: "k", enabledProviders: ["openalex"] };
+
+  it("opens with a key, OpenAlex on and two seeds", function () {
+    expect(seedLinkCheckOpen(open)).to.equal(true);
+  });
+
+  it("stays shut without a key, with OpenAlex off, or with one seed", function () {
+    expect(seedLinkCheckOpen({ ...open, apiKey: "" })).to.equal(false);
+    expect(
+      seedLinkCheckOpen({ ...open, enabledProviders: ["crossref"] }),
+    ).to.equal(false);
+    expect(seedLinkCheckOpen({ ...open, seedCount: 1 })).to.equal(false);
   });
 });

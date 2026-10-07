@@ -130,10 +130,11 @@ const OPEN_ALEX_KEY_PREF = `${config.prefsPrefix}.openAlexAPIKey`;
 /** The layout a graph opens with, kept out here for the same reason. */
 const GRAPH_APPEARANCE_PREF = `${config.prefsPrefix}.graphAppearance`;
 /**
- * The shared-citers block's fixtures (Stage 4, B78). Unique per run: the
- * check's answers persist in the test profile.
+ * The shared-citers block's fixtures (Stage 4, B78). Unique per run, the
+ * whole clock and not a slice of it that repeats (B79): the check's answers
+ * persist in the test profile for up to 180 days.
  */
-const RUN = String(Date.now() % 1_000_000).padStart(6, "0");
+const RUN = String(Date.now());
 const W = (n: number): string => `W9${RUN}${n}`;
 const SEED_A = {
   doi: `10.5555/shared.${RUN}.a`,
@@ -2836,6 +2837,7 @@ describe("Citation hops (Stage 3)", function () {
     let itemIDs: number[] = [];
     let tabID: string | null = null;
     let realRequest: any = null;
+    let checkRequests = 0;
 
     function work(
       id: string,
@@ -2893,6 +2895,7 @@ describe("Citation hops (Stage 3)", function () {
         if (parsed.searchParams.get("select") === "id,doi,referenced_works") {
           // The seed-link check (B78): answer by ID or DOI, every value of
           // the OR filter.
+          checkRequests += 1;
           const [field, rest = ""] = filter.split(":", 2);
           const known = [
             { id: SEED_A.id, doi: SEED_A.doi },
@@ -3065,6 +3068,38 @@ describe("Citation hops (Stage 3)", function () {
         `hop 1 read "${hopRowText(1)}"; the row read "${sharedRowText()}"`,
       ).to.deep.equal({ shown: 2, available: 4 });
       expect(sharedRowText()).to.include("2 below");
+    });
+
+    /**
+     * B79: the gate closes on a live graph. Clearing the key refreshes the
+     * open graphs (the preference observer), so W54 loses the link only its
+     * reference list gave it without a reopen, and nothing is asked; the key
+     * back reads the stored list again, still without asking.
+     */
+    it("drops the check's link as soon as the key goes, and takes it back from the store", async function () {
+      this.timeout(120_000);
+      const asked = checkRequests;
+      Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
+      const dropped = await waitFor(
+        () =>
+          tierCount("Cite all 2 seeds") === COUNT_FORMAT.format(1)
+            ? keyEntries()
+            : null,
+        30_000,
+      );
+      expect(dropped, `the Key read: ${keyEntries().join(" | ")}`).to.exist;
+      expect(checkRequests, "checks asked without a key").to.equal(asked);
+
+      Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, "shared-test-key", true);
+      const back = await waitFor(
+        () =>
+          tierCount("Cite all 2 seeds") === COUNT_FORMAT.format(2)
+            ? keyEntries()
+            : null,
+        30_000,
+      );
+      expect(back, `the Key read: ${keyEntries().join(" | ")}`).to.exist;
+      expect(checkRequests, "checks asked with the key back").to.equal(asked);
     });
   });
 });
