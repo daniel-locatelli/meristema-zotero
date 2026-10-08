@@ -168,6 +168,10 @@ opacity grade).
 
 ## Views, gallery and menus
 
+- [ ] D22 views that open in one neutral grey waste the colour channel
+      (user, 2026-10-08): colour by citations, or whatever tells the reader
+      something about the view. Overview's summary promises "all in one
+      colour" on purpose, so decide per view, and for a new graph's default
 - [ ] D17 a new seeded graph inherits the appearance the reader last edited
       (B41's design: a stored `focusGraphAppearance` overrides
       `getFocusGraphAppearance`'s defaults). The user wants a stable default,
