@@ -88,6 +88,26 @@ export function failureStatusFromHTTP(
 }
 
 /**
+ * A relationship page's body, or null for a miss (a 404 or 400, as the
+ * lookups read one), which the caller answers as an empty list. Any other
+ * failure, a server error, a dropped connection or an empty body, throws.
+ * Answered as `[]`, a fault reads as the end of the list and, with no total
+ * to hold it against, was stored as the paper's complete list (B80, B84). A
+ * 429 is the caller's to throw as a refusal first.
+ */
+export function relationPageBody<T>(
+  page: string,
+  response: { ok: boolean; status: number; data: T | null; message: string },
+): T | null {
+  if (response.ok && response.data) return response.data;
+  if (!response.ok && failureStatusFromHTTP(response.status) === "not-found")
+    return null;
+  throw new Error(
+    `${page} failed: ${response.message || `HTTP ${response.status}`}`,
+  );
+}
+
+/**
  * A provider answered HTTP 429. A refusal is neither "no results" nor a
  * failure (ADR 0013): page fetchers throw this so a relationship refresh can
  * tell a refused page from an empty one.

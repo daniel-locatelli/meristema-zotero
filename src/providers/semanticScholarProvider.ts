@@ -18,6 +18,7 @@ import {
   ProviderRefusedError,
   failureStatusFromHTTP,
   numberOrNull,
+  relationPageBody,
   stringOrNull,
 } from "./types";
 
@@ -121,8 +122,9 @@ async function fetchRelations(
   );
   if (response.status === 429)
     throw new ProviderRefusedError("semantic-scholar");
-  if (!response.ok || !response.data) return [];
-  return (response.data.data ?? [])
+  const body = relationPageBody("Semantic Scholar relation page", response);
+  if (!body) return [];
+  return (body.data ?? [])
     .map((entry) =>
       toRelated(
         kind === "references"

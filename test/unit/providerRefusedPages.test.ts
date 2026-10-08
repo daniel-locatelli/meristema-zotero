@@ -400,3 +400,96 @@ describe("an OpenAlex references page in arrival order", function () {
     expect(page.reportedCount).to.equal(3);
   });
 });
+
+describe("a faulted relationship page (B84)", function () {
+  /**
+   * A page that answered `[]` for a server error or a dropped connection was
+   * read as the end of the list. With no total to hold it against (a hinted
+   * hop node, a provider that reports none), the fault was stored as the
+   * paper's complete list. A fault now fails the page, and the snapshot with
+   * it, as OpenCitations' Index does since B80.
+   */
+  function failing(status: number): HTTPResult<unknown> {
+    return { ok: false, status, data: null, message: `HTTP ${status}` };
+  }
+
+  /** The rejection a faulted page must produce: an error, not a refusal. */
+  async function fault(promise: Promise<unknown>): Promise<unknown> {
+    const error = await rejection(promise);
+    expect(error).to.be.instanceOf(Error);
+    expect(error).not.to.be.instanceOf(ProviderRefusedError);
+    return error;
+  }
+
+  it("fails Semantic Scholar's summary and relations pages on a server error", async function () {
+    respond = () => failing(503);
+    expect(
+      String(
+        await fault(
+          fetchRelatedWorkSummaryPage(
+            "semantic-scholar",
+            "P1",
+            "cited-by",
+            50,
+            0,
+          ),
+        ),
+      ),
+    ).to.include("503");
+    await fault(semanticScholarProvider.fetchCitingWorks!("P1", 50, 0));
+  });
+
+  it("fails OpenAlex's cited-by page and both references sources on a dropped connection", async function () {
+    respond = () => failing(0);
+    await fault(
+      fetchRelatedWorkSummaryPage("openalex", "W1", "cited-by", 50, 0),
+    );
+    await fault(
+      fetchRelatedWorkSummaryPage("openalex", "W2", "references", 50, 0),
+    );
+    await fault(
+      fetchRelatedWorkSummaryPage("openalex", "W2", "references", 50, 0, {
+        order: "most-cited",
+      }),
+    );
+  });
+
+  it("fails a page whose answer carries no body", async function () {
+    respond = () => answered(null);
+    await fault(
+      fetchRelatedWorkSummaryPage(
+        "semantic-scholar",
+        "P1",
+        "references",
+        50,
+        0,
+      ),
+    );
+    await fault(
+      fetchRelatedWorkSummaryPage("openalex", "W1", "cited-by", 50, 0),
+    );
+  });
+
+  it("reads a 404 as a miss, an empty list, as the lookups do", async function () {
+    respond = () => failing(404);
+    const none = { works: [], reportedCount: null };
+    expect(
+      await fetchRelatedWorkSummaryPage(
+        "semantic-scholar",
+        "P1",
+        "cited-by",
+        50,
+        0,
+      ),
+    ).to.deep.equal(none);
+    expect(
+      await fetchRelatedWorkSummaryPage("openalex", "W1", "cited-by", 50, 0),
+    ).to.deep.equal(none);
+    expect(
+      await fetchRelatedWorkSummaryPage("openalex", "W2", "references", 50, 0),
+    ).to.deep.equal(none);
+    expect(
+      await semanticScholarProvider.fetchReferencedWorks!("P1", 50, 0),
+    ).to.deep.equal([]);
+  });
+});

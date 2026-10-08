@@ -12,6 +12,7 @@ import {
 import { requestJSON } from "../providers/http";
 import {
   ProviderRefusedError,
+  relationPageBody,
   type ProviderRequestOptions,
 } from "../providers/types";
 import {
@@ -549,10 +550,11 @@ async function openAlexRelationPage(
     },
   );
   if (response.status === 429) throw new ProviderRefusedError("openalex");
-  if (!response.ok || !response.data) return { works: [], reportedCount: null };
-  const count = response.data.meta?.count;
+  const body = relationPageBody("OpenAlex relation page", response);
+  if (!body) return { works: [], reportedCount: null };
+  const count = body.meta?.count;
   return {
-    works: (response.data.results ?? [])
+    works: (body.results ?? [])
       .slice(withinPage, withinPage + requested)
       .map(summaryFromOpenAlex)
       .filter((work): work is RelatedWorkMetadata => Boolean(work)),
@@ -589,9 +591,10 @@ export async function fetchRelatedWorkSummaryPage(
     if (response.status === 429) {
       throw new ProviderRefusedError("semantic-scholar");
     }
-    if (!response.ok || !response.data) return none;
+    const body = relationPageBody("Semantic Scholar relation page", response);
+    if (!body) return none;
     return {
-      works: (response.data.data ?? [])
+      works: (body.data ?? [])
         .map((entry) =>
           summaryFromSemanticScholar(
             direction === "references"
@@ -643,14 +646,15 @@ export async function fetchRelatedWorkSummaryPage(
       },
     );
     if (source.status === 429) throw new ProviderRefusedError("openalex");
-    if (!source.ok || !source.data) return none;
-    const ids = (source.data.referenced_works ?? [])
+    const body = relationPageBody("OpenAlex references source", source);
+    if (!body) return none;
+    const ids = (body.referenced_works ?? [])
       .map(shortOpenAlexID)
       .filter((id): id is string => Boolean(id));
     // The count and the list agreed on every sampled work. Should the count
     // ever fall short, the list wins, so the total never bounds the pager
     // below what it can reach.
-    const count = numberOrNull(source.data.referenced_works_count) ?? 0;
+    const count = numberOrNull(body.referenced_works_count) ?? 0;
     references = { ids, reportedCount: Math.max(count, ids.length) };
     cacheOpenAlexReferenceIDs(normalizedID, references);
   }
