@@ -296,6 +296,81 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
+   * B91: the count and its reported total read as one phrase, `182/182 of
+   * 394`, with one space between them. `.cm-scope-hop-reported` sat in the
+   * body's 6px flex gap and added a 4px margin of its own, so the row read
+   * `182/182  of 394`, two spaces wide.
+   */
+  it("keeps one space between a hop row's count and its reported total", async function () {
+    const measured = await inMainWindowStyled(
+      (document) => {
+        const rail = createKeyRail({
+          document,
+          onEmphasise: () => undefined,
+          onScope: {
+            toggleRow: () => undefined,
+            selectRow: () => undefined,
+            removeSeed: () => undefined,
+            addSeed: () => undefined,
+            showAllHidden: () => undefined,
+            setHopDirection: () => undefined,
+            fetchHop: () => undefined,
+            toggleHop: () => undefined,
+            fillControl: () => undefined,
+            setFloor: () => undefined,
+            setShared: () => undefined,
+          },
+        });
+        const hops = HOP_ROW_MODEL.hops!;
+        rail.renderScope({
+          ...HOP_ROW_MODEL,
+          hops: {
+            ...hops,
+            rows: [{ ...hops.rows[0], count: "182/182", reported: "of 394" }],
+          },
+        });
+        return rail.root;
+      },
+      (mount, host) => {
+        const count = mount.querySelector(
+          ".cm-scope-hop-body .cm-scope-row-count",
+        ) as HTMLElement;
+        const reported = mount.querySelector(
+          ".cm-scope-hop-reported",
+        ) as HTMLElement;
+        expect(count, "the hop row carries a count").to.exist;
+        expect(reported, "the hop row carries a reported total").to.exist;
+        // One space in the reported total's own font, measured rather than
+        // assumed, so the bound follows the rail's type size.
+        const probe = host.document.createElementNS(
+          HTML_NS,
+          "span",
+        ) as HTMLElement;
+        probe.className = "cm-scope-hop-reported";
+        probe.style.cssText = "position:absolute; margin:0; white-space:pre;";
+        probe.textContent = "x x";
+        mount.append(probe);
+        const spaced = probe.getBoundingClientRect().width;
+        probe.textContent = "xx";
+        const space = spaced - probe.getBoundingClientRect().width;
+        probe.remove();
+        const countBox = count.getBoundingClientRect();
+        expect(countBox.width, "the count was laid out").to.be.greaterThan(0);
+        expect(space, "a space was measured").to.be.greaterThan(0);
+        return {
+          gap: reported.getBoundingClientRect().left - countBox.right,
+          space,
+        };
+      },
+    );
+    expect(
+      Math.abs(measured.gap - measured.space),
+      `the count and its total sit one space (${measured.space.toFixed(1)}px) ` +
+        `apart, but the gap is ${measured.gap.toFixed(1)}px`,
+    ).to.be.lessThan(1);
+  });
+
+  /**
    * The same mount, but measured only once both of the plugin's sheets have
    * loaded: a `<link>` loads asynchronously, and a sheet the window has not
    * seen yet is not applied when the next line reads a computed style.

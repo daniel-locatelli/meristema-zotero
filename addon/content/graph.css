@@ -1757,7 +1757,9 @@
 }
 .cm-scope-hop-reported {
   flex: 0 0 auto;
-  margin-inline-start: 4px;
+  /* `182/182 of 394` is one phrase: pull the body's 6px gap in to one 11px
+     space (B91). */
+  margin-inline-start: -3px;
   color: var(--cm-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
