@@ -77,27 +77,55 @@ export const GRAPH_UPPERCASE_TRACKING = 0.09;
 export const GRAPH_FALLBACK_FONT_STACK =
   "system-ui, -apple-system, 'Segoe UI', sans-serif";
 
-export function axisInsets(ratio: number, axes: PlotAxisState): PlotInsets {
+/**
+ * The labelled gutters hold the tick labels and axis titles, so they grow with
+ * the font scale (B93); every other gutter is breathing room and stays put.
+ */
+function textGrowth(axes: PlotAxisState, fontScale: number) {
+  const extra = fontScale - 1;
+  return {
+    left: axes.yFree ? 0 : AXIS_GUTTER_CSS.labelledLeft * extra,
+    bottom: axes.xFree ? 0 : AXIS_GUTTER_CSS.labelledBottom * extra,
+  };
+}
+
+export function axisInsets(
+  ratio: number,
+  axes: PlotAxisState,
+  fontScale = 1,
+): PlotInsets {
+  const growth = textGrowth(axes, fontScale);
   return {
     left:
-      (axes.yFree ? AXIS_GUTTER_CSS.bareLeft : AXIS_GUTTER_CSS.labelledLeft) *
+      ((axes.yFree ? AXIS_GUTTER_CSS.bareLeft : AXIS_GUTTER_CSS.labelledLeft) +
+        growth.left) *
       ratio,
     right: AXIS_GUTTER_CSS.right * ratio,
     top: AXIS_GUTTER_CSS.top * ratio,
     bottom:
-      (axes.xFree
+      ((axes.xFree
         ? AXIS_GUTTER_CSS.bareBottom
-        : AXIS_GUTTER_CSS.labelledBottom) * ratio,
+        : AXIS_GUTTER_CSS.labelledBottom) +
+        growth.bottom) *
+      ratio,
   };
 }
 
-export function fitInsets(ratio: number, axes: PlotAxisState): PlotInsets {
+export function fitInsets(
+  ratio: number,
+  axes: PlotAxisState,
+  fontScale = 1,
+): PlotInsets {
+  const growth = textGrowth(axes, fontScale);
   return {
-    left: FIT_GUTTER_CSS.left * ratio,
+    left: (FIT_GUTTER_CSS.left + growth.left) * ratio,
     right: FIT_GUTTER_CSS.right * ratio,
     top: FIT_GUTTER_CSS.top * ratio,
     bottom:
-      (axes.xFree ? FIT_GUTTER_CSS.bareBottom : FIT_GUTTER_CSS.labelledBottom) *
+      ((axes.xFree
+        ? FIT_GUTTER_CSS.bareBottom
+        : FIT_GUTTER_CSS.labelledBottom) +
+        growth.bottom) *
       ratio,
   };
 }

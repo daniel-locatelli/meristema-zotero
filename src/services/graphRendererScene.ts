@@ -58,6 +58,8 @@ export interface RendererSceneContext {
   ratio: number;
   /** The chrome's own font stack, so canvas text matches the DOM around it. */
   fontStack: string;
+  /** The chrome's font size over Zotero's 13px: View › Font Size (B93). */
+  fontScale: number;
   projectToScreen(position: Position): Position;
   worldLengthForScreen(cssPixels: number): number;
   selectedKey: string | null;
@@ -651,7 +653,9 @@ export function drawRendererLabels(
 
   const ratio = renderer.ratio;
   const bounds = labelBounds(renderer);
-  const font = `${11 * ratio}px ${renderer.fontStack}`;
+  // Text and the lines it sits on follow View › Font Size; offsets do not.
+  const text = ratio * renderer.fontScale;
+  const font = `${11 * text}px ${renderer.fontStack}`;
   context.save();
   context.font = font;
   context.textBaseline = "middle";
@@ -700,7 +704,7 @@ export function drawRendererLabels(
     // the 42-character cut.
     const wrapped =
       node.key === renderer.hoverKey
-        ? wrapLabel(node.title, HOVER_LABEL_WIDTH * ratio, (text) =>
+        ? wrapLabel(node.title, HOVER_LABEL_WIDTH * text, (text) =>
             labelWidths.width(context, font, text),
           )
         : [];
@@ -714,7 +718,7 @@ export function drawRendererLabels(
         ),
       ) +
       4 * ratio;
-    const height = LABEL_LINE_HEIGHT * ratio * lines.length;
+    const height = LABEL_LINE_HEIGHT * text * lines.length;
     const radius = radii.get(node.key) ?? 7 * ratio;
     const gap = radius + 6 * ratio;
     const candidates = [
@@ -808,7 +812,7 @@ export function drawRendererLabels(
       context.fillText(
         line,
         chosen.x,
-        chosen.y + (index - (lines.length - 1) / 2) * LABEL_LINE_HEIGHT * ratio,
+        chosen.y + (index - (lines.length - 1) / 2) * LABEL_LINE_HEIGHT * text,
       ),
     );
     context.globalAlpha = 1;
@@ -922,7 +926,7 @@ export function drawRendererGhost(
   context.setLineDash([]);
   if (missingX || missingY) {
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = `600 ${11 * ratio}px ${renderer.fontStack}`;
+    context.font = `600 ${11 * ratio * renderer.fontScale}px ${renderer.fontStack}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText("?", screen.x, screen.y + 0.5 * ratio);
@@ -937,13 +941,13 @@ export function drawRendererGhost(
   if (label) {
     const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.font = `${11 * ratio}px ${renderer.fontStack}`;
+    context.font = `${11 * ratio * renderer.fontScale}px ${renderer.fontStack}`;
     context.textAlign = "center";
     context.textBaseline = "alphabetic";
     context.fillText(
       shortened,
       screen.x,
-      screen.y + displayedRadius + 13 * ratio,
+      screen.y + displayedRadius + 13 * ratio * renderer.fontScale,
     );
   }
   context.restore();

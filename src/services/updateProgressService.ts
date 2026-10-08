@@ -1,4 +1,5 @@
 import { config } from "../../package.json";
+import { followZoteroFontSize, scaledFontSize } from "./zoteroFontSize";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -356,7 +357,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   const scope = element(document, "div");
   Object.assign(scope.style, {
     marginTop: "4px",
-    fontSize: "12px",
+    fontSize: scaledFontSize(12),
     fontWeight: "600",
     lineHeight: "1.35",
     overflowWrap: "anywhere",
@@ -364,7 +365,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   const message = element(document, "div");
   Object.assign(message.style, {
     marginTop: "2px",
-    fontSize: "12px",
+    fontSize: scaledFontSize(12),
     lineHeight: "1.35",
     overflowWrap: "anywhere",
     display: "-webkit-box",
@@ -375,7 +376,7 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   const summary = element(document, "div");
   Object.assign(summary.style, {
     marginTop: "2px",
-    fontSize: "11px",
+    fontSize: scaledFontSize(11),
     lineHeight: "1.3",
     opacity: "0.75",
   });
@@ -415,6 +416,8 @@ function ensureWindow(preferred?: Document | null): ProgressWindow | null {
   controls.append(minimize, cancel);
   root.append(content, controls);
   (document.body ?? document.documentElement).appendChild(root);
+  // Outside Zotero's registered panes, so it registers itself (B93).
+  followZoteroFontSize(root, () => undefined);
 
   progressWindow = {
     document,

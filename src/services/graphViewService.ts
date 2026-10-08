@@ -281,6 +281,7 @@ import {
   PANE_MINIMUM,
   type ZoteroPaneState,
 } from "./zoteroPaneSync";
+import { followZoteroFontSize } from "./zoteroFontSize";
 
 export type GraphFocusResult = "selected" | "revealed" | "not-found";
 
@@ -760,6 +761,11 @@ export function renderGraphView(
   const disposeThemeObserver = observeGraphScheme(
     document.defaultView,
     applyTheme,
+  );
+  // View › Font Size (B93): the tab sits outside Zotero's registered panes, so
+  // the root registers itself; the CSS follows on its own, the canvas redraws.
+  const disposeFontSizeObserver = followZoteroFontSize(root, () =>
+    renderer?.refreshFontScale(),
   );
 
   // Zotero has no toolbar spanning its window. It gives each pane a toolbar
@@ -5318,6 +5324,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       stateChangeTimer = 0;
     }
     disposeThemeObserver();
+    disposeFontSizeObserver();
     activeRelationshipList?.destroy();
     activeRelationshipList = null;
     refreshActiveRelationshipView = null;

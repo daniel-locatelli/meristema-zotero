@@ -17,6 +17,7 @@ import {
   relationshipSortOptions,
   type RelationshipSortKey,
 } from "./relationshipViewService";
+import { scaledFontSize } from "./zoteroFontSize";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
@@ -730,7 +731,7 @@ function appendLabelledControl(
   });
   const label = element(document, "span");
   label.textContent = labelText;
-  label.style.fontSize = "11px";
+  label.style.fontSize = scaledFontSize(11);
   wrapper.append(label, control);
   menu.appendChild(wrapper);
 }

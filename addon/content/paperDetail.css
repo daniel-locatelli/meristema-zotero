@@ -31,6 +31,13 @@
   box-sizing: border-box;
   color: CanvasText;
   font: menu;
+  /*
+   * View › Font Size (B93): the size and unit graph.css's root explains. In
+   * the item pane `--zotero-font-size` comes from Zotero's own registered
+   * pane; in the graph, from the graph's root.
+   */
+  font-size: var(--zotero-font-size, 1rem);
+  --cm-font-unit: calc(var(--zotero-font-size, 1rem) / 13);
 }
 .meristema-paper-detail *,
 .meristema-paper-detail *::before,
@@ -216,7 +223,7 @@
   justify-content: center;
   gap: 4px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   white-space: nowrap;
 }
 .cm-detail-tab-label {
@@ -244,7 +251,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--cm-accent) 12%, Canvas);
-  font-size: 10px;
+  font-size: calc(10 * var(--cm-font-unit));
   font-weight: 600;
 }
 .cm-badge-danger {
@@ -321,14 +328,14 @@
 }
 .cm-metric-strip dd {
   align-self: end;
-  font-size: 17px;
+  font-size: calc(17 * var(--cm-font-unit));
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.01em;
 }
 .cm-metric-strip dt {
   align-self: start;
-  font-size: 9px;
+  font-size: calc(9 * var(--cm-font-unit));
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0.07em;
@@ -359,7 +366,7 @@
   margin: 0 -8px;
   padding: 2px 8px;
   color: var(--cm-fill-secondary);
-  font-size: 10px;
+  font-size: calc(10 * var(--cm-font-unit));
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -426,7 +433,7 @@
 .meristema-paper-detail .cm-external-card button {
   min-height: 24px;
   padding: 3px 7px;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-external-card .cm-badges {
   margin: 5px 0 0;

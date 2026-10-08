@@ -47,6 +47,7 @@ import {
   selectReusableGraphInstance,
 } from "./graphInstancePolicy";
 import { getAvailableCitationLibraries } from "./citationLibraryService";
+import { scaledFontSize } from "./zoteroFontSize";
 
 const TAB_TYPE = config.addonRef;
 const TAB_STATE_FILTER_MARKER = "__meristemaStateFilterInstalled";
@@ -299,7 +300,7 @@ function injectGraphLibraryFilter(
     "span",
   );
   label.textContent = "Library";
-  label.style.fontSize = "11px";
+  label.style.fontSize = scaledFontSize(11);
 
   const select = document.createElementNS(
     "http://www.w3.org/1999/xhtml",

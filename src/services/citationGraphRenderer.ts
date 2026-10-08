@@ -27,6 +27,7 @@ import {
   MISSING_Y,
   type RendererSceneContext,
 } from "./graphRendererScene";
+import { fontScaleOf } from "./zoteroFontSize";
 import { isFilteredPreservedNode, renderedGraphKeys } from "./graphVisibility";
 import {
   axisScaleForNodes,
@@ -229,6 +230,8 @@ export class CitationGraphRenderer {
    * resize rather than per frame, because `getComputedStyle` forces a reflow.
    */
   private fontStack = GRAPH_FALLBACK_FONT_STACK;
+  /** The chrome's font size over Zotero's 13px: View › Font Size (B93). */
+  private fontScale = 1;
   private readonly collectionLabels: ReadonlyMap<number, string>;
   private theme: GraphTheme = graphThemeFor("light");
   private categoryAssignment: CategoryAssignment | null = null;
@@ -605,7 +608,7 @@ export class CitationGraphRenderer {
     return plotRect(
       this.canvas.width,
       this.canvas.height,
-      axisInsets(this.ratio, this.axesState()),
+      axisInsets(this.ratio, this.axesState(), this.fontScale),
     );
   }
 
@@ -1280,7 +1283,7 @@ export class CitationGraphRenderer {
     if (!this.hasParkedNodes(nodes, axis)) return;
     const context = this.context;
     const ratio = this.ratio;
-    const size = Math.round(GRAPH_TYPE_SCALE.gutter * ratio);
+    const size = Math.round(GRAPH_TYPE_SCALE.gutter * ratio * this.fontScale);
     const pad = 8 * ratio;
 
     context.save();
@@ -1407,7 +1410,7 @@ export class CitationGraphRenderer {
      * The double arrow is drawn, not typed. As "⇕" it was a 10.5px character
      * sitting on the font's baseline, too small to read as the handle (B92).
      */
-    const size = Math.round(12 * ratio);
+    const size = Math.round(12 * ratio * this.fontScale);
     context.font = `${size}px ${this.fontStack}`;
     const label = floorTagText(this.floor, this.floorBelow);
     const arrowSize = 16 * ratio;
@@ -1812,8 +1815,9 @@ export class CitationGraphRenderer {
     const context = this.context;
     const ratio = this.ratio;
     const foreground = this.theme.inks.muted;
-    const tickSize = Math.round(GRAPH_TYPE_SCALE.tick * ratio);
-    const titleSize = Math.round(GRAPH_TYPE_SCALE.axisTitle * ratio);
+    const text = ratio * this.fontScale;
+    const tickSize = Math.round(GRAPH_TYPE_SCALE.tick * text);
+    const titleSize = Math.round(GRAPH_TYPE_SCALE.axisTitle * text);
 
     context.save();
     context.strokeStyle = this.theme.surfaces.hairline;
@@ -2380,7 +2384,7 @@ export class CitationGraphRenderer {
       this.canvas.width = width;
       this.canvas.height = height;
       this.canvasError = false;
-      this.fontStack = resolveChromeFontStack(this.canvas);
+      this.readChromeFont();
       this.projectPositionsToLayout(
         this.layout.xMetric === "free",
         this.layout.yMetric === "free",
@@ -2388,6 +2392,20 @@ export class CitationGraphRenderer {
       this.draw();
     }
   };
+
+  /**
+   * Re-read the chrome's font after Zotero's View › Font Size changes, so the
+   * canvas text and the gutters that hold it follow the DOM around them.
+   */
+  public refreshFontScale(): void {
+    this.readChromeFont();
+    this.draw();
+  }
+
+  private readChromeFont(): void {
+    this.fontStack = resolveChromeFontStack(this.canvas);
+    this.fontScale = fontScaleOf(this.canvas);
+  }
 
   public zoomBy(factor: number): void {
     this.markViewAdjusted();
@@ -2469,7 +2487,11 @@ export class CitationGraphRenderer {
     const height = Math.max(1, maxY - minY);
     // Ratio-scaled, and defined as the axis furniture plus a margin, so a
     // fitted node can never land beneath a tick label on a scaled display.
-    const gutters = fitInsets(this.pixelRatio(), this.axesState());
+    const gutters = fitInsets(
+      this.pixelRatio(),
+      this.axesState(),
+      this.fontScale,
+    );
     const availableWidth = Math.max(
       1,
       this.canvas.width - gutters.left - gutters.right,

@@ -9,12 +9,16 @@
   width="1200"
   height="820"
   persist="screenX screenY width height sizemode"
-  style="display: flex; min-width: 760px; min-height: 520px"
+  style="display: flex; min-width: 760px; min-height: 520px; font-size: 13px"
 >
   <html:link
     rel="icon"
     href="chrome://__addonRef__/content/icons/network.svg"
   />
+  <!--
+    Zotero's windows set `:root { font-size: 13px }`, and View › Font Size is
+    a rem multiple of it (B93); this window loads none of Zotero's CSS.
+  -->
   <html:main
     id="meristema-window-root"
     style="display: flex; flex: 1 1 auto; min-width: 0; min-height: 0"

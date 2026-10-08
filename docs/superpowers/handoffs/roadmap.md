@@ -237,7 +237,6 @@ opacity grade).
       scaled down with pixels out of place (check for a fractional transform
       or scale), and the fill behind the arrows of a selected seed is black,
       fine on dark, wrong on light
-- [ ] B93 the plugin ignores Zotero's View › Font Size › Bigger/Smaller
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -303,6 +302,13 @@ any failure into a new entry above.
 - [ ] F13: hover a paper with a long title, under Title and under Author
       (year) labels: its label at once reads the whole title over a few
       lines, beside the node; other labels keep the `…` cut. Both themes.
+- [ ] B93: View › Font Size › Bigger a few times, then Reset: the graph tab's
+      rail, toolbars, Paper details and the plot's labels, ticks and axis
+      titles grow and shrink with Zotero's own panes, and so do the item
+      pane's Meristema section and the update popup. The × and + buttons
+      keep their size. At the default size, text in the graph that sized
+      with `font: menu` (titles set to `inherit`) may now read 13px, as
+      Zotero's own panes do. Repeat in a detached graph window.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -313,10 +319,9 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `0fa1139` (99/0),
-so count with `git log 0fa1139..main --oneline`.
-A clean run is 101 passed, 0 failed as of 2026-10-08 (B76's keyless case
-added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-08 with B93 (102/0), so count with
+the commits since the one whose subject ends `(B93)`. A clean run is 102 passed, 0
+failed as of 2026-10-08 (B93's font-size case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -476,3 +481,13 @@ entries are in git history.
   hover card: the hovered paper's label is its whole title, wrapped at 280px
   (`wrapLabel` in `graphRendererScene.ts`), under either label mode; others
   keep the 42-character cut. Red, then green, in `graphHoverLabel.test.ts`.
+- 2026-10-08: B93 done. Zotero writes View › Font Size onto registered roots
+  only (`#zotero-pane`, `#zotero-context-pane`) as `font-size: <pref>rem` and
+  `--zotero-font-size`; the graph tab sits outside both, and the plugin sized
+  text in px. `followZoteroFontSize` (`src/services/zoteroFontSize.ts`)
+  registers the graph root and the update popup, and redraws the canvas on
+  `UIPropertiesChanged`. CSS text is `calc(N * var(--cm-font-unit))`, N px at
+  the default; ×/+ glyph buttons stay px (`glyph:` marker). The canvas reads
+  its scale off its computed font size; the labelled plot gutters grow with
+  it. Red, then green, in `zoteroFontSize.test.ts` and
+  `test/zotero/graphFontSize.test.ts`.

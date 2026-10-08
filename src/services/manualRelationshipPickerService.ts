@@ -15,6 +15,7 @@ import {
   descriptorsFromSnapshot,
   type PaperListDescriptor,
 } from "./paperListViewService";
+import { scaledFontSize } from "./zoteroFontSize";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
@@ -126,6 +127,7 @@ export function createManualRelationshipPicker(
     padding: "4px",
     justifyContent: "center",
     color: "inherit",
+    // A ± glyph in a fixed 30px button: an icon, so it keeps its size (B93).
     fontSize: "18px",
     lineHeight: "1",
   });
@@ -302,12 +304,12 @@ export function createManualRelationshipPicker(
       if (baseline.has(paper.itemKey)) {
         const badge = element(document, "span");
         badge.textContent = "Manual relationship";
-        badge.style.fontSize = "10px";
+        badge.style.fontSize = scaledFontSize(10);
         badges.appendChild(badge);
       } else if (descriptor.alreadyRelated) {
         const badge = element(document, "span");
         badge.textContent = "Already related";
-        badge.style.fontSize = "10px";
+        badge.style.fontSize = scaledFontSize(10);
         badges.appendChild(badge);
       }
       const setChecked = (checked: boolean): void => {

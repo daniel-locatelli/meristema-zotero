@@ -75,6 +75,15 @@
   background: Canvas;
   color: CanvasText;
   font: menu;
+  /*
+   * View › Font Size (B93). Zotero writes the user's size onto a registered
+   * root as `--zotero-font-size` (rem, 1.00 being Zotero's 13px), and this
+   * root is registered by followZoteroFontSize (src/services/zoteroFontSize.ts).
+   * Text is sized as `calc(N * var(--cm-font-unit))`: N px at the default,
+   * scaled with the user's choice, and never compounding the way `em` would.
+   */
+  font-size: var(--zotero-font-size, 1rem);
+  --cm-font-unit: calc(var(--zotero-font-size, 1rem) / 13);
 }
 .meristema-root *,
 .meristema-root *::before,
@@ -201,7 +210,7 @@
   margin: 0;
 }
 .cm-title-row h1 {
-  font-size: 20px;
+  font-size: calc(20 * var(--cm-font-unit));
   line-height: 1.1;
 }
 .cm-title-row {
@@ -228,7 +237,7 @@
 .cm-library-summary {
   /* Tabular figures so the counts do not jitter as the filter changes them. */
   margin: 0;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex: 0 0 auto;
@@ -379,7 +388,7 @@
 .cm-empty-state-body {
   margin: 6px 0 0;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.45;
 }
 .cm-appearance-control {
@@ -403,7 +412,7 @@
 }
 .cm-appearance-panel h2 {
   margin-bottom: 9px;
-  font-size: 16px;
+  font-size: calc(16 * var(--cm-font-unit));
 }
 .cm-appearance-section {
   display: grid;
@@ -433,7 +442,7 @@
   border-radius: 5px;
   background: var(--cm-surface);
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.35;
 }
 .cm-appearance-actions {
@@ -553,7 +562,7 @@
   display: block;
   margin-top: 5px;
   color: var(--cm-accent);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   overflow-wrap: anywhere;
   text-decoration: none;
   cursor: pointer;
@@ -624,7 +633,7 @@
   margin: 6px 6px 2px;
   padding-top: 6px;
   border-top: 1px solid var(--cm-border);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -648,7 +657,7 @@
 }
 .cm-view-chip-caret {
   color: var(--cm-muted);
-  font-size: 10px;
+  font-size: calc(10 * var(--cm-font-unit));
 }
 .cm-view-row-wrap {
   display: flex;
@@ -672,7 +681,7 @@
 .cm-view-row-summary,
 .cm-view-row-note {
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.35;
 }
 .cm-view-row-note {
@@ -692,7 +701,7 @@
   padding: 0 8px;
   border-color: transparent;
   color: var(--cm-link);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-view-menu-rule {
   margin: 4px 6px 0;
@@ -708,7 +717,7 @@
   background: none;
   color: var(--cm-link);
   font: inherit;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   min-height: 0;
   cursor: pointer;
 }
@@ -740,7 +749,7 @@
   background: color-mix(in srgb, Canvas 92%, transparent);
   backdrop-filter: blur(8px);
   box-shadow: 0 6px 18px color-mix(in srgb, black 18%, transparent);
-  font-size: 11.5px;
+  font-size: calc(11.5 * var(--cm-font-unit));
   line-height: 1.45;
 }
 .cm-view-card[hidden] {
@@ -756,7 +765,7 @@
   border: 0;
   background: none;
   color: var(--cm-muted);
-  font-size: 14px;
+  font-size: 14px; /* glyph: a × or + in a fixed box is an icon (B93) */
   min-height: 0;
   cursor: pointer;
 }
@@ -777,7 +786,7 @@
   padding: 1px 6px;
   border: 1px solid var(--cm-border-soft);
   border-radius: 4px;
-  font-size: 10.5px;
+  font-size: calc(10.5 * var(--cm-font-unit));
 }
 .cm-view-card-actions {
   display: flex;
@@ -820,13 +829,13 @@
 }
 .cm-view-gallery-heading {
   margin: 0;
-  font-size: 15px;
+  font-size: calc(15 * var(--cm-font-unit));
   font-weight: 600;
 }
 .cm-view-gallery-sub {
   margin: 4px 0 14px;
   color: var(--cm-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5 * var(--cm-font-unit));
 }
 .cm-view-gallery-grid {
   display: grid;
@@ -859,7 +868,7 @@
 .cm-view-gallery-para,
 .cm-view-gallery-note {
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.4;
 }
 .meristema-root .cm-view-gallery-last {
@@ -881,14 +890,14 @@
   border-radius: 10px;
   background: Canvas;
   box-shadow: 0 12px 32px color-mix(in srgb, black 28%, transparent);
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
 }
 .cm-view-save[hidden] {
   display: none;
 }
 .cm-view-save-title {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: calc(14 * var(--cm-font-unit));
   font-weight: 600;
 }
 .cm-view-save-field {
@@ -913,7 +922,7 @@
 .cm-view-save-error {
   margin: -6px 0 8px;
   color: var(--cm-warning-ink);
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
 }
 .cm-view-save-error[hidden] {
   display: none;
@@ -921,7 +930,7 @@
 .cm-view-save-captures-title {
   margin: 0 0 4px;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -948,7 +957,7 @@
 .cm-view-save-note {
   flex: 1 1 auto;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-view-save-delete[hidden] {
   display: none;
@@ -978,12 +987,12 @@
   white-space: nowrap;
 }
 .cm-graph-menu-date {
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   opacity: 0.65;
 }
 .cm-graph-menu-delete {
   padding-inline: 8px;
-  font-size: 14px;
+  font-size: 14px; /* glyph: a × or + in a fixed box is an icon (B93) */
   line-height: 1;
   opacity: 0.6;
 }
@@ -992,13 +1001,13 @@
 }
 .cm-graph-menu-empty {
   margin: 4px 8px 6px;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   opacity: 0.7;
 }
 .cm-toolbar-status {
   align-self: center;
   margin-inline: 8px;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   opacity: 0.75;
   white-space: nowrap;
 }
@@ -1175,7 +1184,7 @@
 }
 .cm-focus-seed-result-meta {
   color: color-mix(in srgb, CanvasText 68%, transparent);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .meristema-root .cm-focus-seed-result-remove,
 .meristema-root .cm-focus-seed-result-add {
@@ -1191,7 +1200,7 @@
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
-  font-size: 16px;
+  font-size: 16px; /* glyph: a × or + in a fixed box is an icon (B93) */
 }
 
 /*
@@ -1306,7 +1315,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--cm-ink);
-  font-size: 13px;
+  font-size: calc(13 * var(--cm-font-unit));
   line-height: 1;
   cursor: pointer;
 }
@@ -1321,7 +1330,7 @@
 .cm-key-heading {
   margin: 0;
   color: var(--cm-muted);
-  font-size: 10px;
+  font-size: calc(10 * var(--cm-font-unit));
   font-weight: 600;
   /* Set in sentence case so a screen reader is not handed an acronym. */
   text-transform: uppercase;
@@ -1331,7 +1340,7 @@
   margin: 1px 0 6px;
   overflow: hidden;
   color: CanvasText;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1361,7 +1370,7 @@
   background: transparent;
   color: CanvasText;
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   text-align: left;
 }
 .cm-key-entry:not(.cm-key-entry-static) {
@@ -1398,7 +1407,7 @@
 .cm-key-entry-count {
   flex: 0 0 auto;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   /* Counts read as a column, so they line up rather than shimmer. */
   font-variant-numeric: tabular-nums;
 }
@@ -1411,7 +1420,7 @@
 .cm-key-note {
   margin: 6px 0 0;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.35;
 }
 /*
@@ -1431,7 +1440,7 @@
 .cm-scope-count {
   margin: 1px 0 8px;
   color: CanvasText;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
 .cm-scope-seeds-header {
@@ -1443,7 +1452,7 @@
 }
 .cm-scope-seeds-heading {
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-weight: 600;
 }
 .meristema-root .cm-scope-add-seed,
@@ -1457,7 +1466,7 @@
   box-shadow: none;
   color: var(--cm-link);
   font: inherit;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   cursor: pointer;
 }
 /*
@@ -1490,7 +1499,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1516,7 +1525,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--cm-muted);
-  font-size: 14px;
+  font-size: 14px; /* glyph: a × or + in a fixed box is an icon (B93) */
   line-height: 1;
   cursor: pointer;
 }
@@ -1550,7 +1559,7 @@
   min-width: 0;
   padding-inline-start: calc(var(--cm-depth, 0) * var(--cm-step));
   border-radius: 3px;
-  font-size: 12px;
+  font-size: calc(12 * var(--cm-font-unit));
   background-image: repeating-linear-gradient(
     to right,
     var(--cm-border) 0 1px,
@@ -1688,7 +1697,7 @@
 .cm-scope-row-count {
   flex: 0 0 auto;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
 .cm-scope-row-selected .cm-scope-row-count {
@@ -1697,14 +1706,14 @@
 .cm-scope-hidden {
   margin: 8px 0 0;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-scope-hops {
   margin-top: 10px;
 }
 .cm-scope-hops-heading {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-weight: 600;
   color: var(--cm-muted);
   text-transform: uppercase;
@@ -1716,7 +1725,7 @@
   padding: 2px;
   border: 1px solid var(--cm-border);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .meristema-root button.cm-segmented-cell {
   padding: 2px 8px;
@@ -1761,7 +1770,7 @@
      space (B91). */
   margin-inline-start: -3px;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
 .meristema-root button.cm-scope-hop-fetch {
@@ -1770,7 +1779,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--cm-ink);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   cursor: pointer;
 }
 .meristema-root button.cm-scope-hop-fetch:hover {
@@ -1779,13 +1788,13 @@
 .cm-scope-hop-progress {
   margin: 2px 0 4px 32px;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
 .cm-scope-hop-cut {
   margin: 2px 0 4px 0;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-scope-floor-row,
 .cm-scope-shared-row {
@@ -1798,7 +1807,7 @@
   align-items: center;
   gap: 3px;
   color: var(--cm-muted);
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
 }
 .cm-scope-floor-input,
 .cm-scope-shared-input {
@@ -1810,6 +1819,6 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }

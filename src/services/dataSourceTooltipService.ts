@@ -16,6 +16,7 @@ import {
   type CitationDataSourceID,
 } from "./providerPresentation";
 import { getStoredRelationshipEntry } from "./relationshipStoreService";
+import { scaledFontSize } from "./zoteroFontSize";
 
 export type DataSourceID = CitationDataSourceID;
 
@@ -630,7 +631,7 @@ function createTooltip(document: Document): HTMLElement {
     background: "Canvas",
     color: "CanvasText",
     boxShadow: "0 3px 12px rgba(0, 0, 0, 0.35)",
-    fontSize: "12px",
+    fontSize: scaledFontSize(12),
     lineHeight: "1.35",
     whiteSpace: "pre-line",
     pointerEvents: "none",
