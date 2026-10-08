@@ -24,6 +24,7 @@ import {
   type FloorAxisInput,
 } from "../../src/services/graphFloor";
 import type { LabelRectangle } from "../../src/services/graphLabelBudget";
+import { graphThemeFor } from "../../src/services/graphTheme";
 
 /**
  * The floor line, its tag, and the drag. The camera is the one production
@@ -132,7 +133,7 @@ describe("CitationGraphRenderer floor", function () {
     return canvas.context.calls
       .filter((call) => call.method === "fillText")
       .map((call) => String(call.args[0]))
-      .filter((text) => text.startsWith("⇕ floor"));
+      .filter((text) => text.startsWith("floor:"));
   }
 
   it("draws the tag only when an axis shows citations", function () {
@@ -152,6 +153,32 @@ describe("CitationGraphRenderer floor", function () {
     withoutY.renderer.setFloor(20, 1);
     expect(tagTexts(withoutY.canvas)).to.be.empty;
     expect(withoutY.renderer.labelObstacles()).to.be.empty;
+  });
+
+  it("draws the tag's arrow as a stroke in the tag's ink, not a character", function () {
+    const { renderer, canvas } = makeRenderer(CITATIONS_Y);
+    renderer.setFloor(20, 1);
+    const calls = canvas.context.calls;
+    const label = calls.findIndex(
+      (call) =>
+        call.method === "fillText" && call.args[0] === floorTagText(20, 1),
+    );
+    expect(label, "the tag's text").to.be.greaterThan(0);
+    const arrow = calls[label - 1]!;
+    expect(arrow.method, "the arrow, drawn just before the text").to.equal(
+      "stroke",
+    );
+    expect(arrow.strokeStyle, "in the tag's ink").to.equal(
+      graphThemeFor("light").inks.primary,
+    );
+    // B92: a 16px arrow and 12px text. The fake measures 6px a character, so
+    // the width is 6 + 16 + 4 + text + 8, and the arrow, the taller of the
+    // two, sets the height at 4 + 16 + 4.
+    const tag = theTag(renderer);
+    expect(tag.right - tag.left, "the tag's width").to.equal(
+      6 + 16 + 4 + floorTagText(20, 1).length * 6 + 8,
+    );
+    expect(tag.bottom - tag.top, "the tag's height").to.equal(24);
   });
 
   it("draws nothing once the camera carries the line off the frame", function () {

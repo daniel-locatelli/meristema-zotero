@@ -2740,7 +2740,7 @@ describe("Citation hops (Stage 3)", function () {
             }),
           );
           const title = canvas.title;
-          if (title.startsWith("⇕ floor")) return { point: { x, y }, seen: [] };
+          if (title.startsWith("floor:")) return { point: { x, y }, seen: [] };
           if (title) seen.add(`${title.split("\n")[0]} @${x},${y}`);
         }
       }

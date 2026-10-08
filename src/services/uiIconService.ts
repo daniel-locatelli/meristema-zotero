@@ -149,6 +149,13 @@ const ICON_PATHS: Record<IconName, string[]> = {
  */
 export const PANE_TOGGLE_ICON_SIZE = 14;
 
+/**
+ * The icons in the rail footer's 26px buttons: zoom in, zoom out, fit and the
+ * display settings. At the 16px default the zoom glyphs' plus and minus were
+ * about 2.5px across (B92); one name keeps the four the same size.
+ */
+export const RAIL_BUTTON_ICON_SIZE = 20;
+
 export function createIcon(
   document: Document,
   name: IconName,

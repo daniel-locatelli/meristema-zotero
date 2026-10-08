@@ -561,6 +561,27 @@ describe("Graph view, as the product builds it", function () {
     await shot("view-09-pane-toolbars");
   });
 
+  it("draws the rail footer's four icons at 20px (B92)", async function () {
+    this.timeout(60_000);
+    const active = await open(200);
+    const icons = [
+      ...active.root.querySelectorAll(
+        ".cm-key-footer .cm-rail-button svg.cm-icon",
+      ),
+    ] as SVGSVGElement[];
+    expect(
+      icons.map((svg) => svg.getAttribute("class")),
+      "zoom in, zoom out, fit and the display settings",
+    ).to.have.length(4);
+    for (const svg of icons) {
+      const box = svg.getBoundingClientRect();
+      expect(
+        [box.width, box.height],
+        `${svg.getAttribute("class")} measured`,
+      ).to.deep.equal([20, 20]);
+    }
+  });
+
   it("view 6 — the zoom and appearance controls live in the rail", async function () {
     this.timeout(60_000);
     const active = await open(200);

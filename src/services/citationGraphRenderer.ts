@@ -1403,13 +1403,21 @@ export class CitationGraphRenderer {
     context.stroke();
     context.setLineDash([]);
 
-    const size = Math.round(10.5 * ratio);
+    /*
+     * The double arrow is drawn, not typed. As "⇕" it was a 10.5px character
+     * sitting on the font's baseline, too small to read as the handle (B92).
+     */
+    const size = Math.round(12 * ratio);
     context.font = `${size}px ${this.fontStack}`;
     const label = floorTagText(this.floor, this.floorBelow);
-    const padX = 8 * ratio;
-    const padY = 3 * ratio;
-    const width = context.measureText(label).width + padX * 2;
-    const height = size + padY * 2;
+    const arrowSize = 16 * ratio;
+    const padLeft = 6 * ratio;
+    const gap = 4 * ratio;
+    const padRight = 8 * ratio;
+    const padY = 4 * ratio;
+    const textLeft = padLeft + arrowSize + gap;
+    const width = textLeft + context.measureText(label).width + padRight;
+    const height = Math.max(size, arrowSize) + padY * 2;
     const left =
       placement.axis === "y" ? plot.left + 8 * ratio : screen + 8 * ratio;
     const top =
@@ -1420,10 +1428,15 @@ export class CitationGraphRenderer {
     context.fillRect(left, top, width, height);
     context.lineWidth = Math.max(1, ratio);
     context.strokeRect(left, top, width, height);
+    this.drawFloorArrow(
+      left + padLeft,
+      top + (height - arrowSize) / 2,
+      arrowSize,
+    );
     context.fillStyle = this.theme.inks.primary;
     context.textAlign = "left";
     context.textBaseline = "middle";
-    context.fillText(label, left + padX, top + height / 2);
+    context.fillText(label, left + textLeft, top + height / 2);
     context.restore();
     this.floorTagRect = {
       left,
@@ -1431,6 +1444,33 @@ export class CitationGraphRenderer {
       top,
       bottom: top + height,
     };
+  }
+
+  /**
+   * The floor tag's double arrow in a `size` box at (left, top): a stem with
+   * a chevron at each end, on the 24-unit grid the rail's icons are drawn on.
+   */
+  private drawFloorArrow(left: number, top: number, size: number): void {
+    const context = this.context;
+    const unit = size / 24;
+    const at = (x: number, y: number): [number, number] => [
+      left + x * unit,
+      top + y * unit,
+    ];
+    context.strokeStyle = this.theme.inks.primary;
+    context.lineWidth = 2.4 * unit;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.beginPath();
+    context.moveTo(...at(12, 3));
+    context.lineTo(...at(12, 21));
+    context.moveTo(...at(7, 8));
+    context.lineTo(...at(12, 3));
+    context.lineTo(...at(17, 8));
+    context.moveTo(...at(7, 16));
+    context.lineTo(...at(12, 21));
+    context.lineTo(...at(17, 16));
+    context.stroke();
   }
 
   /**

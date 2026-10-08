@@ -21,7 +21,11 @@ import {
   nodeColorMetricDefinitions,
   nodeSizeMetricDefinitions,
 } from "./metricRegistry";
-import { createIcon, type IconName } from "./uiIconService";
+import {
+  createIcon,
+  RAIL_BUTTON_ICON_SIZE,
+  type IconName,
+} from "./uiIconService";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
@@ -370,7 +374,7 @@ export function createAxesAppearance(
   );
   button.type = "button";
   // Drawn, not typed: "⚙" is a glyph no two interface fonts place alike.
-  button.append(icon(document, "settings"));
+  button.append(createIcon(document, "settings", RAIL_BUTTON_ICON_SIZE));
   button.title = "Graph display settings";
   button.setAttribute("aria-label", "Graph display settings");
   button.setAttribute("aria-expanded", "false");

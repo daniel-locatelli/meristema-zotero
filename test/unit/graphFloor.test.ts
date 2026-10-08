@@ -115,12 +115,10 @@ describe("floorTagText", function () {
   const grouped = new Intl.NumberFormat(undefined, { useGrouping: true });
 
   it("names the floor and the count, and reads off at 0", function () {
-    expect(floorTagText(0, 0)).to.equal("⇕ floor: off");
-    expect(floorTagText(20, 143)).to.equal(
-      "⇕ floor: ≥ 20 citations · 143 below",
-    );
+    expect(floorTagText(0, 0)).to.equal("floor: off");
+    expect(floorTagText(20, 143)).to.equal("floor: ≥ 20 citations · 143 below");
     expect(floorTagText(1200, 1500)).to.equal(
-      `⇕ floor: ≥ ${grouped.format(1200)} citations · ${grouped.format(1500)} below`,
+      `floor: ≥ ${grouped.format(1200)} citations · ${grouped.format(1500)} below`,
     );
   });
 });

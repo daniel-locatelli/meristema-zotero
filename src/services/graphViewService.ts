@@ -200,7 +200,11 @@ import {
   type RelationshipList,
   type RowAction,
 } from "./paperDetailView";
-import { createIcon, PANE_TOGGLE_ICON_SIZE } from "./uiIconService";
+import {
+  createIcon,
+  PANE_TOGGLE_ICON_SIZE,
+  RAIL_BUTTON_ICON_SIZE,
+} from "./uiIconService";
 import type { IconName } from "./uiIconService";
 import {
   applyGraphThemeToDocument,
@@ -1080,7 +1084,7 @@ export function renderGraphView(
     const button = element(document, "button", "cm-rail-button");
     button.type = "button";
     button.dataset.action = action;
-    button.append(icon(document, glyph));
+    button.append(createIcon(document, glyph, RAIL_BUTTON_ICON_SIZE));
     button.title = description;
     button.setAttribute("aria-label", description);
     zoom.appendChild(button);

@@ -98,8 +98,11 @@ export function floorAtWorld(
   );
 }
 
-/** The handle tag's text, also the canvas title while the tag is hovered. */
+/**
+ * The handle tag's text, also the canvas title while the tag is hovered. The
+ * tag's double arrow is drawn beside it, not typed into it (B92).
+ */
 export function floorTagText(floor: number, below: number): string {
-  if (floor <= 0) return "⇕ floor: off";
-  return `⇕ floor: ≥ ${COUNT_FORMAT.format(floor)} citations · ${COUNT_FORMAT.format(below)} below`;
+  if (floor <= 0) return "floor: off";
+  return `floor: ≥ ${COUNT_FORMAT.format(floor)} citations · ${COUNT_FORMAT.format(below)} below`;
 }
