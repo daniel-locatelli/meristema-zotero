@@ -4,7 +4,12 @@ import type {
   CitationGraphEdge,
   CitationGraphNode,
 } from "../../src/domain/graphTypes";
-import { additiveGraphModel } from "../../src/services/graphFocusService";
+import type { RelatedWorkMetadata } from "../../src/domain/citationTypes";
+import { mergeExternalWorkMetadata } from "../../src/services/externalWorkMetadataService";
+import {
+  additiveGraphModel,
+  externalWorkToFocusNode,
+} from "../../src/services/graphFocusService";
 
 function node(key: string, kind: "local" | "external"): CitationGraphNode {
   return {
@@ -116,5 +121,55 @@ describe("seed reach", function () {
     const merged = additiveGraphModel(base, null);
     expect(merged.nodes).to.deep.equal(base.nodes);
     expect(merged.edges).to.deep.equal([]);
+  });
+});
+
+describe("a hop node hydrated from another index", function () {
+  const doi = "10.1000/hop";
+  const fromOpenCitations: RelatedWorkMetadata = {
+    provider: "opencitations",
+    providerWorkID: doi,
+    doi,
+    title: null,
+    year: 2019,
+    authors: [],
+    referenceCount: 4,
+  };
+
+  it("names the index each count came from (B81)", function () {
+    const hydrated = mergeExternalWorkMetadata(fromOpenCitations, {
+      provider: "semantic-scholar",
+      providerWorkID: "S2-HOP",
+      doi,
+      title: "A hop paper",
+      year: 2019,
+      authors: [],
+      citationCount: 12,
+    });
+    const hop = externalWorkToFocusNode(hydrated, "cited-by");
+    expect({
+      provider: hop.provider,
+      citationCountProvider: hop.citationCountProvider,
+      referenceCountProvider: hop.referenceCountProvider,
+    }).to.deep.equal({
+      provider: "opencitations",
+      citationCountProvider: "semantic-scholar",
+      referenceCountProvider: "opencitations",
+    });
+  });
+
+  it("keeps its own index's name on a count both indexes agree on", function () {
+    const hydrated = mergeExternalWorkMetadata(fromOpenCitations, {
+      provider: "openalex",
+      providerWorkID: "W1",
+      doi,
+      title: "A hop paper",
+      year: 2019,
+      authors: [],
+      referenceCount: 4,
+    });
+    expect(
+      externalWorkToFocusNode(hydrated, "cited-by").referenceCountProvider,
+    ).to.equal("opencitations");
   });
 });

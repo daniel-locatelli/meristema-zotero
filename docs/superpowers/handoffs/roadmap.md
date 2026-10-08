@@ -126,11 +126,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B81 a hop node hydrated from another index keeps OpenCitations as its
-      `citationCountProvider` over that index's count
-      (`externalWorkToFocusNode`); B73 stopped the count bounding the list,
-      but the label is still wrong. Nothing records which index a merged
-      count came from
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -307,6 +302,10 @@ any failure into a new entry above.
 - [ ] B92: the rail footer's zoom in, zoom out, fit and gear icons read
       larger in their buttons; drag the floor tag: its arrow is drawn, not a
       small character, and the tag still grabs. Both themes.
+- [ ] B81: on a seeded graph filled with OpenCitations on, select a citer
+      hop paper and hover its Citations count in Paper details: the tooltip
+      names the index that reported the count (Semantic Scholar or
+      OpenAlex), not OpenCitations.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -462,3 +461,9 @@ entries are in git history.
   canvas: the rail footer's four icons at 20px (`RAIL_BUTTON_ICON_SIZE`), the
   floor tag's arrow drawn at 16px beside 12px text. The new footer case and
   the floor drag case green alone; the footer case was not seen red first.
+- 2026-10-08: B81 fixed: a hop node's count labels now read the count's own
+  `propertySources` (`countProviderForNode` in `graphFocusService.ts`). The
+  work's provider wins when it reported the count too, and a record with no
+  sources falls back to it. Red, then green, in `graphFocusService.test.ts`.
+  B73's case now arms through a record with no sources. Unit only, not yet in
+  a full suite run.

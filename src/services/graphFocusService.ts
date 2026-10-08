@@ -53,6 +53,26 @@ function providerForNode(
   return provider === "manual" || provider === "zotero" ? null : provider;
 }
 
+/**
+ * The index a count came from. Hydration merges another index's record into a
+ * work and keeps the first provider, so the count's own sources name it (B81).
+ * The work's provider wins when it reported the count too.
+ */
+function countProviderForNode(
+  work: RelatedWorkMetadata,
+  property: "citationCount" | "referenceCount",
+  provider: CitationGraphNode["provider"],
+): CitationGraphNode["provider"] {
+  if (work[property] == null) return null;
+  const sources = work.propertySources?.[property] ?? [];
+  if (provider && sources.includes(provider)) return provider;
+  for (const source of sources) {
+    const indexed = providerForNode(source === "meristema" ? "manual" : source);
+    if (indexed) return indexed;
+  }
+  return provider;
+}
+
 function externalNodeKey(work: RelatedWorkMetadata): string {
   return `focus:${externalWorkLookupIdentity(work)}`;
 }
@@ -102,8 +122,16 @@ export function externalWorkToFocusNode(
     metricsUpdatedAt: work.updatedAt ?? null,
     dataAgeDays: dataAgeDays(work.updatedAt),
     provider,
-    citationCountProvider: work.citationCount == null ? null : provider,
-    referenceCountProvider: work.referenceCount == null ? null : provider,
+    citationCountProvider: countProviderForNode(
+      work,
+      "citationCount",
+      provider,
+    ),
+    referenceCountProvider: countProviderForNode(
+      work,
+      "referenceCount",
+      provider,
+    ),
     providerWorkID: work.providerWorkID,
     matchedBy: null,
     matchConfidence: null,

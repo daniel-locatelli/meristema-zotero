@@ -10,8 +10,9 @@ import type { RelationshipRefreshResolution } from "../../src/services/externalD
 /**
  * A hop node's count bounding a list it was not counted from (B73). An
  * OpenCitations citer carries no count of its own; hydration merges another
- * index's record into it and keeps the existing provider, so the hop node
- * built from it attributes that index's count to OpenCitations. Expanding the
+ * index's record into it and keeps the existing provider. Without the count's
+ * own sources (a record cached before them), the hop node built from it
+ * attributes that index's count to OpenCitations. Expanding the
  * node must not then cut OpenCitations' list at that count.
  */
 const OPENCITATIONS_LIST = [1, 2].map((n): RelatedWorkMetadata => ({
@@ -130,7 +131,12 @@ describe("a hop node hydrated from another index", function () {
       authors: [],
       citationCount: 1,
     });
-    const node = externalWorkToFocusNode(hydrated, "cited-by");
+    // A record cached before properties carried their sources: since B81 the
+    // node otherwise names the index its count came from.
+    const node = externalWorkToFocusNode(
+      { ...hydrated, propertySources: undefined },
+      "cited-by",
+    );
     expect(
       { count: node.citationCount, provider: node.citationCountProvider },
       "the arming: Semantic Scholar's count stands under OpenCitations",
