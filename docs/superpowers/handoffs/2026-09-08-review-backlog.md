@@ -367,24 +367,6 @@ could be more disruptive than useful. Worth a brainstorm, not a patch.
 
 ---
 
-## F13. Show a paper's full title in the graph
-
-The label is ellipsised when the title is too long, and the user wants the
-option to read the whole thing on the plot.
-
-Not a one-line change: `graphLabelBudget.ts` exists because labels compete for
-space, and a full title is several times the width the budget assumes. The
-design question is which surface carries it — every label at full length (and
-what that does to the budget and to overlap), the hovered or selected paper
-only, or a wrapped label over two or three lines with a width cap. Decide that
-before touching the budget.
-
-Pointers: `src/services/graphLabelBudget.ts`, the renderer's `drawLabels`, and
-the Label control in the gear panel (`graphViewControls.ts`,
-`labelledLine("Label", labels)`), which is where an option would live.
-
----
-
 ## B34. Panning a 300+ paper folder at maximum zoom lags
 
 Found walking D6's last check on 2026-09-11: "It has a delay to it. We can

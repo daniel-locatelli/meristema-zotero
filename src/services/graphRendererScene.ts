@@ -2,6 +2,7 @@ import type {
   CitationGraphNode,
   GhostPreview,
   GraphAxisMetric,
+  GraphLayoutOptions,
   GraphScaleType,
 } from "../domain/graphTypes";
 import { publicationYearOrNull } from "../domain/valueNormalization";
@@ -408,6 +409,22 @@ function relaxAnchoredNodes(
  * used to re-measure every visible label sixty times a second.
  */
 const labelWidths = createTextWidthCache();
+/** A label line's height, in CSS pixels. */
+const LABEL_LINE_HEIGHT = 14;
+/** The hovered title wraps at this width, in CSS pixels (F13). */
+const HOVER_LABEL_WIDTH = 280;
+
+/** A node's label as the plot draws it unhovered: cut at 42 characters. */
+function shortLabel(
+  node: CitationGraphNode,
+  mode: GraphLayoutOptions["nodeLabelMode"],
+): string {
+  const label =
+    mode === "author-year"
+      ? `${node.authors[0]?.split(/\s+/).at(-1) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
+      : node.title;
+  return label.length > 42 ? `${label.slice(0, 39)}…` : label;
+}
 
 /**
  * The label-placement bounds are a world rectangle around the plot, projected
@@ -592,6 +609,29 @@ export function orderLabelCandidates(
   );
 }
 
+/**
+ * A label broken at word boundaries into lines no wider than `maxWidth`, as
+ * `measure` reads them. A word wider than the cap takes a line of its own
+ * rather than being cut: the hovered title is drawn whole (F13).
+ */
+export function wrapLabel(
+  text: string,
+  maxWidth: number,
+  measure: (text: string) => number,
+): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && measure(candidate) > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else line = candidate;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 export function drawRendererLabels(
   renderer: RendererSceneContext,
   nodes: CitationGraphNode[],
@@ -655,14 +695,26 @@ export function drawRendererLabels(
     const important =
       node.key === renderer.selectedKey || node.key === renderer.hoverKey;
     if (!important && !budget.hasRoom()) break;
-    const label =
-      renderer.layout.nodeLabelMode === "author-year"
-        ? `${node.authors[0]?.split(/\s+/).at(-1) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
-        : node.title;
-    const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
+    // The hovered paper reads its whole title, wrapped, under either label
+    // mode (F13); every other label, and an untitled hovered paper, keeps
+    // the 42-character cut.
+    const wrapped =
+      node.key === renderer.hoverKey
+        ? wrapLabel(node.title, HOVER_LABEL_WIDTH * ratio, (text) =>
+            labelWidths.width(context, font, text),
+          )
+        : [];
+    const lines = wrapped.length
+      ? wrapped
+      : [shortLabel(node, renderer.layout.nodeLabelMode)];
     const width =
-      Math.ceil(labelWidths.width(context, font, shortened)) + 4 * ratio;
-    const height = 14 * ratio;
+      Math.ceil(
+        Math.max(
+          ...lines.map((line) => labelWidths.width(context, font, line)),
+        ),
+      ) +
+      4 * ratio;
+    const height = LABEL_LINE_HEIGHT * ratio * lines.length;
     const radius = radii.get(node.key) ?? 7 * ratio;
     const gap = radius + 6 * ratio;
     const candidates = [
@@ -752,7 +804,13 @@ export function drawRendererLabels(
       renderer.emphasisAlphaFor(node.key);
     context.textAlign = chosen.align;
     context.fillStyle = renderer.getTheme().inks.primary;
-    context.fillText(shortened, chosen.x, chosen.y);
+    lines.forEach((line, index) =>
+      context.fillText(
+        line,
+        chosen.x,
+        chosen.y + (index - (lines.length - 1) / 2) * LABEL_LINE_HEIGHT * ratio,
+      ),
+    );
     context.globalAlpha = 1;
   }
   context.restore();

@@ -17,7 +17,7 @@ Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
   form of the open entries filed up to 2026-09-11 (B7, B15, B18, B20, B26,
-  B34, B36, F3 to F13, D5). Read one only when you take that item.
+  B34, B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
@@ -212,8 +212,6 @@ opacity grade).
       Refresh vs Update connections should say which scope each acts on
 - [ ] F4 show the selected paper's abstract; the user chose the Paper details
       pane (2026-10-07)
-- [ ] F13 show a paper's full title in the graph; today it ellipsises. The
-      user wants it at once on hover; a faster tooltip would already do
 - [ ] B90 narrowing Zotero past some width makes the Paper details pane
       widen and take the plot's space, where the rail shrinks. It looks
       maxed out instead of compacting (user, 2026-10-07)
@@ -302,6 +300,9 @@ any failure into a new entry above.
       hop paper and hover its Citations count in Paper details: the tooltip
       names the index that reported the count (Semantic Scholar or
       OpenAlex), not OpenCitations.
+- [ ] F13: hover a paper with a long title, under Title and under Author
+      (year) labels: its label at once reads the whole title over a few
+      lines, beside the node; other labels keep the `…` cut. Both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -471,3 +472,7 @@ entries are in git history.
   always `most-cited`). Treating OpenAlex as paging when keyless is NOT
   caught: `requestOpenAlex` refuses without a key, so the fill only loses
   ~17 s. Full suite 101/0 with it. D8 is closed, so its spec is deleted.
+- 2026-10-08: F13 done, the user choosing the hovered label over an instant
+  hover card: the hovered paper's label is its whole title, wrapped at 280px
+  (`wrapLabel` in `graphRendererScene.ts`), under either label mode; others
+  keep the 42-character cut. Red, then green, in `graphHoverLabel.test.ts`.
