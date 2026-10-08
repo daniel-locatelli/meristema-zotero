@@ -153,8 +153,6 @@ opacity grade).
       where it shows it runs behind the checkboxes, visible through an
       empty one. Likely a sub-pixel width that rounds to zero at one DPI;
       check both monitors' scaling
-- [ ] F11 clicking a Seeds row should select that seed, and selecting a seed
-      node should light its row
 
 ## Views, gallery and menus
 
@@ -309,6 +307,11 @@ any failure into a new entry above.
       keep their size. At the default size, text in the graph that sized
       with `font: menu` (titles set to `inherit`) may now read 13px, as
       Zotero's own panes do. Repeat in a detached graph window.
+- [ ] F11: on a seeded graph, click a Seeds row (not its ×): the seed is
+      selected on the plot, brought into view if it was off screen, and its
+      row in the library list is selected. Select the seed node on the plot,
+      or its row in the list: its Seeds row lights with an accent tint;
+      select any other paper: the tint goes. Judge the tint in both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -491,3 +494,12 @@ entries are in git history.
   its scale off its computed font size; the labelled plot gutters grow with
   it. Red, then green, in `zoteroFontSize.test.ts` and
   `test/zotero/graphFontSize.test.ts`.
+- 2026-10-08: F11 done. A Seeds row's swatch and label are one button
+  (`cm-scope-seed-body`, `aria-pressed`) that selects the seed through the
+  node click's path, so it reports to the list; `buildScopeRailModel` marks
+  the row whose key is `selectedKey`, and every graph selection refreshes the
+  Scope rail. Red, then green, in `graphScopeRailModel.test.ts` and the Scope
+  rail suite. The suite's first try failed falsely: the items tree fires no
+  `onSelect` while its tab is hidden, so a list pick made milliseconds after
+  showing the tab reads the old row; the case now waits 500ms as a reader
+  would, and passes with no binding change.

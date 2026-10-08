@@ -1495,6 +1495,34 @@
 .cm-scope-seed:hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
 }
+/* The body is a button for the click (F11); the same specificity note as
+   `.cm-scope-row-body` below applies, so the root prefix is load-bearing. */
+.meristema-root button.cm-scope-seed-body {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.meristema-root button.cm-scope-seed-body:hover:not(:disabled) {
+  background: none;
+}
+/* The selected seed, lit in the accent the way a selected folder row is, but
+   as a tint: a full fill would sit behind the seed's own coloured mark. */
+.cm-scope-seed-selected,
+.cm-scope-seed-selected:hover {
+  background: color-mix(in srgb, var(--cm-accent) 22%, transparent);
+}
 .cm-scope-seed-label {
   flex: 1 1 auto;
   min-width: 0;

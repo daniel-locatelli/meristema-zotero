@@ -334,23 +334,6 @@ together.
 
 ---
 
-## F11. Clicking a Seeds row should select that seed, and selecting a seed node should light its row
-
-Today a Seeds row in the rail emphasises its seed on hover and that is all:
-clicking it does not select the seed, and selecting a seed's node on the plot
-does not mark its row. The user wants both directions.
-
-The rail already carries the machinery — `onEmphasise` with a `RailEmphasis`,
-and the folder rows already have a real selected state with `aria-pressed` —
-so this is mostly wiring a click and a reverse notification, not new
-interaction design.
-
-Pointers: `src/services/graphKeyRail.ts` (the seed row, `removeSeed`,
-`onEmphasise`), `src/services/graphViewService.ts` (`applyEmphasis`, the
-selection path).
-
----
-
 ## F12. Selecting a folder in Zotero should activate its region in the graph
 
 The user's analogy: item selection is two-way between Zotero and the graph,

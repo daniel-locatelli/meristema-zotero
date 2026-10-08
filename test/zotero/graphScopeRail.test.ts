@@ -42,8 +42,8 @@ function command(element: Element): void {
  * The Scope rail, walked through the plugin's own chrome. The test bundle is a
  * second copy of the plugin, so nothing here reaches into a view: a graph is
  * opened from Tools › Meristema › New Graph and every outcome is read from the
- * rendered DOM. The four cases run in order against that one graph — the seed
- * the first one adds is the seed the second and fourth rely on.
+ * rendered DOM. The cases run in order against that one graph — the seed the
+ * first one adds is the seed the second, third and fifth rely on.
  */
 describe("The graph's Scope rail", function () {
   let win: any;
@@ -323,6 +323,77 @@ describe("The graph's Scope rail", function () {
     ).to.equal(1);
     expect(scopeCount()).to.be.at.least(before);
     expect(scopeTotal()).to.be.at.least(before);
+  });
+
+  it("selects a seed from its row, and lights the row of a selected seed (F11)", async function () {
+    this.timeout(30_000);
+    const seedRow = graphRoot().querySelector(".cm-scope-seed") as HTMLElement;
+    expect(seedRow, "the seed the first case added").to.exist;
+    const pressed = (): string | null =>
+      (
+        graphRoot().querySelector(".cm-scope-seed-body") as HTMLElement | null
+      )?.getAttribute("aria-pressed") ?? null;
+    const detailTitle = (): string =>
+      graphRoot().querySelector(".cm-detail-title")?.textContent ?? "";
+    // A fixture has no author, so the row reads "{title} (2020)".
+    const seedTitle =
+      seedRow
+        .querySelector(".cm-scope-seed-label")
+        ?.textContent?.replace(/ \(\d{4}\)$/, "") ?? "";
+    const titles = ["Scope fixture one", "Scope fixture two"];
+    expect(titles, "the seed is a fixture").to.include(seedTitle);
+    const seedID = fixtureIDs[titles.indexOf(seedTitle)];
+    const otherID = fixtureIDs[1 - titles.indexOf(seedTitle)];
+    const otherTitle = titles[1 - titles.indexOf(seedTitle)];
+
+    // The reader picks a row in the library tab and comes back to the graph.
+    const listSelects = async (itemID: number): Promise<void> => {
+      win.Zotero_Tabs.select("zotero-pane");
+      // The tree fires no onSelect while its tab is hidden: the graph's own
+      // report lands, and is echoed, only once the tab draws. A pick made
+      // before that reads the old row and is lost, which no reader is fast
+      // enough to do, so the walk waits the way a reader would.
+      await delay(500);
+      await win.ZoteroPane.collectionsView.selectLibrary(
+        Zotero.Libraries.userLibraryID,
+      );
+      await win.ZoteroPane.itemsView.selectItems([itemID], true);
+      win.Zotero_Tabs.select(tabID);
+    };
+
+    // The list selects the other paper: the graph follows, the row is dark.
+    await listSelects(otherID);
+    await waitFor(() => detailTitle() === otherTitle, 5_000);
+    expect(detailTitle(), "the graph follows the list").to.equal(otherTitle);
+    expect(pressed(), "a non-seed selection leaves the row dark").to.equal(
+      "false",
+    );
+
+    // A click on the row selects the seed, and reports it to the list.
+    (
+      graphRoot().querySelector(".cm-scope-seed-body") as HTMLButtonElement
+    ).click();
+    await waitFor(() => pressed() === "true", 5_000);
+    expect(pressed(), "the clicked row lights").to.equal("true");
+    expect(detailTitle(), "the seed is the selected paper").to.equal(seedTitle);
+    expect([
+      ...(win.ZoteroPane.itemsView.getSelectedItems(true) as number[]),
+    ]).to.deep.equal([seedID]);
+
+    // Selecting the seed from elsewhere lights its row too.
+    await listSelects(otherID);
+    await waitFor(() => pressed() === "false", 5_000);
+    expect(
+      pressed(),
+      `moving off the seed darkens the row; detail ${detailTitle()}; list ${[
+        ...(win.ZoteroPane.itemsView.getSelectedItems(true) as number[]),
+      ]} (seed ${seedID}, other ${otherID})`,
+    ).to.equal("false");
+    await listSelects(seedID);
+    await waitFor(() => pressed() === "true", 5_000);
+    expect(pressed(), "selecting the seed node lights its row").to.equal(
+      "true",
+    );
   });
 
   it("removes a folder's papers when it is unticked and keeps the seed", async function () {

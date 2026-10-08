@@ -427,6 +427,7 @@ describe("Graph view, looked at", function () {
         toggleRow: () => undefined,
         selectRow: () => undefined,
         removeSeed: () => undefined,
+        selectSeed: () => undefined,
         addSeed: () => undefined,
         showAllHidden: () => undefined,
         setHopDirection: () => undefined,

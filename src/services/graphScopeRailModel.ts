@@ -27,7 +27,12 @@ export interface ScopeSeedRow {
   label: string;
   /** The seed's own colour, so the rail's bullseye and the plot's agree. */
   color: string;
+  /** The seed is the plot's selected node (F11). */
+  selected: boolean;
 }
+
+/** A seed as the view knows it; the model decides `selected`. */
+export type ScopeSeedInput = Omit<ScopeSeedRow, "selected">;
 
 export interface ScopeCollectionRow {
   kind: "collection";
@@ -178,7 +183,9 @@ export interface ScopeRailInput {
   ticks: GraphViewCollectionTicks;
   includeUnfiled: boolean;
   includeExternal: boolean;
-  seeds: readonly ScopeSeedRow[];
+  seeds: readonly ScopeSeedInput[];
+  /** The plot's selected node, which lights its seed row if it is a seed. */
+  selectedKey?: string | null;
   scope: GraphScopeResult;
   /** The folders currently drawn as regions, oldest selection first. */
   regions: readonly number[];
@@ -455,7 +462,10 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
   return {
     countLine: `${COUNT_FORMAT.format(input.scope.shown)} of ${COUNT_FORMAT.format(input.scope.total)} papers`,
     seedsHeading: `Seeds · ${COUNT_FORMAT.format(input.seeds.length)}`,
-    seeds: input.seeds.map((seed) => ({ ...seed })),
+    seeds: input.seeds.map((seed) => ({
+      ...seed,
+      selected: seed.key === input.selectedKey,
+    })),
     rows,
     hiddenLine: input.scope.hiddenCount
       ? `${COUNT_FORMAT.format(input.scope.hiddenCount)} hidden`

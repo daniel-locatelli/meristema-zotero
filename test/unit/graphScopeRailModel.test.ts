@@ -283,6 +283,33 @@ describe("buildScopeRailModel", function () {
     expect(model.seedsHeading).to.equal("Seeds · 2");
     expect(model.seeds.map((seed) => seed.key)).to.deep.equal(["s1", "s2"]);
   });
+
+  it("marks the selected seed's row, and no other", function () {
+    const model = buildScopeRailModel({
+      ...baseInput(),
+      seeds: [
+        { key: "s1", label: "Lovelace (1843)", color: "#111111" },
+        { key: "s2", label: "Turing (1936)", color: "#222222" },
+      ],
+      selectedKey: "s2",
+    });
+    expect(model.seeds.map((seed) => seed.selected)).to.deep.equal([
+      false,
+      true,
+    ]);
+  });
+
+  it("marks no seed row while a non-seed or nothing is selected", function () {
+    const seeds = [{ key: "s1", label: "Lovelace (1843)", color: "#111111" }];
+    for (const selectedKey of ["n9", null, undefined]) {
+      const model = buildScopeRailModel({
+        ...baseInput(),
+        seeds,
+        selectedKey,
+      });
+      expect(model.seeds[0].selected, String(selectedKey)).to.equal(false);
+    }
+  });
 });
 
 describe("the Citation floor row", function () {

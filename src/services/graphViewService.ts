@@ -101,7 +101,7 @@ import {
   seedRowLabel,
   type ScopeCutInput,
   type ScopeHopsInput,
-  type ScopeSeedRow,
+  type ScopeSeedInput,
 } from "./graphScopeRailModel";
 import {
   exportGraphCSV,
@@ -1481,6 +1481,13 @@ export function renderGraphView(
         refreshViewChip();
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
+      // The same path as a click on the node: the selection is reported to
+      // the list, and the seed is brought into view if it is off screen.
+      selectSeed: (seedKey) => {
+        if (renderer?.selectNode(seedKey, false)) {
+          renderer.panToNodeIfOffscreen(seedKey);
+        }
+      },
       addSeed: (anchor) => openFocusSeedPopover(anchor),
       showAllHidden: () => {
         if (!hiddenKeys.size) return;
@@ -3814,6 +3821,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
     closeNodeMenu();
     renderOverview(node);
+    // A selected seed lights its row (F11).
+    refreshScopeRail();
     // The selected paper goes to the head of the runner's plan.
     scheduleHopFill();
     if (suppressSelectionReport) return;
@@ -3868,7 +3877,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       }
     },
   });
-  const scopeSeedRows = (): ScopeSeedRow[] => {
+  const scopeSeedRows = (): ScopeSeedInput[] => {
     const colors = hopModel
       ? seedColorsFor(hopModel)
       : new Map<string, string>();
@@ -4210,6 +4219,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         includeUnfiled,
         includeExternal,
         seeds: scopeSeedRows(),
+        selectedKey: selectedNode?.key ?? null,
         scope: lastScope,
         regions,
         regionColors: new Map(

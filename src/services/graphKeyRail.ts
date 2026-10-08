@@ -148,6 +148,8 @@ export interface ScopeRailHandlers {
   /** A folder's row body was clicked, to draw or drop it as a region. */
   selectRow(row: ScopeRow, selected: boolean): void;
   removeSeed(seedKey: string): void;
+  /** A seed's row was clicked, to select that seed on the plot (F11). */
+  selectSeed(seedKey: string): void;
   /** The reader asked for the seed search panel; the anchor is the link. */
   addSeed(anchor: HTMLElement): void;
   showAllHidden(): void;
@@ -411,7 +413,19 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       swatch.appendChild(circle);
     }
     const label = text(document, "span", seed.label, "cm-scope-seed-label");
-    label.title = seed.label;
+    label.title = `${seed.label} — click to select this seed`;
+    // The swatch and the label are one target, as a folder row's body is;
+    // the × beside them stays its own button.
+    const body = element(
+      document,
+      "button",
+      "cm-scope-seed-body",
+    ) as HTMLButtonElement;
+    body.type = "button";
+    body.setAttribute("aria-pressed", seed.selected ? "true" : "false");
+    body.append(swatch, label);
+    body.addEventListener("click", () => options.onScope.selectSeed(seed.key));
+    if (seed.selected) row.classList.add("cm-scope-seed-selected");
     const remove = element(document, "button", "cm-scope-seed-remove");
     remove.type = "button";
     remove.textContent = "×";
@@ -420,7 +434,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     remove.addEventListener("click", () =>
       options.onScope.removeSeed(seed.key),
     );
-    row.append(swatch, label, remove);
+    row.append(body, remove);
     row.addEventListener("pointerenter", () => {
       if (!pinned) options.onEmphasise({ kind: "seed", seedKey: seed.key });
     });
