@@ -131,11 +131,6 @@ opacity grade).
       (`externalWorkToFocusNode`); B73 stopped the count bounding the list,
       but the label is still wrong. Nothing records which index a merged
       count came from
-- [ ] B84 B80's fault-as-empty pattern outside OpenCitations: Semantic
-      Scholar `fetchRelations` and, in `relatedWorkSummaryService`, the
-      OpenAlex relation page, the Semantic Scholar summary page and the
-      OpenAlex references source read a non-OK answer as an empty list. First
-      task: which of these are stored as complete
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -316,9 +311,9 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `6921bc9` (98/0),
-so count with `git log 6921bc9..main --oneline`.
-A clean run is 98 passed, 0 failed as of 2026-10-08 (B83's case added); B91 adds a 99th, not yet run in full.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `0fa1139` (99/0),
+so count with `git log 0fa1139..main --oneline`.
+A clean run is 99 passed, 0 failed as of 2026-10-08 (B91's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -447,5 +442,13 @@ entries are in git history.
   with the fix; block 3/3. Full suite 97/1 (the floor drag flake), then
   98/0 at `6921bc9`.
 - 2026-10-08: B91 fixed (`1d874af`): the reported total's margin stacked on
-  the row's flex gap. Red at 10px against a 3px space, green alone; the full
-  suite waits for the next run.
+  the row's flex gap. Red at 10px against a 3px space, green alone.
+- 2026-10-08: B84 fixed (`0fa1139`): the three summary-service pages the fill
+  and refresh use stored a fault as complete whenever no total held it
+  (hinted node, provider reporting none); they now throw through
+  `relationPageBody`, 404 stays a miss. Semantic Scholar's native page only
+  feeds the coupling recommender, which stores nothing; it takes the rule
+  too. Left as is: a refused or faulted OpenAlex hydration batch drops a
+  references page's untitled works, but that page carries its total, so the
+  short list is never complete. Full suite 99/0 at
+  `0fa1139`.
