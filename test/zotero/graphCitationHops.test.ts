@@ -770,13 +770,15 @@ describe("Citation hops (Stage 3)", function () {
    * The grid is walked in whole CSS pixels (B43): a synthetic PointerEvent
    * keeps a fractional clientX but a synthetic MouseEvent is delivered at the
    * truncated integer, so a hover and a right-click "at the same point" can
-   * reach the renderer a pixel apart.
+   * reach the renderer a pixel apart. Each pass re-reads the canvas: a
+   * library update mid-walk remounts the plot and replaces it (B83).
    */
   async function nodeMenuEntry(
     label: string,
     titleIncludes: string,
   ): Promise<HTMLButtonElement> {
-    const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+    let canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+    const firstCanvas = canvas;
     const move = (x: number, y: number): void => {
       canvas.dispatchEvent(
         new win.PointerEvent("pointermove", {
@@ -801,6 +803,7 @@ describe("Citation hops (Stage 3)", function () {
     let passes = 0;
     for (;;) {
       passes += 1;
+      canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
       const box = canvas.getBoundingClientRect();
       const left = Math.ceil(box.left);
       const top = Math.ceil(box.top);
@@ -838,6 +841,8 @@ describe("Citation hops (Stage 3)", function () {
         `; ${passes} pass(es) over the canvas in ${Date.now() - started}ms` +
         `; ${galleryState()}` +
         `; clicks: ${clicks.join(" || ") || "none"}` +
+        `; the walk's canvas was ${firstCanvas === canvas ? "never replaced" : "replaced by a remount"}` +
+        `, the Scope section read "${normalize(graphRoot().querySelector(".cm-scope-section")?.textContent)}"` +
         `; recent Zotero errors: ${
           (Zotero.getErrors(true) as string[]).slice(-5).join(" || ") || "none"
         }`,

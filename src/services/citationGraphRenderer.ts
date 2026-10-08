@@ -17,6 +17,7 @@ import {
   type GraphAxisViewport,
 } from "./graphAxisTickEnhancer";
 import { ensureExternalWorkMetrics } from "./externalWorkMetricRegistry";
+import { createFrameOrTimer } from "./frameOrTimer";
 import {
   drawRendererGhost,
   drawRendererLabels,
@@ -336,6 +337,18 @@ export class CitationGraphRenderer {
   private disposeSchemeObserver: (() => void) | null = null;
   private initialFitFrame: number | null = null;
   private initialFitComplete = false;
+  /**
+   * The resize and the initial fit are not painting, so they must not wait on
+   * a paint: a covered window delivers no frame, and its plot kept the
+   * unfitted view that crops the later years off the canvas (B83).
+   */
+  private readonly frames = createFrameOrTimer(
+    () => this.canvas.ownerDocument.defaultView,
+    {
+      setTimeout: (run, ms) => setTimeout(run, ms) as unknown as number,
+      clearTimeout: (handle) => clearTimeout(handle),
+    },
+  );
   private canvasError = false;
   private canvasErrorLogged = false;
   private destroyed = false;
@@ -380,15 +393,11 @@ export class CitationGraphRenderer {
       // callbacks into one resize per frame.
       this.resizeObserver = new ResizeObserverConstructor(() => {
         if (this.resizeFrame !== null) return;
-        const frameView = this.canvas.ownerDocument.defaultView;
-        const run = (): void => {
-          this.cancelScheduledResize();
+        this.resizeFrame = this.frames.request(() => {
+          this.resizeFrame = null;
           this.resizeViewport();
           if (!this.initialFitComplete) this.scheduleInitialFit();
-        };
-        this.resizeFrame = frameView
-          ? frameView.requestAnimationFrame(run)
-          : (setTimeout(run, 0) as unknown as number);
+        });
       });
       this.resizeObserver.observe(this.canvas.parentElement ?? this.canvas);
     } else {
@@ -453,9 +462,7 @@ export class CitationGraphRenderer {
   /** Drop the pending coalesced resize, if one is waiting. */
   private cancelScheduledResize(): void {
     if (this.resizeFrame === null) return;
-    this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
-      this.resizeFrame,
-    );
+    this.frames.cancel(this.resizeFrame);
     this.resizeFrame = null;
   }
 
@@ -467,8 +474,7 @@ export class CitationGraphRenderer {
     ) {
       return;
     }
-    const view = this.canvas.ownerDocument.defaultView;
-    if (!view) return;
+    if (!this.canvas.ownerDocument.defaultView) return;
 
     let previousWidth = -1;
     let previousHeight = -1;
@@ -500,19 +506,17 @@ export class CitationGraphRenderer {
       }
       attempts += 1;
       if (attempts < 120) {
-        this.initialFitFrame = view.requestAnimationFrame(check);
+        this.initialFitFrame = this.frames.request(check);
       }
     };
-    this.initialFitFrame = view.requestAnimationFrame(check);
+    this.initialFitFrame = this.frames.request(check);
   }
 
   private markViewAdjusted(): void {
     this.initialFitComplete = true;
     this.onViewChange();
     if (this.initialFitFrame !== null) {
-      this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
-        this.initialFitFrame,
-      );
+      this.frames.cancel(this.initialFitFrame);
       this.initialFitFrame = null;
     }
   }
@@ -2460,9 +2464,7 @@ export class CitationGraphRenderer {
     if (this.destroyed) return;
     this.destroyed = true;
     if (this.initialFitFrame !== null) {
-      this.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
-        this.initialFitFrame,
-      );
+      this.frames.cancel(this.initialFitFrame);
       this.initialFitFrame = null;
     }
     if (this.emphasisFrame !== null) {

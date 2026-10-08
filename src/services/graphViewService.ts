@@ -635,6 +635,15 @@ export function renderGraphView(
   let focusRefreshEpoch = 0;
   let focusRefreshCount = 0;
   let focusLoadActive = false;
+  /**
+   * Camera work and the focus rebuild are not painting, so they must not wait
+   * on a paint: a covered window delivers no frame, and its plot never fitted
+   * (B83), as the fill once stalled there (B75).
+   */
+  const viewFrames = createFrameOrTimer(() => document.defaultView, {
+    setTimeout: (run, ms) => setTimeout(run, ms) as unknown as number,
+    clearTimeout: (handle) => clearTimeout(handle),
+  });
   let focusRebuildFrame = 0;
   let activeRelationshipView: {
     itemKey: string;
@@ -1136,26 +1145,19 @@ export function renderGraphView(
   };
   const cancelCameraFrame = (): void => {
     if (!cameraFrame) return;
-    const view = document.defaultView;
-    if (view) view.cancelAnimationFrame(cameraFrame);
-    else clearTimeout(cameraFrame);
+    viewFrames.cancel(cameraFrame);
     cameraFrame = 0;
   };
   const scheduleCameraAction = (action: () => void): void => {
     cancelCameraFrame();
-    const view = document.defaultView;
-    const run = (): void => {
+    cameraFrame = viewFrames.request(() => {
       cameraFrame = 0;
       if (!cleaned) action();
-    };
-    cameraFrame = view
-      ? view.requestAnimationFrame(run)
-      : (setTimeout(run, 0) as unknown as number);
+    });
   };
   const scheduleFocusFit = (): void => {
     cancelCameraFrame();
     const generation = ++focusFitGeneration;
-    const view = document.defaultView;
     let previousWidth = -1;
     let previousHeight = -1;
     let previousNodeCount = -1;
@@ -1193,14 +1195,10 @@ export function renderGraphView(
         }
         return;
       }
-      cameraFrame = view
-        ? view.requestAnimationFrame(check)
-        : (setTimeout(check, 16) as unknown as number);
+      cameraFrame = viewFrames.request(check);
     };
 
-    cameraFrame = view
-      ? view.requestAnimationFrame(check)
-      : (setTimeout(check, 0) as unknown as number);
+    cameraFrame = viewFrames.request(check);
   };
   /**
    * A seed whose list in the current direction is already stored is expanded
@@ -2588,14 +2586,10 @@ ${error instanceof Error ? error.message : String(error)}`,
       inactiveRelationshipDirty = true;
       return;
     }
-    const view = document.defaultView;
-    const run = (): void => {
+    focusRebuildFrame = viewFrames.request(() => {
       focusRebuildFrame = 0;
       if (!cleaned) rebuildCurrentFocus();
-    };
-    focusRebuildFrame = view
-      ? view.requestAnimationFrame(run)
-      : (setTimeout(run, 0) as unknown as number);
+    });
   };
 
   const activateFocusState = (
@@ -5351,8 +5345,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     flushCoalescedPresentationRefresh();
     cancelCameraFrame();
     if (focusRebuildFrame) {
-      document.defaultView?.cancelAnimationFrame(focusRebuildFrame);
-      clearTimeout(focusRebuildFrame);
+      viewFrames.cancel(focusRebuildFrame);
       focusRebuildFrame = 0;
     }
     if (relationshipDetailRefreshFrame) {
