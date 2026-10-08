@@ -162,8 +162,6 @@ opacity grade).
 - [ ] B89 pan and zoom lag badly on a seed with many citers (user,
       2026-10-07). Not measured. B34 is the region-path cost on folders; this
       is a seeded graph, so profile the node and edge draw first
-- [ ] B91 a hop row reads `182/182  of 394` with two spaces before `of`
-      (B71 follow-up, 2026-10-07)
 - [ ] B86 the line joining sibling subfolders' checkboxes in the Scope rail
       shows on the laptop screen but not on the external HDMI screen, and
       where it shows it runs behind the checkboxes, visible through an
@@ -306,6 +304,8 @@ any failure into a new entry above.
       the Key's swatches change with the plot. Colour by Journal h-index
       right after a library update fills in journal metrics: the Key's range
       matches the plot's.
+- [ ] B91: on a hop row whose index reports more than it lists, the count and
+      its total read `182/182 of 394`, one space apart.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -318,7 +318,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `6921bc9` (98/0),
 so count with `git log 6921bc9..main --oneline`.
-A clean run is 98 passed, 0 failed as of 2026-10-08 (B83's case added).
+A clean run is 98 passed, 0 failed as of 2026-10-08 (B83's case added); B91 adds a 99th, not yet run in full.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -446,3 +446,6 @@ entries are in git history.
   stubbing frames in the D8 case (only the outer fixture offered, 2/2), green
   with the fix; block 3/3. Full suite 97/1 (the floor drag flake), then
   98/0 at `6921bc9`.
+- 2026-10-08: B91 fixed (`1d874af`): the reported total's margin stacked on
+  the row's flex gap. Red at 10px against a 3px space, green alone; the full
+  suite waits for the next run.
