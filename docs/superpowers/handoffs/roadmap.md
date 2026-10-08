@@ -162,7 +162,6 @@ opacity grade).
       where it shows it runs behind the checkboxes, visible through an
       empty one. Likely a sub-pixel width that rounds to zero at one DPI;
       check both monitors' scaling
-- [ ] B92 the floor arrow, zoom in and zoom out icons are too small
 - [ ] F11 clicking a Seeds row should select that seed, and selecting a seed
       node should light its row
 
@@ -305,6 +304,9 @@ any failure into a new entry above.
       matches the plot's.
 - [ ] B91: on a hop row whose index reports more than it lists, the count and
       its total read `182/182 of 394`, one space apart.
+- [ ] B92: the rail footer's zoom in, zoom out, fit and gear icons read
+      larger in their buttons; drag the floor tag: its arrow is drawn, not a
+      small character, and the tag still grabs. Both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -317,7 +319,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `0fa1139` (99/0),
 so count with `git log 0fa1139..main --oneline`.
-A clean run is 99 passed, 0 failed as of 2026-10-08 (B91's case added).
+A clean run is 100 passed, 0 failed as of 2026-10-08 (B92's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -456,3 +458,7 @@ entries are in git history.
   references page's untitled works, but that page carries its total, so the
   short list is never complete. Full suite 99/0 at
   `0fa1139`.
+- 2026-10-08: B92 fixed (`a2675a9`), the user picking C for both on a design
+  canvas: the rail footer's four icons at 20px (`RAIL_BUTTON_ICON_SIZE`), the
+  floor tag's arrow drawn at 16px beside 12px text. The new footer case and
+  the floor drag case green alone; the footer case was not seen red first.
