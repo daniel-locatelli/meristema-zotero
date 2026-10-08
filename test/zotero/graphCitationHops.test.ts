@@ -2508,6 +2508,242 @@ describe("Citation hops (Stage 3)", function () {
   });
 
   /**
+   * D8's second case: with no OpenAlex key, the fill keeps today's order
+   * (Semantic Scholar first, `fillProviderOrder` leaving it alone), nothing
+   * asks OpenAlex for a sorted list, and the cut line says the list was cut
+   * in the provider's order. The block clears the key itself, so it holds on a
+   * profile that has one.
+   */
+  describe("without an OpenAlex key (D8)", function () {
+    const SEED_ID = `kl${RUN}seed`;
+    const SEED_DOI = `10.5555/keyless.${RUN}.seed`;
+    const SEED_TITLE = `${FIXTURE_TITLE} (keyless order)`;
+    const CITER_IDS = [`kl${RUN}citer1`, `kl${RUN}citer2`];
+    /** The seed's OpenAlex work ID: OpenAlex knows the paper, keyed or not. */
+    const SEED_WORK = `W8${RUN}0`;
+    let previousKey: unknown = undefined;
+    let seedItemID: number | null = null;
+    let tabID: string | null = null;
+    let below: any = null;
+    let asked: string[] = [];
+    /**
+     * Whether this case's papers are answered yet. As in D8, saving the seed
+     * queues the library's own update, which would store the seed's citer
+     * list before the fill could ask for it; until the case opens, every
+     * request about these papers is answered not-found.
+     */
+    let serving = false;
+
+    /** Whether a URL names one of this case's papers, raw or encoded. */
+    function mine(url: string): boolean {
+      const lower = url.toLowerCase();
+      return (
+        lower.includes("keyless") ||
+        lower.includes(`kl${RUN}`) ||
+        lower.includes(SEED_WORK.toLowerCase())
+      );
+    }
+
+    function keylessPaper(id: string): unknown {
+      const seed = id === SEED_ID;
+      return {
+        paperId: id,
+        externalIds: { DOI: seed ? SEED_DOI : `10.5555/keyless.${RUN}.${id}` },
+        title: seed ? SEED_TITLE : `Keyless citer ${id}`,
+        year: seed ? 2019 : 2021,
+        publicationDate: seed ? "2019-01-01" : "2021-01-01",
+        authors: [{ authorId: "1", name: "A. Author" }],
+        citationCount: seed ? CITER_IDS.length : 0,
+        referenceCount: seed ? 0 : 1,
+      };
+    }
+
+    /**
+     * OpenAlex answers too, its sorted citer page included, so a keyless fill
+     * that put OpenAlex first would take that page and cut most-cited first.
+     */
+    function openAlexKeylessAnswer(parsed: URL): unknown {
+      if (/\/works\/doi/i.test(decodeURIComponent(parsed.pathname))) {
+        return providerAnswer(
+          JSON.stringify(
+            openAlexWork({
+              id: SEED_WORK,
+              doi: SEED_DOI,
+              title: SEED_TITLE,
+              year: 2019,
+              count: CITER_IDS.length,
+            }),
+          ),
+        );
+      }
+      if (parsed.searchParams.get("filter") !== `cites:${SEED_WORK}`)
+        return providerNotFound();
+      return providerAnswer(
+        JSON.stringify({
+          results: CITER_IDS.map((citer, index) =>
+            openAlexWork({
+              id: `W8${RUN}${index + 1}`,
+              doi: `10.5555/keyless.${RUN}.${citer}`,
+              title: `Keyless citer ${citer}`,
+              year: 2021,
+              count: 0,
+            }),
+          ),
+          meta: { count: CITER_IDS.length },
+        }),
+      );
+    }
+
+    /** Semantic Scholar and OpenAlex for this case's papers. */
+    function keylessAnswer(url: string, options: any): unknown {
+      if (!serving) return providerNotFound();
+      const parsed = new URL(url);
+      if (/^https:\/\/api\.openalex\.org\//.test(url))
+        return openAlexKeylessAnswer(parsed);
+      if (!SEMANTIC_SCHOLAR_HOST.test(url)) return providerNotFound();
+      if (parsed.pathname.endsWith("/paper/batch")) {
+        const ids = (JSON.parse(String(options?.body ?? "{}")).ids ??
+          []) as string[];
+        return providerAnswer(
+          JSON.stringify(
+            ids.map((id) =>
+              [SEED_ID, ...CITER_IDS].includes(id) ? keylessPaper(id) : null,
+            ),
+          ),
+        );
+      }
+      const match =
+        /^\/graph\/v1\/paper\/([^/]+)(?:\/(citations|references))?$/.exec(
+          parsed.pathname,
+        );
+      const id = decodeURIComponent(match?.[1] ?? "");
+      if (id !== SEED_ID && id.toLowerCase() !== `doi:${SEED_DOI}`)
+        return providerNotFound();
+      if (!match![2])
+        return providerAnswer(JSON.stringify(keylessPaper(SEED_ID)));
+      return providerAnswer(
+        JSON.stringify({
+          data:
+            match![2] === "citations"
+              ? CITER_IDS.map((citer) => ({ citingPaper: keylessPaper(citer) }))
+              : [],
+        }),
+      );
+    }
+
+    /** The relationship pages asked about this case's papers, by provider. */
+    function relationPages(): string[] {
+      return asked.filter(
+        (url) =>
+          mine(url) &&
+          (/\/(citations|references)(\?|\/|$)/.test(new URL(url).pathname) ||
+            /^(cites|cited_by):/.test(
+              new URL(url).searchParams.get("filter") ?? "",
+            )),
+      );
+    }
+
+    function cutLine(): string {
+      const line = graphRoot().querySelector(".cm-scope-hop-cut");
+      return line ? normalize(line.textContent) : "no cut line";
+    }
+
+    before(async function () {
+      this.timeout(240_000);
+      previousKey = Zotero.Prefs.get(OPEN_ALEX_KEY_PREF, true);
+      Zotero.Prefs.clear(OPEN_ALEX_KEY_PREF, true);
+      expect(getOpenAlexAPIKey(), "the block runs keyless").to.equal("");
+      below = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: unknown,
+      ) => {
+        if (!PROVIDER_HOST.test(url) || !mine(url))
+          return below.call(Zotero.HTTP, method, url, options);
+        asked.push(url);
+        await delay(SERVED_LATENCY_MS);
+        return keylessAnswer(url, options);
+      };
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", SEED_TITLE);
+      item.setField("date", "2019");
+      item.setField("DOI", SEED_DOI);
+      seedItemID = await item.saveTx();
+      tabID = await openNewGraphTab();
+      currentTabID = tabID;
+      win.Zotero_Tabs.select(tabID);
+      const rail = await waitFor(
+        () =>
+          tabContent(tabID)?.querySelector(".cm-scope-section .cm-scope-count"),
+        30_000,
+      );
+      expect(rail, "the keyless tab's Scope section").to.exist;
+      await dismissGallery(tabID);
+      await untilQuiet(() => asked.length, 10_000, 120_000);
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      serving = false;
+      if (below) (Zotero.HTTP as any).request = below;
+      below = null;
+      if (previousKey !== undefined && previousKey !== null)
+        Zotero.Prefs.set(OPEN_ALEX_KEY_PREF, previousKey as string, true);
+      if (tabID) win.Zotero_Tabs.close(tabID);
+      await delay(500);
+      tabID = null;
+      currentTabID = null;
+      if (seedItemID !== null) await Zotero.Items.erase(seedItemID);
+      seedItemID = null;
+    });
+
+    it("fills in the provider's order, Semantic Scholar first, and the cut line says so", async function () {
+      this.timeout(180_000);
+      asked = [];
+      serving = true;
+      (await nodeMenuEntry("Add as seed", SEED_TITLE)).click();
+      const filled = await waitFor(
+        () => hopCounts(1)?.available ?? null,
+        60_000,
+      );
+      expect(
+        filled,
+        `hop 1 never filled; it read "${hopRowText(1)}"; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.equal(CITER_IDS.length);
+      const pages = relationPages();
+      expect(
+        pages.length,
+        `no relationship page about the seed; ${asked.length} request(s): ${asked.join(" | ")}`,
+      ).to.be.greaterThan(0);
+      expect(
+        pages[0],
+        `the first page asked; pages: ${pages.join(" | ")}`,
+      ).to.match(SEMANTIC_SCHOLAR_HOST);
+      expect(
+        asked.filter(
+          (url) =>
+            /^https:\/\/api\.openalex\.org\//.test(url) &&
+            (new URL(url).searchParams.has("sort") ||
+              /^(cites|cited_by):/.test(
+                new URL(url).searchParams.get("filter") ?? "",
+              )),
+        ),
+        `OpenAlex was asked for a list: ${asked.join(" | ")}`,
+      ).to.be.empty;
+      expect(
+        cutLine(),
+        `rail rows: ${Array.from(
+          graphRoot().querySelectorAll(".cm-scope-hop-row"),
+        )
+          .map((row) => normalize(row?.textContent))
+          .join(" | ")}`,
+      ).to.equal("First 50 citers per paper, in the provider's order");
+    });
+  });
+
+  /**
    * Stage 4: the citation floor. Served offline the way D8 is — a fake key for
    * the case alone, and a wrapper that answers every provider host itself — so
    * a keyless profile runs it and nothing reaches the network. Every helper

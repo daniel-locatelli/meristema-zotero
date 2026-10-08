@@ -122,10 +122,6 @@ opacity grade).
       without fresh expansions, and that per-hop caps resetting each session
       does not restart the fill. Known leak: failed papers come back after
       every reopen
-- [ ] B76 D8's keyless Zotero case is not written: the spec's second case (no
-      key, the rail reads `First 50 ... in the provider's order`, today's
-      provider order). The constraint is held by unit cases only
-      (`fillProviderOrder`, `fillCutIntent`)
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -318,7 +314,8 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `0fa1139` (99/0),
 so count with `git log 0fa1139..main --oneline`.
-A clean run is 100 passed, 0 failed as of 2026-10-08 (B92's case added).
+A clean run is 101 passed, 0 failed as of 2026-10-08 (B76's keyless case
+added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -461,9 +458,16 @@ entries are in git history.
   canvas: the rail footer's four icons at 20px (`RAIL_BUTTON_ICON_SIZE`), the
   floor tag's arrow drawn at 16px beside 12px text. The new footer case and
   the floor drag case green alone; the footer case was not seen red first.
-- 2026-10-08: B81 fixed: a hop node's count labels now read the count's own
+- 2026-10-08: B81 fixed (`c191308`): a hop node's count labels now read the count's own
   `propertySources` (`countProviderForNode` in `graphFocusService.ts`). The
   work's provider wins when it reported the count too, and a record with no
   sources falls back to it. Red, then green, in `graphFocusService.test.ts`.
-  B73's case now arms through a record with no sources. Unit only, not yet in
-  a full suite run.
+  B73's case now arms through a record with no sources.
+- 2026-10-08: B76 done: D8's keyless case ("without an OpenAlex key (D8)" in
+  `graphCitationHops.test.ts`) clears the key, serves Semantic Scholar and a
+  sorted OpenAlex page for its own seed, and asserts Semantic Scholar's page
+  comes first, no OpenAlex list, and the `First 50` cut line. Seen red under
+  two mutations (OpenCitations first in `fillProviderOrder`; `cutOrderFor`
+  always `most-cited`). Treating OpenAlex as paging when keyless is NOT
+  caught: `requestOpenAlex` refuses without a key, so the fill only loses
+  ~17 s. Full suite 101/0 with it. D8 is closed, so its spec is deleted.
