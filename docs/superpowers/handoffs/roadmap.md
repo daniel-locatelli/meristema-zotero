@@ -126,13 +126,6 @@ opacity grade).
       key, the rail reads `First 50 ... in the provider's order`, today's
       provider order). The constraint is held by unit cases only
       (`fillProviderOrder`, `fillCutIntent`)
-- [ ] B83 the D8 case ("fills through OpenAlex alone") fails when the whole
-      Citation hops block runs before it: `nodeMenuEntry` finds only the outer
-      fixture on the new tab's canvas, never `... (D8 order)`. Predates batch
-      2: block runs failed 1/2 at `9e78074` and 2/2 at `32542c5`; the D8
-      block alone 3/3 and with B72's block 3/3 passed; full runs 3/6 failed
-      (passed at `cbe97e4`).
-      First task: where the D8 paper is drawn (or whether it is in the model)
 - [ ] B81 a hop node hydrated from another index keeps OpenCitations as its
       `citationCountProvider` over that index's count
       (`externalWorkToFocusNode`); B73 stopped the count bounding the list,
@@ -323,21 +316,31 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-07 at `cbe97e4` (97/0),
-so count with `git log cbe97e4..main --oneline`.
-A clean run is 97 passed, 0 failed as of 2026-10-07 (B82's two cases added);
-until B83 is fixed, a D8 failure alone is B83.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-08 at `6921bc9` (98/0),
+so count with `git log 6921bc9..main --oneline`.
+A clean run is 98 passed, 0 failed as of 2026-10-08 (B83's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
   down") each failed once on 2026-10-06 and passed on rerun. The floor case
   failed one of two runs of its file: treat a single failure as a flake and
-  rerun before debugging.
+  rerun before debugging. It failed once more in a full run on 2026-10-08
+  (the field stayed at 5 the whole drag).
+- One-offs on 2026-10-08, each gone on rerun: `graphVisual.test.ts` check 11
+  (`selection` undefined right after `selectNode`), and one Citation hops
+  block run where the save case threw with no message (the runner prints a
+  thrown plain `Error` as `undefined`; use `expect.fail`), both version 4
+  cases fell with it, and B50's line never read "refusing".
 - A new graph tab mounted only on an animation frame, and a covered window
   gets none, so new tabs stayed empty while the test window was covered (1 to
   9 cases a run, "Scope section: expected null to exist"). Since `761b4e0` the
   mount falls back to a 250 ms timer (`createFrameOrTimer`), and
-  `graphTabMountsCovered.test.ts` stubs frames away to hold it.
+  `graphTabMountsCovered.test.ts` stubs frames away to hold it. Since B83
+  (`6921bc9`) the renderer's resize and initial fit, and the view's camera,
+  focus fit and focus rebuild, fall back the same way: a plot remounted on a
+  covered window (a citation update landing) kept its unfitted view, so the
+  D8 case's walk found only the outer fixture. Its second case erases a paper
+  to remount the plot with frames stubbed.
 
 - `graphCitationHops.test.ts` is served offline (B74): its outer `before`
   wraps `Zotero.HTTP.request` with a served index (`serveIndex`, Semantic
@@ -438,3 +441,8 @@ entries are in git history.
 - 2026-10-07, evening: batch 3, B80 (an Index fault rejects instead of reading
   as no citers; 404 stays a miss) and B82 (late source metrics and a theme flip
   rebuild the Key). B84 filed from B80. Full suite 97/0 at `cbe97e4`.
+- 2026-10-08: B83 fixed (`6921bc9`): a covered window delivers no frames, and
+  the plot a citation update remounted there never fitted. Reproduced by
+  stubbing frames in the D8 case (only the outer fixture offered, 2/2), green
+  with the fix; block 3/3. Full suite 97/1 (the floor drag flake), then
+  98/0 at `6921bc9`.
