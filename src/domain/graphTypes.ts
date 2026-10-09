@@ -73,6 +73,8 @@ export interface CitationGraphNode {
   abstract: string | null;
   sourceTitle: string | null;
   authors: string[];
+  /** The first author is a single-field (institutional) Zotero creator (F3). */
+  firstAuthorIsInstitution?: boolean;
   year: number | null;
   publicationDate: string | null;
   /** Context-derived ordinal publication/citation position. */

@@ -264,6 +264,17 @@ describe("buildScopeRailModel", function () {
     );
   });
 
+  it("names an institutional seed in full (F3)", function () {
+    expect(
+      seedRowLabel({
+        authors: ["ISO/TC 59"],
+        firstAuthorIsInstitution: true,
+        year: 2017,
+        title: "Buildings",
+      }),
+    ).to.equal("ISO/TC 59 (2017)");
+  });
+
   it("passes the seeds through in order with their heading", function () {
     const model = buildScopeRailModel({
       floor: 0,

@@ -7,6 +7,7 @@
  * module whose header says it never filters would reverse that decision by
  * accident.
  */
+import { firstAuthorLabelName } from "../domain/authorLabel";
 import type { LibraryCollectionFilter } from "../domain/types";
 import {
   collectionTickState,
@@ -252,12 +253,11 @@ const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 /** The label a Seeds row carries: `Author (year)`, ellipsised by the rail. */
 export function seedRowLabel(paper: {
   authors: readonly string[];
+  firstAuthorIsInstitution?: boolean;
   year: number | null;
   title: string;
 }): string {
-  const first = paper.authors[0]?.trim();
-  const surname = first ? (first.split(/\s+/).at(-1) ?? first) : "";
-  const name = surname || paper.title.trim() || "Untitled";
+  const name = firstAuthorLabelName(paper) || paper.title.trim() || "Untitled";
   return paper.year === null ? name : `${name} (${paper.year})`;
 }
 

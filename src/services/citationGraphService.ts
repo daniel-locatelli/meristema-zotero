@@ -451,6 +451,7 @@ function buildCitationGraphModel(
       abstract: paper.abstract,
       sourceTitle: paper.sourceTitle ?? record?.sourceTitle ?? null,
       authors: paper.authors,
+      firstAuthorIsInstitution: paper.firstAuthorIsInstitution,
       year: paper.year,
       publicationDate: paper.publicationDate,
       citationSequence: null,

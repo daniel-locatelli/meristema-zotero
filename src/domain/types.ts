@@ -6,6 +6,8 @@ export interface ZoteroPaper {
   libraryID: number;
   title: string;
   authors: string[];
+  /** The first author is a single-field (institutional) Zotero creator (F3). */
+  firstAuthorIsInstitution?: boolean;
   year: number | null;
   publicationDate: string | null;
   doi: string | null;

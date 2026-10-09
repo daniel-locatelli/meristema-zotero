@@ -3927,6 +3927,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         label: node
           ? seedRowLabel({
               authors: node.authors,
+              firstAuthorIsInstitution: node.firstAuthorIsInstitution,
               year: node.year,
               title: node.title,
             })

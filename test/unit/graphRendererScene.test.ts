@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
-import { orderLabelCandidates } from "../../src/services/graphRendererScene";
+import {
+  orderLabelCandidates,
+  shortLabel,
+} from "../../src/services/graphRendererScene";
 import { node } from "./graphRendererDoubles";
 
 describe("orderLabelCandidates", function () {
@@ -35,5 +38,29 @@ describe("orderLabelCandidates", function () {
       "seed",
       "picked",
     ]);
+  });
+});
+
+describe("shortLabel author-year (F3)", function () {
+  it("keeps a person's last name", function () {
+    expect(
+      shortLabel(
+        node("a", { authors: ["Ada Lovelace"], year: 1843 }),
+        "author-year",
+      ),
+    ).to.equal("Lovelace (1843)");
+  });
+
+  it("names an institutional creator in full", function () {
+    expect(
+      shortLabel(
+        node("a", {
+          authors: ["ISO/TC 59"],
+          firstAuthorIsInstitution: true,
+          year: 2017,
+        }),
+        "author-year",
+      ),
+    ).to.equal("ISO/TC 59 (2017)");
   });
 });

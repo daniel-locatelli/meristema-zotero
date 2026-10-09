@@ -191,7 +191,12 @@ opacity grade).
 
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
-- [ ] F3 standards without a main author (short brainstorm, small plan)
+- [ ] F3 standards without a main author. Fixed: an institutional (single-field)
+      first creator labels by its whole name, not its last word. Not a
+      defect: enrichment re-asks a creator-less item only when the planner's
+      cache-age gate already re-plans it. Open, for the user: what labels a
+      paper with no creators at all (publisher, report number, short title),
+      and whether matching may use title+year alone
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -332,6 +337,10 @@ any failure into a new entry above.
 - [ ] D15 (bug half): open a graph showing a sticky notice (the read-only
       one or the migrated-directions one), press Copy or Save, wait 3 s: the
       sticky notice is back.
+- [ ] F3: give an item a single-field creator such as "ISO/TC 59" and a
+      date, then draw it with Author-year labels: the node and its Seeds row
+      read `ISO/TC 59 (year)`, not `59 (year)`; a person still reads by last
+      name.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

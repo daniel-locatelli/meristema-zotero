@@ -23,6 +23,9 @@ Pointers: `src/services/zoteroLibraryService.ts` `authors(item)` (~line 98) read
 `!work.authors.length`), `citationGraphService.ts` ~line 405 (label
 fallback), `citationMetricsStore.ts` ~lines 732 and 965.
 
+Correction (2026-10-10): enrichment never skipped them; empty authors made
+it re-ask, and only when the cache-age planner re-plans the item anyway.
+
 Scope for the session: (1) node label falls back to the institution or
 `item.getField("publisher")` / "ISO 1234" number when there are no
 authors; (2) enrichment should not skip such items when a DOI or title

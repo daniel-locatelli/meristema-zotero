@@ -5,6 +5,7 @@ import type {
   GraphLayoutOptions,
   GraphScaleType,
 } from "../domain/graphTypes";
+import { firstAuthorLabelName } from "../domain/authorLabel";
 import { publicationYearOrNull } from "../domain/valueNormalization";
 import {
   getExternalWorkMetadata,
@@ -441,13 +442,13 @@ const LABEL_LINE_HEIGHT = 14;
 const HOVER_LABEL_WIDTH = 280;
 
 /** A node's label as the plot draws it unhovered: cut at 42 characters. */
-function shortLabel(
+export function shortLabel(
   node: CitationGraphNode,
   mode: GraphLayoutOptions["nodeLabelMode"],
 ): string {
   const label =
     mode === "author-year"
-      ? `${node.authors[0]?.split(/\s+/).at(-1) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
+      ? `${firstAuthorLabelName(node) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
       : node.title;
   return label.length > 42 ? `${label.slice(0, 39)}…` : label;
 }

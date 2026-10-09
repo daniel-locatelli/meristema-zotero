@@ -103,15 +103,22 @@ function title(item: any): string {
   );
 }
 
-function authors(item: any): string[] {
+interface CreatorName {
+  name: string;
+  /** Single-field: `fieldMode` 1, or the API form's `name`. */
+  institution: boolean;
+}
+
+function creatorNames(item: any): CreatorName[] {
   return (item.getCreators?.() ?? [])
-    .map((creator: any) =>
-      String(
+    .map((creator: any) => ({
+      name: String(
         creator.name ??
           [creator.firstName, creator.lastName].filter(Boolean).join(" "),
       ).trim(),
-    )
-    .filter(Boolean);
+      institution: creator.fieldMode === 1 || creator.name != null,
+    }))
+    .filter((creator: CreatorName) => creator.name);
 }
 
 function tags(item: any): string[] {
@@ -155,12 +162,14 @@ export function calculateItemMetadataCompleteness(item: any): number {
 function toPaper(item: any): ZoteroPaper {
   const libraryID = Number(item.libraryID);
   const itemKey = String(item.key);
+  const creators = creatorNames(item);
   return {
     itemID: Number(item.id),
     itemKey,
     libraryID,
     title: title(item),
-    authors: authors(item),
+    authors: creators.map((creator) => creator.name),
+    firstAuthorIsInstitution: creators[0]?.institution ?? false,
     year: extractYear(item.getField?.("date")),
     publicationDate: publicationDate(item.getField?.("date")),
     doi: normalizeDOI(item.getField?.("DOI")),

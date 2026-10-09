@@ -4,13 +4,17 @@ import type { LibrarySnapshot, ZoteroPaper } from "../../src/domain/types";
 import { rereadSnapshotPapers } from "../../src/services/zoteroLibraryService";
 
 /** A Zotero item as `toPaper` reads it: fields, creators, tags, folders. */
-function fakeItem(id: number, fields: Record<string, string>) {
+function fakeItem(
+  id: number,
+  fields: Record<string, string>,
+  creators: unknown[] = [],
+) {
   return {
     id,
     key: `K${id}`,
     libraryID: 1,
     getField: (name: string) => fields[name] ?? "",
-    getCreators: () => [],
+    getCreators: () => creators,
     getTags: () => [],
     getCollections: () => [],
   };
@@ -23,6 +27,7 @@ function paperWithoutYear(id: number): ZoteroPaper {
     libraryID: 1,
     title: "A paper",
     authors: [],
+    firstAuthorIsInstitution: false,
     year: null,
     publicationDate: null,
     doi: null,
@@ -89,5 +94,30 @@ describe("rereadSnapshotPapers (B48)", function () {
 
     expect(changed).to.equal(false);
     expect(snapshot.papers).to.have.length(1);
+  });
+});
+
+describe("toPaper creators (F3)", function () {
+  it("marks a single-field first creator as an institution", function () {
+    const paper = paperWithoutYear(7);
+    rereadSnapshotPapers(snapshotOver([paper]), [
+      fakeItem(7, { title: "A paper" }, [
+        { firstName: "", lastName: "ISO/TC 59", fieldMode: 1 },
+        { firstName: "Ada", lastName: "Lovelace", fieldMode: 0 },
+      ]),
+    ]);
+    expect(paper.authors).to.deep.equal(["ISO/TC 59", "Ada Lovelace"]);
+    expect(paper.firstAuthorIsInstitution).to.equal(true);
+  });
+
+  it("leaves a person first creator unmarked", function () {
+    const paper = paperWithoutYear(7);
+    rereadSnapshotPapers(snapshotOver([paper]), [
+      fakeItem(7, { title: "A paper" }, [
+        { firstName: "Ada", lastName: "Lovelace", fieldMode: 0 },
+        { firstName: "", lastName: "ISO/TC 59", fieldMode: 1 },
+      ]),
+    ]);
+    expect(paper.firstAuthorIsInstitution).to.equal(false);
   });
 });
