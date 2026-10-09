@@ -1321,3 +1321,72 @@ describe("region zoom rules", function () {
     expect(regionFalloffRadius(Number.NaN, 1, 1)).to.equal(0);
   });
 });
+
+describe("regionPathFor culling", function () {
+  // Two discs and two loops, one of each on screen and one far off it.
+  const shapes: FolderRegionShapes = {
+    radius: 10,
+    pitch: 2,
+    discs: [
+      { centre: { x: 10, y: 10 }, radius: 4 },
+      { centre: { x: 900, y: 10 }, radius: 4 },
+    ],
+    loops: [
+      [
+        { x: 20, y: 20 },
+        { x: 40, y: 20 },
+        { x: 40, y: 40 },
+        { x: 20, y: 40 },
+        { x: 20, y: 20 },
+      ],
+      [
+        { x: 920, y: 20 },
+        { x: 940, y: 20 },
+        { x: 940, y: 40 },
+        { x: 920, y: 40 },
+        { x: 920, y: 20 },
+      ],
+    ],
+  };
+  const build = (cull?: Parameters<typeof regionPathFor>[4]) =>
+    (
+      regionPathFor(
+        recordingView().view,
+        shapes,
+        IDENTITY,
+        1,
+        cull,
+      ) as unknown as RecordingPath
+    ).commands;
+
+  it("draws every shape when no rect is given", function () {
+    const commands = build();
+    expect(commands.filter((c) => c.op === "arc")).to.have.length(2);
+    expect(commands.filter((c) => c.op === "moveTo")).to.have.length(4);
+  });
+
+  it("drops only the shapes whose grown bounds miss the rect, unchanged otherwise", function () {
+    const all = build();
+    const culled = build({
+      rect: { left: 0, top: 0, right: 100, bottom: 100 },
+      margin: 5,
+    });
+    // The on-screen disc and loop are byte-identical to the uncull'd build:
+    // they are the first disc's three commands and the first loop's run.
+    const firstLoopEnd = all.findIndex(
+      (c, index) => index >= 6 && c.op === "closePath",
+    );
+    const onScreen = [...all.slice(0, 3), ...all.slice(6, firstLoopEnd + 1)];
+    expect(culled).to.deep.equal(onScreen);
+  });
+
+  it("keeps a shape off the rect when the margin reaches it", function () {
+    const culled = build({
+      rect: { left: 0, top: 0, right: 100, bottom: 100 },
+      // The far disc's left edge is at 896; a margin of 800 reaches it, so
+      // a stroke that wide could still paint inside the rect.
+      margin: 800,
+    });
+    expect(culled.filter((c) => c.op === "arc")).to.have.length(2);
+  });
+});

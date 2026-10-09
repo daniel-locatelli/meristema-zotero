@@ -36,6 +36,8 @@
  * renderer's transform or compositing.
  */
 
+import { boxMissesRect, type ViewportRect } from "./graphViewport";
+
 export interface RegionPoint {
   x: number;
   y: number;
@@ -759,6 +761,32 @@ export function resampleRing(
 }
 
 /**
+ * Whether a projected loop's finite points, boxed and grown by `margin`, miss
+ * `rect`. The finite points are exactly the ones `ringOf` keeps, so the box
+ * holds every vertex the fit sees. A loop with no finite point is kept, and
+ * `ringOf` then drops it as before.
+ */
+function loopMissesRect(
+  loop: readonly RegionPoint[],
+  rect: ViewportRect,
+  margin: number,
+): boolean {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of loop) {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
+  if (minX > maxX) return false;
+  return boxMissesRect(minX, minY, maxX, maxY, margin, rect);
+}
+
+/**
  * A region's contours as one `Path2D`, built from the canvas's own window.
  *
  * `Path2D` is a DOM constructor, and the plugin's bundle runs in a scope that
@@ -790,12 +818,21 @@ export function resampleRing(
  * re-facets as you zoom in — its segments grow on screen with everything
  * else — while a curve does not, because the rasterizer flattens it in
  * device pixels.
+ *
+ * `cull`, when given, drops every disc and loop whose projected bounds, grown
+ * by `margin`, miss `rect` (B34). That leaves every pixel of `rect` as it was,
+ * fill and stroke alike: a closed curve has winding number zero outside the
+ * hull of its control points, which lies inside the ring's bounding box, so a
+ * dropped loop flips no `evenodd` parity inside the rect; and a stroke reaches
+ * no further than half its width past the curve, which the margin covers.
+ * The shapes kept are emitted exactly as without it.
  */
 export function regionPathFor(
   view: Window | null,
   shapes: FolderRegionShapes,
   project: (point: RegionPoint) => RegionPoint,
   scale: number,
+  cull?: { rect: ViewportRect; margin: number },
 ): Path2D | null {
   const constructor = (view as any)?.Path2D as typeof Path2D | undefined;
   if (!constructor) return null;
@@ -805,6 +842,19 @@ export function regionPathFor(
     const radius = disc.radius * scale;
     if (!Number.isFinite(centre.x) || !Number.isFinite(centre.y)) continue;
     if (!(radius > 0) || !Number.isFinite(radius)) continue;
+    if (
+      cull &&
+      boxMissesRect(
+        centre.x - radius,
+        centre.y - radius,
+        centre.x + radius,
+        centre.y + radius,
+        cull.margin,
+        cull.rect,
+      )
+    ) {
+      continue;
+    }
     // `arc()` joins the current subpath to the circle with a straight line
     // when one is open, so every disc opens its own with a moveTo onto its
     // rim. `evenodd` needs no winding help beyond that: a disc sitting inside
@@ -818,8 +868,10 @@ export function regionPathFor(
     // Projected first, then fitted: the projection is a uniform similarity,
     // so the shape is the same either way, but fitting afterwards puts the
     // epsilons in device pixels, where "degenerate" means "sub-pixel".
+    const projected = loop.map(project);
+    if (cull && loopMissesRect(projected, cull.rect, cull.margin)) continue;
     const ring = resampleRing(
-      ringOf(loop.map(project)),
+      ringOf(projected),
       shapes.pitch * scale * RESAMPLE_PITCH_FACTOR,
     );
     if (!ring.length) continue;

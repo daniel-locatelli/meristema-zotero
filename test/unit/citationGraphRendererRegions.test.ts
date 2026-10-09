@@ -259,7 +259,9 @@ describe("CitationGraphRenderer regions", function () {
       // A pan: same scale, different origin. Every coordinate must be the old
       // one shifted by the same delta — that is a re-projection of the cached
       // contour, not a resum over the grid.
-      renderer.setViewTransform({ x: 40, y: -25, scale: 0.15 });
+      // Down, not up: the papers sit on the plot's top edge, and a pan up
+      // would carry them off it, where they are culled (B34).
+      renderer.setViewTransform({ x: 40, y: 25, scale: 0.15 });
       const panned = lastRegionStroke(canvas.context).args[0] as FakePath2D;
       expect(panned.commands.map((command) => command.op)).to.deep.equal(
         zoomedOut.commands.map((command) => command.op),
@@ -271,7 +273,7 @@ describe("CitationGraphRenderer regions", function () {
           // are not points on the plot and a pan must leave them exactly
           // where they were, which is what a shift of zero asserts.
           const coordinate = command.op !== "arc" || position < 2;
-          const shift = !coordinate ? 0 : position % 2 === 0 ? 40 : -25;
+          const shift = !coordinate ? 0 : position % 2 === 0 ? 40 : 25;
           expect(
             value - shift,
             `command ${index} argument ${position} moved by more than the pan`,
@@ -280,20 +282,23 @@ describe("CitationGraphRenderer regions", function () {
       });
 
       // 8 is the viewport's maximum scale, so it is many buckets past the fit
-      // and the falloff has hit its floor. The pair can no longer reach.
-      renderer.setViewTransform({ x: 0, y: 0, scale: 8 });
+      // and the falloff has hit its floor. The pair can no longer reach. The
+      // view sits on the pair; "far" lands thousands of pixels off the plot
+      // and is culled (B34), so the two territories drawn are near and pair,
+      // apart — at the fit zoom they were one.
+      renderer.setViewTransform({ x: 100, y: 300, scale: 8 });
       const zoomedIn = lastRegionStroke(canvas.context).args[0] as FakePath2D;
       expect(
         territoriesDrawn(zoomedIn),
-        "zoomed in, the territory is three separate papers",
-      ).to.equal(3);
+        "zoomed in, the pair is two separate papers and far is off the plot",
+      ).to.equal(2);
 
       // Nothing above asserts the *value* of the scale `drawRegions` hands
       // `regionPathFor` — only that some radius survives a pan unmoved and
       // that some number of subpaths gets drawn. Passing 1, or the device
       // pixel ratio, instead of `this.transform.scale` would ship visibly
-      // wrong halo sizes with every assertion above still green. All three
-      // papers are separate discs at this zoom, so every recorded `arc`
+      // wrong halo sizes with every assertion above still green. Both papers
+      // drawn are separate discs at this zoom, so every recorded `arc`
       // command's radius must equal the disc's data-space radius — today's
       // spread (1000) run through the same fit-scale and falloff-radius
       // arithmetic the renderer itself uses, for the canvas's own plot rect
@@ -306,7 +311,7 @@ describe("CitationGraphRenderer regions", function () {
       const dataSpaceRadius =
         regionFalloffRadius(1000, 8, fitScale) * Math.sqrt(1 - Math.SQRT1_2);
       const arcs = zoomedIn.commands.filter((command) => command.op === "arc");
-      expect(arcs.length).to.equal(3);
+      expect(arcs.length).to.equal(2);
       for (const arc of arcs) {
         expect(arc.args[2]).to.be.closeTo(dataSpaceRadius * 8, 1e-9);
       }
@@ -334,7 +339,12 @@ describe("CitationGraphRenderer regions", function () {
         { collectionID: 1, color: "#336699", nodeKeys: new Set(["n1"]) },
       ]);
       for (const scale of [0.15, 1, 2, 4, 8]) {
-        renderer.setViewTransform({ x: 0, y: 0, scale });
+        // Centred on the paper, so no zoom carries it off the plot.
+        renderer.setViewTransform({
+          x: 400 - 100 * scale,
+          y: 300 - 100 * scale,
+          scale,
+        });
         const path = lastRegionStroke(canvas.context).args[0] as FakePath2D;
         expect(
           path.commands.length,

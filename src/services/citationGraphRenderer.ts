@@ -63,11 +63,13 @@ import {
 } from "./graphFolderRegion";
 import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
 import {
+  boxMissesRect,
   devicePixelScale,
   offscreenPanDelta,
   projectToScreen,
   projectToWorld,
   screenLengthToWorld,
+  segmentMissesRect,
   wheelZoomFactor,
 } from "./graphViewport";
 import {
@@ -85,6 +87,7 @@ import {
   arrivalDirection,
   curveControlPoint,
   edgeBaseOpacity,
+  edgeCullMargin,
   edgeLineInset,
   reciprocalEdgeKeys,
   seedLinkEdgeColor,
@@ -1056,6 +1059,16 @@ export class CitationGraphRenderer {
     );
   }
 
+  /**
+   * How far past a node's centre its ink can reach, in device pixels, for
+   * culling (B34). The widest mark `drawNode` draws is the search ring, at
+   * `radius + 8.5` CSS px with a 2.5 px line, so 9.75 past the disc; 12 keeps
+   * slack for antialiasing and any ring added later at a similar size.
+   */
+  private nodeCullMargin(radius: number): number {
+    return radius + 12 * this.ratio + 2;
+  }
+
   private drawNode(
     node: CitationGraphNode,
     position: Position,
@@ -1788,6 +1801,11 @@ export class CitationGraphRenderer {
         shapes,
         (point) => this.projectToScreen(point),
         this.transform.scale,
+        // Only the plot is painted (the clip above), and nothing reaches
+        // further past a shape than half the dilation stroke, so a shape
+        // whose box misses the plot by more is left out (B34). Two device
+        // pixels cover antialiasing.
+        { rect: plot, margin: dilation / 2 + 2 },
       );
       if (!path) continue;
 
@@ -2018,10 +2036,40 @@ export class CitationGraphRenderer {
 
       const reciprocal = reciprocalEdgeKeys(edges.map((entry) => entry.edge));
       const baseOpacity = edgeBaseOpacity(edges.length);
+      // Culling (B34, B89): at a deep zoom nearly every node and edge is off
+      // the canvas, and each still cost a save, a stroke and a restore. The
+      // counts above (the mesh's opacity, the reciprocal pairs) stay taken
+      // over every edge, so what is drawn is unchanged; only what would land
+      // on no pixel is skipped.
+      const canvasRect = {
+        left: 0,
+        top: 0,
+        right: this.canvas.width,
+        bottom: this.canvas.height,
+      };
       for (const { edge, seedLink } of edges) {
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
         if (!source || !target) continue;
+        const reciprocalEdge = reciprocal.has(`${edge.source}>${edge.target}`);
+        const targetRadius =
+          radii.get(edge.target) ?? this.baseNodeRadius() * this.ratio;
+        if (
+          segmentMissesRect(
+            source.x,
+            source.y,
+            target.x,
+            target.y,
+            edgeCullMargin(
+              reciprocalEdge ? EDGE_CURVE_APEX_CSS * this.ratio : 0,
+              targetRadius,
+              this.ratio,
+            ),
+            canvasRect,
+          )
+        ) {
+          continue;
+        }
         const connection =
           selectedKey === null
             ? null
@@ -2032,13 +2080,11 @@ export class CitationGraphRenderer {
                 : null;
         // A positive apex, not a signed one: each half bows to its own chord's
         // left, and the two halves traverse the chord in opposite directions.
-        const curveApex = reciprocal.has(`${edge.source}>${edge.target}`)
-          ? EDGE_CURVE_APEX_CSS * this.ratio
-          : 0;
+        const curveApex = reciprocalEdge ? EDGE_CURVE_APEX_CSS * this.ratio : 0;
         this.drawArrow(
           source,
           target,
-          radii.get(edge.target) ?? this.baseNodeRadius() * this.ratio,
+          targetRadius,
           connection,
           selectedKey !== null && connection === null,
           Boolean(
@@ -2063,10 +2109,24 @@ export class CitationGraphRenderer {
       for (const node of nodes) {
         const position = this.screenPositions.get(node.key);
         if (!position) continue;
+        const radius =
+          radii.get(node.key) ?? this.baseNodeRadius() * this.ratio;
+        if (
+          boxMissesRect(
+            position.x,
+            position.y,
+            position.x,
+            position.y,
+            this.nodeCullMargin(radius),
+            canvasRect,
+          )
+        ) {
+          continue;
+        }
         this.drawNode(
           node,
           position,
-          radii.get(node.key) ?? this.baseNodeRadius() * this.ratio,
+          radius,
           this.nodeColor(node, colorDomain),
           this.emphasisAlphaFor(node.key) * this.hopAlphaFor(node.key),
         );

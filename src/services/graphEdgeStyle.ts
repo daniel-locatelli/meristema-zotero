@@ -189,3 +189,28 @@ export function seedLinkEdgeColor(
   if ((marks.seedLinks.get(other) ?? 0) < 2) return null;
   return marks.seedColors.get(seed) ?? null;
 }
+
+/**
+ * Past the chord's ends, how far an edge's ink can reach, in CSS pixels, not
+ * counting the target's radius or the curve's bow: the gap before the tip (2),
+ * the head's corners (`ARROWHEAD_SIZE_CSS` back and 0.7 of it aside, under
+ * 1.25 of it), half the widest line (a lit edge's 2.15), and a lit edge's
+ * shadow (blur 3, given three times over).
+ */
+const EDGE_INK_REACH_CSS = 2 + 1.25 * ARROWHEAD_SIZE_CSS + 2.15 / 2 + 9;
+
+/**
+ * How far from an edge's chord (the segment between its two screen ends) the
+ * edge can paint, in device pixels (B34, B89). The quadratic stays inside the
+ * hull of its ends and its control point, which sits `2 * curveApex` off the
+ * chord's midpoint; the head sits within the target's radius plus the ink
+ * reach of the target; and two more device pixels cover antialiasing. Generous on purpose: an edge kept that need not
+ * be costs one stroke, one culled that should not be is a missing line.
+ */
+export function edgeCullMargin(
+  curveApex: number,
+  targetRadius: number,
+  ratio: number,
+): number {
+  return 2 * curveApex + targetRadius + EDGE_INK_REACH_CSS * ratio + 2;
+}

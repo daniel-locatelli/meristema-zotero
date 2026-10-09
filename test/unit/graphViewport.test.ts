@@ -1,7 +1,9 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
+  boxMissesRect,
   devicePixelScale,
+  segmentMissesRect,
   offscreenPanDelta,
   projectToScreen,
   projectToWorld,
@@ -133,5 +135,73 @@ describe("Wheel zoom factor", function () {
 
   it("does nothing on a zero delta", function () {
     expect(wheelZoomFactor(0, 0)).to.equal(1);
+  });
+});
+
+describe("boxMissesRect", function () {
+  const rect = { left: 0, top: 0, right: 100, bottom: 50 };
+
+  it("keeps a box inside, straddling, or spanning the rect", function () {
+    expect(boxMissesRect(10, 10, 20, 20, 0, rect)).to.equal(false);
+    expect(boxMissesRect(-30, 10, 5, 20, 0, rect)).to.equal(false);
+    // Both ends off-screen on opposite sides: the segment crosses the rect.
+    expect(boxMissesRect(-500, -500, 500, 500, 0, rect)).to.equal(false);
+  });
+
+  it("culls a box wholly off any one side", function () {
+    expect(boxMissesRect(-30, 10, -1, 20, 0, rect)).to.equal(true);
+    expect(boxMissesRect(101, 10, 130, 20, 0, rect)).to.equal(true);
+    expect(boxMissesRect(10, -30, 20, -1, 0, rect)).to.equal(true);
+    expect(boxMissesRect(10, 51, 20, 80, 0, rect)).to.equal(true);
+  });
+
+  it("keeps a box the margin reaches into the rect", function () {
+    expect(boxMissesRect(-30, 10, -5, 20, 6, rect)).to.equal(false);
+    expect(boxMissesRect(-30, 10, -5, 20, 4, rect)).to.equal(true);
+    // Touching an edge exactly is not a miss.
+    expect(boxMissesRect(100, 10, 120, 20, 0, rect)).to.equal(false);
+  });
+
+  it("never culls on a non-finite bound, so a bad box draws as before", function () {
+    expect(boxMissesRect(Number.NaN, 10, 20, 20, 0, rect)).to.equal(false);
+    expect(boxMissesRect(-30, 10, -5, 20, Number.NaN, rect)).to.equal(false);
+  });
+});
+
+describe("segmentMissesRect", function () {
+  const rect = { left: 0, top: 0, right: 100, bottom: 50 };
+
+  it("keeps a segment inside, entering, or crossing the rect", function () {
+    expect(segmentMissesRect(10, 10, 20, 20, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(-50, 25, 50, 25, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(-500, 25, 500, 25, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(50, -500, 50, 500, 0, rect)).to.equal(false);
+  });
+
+  it("culls a long diagonal whose box covers the rect but whose line passes it", function () {
+    // From far left-below to far top-right, passing beyond the corner at
+    // (100, 0): the box spans the rect, the line never enters it.
+    expect(boxMissesRect(-1000, -1000, 1000, 1000, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(-1000, -900, 1000, -1100, 0, rect)).to.equal(true);
+    expect(segmentMissesRect(0, -200, 300, 100, 0, rect)).to.equal(true);
+  });
+
+  it("keeps a segment the margin reaches into the rect", function () {
+    // Passes 10 px above the top edge.
+    expect(segmentMissesRect(-50, -10, 150, -10, 9, rect)).to.equal(true);
+    expect(segmentMissesRect(-50, -10, 150, -10, 11, rect)).to.equal(false);
+  });
+
+  it("treats a point segment as a point", function () {
+    expect(segmentMissesRect(10, 10, 10, 10, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(-10, 10, -10, 10, 5, rect)).to.equal(true);
+  });
+
+  it("never culls on a non-finite coordinate or margin", function () {
+    expect(segmentMissesRect(Number.NaN, 0, -5, -5, 0, rect)).to.equal(false);
+    expect(segmentMissesRect(-9, -9, -5, -5, Number.NaN, rect)).to.equal(false);
+    expect(
+      segmentMissesRect(-9, -9, Number.POSITIVE_INFINITY, -5, 0, rect),
+    ).to.equal(false);
   });
 });

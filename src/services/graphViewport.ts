@@ -115,3 +115,92 @@ export function wheelZoomFactor(deltaY: number, deltaMode: number): number {
   );
   return Math.exp(-travel * WHEEL_ZOOM_RATE);
 }
+
+/** An axis-aligned rectangle in canvas device pixels. */
+export interface ViewportRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * Whether a box, grown by `margin` on every side, lies wholly outside `rect`.
+ * A draw call whose geometry stays inside such a box paints no pixel of the
+ * rect, so skipping it leaves the frame identical (B34, B89): at a deep zoom
+ * that is nearly every node and edge. Touching an edge counts as inside.
+ *
+ * Fails open: a non-finite bound or margin compares false, so the box is kept
+ * and drawn exactly as it was before culling existed.
+ */
+export function boxMissesRect(
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  margin: number,
+  rect: ViewportRect,
+): boolean {
+  return (
+    maxX + margin < rect.left ||
+    minX - margin > rect.right ||
+    maxY + margin < rect.top ||
+    minY - margin > rect.bottom
+  );
+}
+
+/**
+ * Whether a segment comes no nearer `rect` than `margin` on either axis: the
+ * segment misses `rect` grown by `margin` on every side (Liang–Barsky). Ink
+ * within `margin` of the segment then paints no pixel of `rect`, which is the
+ * edge cull's statement (B89): a seed's citers radiate to it from every
+ * direction, so at a deep zoom most of their boxes cover the view while their
+ * lines pass it by.
+ *
+ * Fails open on a non-finite coordinate or margin, like `boxMissesRect`.
+ */
+export function segmentMissesRect(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  margin: number,
+  rect: ViewportRect,
+): boolean {
+  if (
+    !Number.isFinite(x0) ||
+    !Number.isFinite(y0) ||
+    !Number.isFinite(x1) ||
+    !Number.isFinite(y1) ||
+    !Number.isFinite(margin)
+  ) {
+    return false;
+  }
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  let enter = 0;
+  let leave = 1;
+  // Each side as `p * t <= q`: the part of the segment on the rect's side of
+  // that edge. An empty interval after any side means a miss.
+  const sides: ReadonlyArray<readonly [number, number]> = [
+    [-dx, x0 - (rect.left - margin)],
+    [dx, rect.right + margin - x0],
+    [-dy, y0 - (rect.top - margin)],
+    [dy, rect.bottom + margin - y0],
+  ];
+  for (const [p, q] of sides) {
+    if (p === 0) {
+      if (q < 0) return true;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) {
+      if (t > leave) return true;
+      if (t > enter) enter = t;
+    } else {
+      if (t < enter) return true;
+      if (t < leave) leave = t;
+    }
+  }
+  return false;
+}

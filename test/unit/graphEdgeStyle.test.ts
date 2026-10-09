@@ -5,11 +5,14 @@ import {
   arrivalDirection,
   curveControlPoint,
   edgeBaseOpacity,
+  edgeCullMargin,
   edgeLineInset,
   reciprocalEdgeKeys,
   seedLinkEdgeColor,
   shouldDrawArrowhead,
   ARROWHEAD_MIN_ZOOM,
+  ARROWHEAD_SIZE_CSS,
+  EDGE_CURVE_APEX_CSS,
 } from "../../src/services/graphEdgeStyle";
 
 describe("Graph edge style", () => {
@@ -138,5 +141,88 @@ describe("seedLinkEdgeColor", function () {
   it("is null for a paper linked to one seed, or an edge that misses the seeds", function () {
     expect(seedLinkEdgeColor("b", "s", marks)).to.equal(null);
     expect(seedLinkEdgeColor("a", "b", marks)).to.equal(null);
+  });
+});
+
+function distanceToSegment(
+  point: { x: number; y: number },
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): number {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = dx * dx + dy * dy;
+  const t =
+    length === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            1,
+            ((point.x - from.x) * dx + (point.y - from.y) * dy) / length,
+          ),
+        );
+  return Math.hypot(point.x - (from.x + t * dx), point.y - (from.y + t * dy));
+}
+
+describe("edgeCullMargin", () => {
+  it("holds the control point and every arrowhead corner within the margin of the chord", () => {
+    // The points `drawArrow` builds its path from, computed the way it does.
+    // Ink width and shadow add on top; the margin carries those too.
+    const ends = [
+      [
+        { x: 0, y: 0 },
+        { x: 300, y: 40 },
+      ],
+      [
+        { x: 50, y: 50 },
+        { x: 52, y: 49 },
+      ],
+      [
+        { x: -10, y: 400 },
+        { x: -10, y: -400 },
+      ],
+    ];
+    for (const ratio of [1, 2]) {
+      for (const apexCss of [0, EDGE_CURVE_APEX_CSS]) {
+        for (const targetRadius of [3, 14 * ratio]) {
+          for (const [source, target] of ends) {
+            const apex = apexCss * ratio;
+            const control =
+              apex === 0
+                ? {
+                    x: (source.x + target.x) / 2,
+                    y: (source.y + target.y) / 2,
+                  }
+                : curveControlPoint(source, target, apex);
+            const u = arrivalDirection(control, target);
+            const size = ARROWHEAD_SIZE_CSS * ratio;
+            const tipInset = targetRadius + 2 * ratio;
+            const tip = {
+              x: target.x - u.x * tipInset,
+              y: target.y - u.y * tipInset,
+            };
+            const corners = [
+              tip,
+              {
+                x: tip.x - u.x * size - u.y * size * 0.7,
+                y: tip.y - u.y * size + u.x * size * 0.7,
+              },
+              {
+                x: tip.x - u.x * size + u.y * size * 0.7,
+                y: tip.y - u.y * size - u.x * size * 0.7,
+              },
+            ];
+            const margin = edgeCullMargin(apex, targetRadius, ratio);
+            for (const point of [control, ...corners]) {
+              expect(
+                distanceToSegment(point, source, target),
+                `ratio ${ratio}, apex ${apex}, radius ${targetRadius}: ${JSON.stringify(point)}`,
+              ).to.be.at.most(margin);
+            }
+          }
+        }
+      }
+    }
   });
 });
