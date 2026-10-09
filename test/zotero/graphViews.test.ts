@@ -365,30 +365,76 @@ describe("Graph views (D4)", function () {
     if (failure !== null) throw failure;
   });
 
-  it("fits the gallery to its cards, and scrolls it in a short plot (B95)", async function () {
+  it("centres the gallery on a themed mask over the graph, fitted to its cards (B95)", async function () {
     this.timeout(30_000);
     await waitFor(() => galleryShown(), 20_000);
     const section = gallery()!;
-    const style = win.getComputedStyle(section);
+    const panel = section.querySelector(
+      ".cm-view-gallery-panel",
+    ) as HTMLElement | null;
+    expect(panel, `the gallery's panel: ${section.outerHTML}`).to.exist;
+    const style = win.getComputedStyle(panel!);
     // Early in a run graph.css may not have applied yet (B86).
     await waitFor(() => parseFloat(style.paddingBottom) > 0, 10_000);
-    const grid = section.querySelector(".cm-view-gallery-grid") as HTMLElement;
+    const grid = panel!.querySelector(".cm-view-gallery-grid") as HTMLElement;
     const area = graphRoot().querySelector(".cm-graph-area") as HTMLElement;
     const trailing =
       parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth);
-    const report = (): string => {
-      const box = section.getBoundingClientRect();
+    const gaps = () => {
+      const box = panel!.getBoundingClientRect();
       const plot = area.getBoundingClientRect();
+      return {
+        top: box.top - plot.top,
+        bottom: plot.bottom - box.bottom,
+        left: box.left - plot.left,
+        right: plot.right - box.right,
+      };
+    };
+    const report = (): string => {
+      const g = gaps();
       return (
-        `plot ${plot.top.toFixed(1)}..${plot.bottom.toFixed(1)}, gallery ` +
-        `${box.top.toFixed(1)}..${box.bottom.toFixed(1)}, grid bottom ` +
-        `${grid.getBoundingClientRect().bottom.toFixed(1)}, padding+border ` +
-        `${trailing.toFixed(1)}, scroll ${section.scrollHeight}/${section.clientHeight}`
+        `gaps t${g.top.toFixed(1)} b${g.bottom.toFixed(1)} ` +
+        `l${g.left.toFixed(1)} r${g.right.toFixed(1)}, panel bottom less grid ` +
+        `${(panel!.getBoundingClientRect().bottom - grid.getBoundingClientRect().bottom).toFixed(1)}, ` +
+        `padding+border ${trailing.toFixed(1)}, scroll ${panel!.scrollHeight}/${panel!.clientHeight}`
       );
     };
+
+    // The mask covers the graph in the theme's own Canvas, see-through.
+    const mask = section.getBoundingClientRect();
+    const plot = area.getBoundingClientRect();
+    expect(
+      [mask.top, mask.left, mask.bottom, mask.right].map(Math.round),
+      "the mask covers the graph area",
+    ).to.deep.equal(
+      [plot.top, plot.left, plot.bottom, plot.right].map(Math.round),
+    );
+    const probe = win.document.createElement("div");
+    probe.style.backgroundColor = "Canvas";
+    area.append(probe);
+    const canvas = win.getComputedStyle(probe).backgroundColor as string;
+    probe.remove();
+    // `color-mix` computes to `color(srgb r g b / a)`, its channels 0 to 1.
+    const channels = (color: string): number[] => {
+      const values = (color.match(/[\d.]+/g) ?? []).map(Number);
+      if (!color.startsWith("color(")) return values;
+      return values.map((value, i) =>
+        i < 3 ? Math.round(value * 255) : value,
+      );
+    };
+    const masked = channels(win.getComputedStyle(section).backgroundColor);
+    expect(
+      masked.slice(0, 3),
+      `the mask is the theme's Canvas (${canvas})`,
+    ).to.deep.equal(channels(canvas).slice(0, 3));
+    expect(masked[3], "the mask lets the graph show through").to.be.within(
+      0.2,
+      0.95,
+    );
+
     try {
       // A plot taller than the cards need: the user's screen, not the runner's.
-      const tall = section.scrollHeight + 400;
+      const tall = panel!.scrollHeight + 400;
       area.style.minHeight = `${tall}px`;
       await delay(150);
       expect(
@@ -396,25 +442,34 @@ describe("Graph views (D4)", function () {
         `the plot grew: ${report()}`,
       ).to.be.at.least(tall - 1);
       expect(
-        section.getBoundingClientRect().bottom -
+        panel!.getBoundingClientRect().bottom -
           grid.getBoundingClientRect().bottom,
-        `the gallery ends at its cards: ${report()}`,
+        `the panel ends at its cards: ${report()}`,
       ).to.be.at.most(trailing + 2);
+      const g = gaps();
+      expect(
+        Math.abs(g.top - g.bottom),
+        `centred vertically: ${report()}`,
+      ).to.be.at.most(2);
+      expect(
+        Math.abs(g.left - g.right),
+        `centred horizontally: ${report()}`,
+      ).to.be.at.most(2);
     } finally {
       area.style.minHeight = "";
     }
-    // A plot too short for the cards: the gallery scrolls inside its margin.
+    // A plot too short for the cards: the panel scrolls inside its margins.
     area.style.maxHeight = "300px";
     try {
       await delay(150);
       expect(
-        section.scrollHeight,
-        `the gallery scrolls: ${report()}`,
-      ).to.be.greaterThan(section.clientHeight);
+        panel!.scrollHeight,
+        `the panel scrolls: ${report()}`,
+      ).to.be.greaterThan(panel!.clientHeight);
+      const g = gaps();
       expect(
-        area.getBoundingClientRect().bottom -
-          section.getBoundingClientRect().bottom,
-        `the gallery keeps its bottom margin: ${report()}`,
+        Math.min(g.top, g.bottom),
+        `the panel keeps its margins: ${report()}`,
       ).to.be.at.least(20);
     } finally {
       area.style.maxHeight = "";

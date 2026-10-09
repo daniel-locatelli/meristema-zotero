@@ -339,7 +339,10 @@ export function createViewGallery(
   importButton.addEventListener("click", o.onImport);
   last.append(blank, importButton);
   grid.append(last);
-  root.append(heading, sub, grid);
+  // The root masks the graph; the panel holds the cards, centred on it.
+  const panel = element(document, "div", "cm-view-gallery-panel");
+  panel.append(heading, sub, grid);
+  root.append(panel);
   return {
     root,
     show(count) {

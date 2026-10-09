@@ -812,15 +812,24 @@
   }
 }
 /* The gallery: a non-modal inset; the toolbar and the rail stay live behind it. */
-/* Anchored at the top and as tall as its cards (B95); a short plot caps it
-   at the margins and it scrolls. */
+/* The gallery masks the graph in the theme's Canvas and centres a panel as
+   tall as its cards (B95); a short plot caps the panel at the margins and
+   it scrolls. */
 .cm-view-gallery {
   position: absolute;
-  top: 24px;
-  inset-inline: 24px;
-  max-height: calc(100% - 48px);
-  box-sizing: border-box;
+  inset: 0;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: color-mix(in srgb, Canvas 70%, transparent);
+}
+.cm-view-gallery-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 100%;
   overflow: auto;
   padding: 18px 20px;
   border: 1px solid var(--cm-border-soft);

@@ -316,9 +316,11 @@ any failure into a new entry above.
 - [ ] B7: in a library with no regular items (an empty group, say), Tools ›
       Meristema › New Graph opens a tab reading "This graph is empty"; add a
       seed from the + button's search and it appears.
-- [ ] B95: on a tall window, Tools › Meristema › New Graph: the view
-      gallery ends just below its last row of cards, anchored at the top.
-      Shrink the window: it stops 24px short of the bottom and scrolls.
+- [ ] B95: Tools › Meristema › New Graph: the view gallery sits centred
+      over the graph, which shows dimmed through a mask in the theme's own
+      colour (light on light, dark on dark), and the panel ends just below
+      its last row of cards. Shrink the window: the panel keeps 24px margins
+      and scrolls.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -331,7 +333,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B95 (109/1, B7's case meeting a fixture
 the external-seed suite leaked; fixed in that commit), so count with the
-commits since the one whose subject ends `(B95)`. A clean run is 110 passed,
+commits since `a86c9e1`. A clean run is 110 passed,
 0 failed as of 2026-10-09 (B95's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
@@ -560,3 +562,6 @@ entries are in git history.
   grows the plot, since the runner's is shorter than the cards). The full run
   that followed failed B7's case: `externalSeedImport.test.ts` assigned over
   the ids it erases and leaked "B6 direct import fixture"; it now pushes.
+  The user then asked for the gallery centred over a mask on the graph: the
+  section is now a full-area scrim of the theme's `Canvas` at 70%, and a
+  `.cm-view-gallery-panel` inside it carries the cards, centred.
