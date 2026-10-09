@@ -198,6 +198,24 @@ function gridKey(x: number, y: number): string {
   return `${x}:${y}`;
 }
 
+/**
+ * The span a node's centre may occupy on one axis: the plot when its anchor
+ * is a value inside it, or the margin on the anchor's side when it is parked
+ * in a No data lane. The relaxation never carries a node across a plot edge:
+ * a paper at the domain's floor pushed past it reads as a value below the
+ * floor and lands in the No data lane, and a No data paper pushed inside
+ * reads as a real value (B47).
+ */
+function sideOfPlotEdge(
+  anchor: number,
+  low: number,
+  high: number,
+): [number, number] {
+  if (anchor < low) return [low - 45, low];
+  if (anchor > high) return [high, high + 45];
+  return [low, high];
+}
+
 function clampAroundAnchor(
   position: Position,
   anchor: Position,
@@ -206,8 +224,14 @@ function clampAroundAnchor(
 ): void {
   position.x = clamp(position.x, anchor.x - maxX, anchor.x + maxX);
   position.y = clamp(position.y, anchor.y - maxY, anchor.y + maxY);
-  position.x = clamp(position.x, PLOT_LEFT - 45, PLOT_RIGHT + 45);
-  position.y = clamp(position.y, PLOT_TOP - 45, PLOT_BOTTOM + 45);
+  position.x = clamp(
+    position.x,
+    ...sideOfPlotEdge(anchor.x, PLOT_LEFT, PLOT_RIGHT),
+  );
+  position.y = clamp(
+    position.y,
+    ...sideOfPlotEdge(anchor.y, PLOT_TOP, PLOT_BOTTOM),
+  );
 }
 
 function relaxAnchoredNodes(
