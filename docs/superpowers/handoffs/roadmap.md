@@ -563,5 +563,5 @@ entries are in git history.
   that followed failed B7's case: `externalSeedImport.test.ts` assigned over
   the ids it erases and leaked "B6 direct import fixture"; it now pushes.
   The user then asked for the gallery centred over a mask on the graph: the
-  section is now a full-area scrim of the theme's `Canvas` at 70%, and a
+  section is now a full-area scrim of the theme's `Canvas` at 85%, and a
   `.cm-view-gallery-panel` inside it carries the cards, centred.

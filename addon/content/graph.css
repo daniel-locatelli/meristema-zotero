@@ -824,7 +824,7 @@
   justify-content: center;
   box-sizing: border-box;
   padding: 24px;
-  background: color-mix(in srgb, Canvas 70%, transparent);
+  background: color-mix(in srgb, Canvas 85%, transparent);
 }
 .cm-view-gallery-panel {
   box-sizing: border-box;
