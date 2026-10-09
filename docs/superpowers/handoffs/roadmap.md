@@ -331,9 +331,10 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B95 (109/1, B7's case meeting a fixture
-the external-seed suite leaked; fixed in that commit), so count with the
-commits since `a86c9e1`. A clean run is 110 passed,
+runs alone under a temporary `describe.only`. Last full run: 2026-10-09 at `0efe291` (109/1: view 3 in
+`graphViewVisual.test.ts` clicked the gallery's new full-area mask, not the
+canvas; it now presses Start blank first, 16/16 in its file), so count with
+the commits since `0efe291`. A clean run is 110 passed,
 0 failed as of 2026-10-09 (B95's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at

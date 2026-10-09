@@ -222,6 +222,17 @@ describe("Graph view, as the product builds it", function () {
   it("view 3 — a click on the graph releases a pinned Key entry", async function () {
     this.timeout(60_000);
     const active = await open(220);
+    // This graph has never chosen a view, so the gallery masks the whole
+    // graph area and would take the click meant for the canvas. Its own
+    // "Start blank" puts it away.
+    const blank = (
+      Array.from(
+        active.root.querySelectorAll(".cm-view-gallery button"),
+      ) as HTMLButtonElement[]
+    ).find((button) => button.textContent?.trim() === "Start blank");
+    expect(blank, "the gallery's Start blank button").to.exist;
+    blank!.click();
+    await settle(active.window, 8);
     const entry = active.root.querySelector(
       "button.cm-key-entry",
     ) as HTMLButtonElement;
