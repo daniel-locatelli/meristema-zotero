@@ -81,6 +81,8 @@ interface Target {
   win: Window;
   pane: Element & { style: CSSStyleDeclaration };
   splitter: Element | null;
+  /** `#zotero-layout-switcher`: its `orient` is vertical in the stacked layout. */
+  layoutSwitcher: Element | null;
   zoteroPane: {
     updateLayoutConstraints?: () => void;
     itemPane?: { collapsed: boolean };
@@ -102,6 +104,7 @@ function findTarget(
       win,
       pane: pane as Target["pane"],
       splitter: document.getElementById(SPLITTER_ID[side]),
+      layoutSwitcher: document.getElementById("zotero-layout-switcher"),
       zoteroPane,
     };
   } catch {
@@ -216,7 +219,7 @@ export function bindZoteroPane(
     return detachedBinding(side, deps);
   }
 
-  const { pane, splitter, zoteroPane } = target;
+  const { pane, splitter, layoutSwitcher, zoteroPane } = target;
   const minimum = PANE_MINIMUM[side];
   const listeners = new Set<(state: ZoteroPaneState) => void>();
 
@@ -228,9 +231,18 @@ export function bindZoteroPane(
   let lastWritten = Number.NaN;
   let localDepth = 0;
 
+  /*
+   * Below a width Zotero stacks the item pane under the items list, where it
+   * spans the window (B90). That is not a side pane's width, so while stacked
+   * the binding keeps the last side width, as it does while collapsed; Zotero
+   * restores the pane to its `width` attribute when it unstacks.
+   */
+  const stacked = (): boolean =>
+    side === "item" && layoutSwitcher?.getAttribute("orient") === "vertical";
+
   const read = (): ZoteroPaneState => {
     const collapsed = isCollapsed(pane);
-    if (!collapsed) {
+    if (!collapsed && !stacked()) {
       const measured = pane.getBoundingClientRect().width;
       const width = measured > 0 ? measured : attributeWidth(pane);
       if (width) lastWidth = width;

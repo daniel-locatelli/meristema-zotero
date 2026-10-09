@@ -71,6 +71,8 @@ interface Fixture {
   win: Window;
   pane: FakePane;
   splitter: FakePane;
+  /** `#zotero-layout-switcher`, whose `orient` is vertical while stacked. */
+  switcher: FakePane;
   observers: FakeObserverRegistry;
   layoutCalls: number;
   itemPaneCollapsed: boolean[];
@@ -83,11 +85,14 @@ function fixture(
 ): Fixture {
   const pane = new FakePane();
   const splitter = new FakePane();
+  const switcher = new FakePane();
+  switcher.setAttribute("orient", "horizontal");
   const observers = new FakeObserverRegistry();
   const state: Fixture = {
     win: null as unknown as Window,
     pane,
     splitter,
+    switcher,
     observers,
     layoutCalls: 0,
     itemPaneCollapsed: [],
@@ -122,6 +127,7 @@ function fixture(
     "zotero-item-pane": pane,
     "zotero-collections-splitter": splitter,
     "zotero-items-splitter": splitter,
+    "zotero-layout-switcher": switcher,
   };
   state.win = {
     document: { getElementById: (id: string) => byId[id] ?? null },
@@ -149,6 +155,34 @@ describe("bindZoteroPane", function () {
     expect(binding.read()).to.deep.equal({ width: 260, collapsed: false });
     f.pane.setAttribute("collapsed", "true");
     expect(binding.read()).to.deep.equal({ width: 260, collapsed: true });
+  });
+
+  it("keeps the item pane's side width while Zotero stacks it under the items (B90)", function () {
+    // Below ~950px Zotero moves the item pane under the items list, where it
+    // spans the window; that width is not a side pane's.
+    const f = fixture();
+    f.pane.setAttribute("width", "337");
+    f.pane.rectWidth = 357;
+    const binding = bindZoteroPane("item", f.win, f.deps);
+    const seen = collect(binding);
+    f.switcher.setAttribute("orient", "vertical");
+    f.pane.rectWidth = 727;
+    f.observers.fire();
+    expect(binding.read()).to.deep.equal({ width: 357, collapsed: false });
+    expect(seen, "stacking is not a resize").to.deep.equal([]);
+    f.switcher.setAttribute("orient", "horizontal");
+    f.pane.rectWidth = 357;
+    f.observers.fire();
+    expect(seen, "nor is unstacking").to.deep.equal([]);
+  });
+
+  it("takes the remembered width when bound while Zotero is stacked", function () {
+    const f = fixture();
+    f.pane.setAttribute("width", "337");
+    f.switcher.setAttribute("orient", "vertical");
+    f.pane.rectWidth = 727;
+    const binding = bindZoteroPane("item", f.win, f.deps);
+    expect(binding.read()).to.deep.equal({ width: 337, collapsed: false });
   });
 
   it("writes attribute and style, clamps, and asks Zotero to relayout", function () {

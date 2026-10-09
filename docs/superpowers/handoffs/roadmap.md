@@ -205,9 +205,6 @@ opacity grade).
       Refresh vs Update connections should say which scope each acts on
 - [ ] F4 show the selected paper's abstract; the user chose the Paper details
       pane (2026-10-07)
-- [ ] B90 narrowing Zotero past some width makes the Paper details pane
-      widen and take the plot's space, where the rail shrinks. It looks
-      maxed out instead of compacting (user, 2026-10-07)
 - [ ] F8 nothing says why a paper has no metrics; the exact-title fallback
       decides that for a paper with no DOI
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
@@ -312,6 +309,10 @@ any failure into a new entry above.
       with the query. A seed's row still selects it, and its × removes it.
       Judge the space between each row's title and its author line (now 6px,
       was 4px) in both themes.
+- [ ] B90: with a graph tab open, narrow Zotero below ~950px, visit the
+      library tab (Zotero stacks the item pane under the items list) and
+      return: Paper details keeps its side width (about 340px) instead of
+      spanning the window. Widen again: still the same width.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -510,3 +511,9 @@ entries are in git history.
   ×. The title and metadata sit in `cm-focus-seed-result-text` with a 6px
   gap; the 4px gap measured exactly 4px in the main window, so B45 was a
   re-judgement, not host CSS. Red, then green, in the Scope rail suite.
+- 2026-10-09: B90 done. Below ~950px Zotero stacks the item pane under the
+  items list (`#zotero-layout-switcher` `orient="vertical"`), where it spans
+  the window, and `bindZoteroPane` copied that width to Paper details (727px
+  at an 850px window, plot 78px). While stacked the item binding keeps its
+  last side width, as while collapsed. Red, then green, in
+  `zoteroPaneSync.test.ts` and `graphStackedItemPane.test.ts`.
