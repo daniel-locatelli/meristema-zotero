@@ -843,7 +843,7 @@
 }
 .cm-view-gallery-heading {
   margin: 0;
-  font-size: calc(15 * var(--cm-font-unit));
+  font-size: calc(20 * var(--cm-font-unit));
   font-weight: 600;
 }
 .cm-view-gallery-sub {
