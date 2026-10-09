@@ -18,6 +18,7 @@ import {
 } from "./graphAxisTickEnhancer";
 import { ensureExternalWorkMetrics } from "./externalWorkMetricRegistry";
 import { createFrameOrTimer } from "./frameOrTimer";
+import { createInputMemo } from "./inputMemo";
 import {
   drawRendererGhost,
   drawRendererLabels,
@@ -343,6 +344,34 @@ export class CitationGraphRenderer {
   private disposeSchemeObserver: (() => void) | null = null;
   private initialFitFrame: number | null = null;
   private initialFitComplete = false;
+  /**
+   * The redraw a pan, a wheel notch or a node drag asked for, pending until
+   * the next frame (B89). The pointer delivers moves faster than the screen
+   * paints, and each one used to draw the whole scene; now they coalesce into
+   * one draw a frame. Any synchronous `draw()` supersedes it.
+   */
+  private sceneFrame: number | null = null;
+  /** True only inside the draw `sceneFrame` runs, which may reuse the edge order. */
+  private interactionDraw = false;
+  /** Bumped by `setRelationshipHidden`, whose set is mutated in place. */
+  private hiddenEdgeRevision = 0;
+  /**
+   * The edges in paint order, with what each needs from the others. A pan,
+   * zoom or drag frame changes nothing that decides it, so the frames
+   * `sceneFrame` draws reuse it; every other draw rebuilds it, since the owner
+   * mutates the model's edge array in place.
+   */
+  private readonly edgeOrder = createInputMemo<
+    Record<string, unknown>,
+    {
+      entries: Array<{
+        edge: { source: string; target: string };
+        seedLink: string | null;
+        reciprocal: boolean;
+      }>;
+      baseOpacity: number;
+    }
+  >();
   /**
    * The resize and the initial fit are not painting, so they must not wait on
    * a paint: a covered window delivers no frame, and its plot kept the
@@ -757,7 +786,7 @@ export class CitationGraphRenderer {
         // would otherwise resum its whole grid on every drag frame (finding
         // 4). It catches up once, in `onPointerUp`, when the drag ends.
         this.canvas.style.cursor = "move";
-        this.draw();
+        this.requestDraw();
       }
       return;
     }
@@ -776,7 +805,7 @@ export class CitationGraphRenderer {
       this.transform.y += (event.clientY - this.pointer.y) * ratio;
       this.pointer.x = event.clientX;
       this.pointer.y = event.clientY;
-      this.draw();
+      this.requestDraw();
       return;
     }
     const floorHit = this.floorHit(event.clientX, event.clientY);
@@ -807,6 +836,10 @@ export class CitationGraphRenderer {
 
   private onPointerUp = (event: PointerEvent): void => {
     this.canvas.releasePointerCapture?.(event.pointerId);
+    // The gesture's last move is painted now, not a frame later: whatever
+    // reads the scene once the hand lifts (the floor's hit test, a test's
+    // canvas) sees where the gesture ended.
+    if (this.sceneFrame !== null) this.draw();
     if (this.floorDragging) {
       this.floorDragging = false;
       this.pointer.down = false;
@@ -890,7 +923,7 @@ export class CitationGraphRenderer {
     this.transform.scale = nextScale;
     this.transform.x = screenX - worldX * nextScale;
     this.transform.y = screenY - worldY * nextScale;
-    this.draw();
+    this.requestDraw();
   };
 
   private onKeyDown = (event: KeyboardEvent): void => {
@@ -1948,7 +1981,76 @@ export class CitationGraphRenderer {
     drawRendererGhost(this as unknown as RendererSceneContext, preview);
   }
 
+  /** Draw on the next frame, or on the fallback timer when no frame comes (B83). */
+  private requestDraw(): void {
+    if (this.destroyed || this.sceneFrame !== null) return;
+    this.sceneFrame = this.frames.request(() => {
+      this.sceneFrame = null;
+      this.interactionDraw = true;
+      try {
+        this.draw();
+      } finally {
+        this.interactionDraw = false;
+      }
+    });
+  }
+
+  private cancelSceneFrame(): void {
+    if (this.sceneFrame === null) return;
+    this.frames.cancel(this.sceneFrame);
+    this.sceneFrame = null;
+  }
+
+  private orderedEdges(selectedKey: string | null, marks: SeedMarks | null) {
+    const seedLinks = this.layout.nodeColorMetric === "seed-links";
+    return this.edgeOrder.get(
+      {
+        edges: this.model.edges,
+        edgeCount: this.model.edges.length,
+        visibleKeys: this.visibleKeys,
+        hidden: this.hiddenEdgeRevision,
+        selectedKey,
+        marks,
+        seedLinks,
+      },
+      () => {
+        const seedLinkColorOf = (edge: { source: string; target: string }) =>
+          seedLinks && marks
+            ? seedLinkEdgeColor(edge.source, edge.target, marks)
+            : null;
+        const rank = (entry: {
+          edge: { source: string; target: string };
+          seedLink: string | null;
+        }): number =>
+          selectedKey !== null &&
+          (entry.edge.source === selectedKey ||
+            entry.edge.target === selectedKey)
+            ? 2
+            : entry.seedLink
+              ? 1
+              : 0;
+        const sorted = [...this.visibleEdges()]
+          .map((edge) => ({ edge, seedLink: seedLinkColorOf(edge) }))
+          .sort((left, right) => rank(left) - rank(right));
+        const reciprocal = reciprocalEdgeKeys(
+          sorted.map((entry) => entry.edge),
+        );
+        return {
+          entries: sorted.map((entry) => ({
+            ...entry,
+            reciprocal: reciprocal.has(
+              `${entry.edge.source}>${entry.edge.target}`,
+            ),
+          })),
+          baseOpacity: edgeBaseOpacity(sorted.length),
+        };
+      },
+      this.interactionDraw,
+    );
+  }
+
   private draw(): void {
+    this.cancelSceneFrame();
     if (this.destroyed || this.canvasError) return;
     this.refreshTheme();
     try {
@@ -2012,30 +2114,10 @@ export class CitationGraphRenderer {
         ]),
       );
       const selectedKey = this.selectedKey;
-      const marks = this.seedMarks;
-      const seedLinkColorOf = (edge: { source: string; target: string }) =>
-        this.layout.nodeColorMetric === "seed-links" && marks
-          ? seedLinkEdgeColor(edge.source, edge.target, marks)
-          : null;
-      const edges = [...this.visibleEdges()]
-        .map((edge) => ({ edge, seedLink: seedLinkColorOf(edge) }))
-        .sort((left, right) => {
-          const rank = (entry: {
-            edge: { source: string; target: string };
-            seedLink: string | null;
-          }): number =>
-            selectedKey !== null &&
-            (entry.edge.source === selectedKey ||
-              entry.edge.target === selectedKey)
-              ? 2
-              : entry.seedLink
-                ? 1
-                : 0;
-          return rank(left) - rank(right);
-        });
-
-      const reciprocal = reciprocalEdgeKeys(edges.map((entry) => entry.edge));
-      const baseOpacity = edgeBaseOpacity(edges.length);
+      const { entries: edges, baseOpacity } = this.orderedEdges(
+        selectedKey,
+        this.seedMarks,
+      );
       // Culling (B34, B89): at a deep zoom nearly every node and edge is off
       // the canvas, and each still cost a save, a stroke and a restore. The
       // counts above (the mesh's opacity, the reciprocal pairs) stay taken
@@ -2047,11 +2129,10 @@ export class CitationGraphRenderer {
         right: this.canvas.width,
         bottom: this.canvas.height,
       };
-      for (const { edge, seedLink } of edges) {
+      for (const { edge, seedLink, reciprocal: reciprocalEdge } of edges) {
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
         if (!source || !target) continue;
-        const reciprocalEdge = reciprocal.has(`${edge.source}>${edge.target}`);
         const targetRadius =
           radii.get(edge.target) ?? this.baseNodeRadius() * this.ratio;
         if (
@@ -2426,6 +2507,7 @@ export class CitationGraphRenderer {
     const key = `${sourceItemKey}>${targetItemKey}`;
     if (hidden) this.hiddenEdgeKeys.add(key);
     else this.hiddenEdgeKeys.delete(key);
+    this.hiddenEdgeRevision += 1;
     this.draw();
   }
 
@@ -2602,6 +2684,7 @@ export class CitationGraphRenderer {
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.cancelSceneFrame();
     if (this.initialFitFrame !== null) {
       this.frames.cancel(this.initialFitFrame);
       this.initialFitFrame = null;

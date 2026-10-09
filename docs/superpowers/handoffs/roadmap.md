@@ -132,9 +132,11 @@ opacity grade).
       frame; the cost was canvas calls, ~11,000 a frame at any zoom. Nodes,
       edges and region shapes off the canvas are now culled (912 calls at
       max zoom), but at the fit zoom every edge is still one save, stroke and
-      restore. Next, if the manual check still lags: a live Firefox profile;
-      batching edges by style changes how translucent edges overlap, so it is
-      a design call (D13's neighbour)
+      restore. Pan moves, wheel notches and node drags now draw at most once a
+      frame (timer fallback when covered), and those frames reuse the edge
+      order instead of re-sorting. Next, if the manual check still lags: a
+      live Firefox profile; batching edges by style changes how translucent
+      edges overlap, so it is a design call (D13's neighbour)
 
 ## Views, gallery and menus
 
@@ -253,7 +255,10 @@ any failure into a new entry above.
       its total read `182/182 of 394`, one space apart.
 - [ ] B34, B89: at maximum zoom, pan and zoom across a 300+ paper folder, then
       a seed with many citers; judge whether it is smooth. Shapes, edges and
-      nodes at the plot's edge still draw in full as they come into view.
+      nodes at the plot's edge still draw in full as they come into view. Also
+      at the fit zoom: a fast drag-pan and a flick of the wheel track the
+      pointer without trailing; drag a free-axis node, release: it lands
+      where you let go, and selecting a paper mid-pan lights its edges at once.
 - [ ] B92: the rail footer's zoom in, zoom out, fit and gear icons read
       larger in their buttons; drag the floor tag: its arrow is drawn, not a
       small character, and the tag still grabs. Both themes.

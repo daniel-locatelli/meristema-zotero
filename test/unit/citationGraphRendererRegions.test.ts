@@ -35,7 +35,7 @@ describe("CitationGraphRenderer regions", function () {
           onSelectionChange: () => undefined,
           onOpenNode: () => undefined,
         });
-        attachView(canvas);
+        const { flushFrames } = attachView(canvas);
 
         // Pin the node at a known point. The fake environment's transform
         // starts at the identity (scale 1, origin 0,0) and its device pixel
@@ -56,6 +56,7 @@ describe("CitationGraphRenderer regions", function () {
           clientY: 100,
         });
         canvas.fire("pointermove", { clientX: 150, clientY: 150 });
+        expect(flushFrames(), "the drag asked for a frame").to.equal(1);
         const duringDrag = lastRegionStroke(canvas.context)
           .args[0] as FakePath2D;
         // The node actually moved (its position in `this.positions` is now

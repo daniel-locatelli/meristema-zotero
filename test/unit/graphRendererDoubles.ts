@@ -268,7 +268,33 @@ export function lastRegionStrokeOf(
  * The view is attached after construction so the constructor still takes the
  * null-view path this double is built around — no `ResizeObserver`, no
  * `requestAnimationFrame`, no initial fit.
+ *
+ * Its animation frames run only when the case calls `flushFrames`: a pan, a
+ * wheel notch or a node drag redraws on the next frame (B89), so a case that
+ * reads the canvas mid-gesture flushes first.
  */
-export function attachView(canvas: FakeCanvas): void {
-  canvas.ownerDocument.defaultView = { Path2D: FakePath2D };
+export function attachView(canvas: FakeCanvas): { flushFrames(): number } {
+  let next = 1;
+  const queued = new Map<number, () => void>();
+  canvas.ownerDocument.defaultView = {
+    Path2D: FakePath2D,
+    requestAnimationFrame(run: (time: number) => void): number {
+      const handle = next++;
+      queued.set(handle, () => run(0));
+      return handle;
+    },
+    cancelAnimationFrame(handle: number): void {
+      queued.delete(handle);
+    },
+    addEventListener(): void {},
+    removeEventListener(): void {},
+  } as { Path2D: typeof FakePath2D };
+  return {
+    flushFrames() {
+      const batch = [...queued.values()];
+      queued.clear();
+      for (const run of batch) run();
+      return batch.length;
+    },
+  };
 }
