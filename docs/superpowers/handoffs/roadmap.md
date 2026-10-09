@@ -141,6 +141,10 @@ opacity grade).
 
 ## Views, gallery and menus
 
+- [ ] B95 the new-graph view gallery (6 cards) leaves a lot of empty space
+      below the cards (user, 2026-10-09): its container should fit the cards,
+      with margin and padding. `.cm-view-gallery` in `graph.css` is
+      `position: absolute; inset: 24px`, so it fills the graph area
 - [ ] D22 views that open in one neutral grey waste the colour channel
       (user, 2026-10-08): colour by citations, or whatever tells the reader
       something about the view. Overview's summary promises "all in one
