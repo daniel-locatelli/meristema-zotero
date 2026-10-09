@@ -565,3 +565,6 @@ entries are in git history.
   The user then asked for the gallery centred over a mask on the graph: the
   section is now a full-area scrim of the theme's `Canvas` at 95%, and a
   `.cm-view-gallery-panel` inside it carries the cards, centred.
+  The shipped views' paragraphs were cut to 21 to 24 words (from 35 to
+  54), each without the "untouched" sentence the footnote already says; a
+  unit case holds them at 25 words or fewer, within 5 of each other.

@@ -162,6 +162,21 @@ describe("the shipped views", function () {
     expect(isShippedViewName("overview")).to.equal(true);
     expect(isShippedViewName("Thesis")).to.equal(false);
   });
+
+  it("describe themselves in short paragraphs of a like length", function () {
+    const words = SHIPPED_GRAPH_VIEWS.map(
+      (v) => v.paragraph.trim().split(/\s+/).length,
+    );
+    const counts = SHIPPED_GRAPH_VIEWS.map(
+      (v, i) => `${v.id} ${words[i]}`,
+    ).join(", ");
+    expect(Math.max(...words), counts).to.be.at.most(25);
+    expect(Math.max(...words) - Math.min(...words), counts).to.be.at.most(5);
+    // The gallery's subtitle and the card's footnote say this already.
+    for (const view of SHIPPED_GRAPH_VIEWS) {
+      expect(view.paragraph, view.id).not.to.contain("untouched");
+    }
+  });
 });
 
 describe("resolveViewRegions", function () {

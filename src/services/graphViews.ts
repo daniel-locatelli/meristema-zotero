@@ -89,7 +89,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     summary: "Year × citations, uniform fill. Where things are.",
     // draft: reconcile with boards 3a/3b
     paragraph:
-      "Every paper by the year it came out and how often it has been cited, all in one colour, so the shape of the field shows before anything else does. Seeds and collections are untouched.",
+      "Every paper placed by year and citations, all in one colour, so the shape of the field shows before anything else does.",
     icon: "view-overview",
     appearance: { ...BASE },
     regions: null,
@@ -104,7 +104,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     summary:
       "Seeds, 2 hops of references, floor 10, colour citations. What the field rests on.",
     paragraph:
-      "Starts from your seeds and follows their references two steps out, keeps what has at least 10 citations, so what remains is the work the field rests on. Colour is citations. Seeds and collections are untouched.",
+      "Your seeds' references, two steps out, keeping papers with at least 10 citations and coloured by them: the work the field rests on.",
     icon: "view-cornerstones",
     appearance: { ...BASE, nodeColorMetric: "citations" },
     regions: null,
@@ -117,9 +117,9 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     id: "reading-plan",
     name: "Reading plan",
     summary: "Unread frontier, shape = read state. What to read next.",
-    // verbatim from board 3a
+    // board 3a's text, cut down at the user's request (2026-10-09)
     paragraph:
-      "Shows the unread papers that your own reading already points at: diamonds are unread, circles read, and only papers cited by at least 3 things you have annotated stay lit. Fill is citations, so the big yellow diamonds are the week's list. Raise N in Filter to shorten it. Seeds and collections are untouched.",
+      "Unread papers your own reading points at: diamonds are unread, and only those cited by at least 3 papers you annotated stay lit.",
     icon: "view-reading-plan",
     appearance: { ...BASE, nodeColorMetric: "citations" },
     regions: null,
@@ -134,7 +134,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     summary:
       "Seeds linked, 1 hop, shared by 2 or more. Bridges between your seeds.",
     paragraph:
-      "One citation step out from your seeds, keeping only the papers that cite at least two of them, coloured by how many they cite, so the bridges between your starting points stand out. Seeds and collections are untouched.",
+      "Papers one step out that cite at least two of your seeds, coloured by how many, so the bridges between your seeds stand out.",
     icon: "view-who-cites-whom",
     appearance: { ...BASE, nodeColorMetric: "seed-links" },
     regions: null,
@@ -149,7 +149,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     summary: "Free layout, folder regions. How your collections overlap.",
     // draft: reconcile with boards 3a/3b
     paragraph:
-      "Lets the papers settle where their citations pull them and draws each of your ticked folders as a region, so the folders that share papers overlap and the ones that do not sit apart. Size is references. Seeds and collections are untouched.",
+      "Papers settle where their citations pull them, with each ticked folder drawn as a region, so folders that share papers overlap.",
     icon: "view-folder-map",
     appearance: {
       ...BASE,
