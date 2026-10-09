@@ -160,6 +160,13 @@ import {
   graphLayoutUsesSourceMetrics,
 } from "./sourceMetricsService";
 import { buildKeyModel } from "./graphKeyModel";
+import {
+  EMPTY_STATUS_SLOT,
+  expireTransient,
+  postStatus,
+  shownStatus,
+  type StatusSlot,
+} from "./graphStatusSlot";
 import { createKeyRail, type RailEmphasis } from "./graphKeyRail";
 import {
   attachPaneResizer,
@@ -342,7 +349,8 @@ export interface GraphViewController {
   markExternalSeedImported(identityKey: string, itemKey: string): void;
   /**
    * Shows a short message in the toolbar for a moment; null clears it. A
-   * sticky one stays until the next message or a null.
+   * sticky one stays until the next sticky or a null; a transient message
+   * shows over it and, when it passes, the sticky one comes back.
    */
   setStatus(message: string | null, options?: { sticky?: boolean }): void;
   setActive(active: boolean): void;
@@ -4512,28 +4520,39 @@ ${error instanceof Error ? error.message : String(error)}`,
     });
   });
   let statusTimer = 0;
+  let statusSlot: StatusSlot = EMPTY_STATUS_SLOT;
+  const showStatusSlot = (): void => {
+    const shown = shownStatus(statusSlot);
+    toolbarStatus.textContent = shown ?? "";
+    toolbarStatus.hidden = !shown;
+  };
   const setStatus = (
     message: string | null,
     options: { sticky?: boolean } = {},
   ): void => {
     if (cleaned) return;
+    statusSlot = postStatus(statusSlot, message, options);
+    // A sticky notice set while a transient is up waits under it, so the
+    // transient keeps its timer; a new transient or a clear restarts it.
+    const restartsTimer = !message || !options.sticky;
     const view = document.defaultView;
-    if (statusTimer) {
+    if (statusTimer && restartsTimer) {
       if (view) view.clearTimeout(statusTimer);
       else clearTimeout(statusTimer);
       statusTimer = 0;
     }
-    toolbarStatus.textContent = message ?? "";
-    toolbarStatus.hidden = !message;
+    showStatusSlot();
     if (!message || options.sticky) return;
-    const hide = (): void => {
+    const expire = (): void => {
       statusTimer = 0;
-      toolbarStatus.hidden = true;
-      toolbarStatus.textContent = "";
+      // The sticky notice the transient covered, or one set meanwhile,
+      // comes back (D15).
+      statusSlot = expireTransient(statusSlot);
+      showStatusSlot();
     };
     statusTimer = view
-      ? view.setTimeout(hide, 2500)
-      : (setTimeout(hide, 2500) as unknown as number);
+      ? view.setTimeout(expire, 2500)
+      : (setTimeout(expire, 2500) as unknown as number);
   };
 
   const formatSavedDate = (iso: string): string => {

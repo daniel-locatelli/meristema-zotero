@@ -147,7 +147,8 @@ opacity grade).
 - [ ] D15 transient confirmations ("Copied", "Saved") are too quiet. The
       toolbar status carries both the notices that must stay up and the ones
       that must pass. The user suggests a toast bottom-right, as sonner does:
-      the toolbar keeps what persists, the toast takes what passes
+      the toolbar keeps what persists, the toast takes what passes. The bug
+      half is fixed: a passing message no longer wipes a sticky notice
 - [ ] D16 the gallery offers only the shipped views, never the reader's saved
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
@@ -325,6 +326,9 @@ any failure into a new entry above.
       the Year axis's No data lane a Date in Zotero and press the graph's
       Refresh: it leaves the lane for its year, in a library graph and in a
       seeded one.
+- [ ] D15 (bug half): open a graph showing a sticky notice (the read-only
+      one or the migrated-directions one), press Copy or Save, wait 3 s: the
+      sticky notice is back.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
