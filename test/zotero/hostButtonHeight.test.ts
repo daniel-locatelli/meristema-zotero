@@ -300,12 +300,12 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
-   * B91: the count and its reported total read as one phrase, `182/182 of
-   * 394`, with one space between them. `.cm-scope-hop-reported` sat in the
-   * body's 6px flex gap and added a 4px margin of its own, so the row read
-   * `182/182  of 394`, two spaces wide.
+   * B91: the count and where it came from read as one phrase, `182 papers ·
+   * from 40`, with one space between them. The source span sat in the body's
+   * 6px flex gap and added a 4px margin of its own, so the row read two
+   * spaces wide.
    */
-  it("keeps one space between a hop row's count and its reported total", async function () {
+  it("keeps one space between a hop row's count and where it came from", async function () {
     const measured = await inMainWindowStyled(
       (document) => {
         const rail = createKeyRail({
@@ -340,18 +340,16 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
         const count = mount.querySelector(
           ".cm-scope-hop-body .cm-scope-row-count",
         ) as HTMLElement;
-        const reported = mount.querySelector(
-          ".cm-scope-hop-reported",
-        ) as HTMLElement;
+        const from = mount.querySelector(".cm-scope-hop-from") as HTMLElement;
         expect(count, "the hop row carries a count").to.exist;
-        expect(reported, "the hop row carries a reported total").to.exist;
-        // One space in the reported total's own font, measured rather than
+        expect(from, "the hop row carries where it came from").to.exist;
+        // One space in the source's own font, measured rather than
         // assumed, so the bound follows the rail's type size.
         const probe = host.document.createElementNS(
           HTML_NS,
           "span",
         ) as HTMLElement;
-        probe.className = "cm-scope-hop-reported";
+        probe.className = "cm-scope-hop-from";
         probe.style.cssText = "position:absolute; margin:0; white-space:pre;";
         probe.textContent = "x x";
         mount.append(probe);
@@ -363,14 +361,14 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
         expect(countBox.width, "the count was laid out").to.be.greaterThan(0);
         expect(space, "a space was measured").to.be.greaterThan(0);
         return {
-          gap: reported.getBoundingClientRect().left - countBox.right,
+          gap: from.getBoundingClientRect().left - countBox.right,
           space,
         };
       },
     );
     expect(
       Math.abs(measured.gap - measured.space),
-      `the count and its total sit one space (${measured.space.toFixed(1)}px) ` +
+      `the count and its source sit one space (${measured.space.toFixed(1)}px) ` +
         `apart, but the gap is ${measured.gap.toFixed(1)}px`,
     ).to.be.lessThan(1);
   });
