@@ -2017,7 +2017,7 @@ describe("Citation hops (Stage 3)", function () {
    *
    * Those hop-1 papers are external and carry OpenCitations' own work ID, so
    * the fill hints it and the lookup that would back their empty list is
-   * skipped. Before the fix each was deferred for ever and `n left` never
+   * skipped. Before the fix each was deferred for ever and `left` never
    * fell; now each is stored as "no citers" and the plan drains.
    *
    * What makes that reachable is the second seed, the refusal anchor
@@ -2032,14 +2032,14 @@ describe("Citation hops (Stage 3)", function () {
    * green before. It has to fetch hop 2: the defect is in expanding the hop-1
    * papers, and only a fetch past the depth puts them in a plan, so expanding
    * the seed alone drains whatever the code does. "Drained" has to mean the
-   * progress line is GONE — pre-fix code alternates expanding and refusing,
-   * and a refusal countdown is not `expanding` either, so any weaker reading
-   * passes on the first cool-down. And the drain cannot be the only signal:
+   * rest line names only the failed anchor — pre-fix code alternates a
+   * running line and a refusal countdown, so any weaker reading passes on
+   * the first cool-down. And the drain cannot be the only signal:
    * the anchor is refused on every cycle, so pre-fix it alone pins the plan
    * for ever whatever the children do. The assertion that is B72's own is that
-   * `n left` FALLS BELOW the three it started at — pre-fix the children are
-   * deferred and stay counted, so it cannot; post-fix each is stored on its
-   * first landing and only the anchor is left.
+   * the running `left` FALLS BELOW the three it started at — pre-fix the
+   * children are deferred and stay counted, so it cannot;
+   * post-fix each is stored on its first landing and only the anchor is left.
    */
   describe("when one provider sits out and another has no citers (B72)", function () {
     let drainTabID: string | null = null;
@@ -2067,7 +2067,7 @@ describe("Citation hops (Stage 3)", function () {
      * Whether the graph's window still delivers animation frames. A window
      * that is covered or minimised gets them late or not at all, and the fill
      * once re-planned on a frame alone (B75: `frames DO NOT fire in 3 s,
-     * visibility hidden` under a line stuck on `expanding · 1 left`), so a
+     * visibility hidden` under a running line stuck on `left=1`), so a
      * stalled line has to say which world it stalled in.
      */
     async function frameProbe(): Promise<string> {
@@ -2358,18 +2358,19 @@ describe("Citation hops (Stage 3)", function () {
         ).to.exist;
         // The fix's other half, and the slower one: the anchor is refused on
         // every cycle, so only the deferral limit can end it. Drained means
-        // the line is GONE, the one reading a stalled fill cannot produce —
-        // pre-fix it alternates expanding and refusing for ever, and a refusal
-        // countdown is not `expanding` either.
+        // the rest line names only the failed anchor ("N failed · Resume"),
+        // never "not expanded": a stalled fill cannot produce it, since
+        // pre-fix it alternates running and refusing for ever.
         // B72 review, Important 1: "ended" no longer means the line is gone.
         // A paper the deferral limit failed keeps a line carrying the only
         // Resume that brings it back (ADR 0014), so the anchor settles on a
-        // resting "1 failed" rather than vanishing. What must stop either way — and
-        // what pre-fix code cannot do — is the expanding/refusing alternation.
+        // resting "1 failed" rather than vanishing. What must stop either way
+        // — and what pre-fix code cannot do — is the running/refusing
+        // alternation.
         const drained = await waitFor(() => {
           const line = watchedLine();
           return line === "no progress line" ||
-            /^\[rest left=0\].* failed/.test(line)
+            /^\[rest left=0\] \d+ failed · Resume$/.test(line)
             ? line
             : null;
         }, 300_000);
