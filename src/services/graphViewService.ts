@@ -1211,6 +1211,18 @@ export function renderGraphView(
       cameraFrame = viewFrames.request(check);
     };
 
+    // The caller has just drawn the new cloud under the old camera, and that
+    // draw is painted when this task ends: frame it now, so the reader never
+    // sees the jump (B18). The settle still places the camera once the size
+    // and the node count hold still, which moves nothing when neither moved.
+    if (!cleaned && hopModel && renderer) {
+      renderer.resizeViewport();
+      const rect = renderer.getCanvas().getBoundingClientRect();
+      if (rect.width >= 240 && rect.height >= 180) {
+        if (restoredCamera) renderer.setViewTransform(restoredCamera);
+        else renderer.fitVisibleNodes();
+      }
+    }
     cameraFrame = viewFrames.request(check);
   };
   /**

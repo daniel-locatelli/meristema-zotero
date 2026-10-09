@@ -408,8 +408,20 @@ export class CitationGraphRenderer {
     }
 
     this.resizeViewport();
-    this.draw();
+    // The first frame is painted already framed (B18). The fit is not marked
+    // done: the settle below still runs and fits again once the container
+    // holds still, which moves nothing when it already did.
+    if (view && this.containerReady()) this.applyFit();
+    else this.draw();
     this.scheduleInitialFit();
+  }
+
+  /** The container is laid out at a size worth fitting to. */
+  private containerReady(): boolean {
+    const rect = (
+      this.canvas.parentElement ?? this.canvas
+    ).getBoundingClientRect();
+    return rect.width >= 240 && rect.height >= 180;
   }
 
   private axisTickTarget(axis: "x" | "y"): number {
@@ -2454,6 +2466,11 @@ export class CitationGraphRenderer {
 
   public fitView(options: FitViewOptions = {}): void {
     this.markViewAdjusted();
+    this.applyFit(options);
+  }
+
+  /** `fitView`'s camera, without counting as the user's adjustment. */
+  private applyFit(options: FitViewOptions = {}): void {
     this.resizeViewport();
     const includeAxisBounds = options.includeAxisBounds ?? true;
     const nodes = this.visibleNodes();
