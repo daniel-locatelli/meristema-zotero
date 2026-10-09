@@ -3994,9 +3994,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       enabled: hopEnabled,
       shownByHop: lastScope?.shownByHop ?? [],
       availableByHop: lastScope?.availableByHop ?? [],
-      reportedByHop: hopModel
-        ? hopFill.reportedByHop(hopModel.entries, hopDepth, hopDirection)
-        : [],
+      reportedByHop: [],
       colours: assignment
         ? Array.from(
             { length: hopDepth + 1 },

@@ -171,12 +171,21 @@ export interface HopFillRunner {
   reset(): void;
   /** The rail's progress line, or null when the plan is empty. */
   state(): HopFillState | null;
-  /** What the rail's hop rows print as "of {reported}", by hop. */
-  reportedByHop(
-    entries: ReadonlyMap<string, { hop: number }>,
-    depth: number,
+  /**
+   * Per hop, whether the last plan still holds papers one hop up that it
+   * will expand, not waiting on the cap: the rail spins that row. False for
+   * every hop until a plan exists for this direction and this depth, as
+   * `drainedByHop`.
+   */
+  growingByHop(depth: number, direction: HopDirection): boolean[];
+  /**
+   * The visible papers whose expansion failed this session in the direction,
+   * the deferral limit's included (they are in `failed` too).
+   */
+  failedCount(
+    visibleKeys: ReadonlySet<string>,
     direction: HopDirection,
-  ): (number | null)[];
+  ): number;
   /**
    * Per hop, whether nothing at it is left, waiting, deferred or failed this
    * session, so the rail can call the hop below empty rather than pending.
@@ -536,22 +545,27 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
             : null,
       };
     },
-    // A heuristic on purpose: a hop-k paper reached from two parents is
-    // counted under both, so "of {reported}" can over-report (review M11).
-    // The exact figure would need the union of the parents' lists, which is
-    // the fetch.
-    reportedByHop: (entries, depth, direction) => {
-      const totals: (number | null)[] = Array.from(
-        { length: depth + 1 },
-        () => null,
-      );
-      for (const [key, entry] of entries) {
-        const count = reported[direction].get(key);
-        if (count === undefined || entry.hop >= depth) continue;
-        const hop = entry.hop + 1;
-        totals[hop] = (totals[hop] ?? 0) + count;
+    growingByHop: (depth, direction) => {
+      const growing = Array.from({ length: depth + 1 }, () => false);
+      if (!lastPlan || direction !== lastDirection || depth !== lastDepth)
+        return growing;
+      for (let hop = 1; hop <= depth; hop += 1) {
+        // `remainingByHop` counts the cap's waiting papers too; those do not
+        // move until Fetch more, so they do not spin the row.
+        const above = hop - 1;
+        growing[hop] =
+          (lastPlan.remainingByHop[above] ?? 0) -
+            (lastPlan.waitingByHop[above] ?? 0) >
+          0;
       }
-      return totals;
+      return growing;
+    },
+    failedCount: (visibleKeys, direction) => {
+      let count = 0;
+      for (const key of failed[direction]) {
+        if (visibleKeys.has(key)) count += 1;
+      }
+      return count;
     },
     drainedByHop: (entries, depth, direction) => {
       const drained = Array.from({ length: depth + 1 }, () => false);
