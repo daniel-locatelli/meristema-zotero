@@ -447,6 +447,80 @@ describe("The graph's Scope rail", function () {
     await delay(50);
   });
 
+  it("adds a seed with one click on its search row (B15)", async function () {
+    this.timeout(30_000);
+    const seedLabel =
+      graphRoot()
+        .querySelector(".cm-scope-seed .cm-scope-seed-label")
+        ?.textContent?.replace(/ \(\d{4}\)$/, "") ?? "";
+    const titles = ["Scope fixture one", "Scope fixture two"];
+    expect(titles, "the seed is a fixture").to.include(seedLabel);
+    const otherTitle = titles[1 - titles.indexOf(seedLabel)];
+    const add = graphRoot().querySelector(
+      ".cm-scope-add-seed",
+    ) as HTMLButtonElement;
+    add.click();
+    await delay(50);
+    const popover = graphRoot().querySelector(
+      ".cm-focus-seed-popover",
+    ) as HTMLElement;
+    expect(popover.hidden, "the panel opens").to.equal(false);
+    const search = popover.querySelector(
+      ".cm-focus-seed-search",
+    ) as HTMLInputElement;
+    search.value = otherTitle;
+    search.dispatchEvent(new win.Event("input", { bubbles: true }));
+    const resultRow = (): HTMLElement | null =>
+      (
+        Array.from(
+          popover.querySelectorAll(".cm-focus-seed-result"),
+        ) as HTMLElement[]
+      ).find(
+        (row) =>
+          row.querySelector(".cm-focus-seed-result-title")?.textContent ===
+          otherTitle,
+      ) ?? null;
+    const row = await waitFor(resultRow, 10_000);
+    expect(row, `a search row for ${otherTitle}`).to.exist;
+
+    // B45: the metadata line sits clear of the title. 4px read as touching.
+    const titleBox = row!
+      .querySelector(".cm-focus-seed-result-title")!
+      .getBoundingClientRect();
+    const metaBox = row!
+      .querySelector(".cm-focus-seed-result-meta")!
+      .getBoundingClientRect();
+    expect(
+      metaBox.top - titleBox.bottom,
+      "the space between the title and its metadata line",
+    ).to.be.at.least(6);
+
+    // The reader clicks the paper's title, not the + at the row's end.
+    (row!.querySelector(".cm-focus-seed-result-title") as HTMLElement).click();
+    await waitFor(() => seedRowCount() === 2, 5_000);
+    expect(seedRowCount(), "one click on the row seeds the paper").to.equal(2);
+    expect(popover.hidden, "the panel stays open for the next seed").to.equal(
+      false,
+    );
+    expect(search.value, "and keeps the query").to.equal(otherTitle);
+
+    // Leave one seed for the cases that follow: the row is a seed row now,
+    // and its × removes it.
+    const remove = await waitFor(
+      () =>
+        resultRow()?.querySelector(
+          ".cm-focus-seed-result-remove",
+        ) as HTMLButtonElement | null,
+      5_000,
+    );
+    expect(remove, "the row now offers ×").to.exist;
+    remove!.click();
+    await waitFor(() => seedRowCount() === 1, 5_000);
+    expect(seedRowCount()).to.equal(1);
+    add.click();
+    await delay(50);
+  });
+
   it("hides a paper and brings it back with Show all", async function () {
     this.timeout(30_000);
     (await nodeMenuEntry("Remove from graph")).click();

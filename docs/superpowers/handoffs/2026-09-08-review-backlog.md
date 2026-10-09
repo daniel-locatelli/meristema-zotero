@@ -76,19 +76,6 @@ Process: short brainstorm, then a small plan.
 
 ---
 
-## B15. Adding a seed from the search panel takes two clicks
-
-Found in the walk-through, check 5. A row in the seed search panel has to be
-clicked and then its "+" pressed. The panel was opened from "+ Add seed", so
-the reader has already said what they want: clicking the row should add the
-seed. Check what the row's other affordances are before removing the "+" —
-the panel is also how a paper is previewed.
-
-Pointers: the seed popover rows in `src/services/graphViewService.ts`
-(`focusSeedResults`, `seedPopoverPaperForNode`).
-
----
-
 ## B18. The view fits after it renders, so the graph jumps
 
 Found in the walk-through, extra note. Opening a graph draws it, and then "fit

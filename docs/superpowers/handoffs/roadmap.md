@@ -16,7 +16,7 @@ names the commit that removed the older archive.
 Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
-  form of the open entries filed up to 2026-09-11 (B7, B15, B18, B20, B26,
+  form of the open entries filed up to 2026-09-11 (B7, B18, B20, B26,
   B34, B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
@@ -195,11 +195,6 @@ opacity grade).
       library comes in by a deliberate tick. It also decides what N the
       gallery's heading counts. 2026-10-07: the user wants any graph started
       with seeds to open with folders off
-- [ ] B15 adding a seed from the search panel takes two clicks: the row
-      itself should be the target, not the `+` icon. Reported twice
-- [ ] B45 the seed search panel's title and author lines sit too close; this
-      passed on 2026-09-08, so a regression or a re-judgement. Walk with B15,
-      which touches the same rows
 - [ ] F6 seed a paper that is not in Zotero into a new graph
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
@@ -312,6 +307,11 @@ any failure into a new entry above.
       row in the library list is selected. Select the seed node on the plot,
       or its row in the list: its Seeds row lights with an accent tint;
       select any other paper: the tint goes. Judge the tint in both themes.
+- [ ] B15/B45: on a seeded graph, + Add seed, type part of a title: a
+      paper that is not a seed is added by a click anywhere on its row (the + at its end is only a hint, tinted on hover); the panel stays open
+      with the query. A seed's row still selects it, and its × removes it.
+      Judge the space between each row's title and its author line (now 6px,
+      was 4px) in both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -503,3 +503,10 @@ entries are in git history.
   `onSelect` while its tab is hidden, so a list pick made milliseconds after
   showing the tab reads the old row; the case now waits 500ms as a reader
   would, and passes with no binding change.
+- 2026-10-09: B15 and B45 done, the user choosing to add on a row click over
+  keeping the preview: in the seed search panel a non-seed row's button
+  (`cm-focus-seed-result-main`) adds the seed and keeps the panel and query;
+  its + is an `aria-hidden` hint inside the button. A seed row selects, with
+  ×. The title and metadata sit in `cm-focus-seed-result-text` with a 6px
+  gap; the 4px gap measured exactly 4px in the main window, so B45 was a
+  re-judgement, not host CSS. Red, then green, in the Scope rail suite.

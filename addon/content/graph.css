@@ -1157,16 +1157,23 @@
   background: color-mix(in srgb, var(--cm-accent) 8%, Canvas);
 }
 .meristema-root .cm-focus-seed-result-main {
-  display: grid;
+  display: flex;
   flex: 1 1 auto;
-  /* 4px, not 2px: the title and the metadata line were touching. */
-  gap: 4px;
+  /* The text, and a non-seed row's + beside it: the row is the button (B15). */
+  gap: 8px;
   min-width: 0;
   padding: 7px 8px;
   border-color: transparent;
   background: transparent;
   box-shadow: none;
   text-align: left;
+}
+.cm-focus-seed-result-text {
+  display: grid;
+  flex: 1 1 auto;
+  /* 6px: at 2px and then 4px the title and the metadata line read as touching (B45). */
+  gap: 6px;
+  min-width: 0;
   justify-items: start;
 }
 .meristema-root .cm-focus-seed-result-title,
@@ -1186,8 +1193,21 @@
   color: color-mix(in srgb, CanvasText 68%, transparent);
   font-size: calc(11 * var(--cm-font-unit));
 }
-.meristema-root .cm-focus-seed-result-remove,
-.meristema-root .cm-focus-seed-result-add {
+/* Not a control: it says what a click on its row does. */
+.cm-focus-seed-result-add {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: -4px;
+  border-radius: 50%;
+  font-size: 16px; /* glyph: a + in a fixed box is an icon (B93) */
+}
+.cm-focus-seed-result:hover .cm-focus-seed-result-add {
+  background: color-mix(in srgb, var(--cm-accent) 14%, Canvas);
+}
+.meristema-root .cm-focus-seed-result-remove {
   align-self: center;
   flex: 0 0 auto;
   min-width: 28px;
@@ -1200,7 +1220,7 @@
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
-  font-size: 16px; /* glyph: a × or + in a fixed box is an icon (B93) */
+  font-size: 16px; /* glyph: a × in a fixed box is an icon (B93) */
 }
 
 /*

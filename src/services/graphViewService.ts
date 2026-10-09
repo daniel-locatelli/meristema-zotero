@@ -1836,17 +1836,14 @@ export function renderGraphView(
     for (const { paper, isSeed } of list.rows) {
       const row = element(document, "div", "cm-focus-seed-result");
       row.setAttribute("role", "listitem");
-      const select = element(document, "button", "cm-focus-seed-result-main");
-      select.type = "button";
-      // Selecting must never build a node: only a node the graph already
-      // holds can be selected, so a row without one says so and does nothing.
-      const existingNode: CitationGraphNode | null =
-        seedNodeBySeedRowID.get(paper.id) ??
-        model.nodes.find((node) => libraryPaperID(node.itemID) === paper.id) ??
-        null;
-      select.title = existingNode
+      const main = element(document, "button", "cm-focus-seed-result-main");
+      main.type = "button";
+      // The panel is opened from "+ Add seed", so a paper that is not a seed
+      // is added by its whole row (B15); a seed's row selects it, as its row
+      // in the rail does (F11), and its × removes it.
+      main.title = isSeed
         ? `Select ${paper.title} in the graph`
-        : "Not in this graph";
+        : `Add ${paper.title} as a seed`;
       const title = text(
         document,
         "span",
@@ -1860,47 +1857,60 @@ export function renderGraphView(
       ]
         .filter(Boolean)
         .join(" · ");
-      select.append(title);
+      const lines = element(document, "span", "cm-focus-seed-result-text");
+      lines.append(title);
       if (metadata) {
-        select.append(
+        lines.append(
           text(document, "span", metadata, "cm-focus-seed-result-meta"),
         );
       }
+      main.append(lines);
       const nodeForRow = (): CitationGraphNode | null => {
         const seed = seedNodeBySeedRowID.get(paper.id);
         if (seed) return seed;
         const libraryPaper = libraryPaperBySeedRowID.get(paper.id);
         return libraryPaper ? libraryNodeForSeedRow(libraryPaper.itemID) : null;
       };
-      select.addEventListener("click", () => {
-        // selectNode is false when the node is no longer drawn; nothing to do then.
-        if (existingNode && renderer?.selectNode(existingNode.key, false)) {
-          closeFocusSeedPopover();
-        }
-      });
-      row.appendChild(select);
-      const toggle = element(
-        document,
-        "button",
-        isSeed ? "cm-focus-seed-result-remove" : "cm-focus-seed-result-add",
-      );
-      toggle.type = "button";
-      toggle.textContent = isSeed ? "×" : "+";
-      toggle.title = isSeed
-        ? `Remove ${paper.title} from the seeds`
-        : `Add ${paper.title} as a seed`;
-      toggle.setAttribute("aria-label", toggle.title);
-      toggle.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const node = nodeForRow();
-        if (!node) return;
-        if (isSeed) removeFocusSeed(node.key);
-        else addFocusSeed(node);
-        // The seed change re-rendered the list; the box keeps the query and
-        // the focus so the next seed is one keystroke away.
-        focusSeedSearch.focus();
-      });
-      row.appendChild(toggle);
+      row.appendChild(main);
+      if (!isSeed) {
+        // The + says what the row does; the row is the button.
+        const hint = text(document, "span", "+", "cm-focus-seed-result-add");
+        hint.setAttribute("aria-hidden", "true");
+        main.appendChild(hint);
+        main.addEventListener("click", () => {
+          const node = nodeForRow();
+          if (!node) return;
+          addFocusSeed(node);
+          // The seed change re-rendered the list; the box keeps the query and
+          // the focus so the next seed is one keystroke away.
+          focusSeedSearch.focus();
+        });
+      } else {
+        main.addEventListener("click", () => {
+          const seed = seedNodeBySeedRowID.get(paper.id);
+          // selectNode is false when the node is no longer drawn; nothing to do then.
+          if (seed && renderer?.selectNode(seed.key, false)) {
+            closeFocusSeedPopover();
+          }
+        });
+        const remove = element(
+          document,
+          "button",
+          "cm-focus-seed-result-remove",
+        );
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.title = `Remove ${paper.title} from the seeds`;
+        remove.setAttribute("aria-label", remove.title);
+        remove.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const node = nodeForRow();
+          if (!node) return;
+          removeFocusSeed(node.key);
+          focusSeedSearch.focus();
+        });
+        row.appendChild(remove);
+      }
       focusSeedResults.appendChild(row);
     }
     focusSeedResults.scrollTop = scrollTop;
