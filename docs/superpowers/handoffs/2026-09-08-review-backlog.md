@@ -263,33 +263,6 @@ could be more disruptive than useful. Worth a brainstorm, not a patch.
 
 ---
 
-## B34. Panning a 300+ paper folder at maximum zoom lags
-
-Found walking D6's last check on 2026-09-11: "It has a delay to it. We can
-try to optimize the render later." The user filed it for later, so it is
-not urgent.
-
-The roadmap's check already named the suspect, and the walk did not
-contradict it: at maximum zoom the contour is cheap (a 300-paper folder is
-about 5 k cells after the shapes round) and a pan recomputes nothing, so the
-lag is the draw path. `drawRegions` rebuilds every folder's `Path2D` from
-scratch on every frame, discs and Bézier loops alike, including shapes that
-sit entirely off-screen — and maximum zoom is exactly where a folder is many
-small loops. Measure before touching: a `performance.now()` bracket around
-`drawRegions` and around the whole `draw()` says whether it is the path
-build, the fill, or something else on the frame.
-
-Two cheap candidates once measured: cache the `Path2D` per folder per
-(bucket, transform) and translate on pan rather than rebuild, or cull shapes
-whose data-space bounding box misses the viewport before emitting them.
-
-Pointers: `drawRegions` and `draw()` in the renderer
-(`src/services/citationGraphRenderer.ts` / `graphRendererScene.ts`);
-`regionPathFor` in `src/services/graphFolderRegion.ts`; the contour cache
-keyed on the zoom bucket.
-
----
-
 ## B36. "Uncaught (in promise) undefined" in the Error Console
 
 Seen on 2026-09-11 while walking D6's console check. The console was

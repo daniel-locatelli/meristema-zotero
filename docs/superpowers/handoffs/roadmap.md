@@ -17,7 +17,7 @@ Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
   form of the open entries filed up to 2026-09-11 (B26,
-  B34, B36, F3 to F12, D5). Read one only when you take that item.
+  B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
@@ -128,8 +128,13 @@ opacity grade).
       2026-10-07 walk: a seed with many citers piles the nodes up into a mess
       that says nothing; the nodes need the same answer as the edges (B89)
 - [ ] B89 pan and zoom lag badly on a seed with many citers (user,
-      2026-10-07). Not measured. B34 is the region-path cost on folders; this
-      is a seeded graph, so profile the node and edge draw first
+      2026-10-07). Node bench (1,500 nodes, 4,000 edges): JS is ~1.5 ms a
+      frame; the cost was canvas calls, ~11,000 a frame at any zoom. Nodes,
+      edges and region shapes off the canvas are now culled (912 calls at
+      max zoom), but at the fit zoom every edge is still one save, stroke and
+      restore. Next, if the manual check still lags: a live Firefox profile;
+      batching edges by style changes how translucent edges overlap, so it is
+      a design call (D13's neighbour)
 
 ## Views, gallery and menus
 
@@ -187,11 +192,6 @@ opacity grade).
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
 - [ ] F3 standards without a main author (short brainstorm, small plan)
-- [ ] B34 panning a 300+ paper folder at maximum zoom lags (D6's walk, failed
-      2026-09-11). Measure before touching: `drawRegions` rebuilds every
-      folder's `Path2D` every frame, off-screen loops included, and the zoom
-      tightening fragments a large folder into many small loops. Later, the
-      user said so
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -246,6 +246,9 @@ any failure into a new entry above.
       matches the plot's.
 - [ ] B91: on a hop row whose index reports more than it lists, the count and
       its total read `182/182 of 394`, one space apart.
+- [ ] B34, B89: at maximum zoom, pan and zoom across a 300+ paper folder, then
+      a seed with many citers; judge whether it is smooth. Shapes, edges and
+      nodes at the plot's edge still draw in full as they come into view.
 - [ ] B92: the rail footer's zoom in, zoom out, fit and gear icons read
       larger in their buttons; drag the floor tag: its arrow is drawn, not a
       small character, and the tag still grabs. Both themes.
