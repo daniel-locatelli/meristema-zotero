@@ -138,11 +138,6 @@ opacity grade).
 - [ ] B89 pan and zoom lag badly on a seed with many citers (user,
       2026-10-07). Not measured. B34 is the region-path cost on folders; this
       is a seeded graph, so profile the node and edge draw first
-- [ ] B86 the line joining sibling subfolders' checkboxes in the Scope rail
-      shows on the laptop screen but not on the external HDMI screen, and
-      where it shows it runs behind the checkboxes, visible through an
-      empty one. Likely a sub-pixel width that rounds to zero at one DPI;
-      check both monitors' scaling
 
 ## Views, gallery and menus
 
@@ -311,6 +306,9 @@ any failure into a new entry above.
       fetches until Resume. Restart Zotero with the tab open: still stopped.
       A saved References graph from before Stage 4 now reopens on References
       at its saved depth instead of Citers at depth 1.
+- [ ] B86: on the laptop (125%), the Scope rail's empty child checkboxes
+      show no line through them; the guide beside the children stays. On the
+      HDMI screen, say whether the guide shows at all now.
 - [ ] B94: in a saved seeded graph, fetch a hop while offline (or with a
       provider failing) so a paper fails; reconnect, close and reopen: that
       paper is not asked again (its hop stays short of drained), and Resume
@@ -330,7 +328,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B54/B55 (105/1, the floor drag flake below), so
 count with the commits since the one whose subject ends `(B54, B55)`. A clean
-run is 108 passed, 0 failed as of 2026-10-09 (B94's case added).
+run is 109 passed, 0 failed as of 2026-10-09 (B86's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -545,3 +543,10 @@ entries are in git history.
   in the runner and state units and the Citation hops suite (r6 added so
   Fetch hop 4 has a list to fail; a 404 stores an empty list, so the case
   answers lists with 500).
+- 2026-10-09: B86 done. The user's laptop screenshot (125%) showed a second
+  guide through each child's square: the guides' strip ended at the indent's
+  width, where the next period's line starts, and the mid-pixel edge leaked
+  it. The strip now ends just past the last ancestor's line. Red, then green,
+  in `graphScopeTree.test.ts`, whose case waits for graph.css first (it ran
+  before the sheet applied twice). The HDMI screen showing no guide at all is
+  unexplained; the manual check asks again.

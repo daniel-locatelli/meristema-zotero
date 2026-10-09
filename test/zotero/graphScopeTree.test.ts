@@ -193,6 +193,28 @@ describe("The graph's Scope tree", function () {
     ).to.equal(CHILD_NAME);
   });
 
+  // B86: the guides' strip ended exactly where the next line would start,
+  // and at 125% that edge fell mid-pixel, so the row's own level leaked a
+  // line through the middle of its square. The strip must stop short of it.
+  it("ends the child's guides before its own square", async function () {
+    const row = scopeRow(childID!);
+    const square = row.querySelector(".cm-scope-square") as HTMLElement | null;
+    expect(square, "the child's square").to.exist;
+    const style = row.ownerDocument.defaultView!.getComputedStyle(row)!;
+    // graph.css can still be loading this early in the suite; the indent is
+    // its first effect on the row.
+    await waitFor(() => parseFloat(style.paddingInlineStart) > 0, 10_000);
+    const start = parseFloat(style.backgroundPositionX);
+    const width = parseFloat(style.backgroundSize.split(" ")[0]);
+    const squareStart =
+      square!.getBoundingClientRect().left - row.getBoundingClientRect().left;
+    expect(
+      start + width,
+      `the guides run from ${start}px for ${width}px ` +
+        `("${style.backgroundSize}"); the square starts at ${squareStart}px`,
+    ).to.be.at.most(squareStart - 2);
+  });
+
   it("fills both squares while both folders are shown", function () {
     expect(checkbox(parentID!).checked, "the parent is ticked").to.equal(true);
     expect(squareFill(parentID!), "so its square is on").to.equal("on");
