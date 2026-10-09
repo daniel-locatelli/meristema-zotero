@@ -812,9 +812,14 @@
   }
 }
 /* The gallery: a non-modal inset; the toolbar and the rail stay live behind it. */
+/* Anchored at the top and as tall as its cards (B95); a short plot caps it
+   at the margins and it scrolls. */
 .cm-view-gallery {
   position: absolute;
-  inset: 24px;
+  top: 24px;
+  inset-inline: 24px;
+  max-height: calc(100% - 48px);
+  box-sizing: border-box;
   z-index: 5;
   overflow: auto;
   padding: 18px 20px;

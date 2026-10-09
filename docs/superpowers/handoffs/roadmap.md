@@ -141,10 +141,6 @@ opacity grade).
 
 ## Views, gallery and menus
 
-- [ ] B95 the new-graph view gallery (6 cards) leaves a lot of empty space
-      below the cards (user, 2026-10-09): its container should fit the cards,
-      with margin and padding. `.cm-view-gallery` in `graph.css` is
-      `position: absolute; inset: 24px`, so it fills the graph area
 - [ ] D22 views that open in one neutral grey waste the colour channel
       (user, 2026-10-08): colour by citations, or whatever tells the reader
       something about the view. Overview's summary promises "all in one
@@ -320,6 +316,9 @@ any failure into a new entry above.
 - [ ] B7: in a library with no regular items (an empty group, say), Tools ›
       Meristema › New Graph opens a tab reading "This graph is empty"; add a
       seed from the + button's search and it appears.
+- [ ] B95: on a tall window, Tools › Meristema › New Graph: the view
+      gallery ends just below its last row of cards, anchored at the top.
+      Shrink the window: it stops 24px short of the bottom and scrolls.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -330,9 +329,10 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B54/B55 (105/1, the floor drag flake below), so
-count with the commits since the one whose subject ends `(B54, B55)`. A clean
-run is 109 passed, 0 failed as of 2026-10-09 (B86's case added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B95 (109/1, B7's case meeting a fixture
+the external-seed suite leaked; fixed in that commit), so count with the
+commits since the one whose subject ends `(B95)`. A clean run is 110 passed,
+0 failed as of 2026-10-09 (B95's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -554,3 +554,9 @@ entries are in git history.
   in `graphScopeTree.test.ts`, whose case waits for graph.css first (it ran
   before the sheet applied twice). The HDMI screen showing no guide at all is
   unexplained; the manual check asks again.
+- 2026-10-09: B95 done. The gallery is anchored at the top with a
+  `max-height` of the plot less its margins, so it ends at its cards and a
+  short plot scrolls it. Red, then green, in `graphViews.test.ts` (the case
+  grows the plot, since the runner's is shorter than the cards). The full run
+  that followed failed B7's case: `externalSeedImport.test.ts` assigned over
+  the ids it erases and leaked "B6 direct import fixture"; it now pushes.

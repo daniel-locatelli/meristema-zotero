@@ -365,6 +365,62 @@ describe("Graph views (D4)", function () {
     if (failure !== null) throw failure;
   });
 
+  it("fits the gallery to its cards, and scrolls it in a short plot (B95)", async function () {
+    this.timeout(30_000);
+    await waitFor(() => galleryShown(), 20_000);
+    const section = gallery()!;
+    const style = win.getComputedStyle(section);
+    // Early in a run graph.css may not have applied yet (B86).
+    await waitFor(() => parseFloat(style.paddingBottom) > 0, 10_000);
+    const grid = section.querySelector(".cm-view-gallery-grid") as HTMLElement;
+    const area = graphRoot().querySelector(".cm-graph-area") as HTMLElement;
+    const trailing =
+      parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth);
+    const report = (): string => {
+      const box = section.getBoundingClientRect();
+      const plot = area.getBoundingClientRect();
+      return (
+        `plot ${plot.top.toFixed(1)}..${plot.bottom.toFixed(1)}, gallery ` +
+        `${box.top.toFixed(1)}..${box.bottom.toFixed(1)}, grid bottom ` +
+        `${grid.getBoundingClientRect().bottom.toFixed(1)}, padding+border ` +
+        `${trailing.toFixed(1)}, scroll ${section.scrollHeight}/${section.clientHeight}`
+      );
+    };
+    try {
+      // A plot taller than the cards need: the user's screen, not the runner's.
+      const tall = section.scrollHeight + 400;
+      area.style.minHeight = `${tall}px`;
+      await delay(150);
+      expect(
+        area.getBoundingClientRect().height,
+        `the plot grew: ${report()}`,
+      ).to.be.at.least(tall - 1);
+      expect(
+        section.getBoundingClientRect().bottom -
+          grid.getBoundingClientRect().bottom,
+        `the gallery ends at its cards: ${report()}`,
+      ).to.be.at.most(trailing + 2);
+    } finally {
+      area.style.minHeight = "";
+    }
+    // A plot too short for the cards: the gallery scrolls inside its margin.
+    area.style.maxHeight = "300px";
+    try {
+      await delay(150);
+      expect(
+        section.scrollHeight,
+        `the gallery scrolls: ${report()}`,
+      ).to.be.greaterThan(section.clientHeight);
+      expect(
+        area.getBoundingClientRect().bottom -
+          section.getBoundingClientRect().bottom,
+        `the gallery keeps its bottom margin: ${report()}`,
+      ).to.be.at.least(20);
+    } finally {
+      area.style.maxHeight = "";
+    }
+  });
+
   it("shows the gallery for a graph that never chose, and hides it on Start blank", async function () {
     this.timeout(30_000);
     await waitFor(() => galleryShown(), 20_000);

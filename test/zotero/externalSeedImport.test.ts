@@ -69,7 +69,7 @@ describe("Adding an external seed to Zotero", function () {
   let tabID: string | null = null;
   let graphID: number | null = null;
   let fixtureID: number | null = null;
-  let importedIDs: number[] = [];
+  const importedIDs: number[] = [];
   const logged: string[] = [];
   let originalLogError: typeof Zotero.logError;
 
@@ -220,8 +220,11 @@ describe("Adding an external seed to Zotero", function () {
     const search = new Zotero.Search();
     search.libraryID = Zotero.Libraries.userLibraryID;
     search.addCondition("title", "is", TITLE);
-    importedIDs = (await search.search()) as number[];
-    expect(importedIDs.length, "one item was imported").to.equal(1);
+    // Pushed, not assigned: the direct import's item is erased by the same
+    // list, and B7's empty-library case finds whatever it leaves behind.
+    const imported = (await search.search()) as number[];
+    importedIDs.push(...imported);
+    expect(imported.length, "one item was imported").to.equal(1);
     expect(kinds, "the imported seed turns local").to.deep.equal(["item"]);
     const pane = await waitFor(
       () => doc.querySelector(".meristema-root"),
