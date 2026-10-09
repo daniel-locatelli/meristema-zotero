@@ -189,6 +189,7 @@ import { insideSelectDropdown } from "./selectDropdown";
 import {
   appendRelatedWorkRows,
   button,
+  createAbstractSection,
   createBadges,
   createDetailTabs,
   createImportArea,
@@ -3550,6 +3551,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
 
     appendPaperHeader(node, "overview");
+    const abstract = createAbstractSection(document, node);
+    if (abstract) detailBody.appendChild(abstract);
     detailBody.appendChild(createOverviewMetrics(document, node));
 
     if (node.kind === "external" && node.externalWork) {

@@ -64,6 +64,20 @@ export function relationshipTabLabel(
   return { name, count: formatted, title: `${name} (${formatted} reported)` };
 }
 
+/**
+ * The abstract Paper details shows for a node, or null when there is none to
+ * show. A library paper's node carries its Zotero `abstractNote`; a paper
+ * outside the library carries whatever its provider summary already held,
+ * which the node copies and `externalWork` keeps. Nothing here fetches.
+ */
+export function paperAbstract(node: CitationGraphNode): string | null {
+  for (const candidate of [node.abstract, node.externalWork?.abstract]) {
+    const trimmed = candidate?.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
 export interface RelationEntry {
   work: ExternalWork;
   manualRelation: ManualCitationRelation | null;

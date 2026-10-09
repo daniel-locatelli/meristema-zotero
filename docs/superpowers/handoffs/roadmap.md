@@ -156,8 +156,6 @@ opacity grade).
       (brainstorm: add or replace, tick or not, which window, the cap)
 - [ ] F5 the node's context menu should offer what the detail pane offers, and
       Refresh vs Update connections should say which scope each acts on
-- [ ] F4 show the selected paper's abstract; the user chose the Paper details
-      pane (2026-10-07)
 - [ ] F8 nothing says why a paper has no metrics; the exact-title fallback
       decides that for a paper with no DOI
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
@@ -298,6 +296,12 @@ any failure into a new entry above.
       description runs under its name at full width with `needs a seed` on
       the name's line, and "Save current as view…" stands further off the
       rows. Keyboard focus and hover still show on every row.
+- [ ] F4: in a graph, select a library paper that has an abstract: Paper
+      details shows a closed ABSTRACT fold under the header, styled like
+      ADVANCED; open it and the Zotero abstract reads in full. A library paper
+      with no abstract shows no fold. Select a hop paper: the fold shows when
+      its provider summary carried an abstract, and is absent otherwise.
+      Both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -394,6 +394,13 @@
     transition: none;
   }
 }
+/* The abstract (F4) folds under the same head; its text is set like the
+ * relation rows' abstracts, keeping the provider's paragraph breaks. */
+.cm-paper-abstract > p {
+  margin: 6px 0 0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
 .cm-advanced-details > .cm-metric-list {
   margin-top: 8px;
 }

@@ -10,6 +10,7 @@ import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import {
   ignoredRelationDescriptorFor,
   mergeRelationEntries,
+  paperAbstract,
   relationshipTabLabel,
 } from "../../src/services/paperDetailModel";
 
@@ -289,5 +290,45 @@ describe("ignoredRelationDescriptorFor", () => {
     expect(descriptor.subjectItemKey).to.equal("AAAA");
     expect(descriptor.direction).to.equal("cited-by");
     expect(descriptor.doi).to.equal("10.1000/citing");
+  });
+});
+
+describe("paperAbstract", () => {
+  it("reads a library paper's abstract from the node", () => {
+    expect(paperAbstract(node({ abstract: "Library abstract." }))).to.equal(
+      "Library abstract.",
+    );
+  });
+
+  it("is null for a library paper with no abstract", () => {
+    expect(paperAbstract(node({ abstract: null }))).to.equal(null);
+  });
+
+  it("treats a blank abstract as none", () => {
+    expect(paperAbstract(node({ abstract: "  \n " }))).to.equal(null);
+  });
+
+  it("trims the text it returns", () => {
+    expect(paperAbstract(node({ abstract: "\n Padded. \n" }))).to.equal(
+      "Padded.",
+    );
+  });
+
+  it("falls back to the provider abstract a hop paper already carries", () => {
+    const hop = node({
+      kind: "external",
+      abstract: null,
+      externalWork: work({ abstract: "Provider abstract." }),
+    });
+    expect(paperAbstract(hop)).to.equal("Provider abstract.");
+  });
+
+  it("is null for a hop paper whose summary carries no abstract", () => {
+    const hop = node({
+      kind: "external",
+      abstract: null,
+      externalWork: work({ abstract: null }),
+    });
+    expect(paperAbstract(hop)).to.equal(null);
   });
 });

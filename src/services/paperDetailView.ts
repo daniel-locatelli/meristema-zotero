@@ -48,6 +48,7 @@ import {
 import {
   ignoredRelationDescriptorFor,
   mergeRelationEntries,
+  paperAbstract,
   relationshipTabLabel,
   type DetailTab,
   type DetailTabLabel,
@@ -376,6 +377,31 @@ export function createOverviewMetrics(
     detailSection(document, advancedMetrics(document, node)),
   );
   return fragment;
+}
+
+/**
+ * The paper's abstract as a folded section under the header (F4), or null
+ * when `paperAbstract` finds none, so a paper without one shows nothing
+ * rather than an empty fold. Closed by default: an abstract runs to a dozen
+ * lines and would push the metrics out of a short pane. The head is the one
+ * Advanced draws.
+ */
+export function createAbstractSection(
+  document: Document,
+  node: CitationGraphNode,
+): HTMLElement | null {
+  const abstract = paperAbstract(node);
+  if (!abstract) return null;
+  const details = element(
+    document,
+    "details",
+    "cm-advanced-details cm-paper-abstract",
+  );
+  details.append(
+    text(document, "summary", "Abstract"),
+    text(document, "p", abstract),
+  );
+  return detailSection(document, details);
 }
 
 /* -------------------------------------------------------------- import */

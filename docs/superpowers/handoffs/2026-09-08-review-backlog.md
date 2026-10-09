@@ -29,28 +29,6 @@ authors; (2) enrichment should not skip such items when a DOI or title
 exists; (3) matching by title+year only. Brainstorm briefly, then a
 small plan.
 
-## F4. Show the selected paper's abstract in the graph
-
-Symptom (user's words, alongside the F1 check): "would be nice to also
-see the papers abstract directly in the graph when you select one."
-
-The detail pane already holds the abstract for a selected paper; the ask
-is to have it without leaving the plot. Decide with the user whether this
-is the pane being opened or widened on selection, an addition to the
-node's hover tooltip, or a new block in the Overview tab.
-
-Pointers: `src/services/paperDetailModel.ts` and `paperDetailView.ts`
-(the Overview tab and what it already reads), the tooltip in
-`src/services/citationGraphRenderer.ts`, and the 6a design's tooltip,
-which is specified in
-`docs/design_handoff_citation_chain_depth/README.md` and gains a
-`Make seed` button in stage 3.
-
-Note the interaction with Stage 2: the graph scope rail spec
-leaves the detail pane alone, so this can land before or after it.
-
-Process: short brainstorm, then a small plan.
-
 ---
 
 ## B18. The view fits after it renders, so the graph jumps
