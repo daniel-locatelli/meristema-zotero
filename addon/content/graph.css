@@ -849,7 +849,7 @@
 .cm-view-gallery-sub {
   margin: 4px 0 14px;
   color: var(--cm-muted);
-  font-size: calc(11.5 * var(--cm-font-unit));
+  font-size: calc(13 * var(--cm-font-unit));
 }
 .cm-view-gallery-grid {
   display: grid;
