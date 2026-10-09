@@ -361,10 +361,12 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-09 at `211b49d` (110/0; the run at `463f809` was
-108/2: B72's drain wait still read the removed `gave up` text, and D8 failed
-as a knock-on of B72 holding the graph), so count with the commits since
-`211b49d`. A clean run is 110 passed, 0 failed as of 2026-10-09.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-10 at `da2b54d` (111/0; the two runs before it
+failed B28's "keeps drawing the plot" case, because B7's empty-library case
+saved Free/Free axes into the preference: fixed in `da2b54d`), so count with
+the commits since `da2b54d`. A clean run is 111 passed, 0 failed as of
+2026-10-10. B28's case deselects the folder the case before it left selected,
+so it does not test what its name says.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -606,3 +608,10 @@ entries are in git history.
   planned, the line is Stop alone while running and one gaps line at rest
   (`not expanded`, `failed`, Resume or Fetch more) plus `without details`.
   Full run at `211b49d` 110/0. B51 narrowed.
+- 2026-10-09 night, unattended, with subagents per item: B18, B20, B51
+  (correct by design, a regression test), F4, D18 and the rail's bare Resume
+  shipped; B34 shipped (culling) and B89 eased (culling, a draw a frame);
+  B47's edge crossing, B48's Refresh, D11's per-second publish, D15's
+  sticky notice and F3's committee label fixed, each entry rewritten to the
+  decision it waits on; the gear no longer saves axes it fell back to. Full
+  run at `da2b54d` 111/0. Not pushed.
