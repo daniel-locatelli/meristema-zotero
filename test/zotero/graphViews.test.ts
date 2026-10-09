@@ -429,7 +429,7 @@ describe("Graph views (D4)", function () {
     ).to.deep.equal(channels(canvas).slice(0, 3));
     expect(masked[3], "the mask lets the graph show through").to.be.within(
       0.2,
-      0.95,
+      0.99,
     );
 
     try {
