@@ -22,6 +22,7 @@ import {
   createCitationGraphIndex,
   invalidateCitationGraphSnapshot,
 } from "./graphSnapshotStore";
+import { rereadSnapshotPapers } from "./zoteroLibraryService";
 import {
   CitationGraphRenderer,
   type GraphViewTransform,
@@ -4722,9 +4723,30 @@ ${error instanceof Error ? error.message : String(error)}`,
       },
     );
   });
+  /**
+   * Refresh re-reads the visible library papers' Zotero fields first (B48):
+   * the view keeps the snapshot it was drawn from, so a date added in Zotero
+   * after the draw would otherwise stay No data through every Refresh.
+   */
+  const rereadVisibleLibraryPapers = (): boolean => {
+    const items = model.nodes
+      .filter(
+        (node) =>
+          visibleKeys.has(node.key) &&
+          node.kind !== "external" &&
+          node.itemID > 0,
+      )
+      .map((node) => Zotero.Items.get(node.itemID) as Zotero.Item | null)
+      .filter((item): item is Zotero.Item => Boolean(item));
+    if (!rereadSnapshotPapers(snapshot, items)) return false;
+    invalidateCitationGraphSnapshot(snapshot.libraryID);
+    return true;
+  };
   refreshButton.addEventListener("click", () => {
     if (refreshButton.disabled) return;
+    const reread = rereadVisibleLibraryPapers();
     if (hopModel) {
+      if (reread) replaceLibraryGraph(buildCitationGraph(snapshot));
       void loadFocusConnections(hopModel.seeds, {
         forceRefresh: true,
       }).catch((error: unknown) => {

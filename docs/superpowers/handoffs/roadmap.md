@@ -88,6 +88,14 @@ opacity grade).
       No data. First establish whether Refresh clears it. Possibly its own
       defect: the rail says such a paper is "parked in a lane off the plot",
       but they sit close to the axis origins and read as real low-low values
+- [ ] B48 the No data lane reads as real low-low values: it is drawn inside
+      the plot frame, 35 world units past each axis minimum (both missing:
+      just off the origin), behind a dashed line, while the rail says "a lane
+      off the plot". Decide: move the lanes outside the frame, set them apart
+      inside it (a tinted band, a wider gap), or reword the rail. The year
+      half shipped: Refresh re-reads the visible papers' Zotero fields
+- [ ] B51 opening a deeper hop: establish whether the shallower hop's queued
+      parents stay in the plan (its row now keeps spinning while they do)
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -302,6 +310,10 @@ any failure into a new entry above.
       with no abstract shows no fold. Select a hop paper: the fold shows when
       its provider summary carried an abstract, and is absent otherwise.
       Both themes.
+- [ ] B48: with updates for modified items off in Settings, give a paper in
+      the Year axis's No data lane a Date in Zotero and press the graph's
+      Refresh: it leaves the lane for its year, in a library graph and in a
+      seeded one.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

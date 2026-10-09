@@ -193,6 +193,33 @@ function statistics(papers: ZoteroPaper[]): LibraryStatistics {
   };
 }
 
+/**
+ * Re-read these items' Zotero fields into the snapshot's papers (B48). A graph
+ * keeps the snapshot it was drawn from, and an item modify only drops the
+ * cache's copy, so without this a date added after the draw never reaches the
+ * graph's Refresh. In place, because the view's paper maps hold these objects.
+ * An item the snapshot does not hold is left alone: adding a paper is a
+ * rebuild, not a re-read. Returns whether any paper changed.
+ */
+export function rereadSnapshotPapers(
+  snapshot: LibrarySnapshot,
+  items: readonly unknown[],
+): boolean {
+  const paperByID = new Map(
+    snapshot.papers.map((paper) => [paper.itemID, paper]),
+  );
+  let changed = false;
+  for (const item of items) {
+    const paper = paperByID.get(Number((item as { id?: unknown })?.id));
+    if (!paper) continue;
+    const fresh = toPaper(item);
+    if (JSON.stringify(fresh) !== JSON.stringify(paper)) changed = true;
+    Object.assign(paper, fresh);
+  }
+  if (changed) snapshot.statistics = statistics(snapshot.papers);
+  return changed;
+}
+
 async function buildWholeLibrarySnapshot(
   libraryID: number = Zotero.Libraries.userLibraryID,
 ): Promise<LibrarySnapshot> {
