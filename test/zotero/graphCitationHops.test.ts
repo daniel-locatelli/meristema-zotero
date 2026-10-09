@@ -9,6 +9,7 @@ import {
   createSavedGraph,
   deleteSavedGraph,
   listSavedGraphs,
+  loadSavedGraph,
 } from "../../src/services/savedGraphService";
 import { delay } from "./visualHarness";
 
@@ -213,8 +214,9 @@ const served = (n: string, title: string, year: number, cites: string[]) => ({
 });
 const servedID = (n: string): string => `hops${RUN}${n}`;
 /**
- * The fixture cites three papers, one of which cites a fourth, so References
- * reaches hop 2. Six papers cite the fixture, and one paper cites all six,
+ * The fixture cites three papers, one of which cites a fourth, which cites a
+ * fifth, so References reaches hop 2 and B55's Fetch hop 3 has a request to
+ * hold. Six papers cite the fixture, and one paper cites all six,
  * so every hop-1 expansion under Citers finds a citer and the fill stays
  * busy for six round trips.
  */
@@ -227,7 +229,8 @@ const SERVED_PAPERS: readonly ServedPaper[] = [
   served("r1", "Stage 3 reference one", 2010, [servedID("r4")]),
   served("r2", "Stage 3 reference two", 2011, []),
   served("r3", "Stage 3 reference three", 2012, []),
-  served("r4", "Stage 3 reference of a reference", 2005, []),
+  served("r4", "Stage 3 reference of a reference", 2005, [servedID("r5")]),
+  served("r5", "Stage 3 reference three hops out", 2001, []),
   ...HOP_CITERS.map((n, index) =>
     served(n, `Stage 3 citer ${n}`, 2016 + index, [servedID("seed")]),
   ),
@@ -363,6 +366,42 @@ function interceptProviders(
       : below.call(Zotero.HTTP, method, url, options);
   return () => {
     (Zotero.HTTP as any).request = below;
+  };
+}
+
+/**
+ * Lets every request through and records the provider URLs among them, so a
+ * case can say the providers were not asked. `restore` takes the layer off.
+ */
+function recordProviderRequests(note: () => string = () => ""): {
+  urls: string[];
+  restore: () => void;
+} {
+  const urls: string[] = [];
+  const below = Zotero.HTTP.request;
+  (Zotero.HTTP as any).request = (
+    method: string,
+    url: string,
+    options?: unknown,
+  ) => {
+    if (PROVIDER_HOST.test(url)) {
+      // The note reads the rail, which throws before the tab renders; the
+      // request itself must never fail for it.
+      let at: string;
+      try {
+        at = note();
+      } catch (error) {
+        at = `unreadable (${String(error)})`;
+      }
+      urls.push(`${url} AT ${at}`);
+    }
+    return below.call(Zotero.HTTP, method, url, options);
+  };
+  return {
+    urls,
+    restore: () => {
+      (Zotero.HTTP as any).request = below;
+    },
   };
 }
 
@@ -1325,6 +1364,14 @@ describe("Citation hops (Stage 3)", function () {
 
   it("saves the graph and finds its direction and depth on reopening", async function () {
     this.timeout(120_000);
+    // The Refresh before this leaves a fill tail; saving mid-tail would
+    // reopen with that work still to do, which is not B54's question.
+    const tail = recordProviderRequests();
+    try {
+      await untilQuiet(() => tail.urls.length, 3_000, 30_000);
+    } finally {
+      tail.restore();
+    }
     const savedLadder = ladder();
     const savedDirection = directionState();
     stubPrompt(SAVED_GRAPH_NAME);
@@ -1355,19 +1402,32 @@ describe("Citation hops (Stage 3)", function () {
     win.Zotero_Tabs.close(tabID!);
     tabID = null;
     await delay(500);
-    reopenedTabID = await openSavedGraphFromFileMenu(
-      hostTabID,
-      SAVED_GRAPH_NAME,
+    // B54: every list the fill stored is in the relationship store, so the
+    // reopened walk is expanded already and nothing is asked again.
+    const asked = recordProviderRequests(
+      () => `${progressText()} / ${ladder()}`,
     );
-    currentTabID = reopenedTabID;
-    win.Zotero_Tabs.select(reopenedTabID);
-    const row = await waitFor(
-      () =>
-        tabContent(reopenedTabID)?.querySelector(
-          '.cm-scope-hop-row[data-hop="2"]',
-        ),
-      40_000,
-    );
+    let reopenRequests: string[];
+    let row: Element | null;
+    try {
+      reopenedTabID = await openSavedGraphFromFileMenu(
+        hostTabID,
+        SAVED_GRAPH_NAME,
+      );
+      currentTabID = reopenedTabID;
+      win.Zotero_Tabs.select(reopenedTabID);
+      row = await waitFor(
+        () =>
+          tabContent(reopenedTabID)?.querySelector(
+            '.cm-scope-hop-row[data-hop="2"]',
+          ),
+        40_000,
+      );
+      await untilQuiet(() => asked.urls.length, 3_000, 20_000);
+      reopenRequests = [...asked.urls];
+    } finally {
+      asked.restore();
+    }
     expect(
       row,
       `the reopened graph never drew a ladder; it was saved as ` +
@@ -1394,6 +1454,111 @@ describe("Citation hops (Stage 3)", function () {
       `hop 1 came back unfetched; it was saved as ${savedLadder}, ` +
         `reopened as ${ladder()}`,
     ).to.not.contain("not fetched");
+    expect(
+      reopenRequests,
+      `the reopened graph asked the providers again; ladder ${ladder()}, ` +
+        `progress "${progressText()}"; asked ${reopenRequests.join(" , ")}`,
+    ).to.deep.equal([]);
+  });
+
+  it("reopens a graph saved while stopped and waits for Resume (B55)", async function () {
+    this.timeout(180_000);
+    // Every provider request is held, then answered 404, so hop 3's one
+    // paper is still in flight when Stop is pressed and stores nothing.
+    const held: Array<() => void> = [];
+    const asked: string[] = [];
+    const release = (): void => {
+      while (held.length) held.shift()!();
+    };
+    const undo = interceptProviders((url) => {
+      asked.push(url);
+      return new Promise((resolve) =>
+        held.push(() => resolve(providerNotFound())),
+      );
+    });
+    try {
+      const button = fetchButton(3);
+      expect(button, `hop 3 carries no Fetch button; ladder ${ladder()}`).to
+        .exist;
+      button!.click();
+      expect(
+        await waitFor(() => held.length > 0, 30_000),
+        `Fetch hop 3 asked nothing; progress "${progressText()}", ` +
+          `ladder ${ladder()}; hop 2 "${hopRowText(2)}", hop 3 ` +
+          `"${hopRowText(3)}"; asked ${asked.join(" , ") || "nothing"}`,
+      ).to.equal(true);
+      const stop = await waitFor(() => {
+        const action = graphRoot().querySelector(
+          ".cm-scope-hop-progress .cm-scope-hop-action",
+        ) as HTMLButtonElement | null;
+        return normalize(action?.textContent) === "Stop" ? action : null;
+      }, 10_000);
+      expect(stop, `no Stop on "${progressText()}"`).to.exist;
+      stop!.click();
+      expect(
+        await waitFor(() => / left · Resume$/.test(progressText()), 10_000),
+        `after Stop the line read "${progressText()}"`,
+      ).to.equal(true);
+
+      // The autosave carries the stop to the row.
+      const savedID = (
+        await listSavedGraphs(Zotero.Libraries.userLibraryID)
+      ).find((graph) => graph.name === SAVED_GRAPH_NAME)?.id;
+      expect(savedID, "the saved graph's row").to.not.equal(undefined);
+      const deadline = Date.now() + 30_000;
+      let saved = await loadSavedGraph(savedID!);
+      while (!saved?.state.fillStopped && Date.now() < deadline) {
+        await delay(250);
+        saved = await loadSavedGraph(savedID!);
+      }
+      expect(
+        saved?.state.fillStopped,
+        `the row never recorded the stop; depth ${saved?.state.hops.depth}`,
+      ).to.equal(true);
+
+      win.Zotero_Tabs.close(reopenedTabID!);
+      reopenedTabID = null;
+      release();
+      // The menu reopened from is the host's, and only a shown tab renders.
+      currentTabID = hostTabID;
+      win.Zotero_Tabs.select(hostTabID!);
+      await waitFor(
+        () => tabContent(hostTabID)?.querySelector("canvas"),
+        10_000,
+      );
+      await delay(500);
+      asked.length = 0;
+      reopenedTabID = await openSavedGraphFromFileMenu(
+        hostTabID!,
+        SAVED_GRAPH_NAME,
+      );
+      currentTabID = reopenedTabID;
+      win.Zotero_Tabs.select(reopenedTabID);
+      await waitFor(
+        () =>
+          tabContent(reopenedTabID)?.querySelector(
+            '.cm-scope-hop-row[data-hop="3"]',
+          ),
+        40_000,
+      );
+      const line = await waitFor(
+        () => (/ left · Resume$/.test(progressText()) ? progressText() : null),
+        40_000,
+      );
+      await untilQuiet(() => asked.length, 3_000, 20_000);
+      expect(
+        line,
+        `the reopened graph's line read "${progressText()}"; ladder ` +
+          `${ladder()}; asked ${asked.join(" , ") || "nothing"}`,
+      ).to.exist;
+      expect(
+        asked,
+        `the reopened graph fetched by itself; line "${progressText()}"`,
+      ).to.deep.equal([]);
+    } finally {
+      release();
+      undo();
+    }
   });
 
   it("says so once when a version 4 record asked for both directions", async function () {

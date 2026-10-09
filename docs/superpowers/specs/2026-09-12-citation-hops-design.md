@@ -273,7 +273,8 @@ fetching on an inactive tab and defers only the rebuild.
 
 **Controls.** Fetch hop N sets the depth to N and enables hop N; the runner
 starts because hop N−1's shown papers are now below the depth. Stop, on the
-progress line, sets a session-only paused flag; the line then reads Resume.
+progress line, sets a paused flag; the line then reads Resume. The saved
+graph keeps it (B55), so a graph saved stopped reopens stopped.
 Fetch hop N+1 and Fetch more clear the flag. Hop 1 opens the moment a graph
 gains its first seed, so a new seed fills the plot as it does today; the
 runner is the one automatic fetcher from hop 0 onward. The seed's own refresh
@@ -428,8 +429,8 @@ are now one at a time; showing Citers", through the `setStatus` path B42's
 read-only notice uses. Once the state is saved again as version 5 the notice
 does not recur.
 
-Not persisted: which papers are expanded (derived from the store), the paused
-flag, the failed set, the plan, the per-hop expansion counts and caps, the
+Not persisted: which papers are expanded (derived from the store), the failed
+set, the plan, the per-hop expansion counts and caps, the
 reported counts. The design's `loadedDepth` does not exist: under a lazy fill
 "loaded" is a fact per paper, not per hop.
 

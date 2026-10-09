@@ -2459,9 +2459,12 @@ ${error instanceof Error ? error.message : String(error)}`,
   const hopNeighbourhood = (
     key: string,
     direction: HopDirection,
+    reached: CitationGraphNode,
   ): HopNeighbourhood => {
-    const subject = hopSubject(key);
-    if (!subject) return { expanded: false, neighbours: [] };
+    // A reopened graph's first walk reaches hop papers the merged model does
+    // not hold yet; without the walk's own node they read unexpanded and the
+    // fill fetched their lists again (B54).
+    const subject = hopSubject(key) ?? reached;
     let fragment = getHopFragment(snapshot.libraryID, key, direction);
     if (!fragment) {
       const stored = getStoredRelationshipSummary(subject, direction);
@@ -4182,6 +4185,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       flushCoalescedPresentationRefresh();
       flushHopSnapshot();
     },
+    pausedChanged: () => notifyStateChange(),
     frame: (run) => hopFillFrames.request(run),
     cancelFrame: (handle) => hopFillFrames.cancel(handle),
     now: () => Date.now(),
@@ -4992,6 +4996,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       hiddenKeys: [...hiddenKeys],
       floor,
       shared,
+      fillStopped: hopFill.stopped(),
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),
@@ -5049,6 +5054,10 @@ ${error instanceof Error ? error.message : String(error)}`,
         setStatus(MIGRATED_FROM_BOTH_DIRECTIONS_STATUS, { sticky: true });
       }
       if (hopModel) clearSeeds();
+      // Before the seeds land: a graph saved stopped must not fetch on the
+      // first frame its seeds give the fill (B55).
+      if (state.fillStopped) hopFill.stop();
+      else hopFill.resume();
       graphFilter.setState({ ...state.filters, collectionIDs: [] });
       // A version 1 recipe named the folders it was scoped to and drew each
       // one's whole subtree, so its ticks are expanded once here — and only

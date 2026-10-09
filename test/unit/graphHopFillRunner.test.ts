@@ -45,6 +45,7 @@ function fakeHost(overrides: Partial<HopFillHost> = {}) {
     settled: 0,
     planned: 0,
     planEmpty: 0,
+    pausedChanged: 0,
     errors: [] as unknown[],
   };
   let direction: HopDirection = "cited-by";
@@ -109,6 +110,9 @@ function fakeHost(overrides: Partial<HopFillHost> = {}) {
     },
     planEmpty: () => {
       calls.planEmpty += 1;
+    },
+    pausedChanged: () => {
+      calls.pausedChanged += 1;
     },
     frame: (run) => {
       frames.push(run);
@@ -340,6 +344,27 @@ describe("createHopFillRunner", function () {
     runner.wake();
     await fake.settle();
     expect(fake.calls.expanded).to.deep.equal(["a", "b"]);
+  });
+
+  it("says when it stops and resumes, and only when the flag moves (B55)", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    expect(runner.stopped()).to.equal(false);
+    runner.resume();
+    expect(fake.calls.pausedChanged).to.equal(0);
+    runner.stop();
+    runner.stop();
+    expect(runner.stopped()).to.equal(true);
+    expect(fake.calls.pausedChanged).to.equal(1);
+    runner.reset();
+    expect(runner.stopped(), "a reset keeps the stop").to.equal(true);
+    runner.fetchMore();
+    expect(runner.stopped()).to.equal(false);
+    expect(fake.calls.pausedChanged).to.equal(2);
+    runner.stop();
+    runner.resume();
+    expect(runner.stopped()).to.equal(false);
+    expect(fake.calls.pausedChanged).to.equal(4);
   });
 
   it("raises the cap by 500 for the hops whose papers wait, and reset clears it", async function () {

@@ -197,7 +197,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 8 });
+    const other = JSON.stringify({ ...state, version: 9 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -359,7 +359,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 8 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 9 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -628,7 +628,7 @@ describe("hops in the state", function () {
     };
     const parsed = parseGraphViewState(serializeGraphViewState(state))!;
     expect(parsed.hops).to.deep.equal(state.hops);
-    expect(parsed.version).to.equal(7);
+    expect(parsed.version).to.equal(8);
     expect("migratedFromBothDirections" in parsed).to.equal(false);
     const clamped = parseGraphViewState(
       JSON.stringify({
@@ -645,6 +645,40 @@ describe("hops in the state", function () {
     ).to.not.have.property("migratedFromBothDirections");
   });
 
+  it("keeps a version 5 or 6 record's hops", function () {
+    const hops = {
+      direction: "references" as const,
+      depth: 3,
+      enabled: [true, true, false, true, true, true, true],
+    };
+    for (const version of [5, 6, 7]) {
+      const raw = JSON.stringify({ ...emptyGraphViewState(), version, hops });
+      expect(
+        parseGraphViewState(raw)?.hops,
+        `version ${version}`,
+      ).to.deep.equal(hops);
+    }
+  });
+
+  it("round-trips a stopped fill, and reads one saved before the field as running (B55)", function () {
+    const stopped = { ...emptyGraphViewState(), fillStopped: true };
+    expect(
+      parseGraphViewState(serializeGraphViewState(stopped))?.fillStopped,
+    ).to.equal(true);
+    expect(emptyGraphViewState().fillStopped).to.equal(false);
+    const seven = JSON.stringify({
+      ...emptyGraphViewState(),
+      version: 7,
+      fillStopped: undefined,
+    });
+    expect(parseGraphViewState(seven)?.fillStopped).to.equal(false);
+    expect(
+      parseGraphViewState(
+        JSON.stringify({ ...emptyGraphViewState(), fillStopped: "yes" }),
+      )?.fillStopped,
+    ).to.equal(false);
+  });
+
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {
     const v3 = parseGraphViewState(
       JSON.stringify({
@@ -655,6 +689,6 @@ describe("hops in the state", function () {
       }),
     )!;
     expect(v3.hops.direction).to.equal("references");
-    expect(v3.version).to.equal(7);
+    expect(v3.version).to.equal(8);
   });
 });

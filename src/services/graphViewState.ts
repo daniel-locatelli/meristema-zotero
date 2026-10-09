@@ -33,7 +33,7 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 7;
+export const GRAPH_VIEW_STATE_VERSION = 8;
 
 /**
  * Which view (D4) the graph is on. `null` is "never chosen", which shows
@@ -84,6 +84,11 @@ export interface GraphViewState {
   floor: number;
   /** The shared rule, 1 when off (spec: shared citers). Since version 7. */
   shared: number;
+  /**
+   * The reader pressed Stop and has not resumed, so a reopen waits for
+   * Resume instead of fetching by itself (B55). Since version 8.
+   */
+  fillStopped: boolean;
   /**
    * The folders drawn as regions, oldest selection first. Uncapped since
    * 2026-09-11 (F14): overlapping translucent hulls do stop being readable
@@ -149,6 +154,7 @@ export function emptyGraphViewState(): GraphViewState {
     hiddenKeys: [],
     floor: 0,
     shared: 1,
+    fillStopped: false,
     regions: [],
     swatches: emptySwatchLedger(),
     seedSwatches: emptySwatchLedger(),
@@ -475,7 +481,7 @@ function migrateFromVersion1(
 }
 
 /**
- * Version 5 stores `hops`. Versions 1 to 4 stored `explore.direction` in
+ * Versions 5 on store `hops`. Versions 1 to 4 stored `explore.direction` in
  * `both | references | cited-by`; `both` and `cited-by` become Citers, and
  * `both` is reported so the view can say so once. Locality is dropped.
  *
@@ -489,7 +495,7 @@ function parseHops(
   version: unknown,
 ): { hops: GraphViewHopsSettings; migratedFromBoth: boolean } {
   const empty = emptyGraphViewState().hops;
-  if (version === GRAPH_VIEW_STATE_VERSION && isRecord(raw.hops)) {
+  if (typeof version === "number" && version >= 5 && isRecord(raw.hops)) {
     const rawHops = raw.hops;
     const direction =
       HOP_DIRECTIONS.find((d) => d === rawHops.direction) ?? empty.direction;
@@ -528,6 +534,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 7 &&
     raw.version !== 6 &&
     raw.version !== 5 &&
     raw.version !== 4 &&
@@ -557,6 +564,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   // Regions have been stored since version 3; older records rebuild them
   // from the ticks. Version 4 only added `view`. Version 5 replaced
   // `explore` with `hops`. Version 6 added `floor`. Version 7 added `shared`.
+  // Version 8 added `fillStopped`.
   const regions =
     typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
@@ -576,6 +584,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     ...scope,
     floor: parseFloor(raw.floor),
     shared: parseShared(raw.shared),
+    fillStopped: raw.fillStopped === true,
     regions,
     swatches: parsedLedger(raw.swatches),
     seedSwatches: parsedLedger(raw.seedSwatches),

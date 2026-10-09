@@ -52,9 +52,16 @@ export interface HopNeighbourhood {
   neighbours: readonly HopNeighbour[];
 }
 
+/**
+ * `reached` is the node the walk reached the paper by: the seed itself, or
+ * the node its parent's list built. A view's own index may not hold that node
+ * yet on a reopened graph's first walk, and the store must still be read for
+ * it (B54).
+ */
 export type HopNeighbourLookup = (
   key: string,
   direction: HopDirection,
+  reached: CitationGraphNode,
 ) => HopNeighbourhood;
 
 export interface GraphHopModel {
@@ -141,10 +148,13 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
    * store lookup and a fragment clone.
    */
   const neighbourhoods = new Map<string, HopNeighbourhood>();
-  const neighbourhoodOf = (key: string): HopNeighbourhood => {
+  const neighbourhoodOf = (
+    key: string,
+    reached: CitationGraphNode,
+  ): HopNeighbourhood => {
     const memo = neighbourhoods.get(key);
     if (memo) return memo;
-    const fresh = input.neighbours(key, input.direction);
+    const fresh = input.neighbours(key, input.direction, reached);
     neighbourhoods.set(key, fresh);
     return fresh;
   };
@@ -163,7 +173,7 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
       key: seed.key,
       hop: 0,
       parents: [],
-      expanded: neighbourhoodOf(seed.key).expanded,
+      expanded: neighbourhoodOf(seed.key, seed).expanded,
     });
   }
 
@@ -171,7 +181,7 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
   for (let hop = 1; hop <= depth && frontier.length; hop += 1) {
     const next: string[] = [];
     for (const parentKey of frontier) {
-      const neighbourhood = neighbourhoodOf(parentKey);
+      const neighbourhood = neighbourhoodOf(parentKey, nodes.get(parentKey)!);
       for (const neighbour of neighbourhood.neighbours) {
         const key = neighbour.node.key;
         if (key === parentKey) continue;
@@ -195,7 +205,8 @@ export function buildGraphHopModel(input: GraphHopInput): GraphHopModel | null {
           parents: [parentKey],
           // At the depth this paper is a leaf: nobody reads its `expanded`,
           // and asking would read every leaf's list (see HopEntry.expanded).
-          expanded: hop < depth ? neighbourhoodOf(key).expanded : false,
+          expanded:
+            hop < depth ? neighbourhoodOf(key, neighbour.node).expanded : false,
         });
         nodes.set(key, cloneNode(neighbour.node, role, hop));
         next.push(key);

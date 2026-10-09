@@ -69,6 +69,23 @@ describe("buildGraphHopModel", function () {
     expect(model.availableByHop).to.deep.equal([1, 2]);
   });
 
+  it("hands the lookup the node it reached each paper by (B54)", function () {
+    const reached = new Map<string, CitationGraphNode>();
+    const model = buildGraphHopModel({
+      seeds: [node("s")],
+      direction: "references",
+      depth: 2,
+      neighbours: (key, direction, at) => {
+        reached.set(key, at);
+        return lookup({ s: ["a"], a: ["b"] })(key, direction, at);
+      },
+    })!;
+    expect(reached.get("s")?.key).to.equal("s");
+    expect(reached.get("a")?.key).to.equal("a");
+    expect(reached.get("a")?.kind).to.equal("external");
+    expect(model.entries.get("a")).to.deep.include({ expanded: true });
+  });
+
   it("gives a paper cited by two hop-1 papers two parents and hop 2", function () {
     const model = buildGraphHopModel({
       seeds: [node("s")],
@@ -324,9 +341,9 @@ describe("buildGraphHopModel", function () {
       seeds: [node("s")],
       direction: "cited-by",
       depth: 3,
-      neighbours: (key, direction) => {
+      neighbours: (key, direction, reached) => {
         calls.set(key, (calls.get(key) ?? 0) + 1);
-        return lookup(lists)(key, direction);
+        return lookup(lists)(key, direction, reached);
       },
     })!;
     expect([...model.entries.keys()].sort()).to.deep.equal([
@@ -362,9 +379,9 @@ describe("buildGraphHopModel", function () {
       seeds: [seed],
       direction: "cited-by",
       depth: 1,
-      neighbours: (key, direction) => {
+      neighbours: (key, direction, reached) => {
         receivedKeys.push(key);
-        return lookup({ [seedKey]: ["a"] })(key, direction);
+        return lookup({ [seedKey]: ["a"] })(key, direction, reached);
       },
     })!;
     expect(receivedKeys).to.include(seedKey);

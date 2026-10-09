@@ -112,16 +112,12 @@ opacity grade).
       whether hop 3's queued parents are still in the plan or dropped, and
       whether the rail should hold two hops' progress. The user likes the skip
       itself, so the fix is not to forbid it
-- [ ] B55 a graph saved while its fill is stopped reopens fetching. The spec
-      deliberately does not persist the paused flag. The fix should answer
-      whether a reopen should ever start fetching by itself, given hop 1 opens
-      the moment a graph gains a seed
-- [ ] B54 verify that reopening a filled graph does not refetch. The spec says
-      expansion results persist in the relationship store and only derived
-      bookkeeping is recomputed. Check that a graph filled to hop 3 reopens
-      without fresh expansions, and that per-hop caps resetting each session
-      does not restart the fill. Known leak: failed papers come back after
-      every reopen
+- [ ] B94 the fill's session state still resets on reopen (left by B54): the
+      failed set is not saved, so each reopen asks every failed paper once
+      more (the spec's "come back after a reopen"), and the per-hop counts and
+      caps reset, so a graph waiting at a cap fetches up to 500 more per hop
+      on every reopen (ADR 0005 calls the cap a day's budget). Ask the user
+      whether either is saved with the graph, as the stop now is
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -209,6 +205,10 @@ opacity grade).
       decides that for a paper with no DOI
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
+- [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
+      Paper details keeps its side width, so a 650px window leaves the plot
+      about 99px. Brainstorm: shrink Paper details towards Zotero's 320px
+      minimum, auto-collapse it, or stack it
 
 ## Other
 
@@ -313,6 +313,13 @@ any failure into a new entry above.
       library tab (Zotero stacks the item pane under the items list) and
       return: Paper details keeps its side width (about 340px) instead of
       spanning the window. Widen again: still the same width.
+- [ ] B54/B55: fill a seeded graph to hop 2 or 3, let it finish, save,
+      close and reopen it: the hop counts come back at once and the progress
+      line never reads `expanding`. Fetch the next hop and press Stop while
+      it runs; close and reopen: the line reads `… left · Resume` and nothing
+      fetches until Resume. Restart Zotero with the tab open: still stopped.
+      A saved References graph from before Stage 4 now reopens on References
+      at its saved depth instead of Citers at depth 1.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -323,16 +330,18 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-08 with B93 (102/0), so count with
-the commits since the one whose subject ends `(B93)`. A clean run is 102 passed, 0
-failed as of 2026-10-08 (B93's font-size case added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B54/B55 (105/1, the floor drag flake below), so
+count with the commits since the one whose subject ends `(B54, B55)`. A clean
+run is 106 passed, 0 failed as of 2026-10-09 (B55's reopen case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
   down") each failed once on 2026-10-06 and passed on rerun. The floor case
   failed one of two runs of its file: treat a single failure as a flake and
   rerun before debugging. It failed once more in a full run on 2026-10-08
-  (the field stayed at 5 the whole drag).
+  (the field stayed at 5 the whole drag), and again in the 2026-10-09 full
+  run with B54/B55, same signature, after passing four isolated runs of its
+  file that day. Three full-run failures now: worth a B entry if it recurs.
 - One-offs on 2026-10-08, each gone on rerun: `graphVisual.test.ts` check 11
   (`selection` undefined right after `selectNode`), and one Citation hops
   block run where the save case threw with no message (the runner prints a
@@ -517,3 +526,13 @@ entries are in git history.
   at an 850px window, plot 78px). While stacked the item binding keeps its
   last side width, as while collapsed. Red, then green, in
   `zoteroPaneSync.test.ts` and `graphStackedItemPane.test.ts`.
+- 2026-10-09: B54 and B55 done; the user chose that a reopen never starts
+  fetching on its own after a Stop. B54 was a real refetch: a reopened graph's
+  first walk asked `hopSubject` for hop papers the merged model did not hold
+  yet, read them unexpanded and re-asked their lists. The walk now hands the
+  lookup the node it reached each paper by. B55: the stop is saved with the
+  graph (`fillStopped`, state version 8). Found on the way: `parseHops` read
+  `hops` only at the current version, so version 5 and 6 rows reopened on
+  Citers at depth 1; it reads them from version 5 on. Red, then green, in the
+  Citation hops suite (the served index gains r5 so hop 3 has a request).
+  B94 filed for the failed set and the caps; D23 filed for the narrow layout.

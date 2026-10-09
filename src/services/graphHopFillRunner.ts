@@ -93,6 +93,8 @@ export interface HopFillHost {
   planned(): void;
   /** The plan is empty: fire what the fill was holding. */
   planEmpty(): void;
+  /** Stop or a resume moved the paused flag, which a saved graph keeps (B55). */
+  pausedChanged(): void;
   /** Schedule a re-plan on the next frame. */
   frame(run: () => void): number;
   cancelFrame(handle: number): void;
@@ -133,6 +135,8 @@ export interface HopFillRunner {
   wake(): void;
   stop(): void;
   resume(): void;
+  /** The reader pressed Stop and nothing has resumed since. */
+  stopped(): boolean;
   /**
    * The rail's Resume, after `resume`: every window and deferral ends and the
    * fill asks at once. Each provider keeps its step, so a fresh refusal waits
@@ -231,6 +235,12 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
 
   const capFor = (direction: HopDirection, hop: number): number =>
     caps[direction][hop] ?? HOP_EXPANSION_CAP;
+
+  const setPaused = (next: boolean): void => {
+    if (paused === next) return;
+    paused = next;
+    host.pausedChanged();
+  };
 
   const cancelTimer = (): void => {
     if (timer === null) return;
@@ -424,12 +434,13 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
   return {
     wake,
     stop: () => {
-      paused = true;
+      setPaused(true);
       cancelTimer();
     },
     resume: () => {
-      paused = false;
+      setPaused(false);
     },
+    stopped: () => paused,
     retryNow: () => {
       windows = endAll(windows, host.now());
       for (const direction of DIRECTIONS) {
@@ -444,7 +455,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
       wake();
     },
     fetchMore: () => {
-      paused = false;
+      setPaused(false);
       const waiting = lastPlan?.waitingByHop ?? [];
       const direction = lastDirection;
       waiting.forEach((count, hop) => {
