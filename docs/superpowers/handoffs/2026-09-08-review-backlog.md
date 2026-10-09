@@ -31,22 +31,6 @@ small plan.
 
 ---
 
-## B18. The view fits after it renders, so the graph jumps
-
-Found in the walk-through, extra note. Opening a graph draws it, and then "fit
-to view" moves everything. The fit should happen before the first frame the
-reader sees.
-
-`scheduleFocusFit` waits for the viewport and the node count to hold still for
-a few frames before it fits, which is why it lands late. Consider fitting
-invisibly — render the first frame already framed — rather than shortening the
-settle, which is what makes the fit correct.
-
-Pointers: `scheduleFocusFit` and `applySeedProjection` in
-`src/services/graphViewService.ts`.
-
----
-
 ## F5. The node's context menu should offer what the detail pane offers
 
 Found in the walk-through, extra note. Right-clicking a node offers the open

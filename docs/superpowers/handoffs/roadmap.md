@@ -16,7 +16,7 @@ names the commit that removed the older archive.
 Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
-  form of the open entries filed up to 2026-09-11 (B18, B26,
+  form of the open entries filed up to 2026-09-11 (B26,
   B34, B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
@@ -88,24 +88,22 @@ opacity grade).
       choose a fix: let hydration interleave with fill membership, publish
       each batch, or both.
 - [ ] B47 during a fill the nodes jump far more than the new data warrants.
-      Two claims to separate: the whole plot reshuffling on every landing (an
-      axis rescale per fetch would do it; B18 is a neighbour), and a single
-      paper drawn where its own values say it is not (0 citations in 2026 drawn
-      near 100, then negative, its year drifting too). Not the No data lane:
-      the jumping nodes are at the most recent and most cited corner, the
-      pareto front the user reads the plot from. No diagnosis yet
-- [ ] B48 a paper whose year is added in Zotero after the graph is drawn stays
-      No data. First establish whether Refresh clears it. Possibly its own
-      defect: the rail says such a paper is "parked in a lane off the plot",
-      but they sit close to the axis origins and read as real low-low values
+      Cause: `relaxAnchoredNodes` (the overlap step) restarts from the
+      anchors on every landing and may move a node 52 world units on a count
+      axis (8.5% of it) and 36 on year; one paper landing in a crowd of 40
+      moved 40 by up to 67 units. The axis domain is recomputed from all nodes
+      too (a new maximum moved 39 of 42 by up to 123). Crossing a plot edge
+      is fixed. Decide: warm-start the relaxation from the last
+      positions so a landing moves only its neighbours, and cap the
+      displacement in value terms (half a year; a fraction of a tick); and
+      hold the domain grow-only during a fill, settling at rest
 - [ ] B48 the No data lane reads as real low-low values: it is drawn inside
       the plot frame, 35 world units past each axis minimum (both missing:
       just off the origin), behind a dashed line, while the rail says "a lane
       off the plot". Decide: move the lanes outside the frame, set them apart
       inside it (a tinted band, a wider gap), or reword the rail. The year
       half shipped: Refresh re-reads the visible papers' Zotero fields
-- [ ] B51 opening a deeper hop: establish whether the shallower hop's queued
-      parents stay in the plan (its row now keeps spinning while they do)
+      (B47's fix keeps a No data paper out of the plot; recheck)
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -188,7 +186,6 @@ opacity grade).
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
 - [ ] F3 standards without a main author (short brainstorm, small plan)
-- [ ] B18 the view fits after it renders, so the graph jumps
 - [ ] B34 panning a 300+ paper folder at maximum zoom lags (D6's walk, failed
       2026-09-11). Measure before touching: `drawRegions` rebuilds every
       folder's `Path2D` every frame, off-screen loops included, and the zoom
@@ -301,6 +298,10 @@ any failure into a new entry above.
       colour (light on light, dark on dark), and the panel ends just below
       its last row of cards. Shrink the window: the panel keeps 24px margins
       and scrolls.
+- [ ] B18: open a new graph, then seed a paper: neither shows the plot under
+      one camera and then moves it; the first frame is already fitted.
+- [ ] B47: on a filled graph by year and citations, no 0-citation paper sits
+      below the zero line and no No data paper sits inside the plot.
 - [ ] D7/D12: fill a seeded graph to hop 2: the growing rows spin and read
       `n papers · from N`, the line under them is Stop alone; press Stop: the
       line reads `n not expanded · Resume`, and `n without details` sits under
