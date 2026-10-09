@@ -88,8 +88,6 @@ opacity grade).
       No data. First establish whether Refresh clears it. Possibly its own
       defect: the rail says such a paper is "parked in a lane off the plot",
       but they sit close to the axis origins and read as real low-low values
-- [ ] B51 opening a deeper hop: establish whether the shallower hop's queued
-      parents stay in the plan (its row now keeps spinning while they do)
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or

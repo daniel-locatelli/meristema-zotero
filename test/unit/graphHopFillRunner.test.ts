@@ -224,6 +224,59 @@ describe("createHopFillRunner", function () {
     ]);
   });
 
+  it("keeps a shallower hop's queued parents when a deeper hop opens, and drains them (B51)", async function () {
+    // Hop 2 half filled: a landed and brought a1 and a2; b and c are still
+    // queued when the reader opens hop 3.
+    const fake = fakeHost();
+    fake.entries.set(...entry("a", 1, ["s"], true));
+    fake.entries.set(...entry("c", 1, ["s"]));
+    fake.entries.set(...entry("a1", 2, ["a"]));
+    fake.entries.set(...entry("a2", 2, ["a"]));
+    fake.stored.add("a");
+    // The seed reports fewer citers than a, so hop 2's papers outrank hop 1's
+    // leftovers: the order is the parent's count, not the hop (spec, "The
+    // fill").
+    const counts = new Map([
+      ["s", 3],
+      ["a", 7],
+    ]);
+    const basePlanInput = fake.host.planInput;
+    fake.host.planInput = () => {
+      const input = basePlanInput();
+      return (
+        input && { ...input, reportedCountOf: (key) => counts.get(key) ?? null }
+      );
+    };
+    const runner = createHopFillRunner(fake.host);
+    runner.stop();
+    runner.wake();
+    await fake.settle();
+    expect(runner.growingByHop(2, "cited-by"), "before").to.deep.equal([
+      false,
+      false,
+      true,
+    ]);
+    fake.setDepth(3);
+    runner.wake();
+    await fake.settle();
+    expect(
+      runner.growingByHop(3, "cited-by"),
+      "hop 2 keeps spinning while b and c are planned",
+    ).to.deep.equal([false, false, true, true]);
+    expect(runner.state()?.remaining, "b, c, a1, a2").to.equal(4);
+    runner.resume();
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded).to.deep.equal(["a1", "a2", "b", "c"]);
+    expect(runner.growingByHop(3, "cited-by"), "drained").to.deep.equal([
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(runner.state()).to.equal(null);
+  });
+
   it("counts the visible failures in the direction", async function () {
     const fake = fakeHost();
     fake.failing.add("a");
