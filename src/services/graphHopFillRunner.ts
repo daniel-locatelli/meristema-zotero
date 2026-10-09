@@ -93,8 +93,11 @@ export interface HopFillHost {
   planned(): void;
   /** The plan is empty: fire what the fill was holding. */
   planEmpty(): void;
-  /** Stop or a resume moved the paused flag, which a saved graph keeps (B55). */
-  pausedChanged(): void;
+  /**
+   * Something a saved graph keeps moved: the paused flag (B55) or the
+   * failures (B94).
+   */
+  savedStateChanged(): void;
   /** Schedule a re-plan on the next frame. */
   frame(run: () => void): number;
   cancelFrame(handle: number): void;
@@ -137,6 +140,16 @@ export interface HopFillRunner {
   resume(): void;
   /** The reader pressed Stop and nothing has resumed since. */
   stopped(): boolean;
+  /**
+   * The papers failed the ordinary way, by direction, for a saved graph to
+   * keep (B94). The deferral limit's failures are left out: a reopen asks
+   * them again, as Resume would.
+   */
+  failures(): Record<HopDirection, string[]>;
+  /** A reopened graph's failures replace whatever the runner held. */
+  restoreFailures(
+    saved: Readonly<Record<HopDirection, readonly string[]>>,
+  ): void;
   /**
    * The rail's Resume, after `resume`: every window and deferral ends and the
    * fill asks at once. Each provider keeps its step, so a fresh refusal waits
@@ -239,7 +252,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
   const setPaused = (next: boolean): void => {
     if (paused === next) return;
     paused = next;
-    host.pausedChanged();
+    host.savedStateChanged();
   };
 
   const cancelTimer = (): void => {
@@ -370,6 +383,7 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
           // Only a refusal that ran out of deferrals is the limit's failure.
           if (refused && deferred >= DEFERRAL_LIMIT)
             limitFailed[direction].add(key);
+          else host.savedStateChanged();
         }
         host.landed(key);
       })
@@ -380,8 +394,10 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         if (
           hopRejectionEffects({ epoch: startEpoch, currentEpoch: epoch })
             .markFailed
-        )
+        ) {
           failed[direction].add(key);
+          host.savedStateChanged();
+        }
         host.logError(error);
       })
       .finally(() => {
@@ -441,6 +457,22 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
       setPaused(false);
     },
     stopped: () => paused,
+    failures: () => {
+      const ordinary = (direction: HopDirection): string[] =>
+        [...failed[direction]].filter(
+          (key) => !limitFailed[direction].has(key),
+        );
+      return {
+        "cited-by": ordinary("cited-by"),
+        references: ordinary("references"),
+      };
+    },
+    restoreFailures: (saved) => {
+      for (const direction of DIRECTIONS) {
+        failed[direction] = new Set(saved[direction]);
+        limitFailed[direction].clear();
+      }
+    },
     retryNow: () => {
       windows = endAll(windows, host.now());
       for (const direction of DIRECTIONS) {

@@ -112,12 +112,6 @@ opacity grade).
       whether hop 3's queued parents are still in the plan or dropped, and
       whether the rail should hold two hops' progress. The user likes the skip
       itself, so the fix is not to forbid it
-- [ ] B94 the fill's session state still resets on reopen (left by B54): the
-      failed set is not saved, so each reopen asks every failed paper once
-      more (the spec's "come back after a reopen"), and the per-hop counts and
-      caps reset, so a graph waiting at a cap fetches up to 500 more per hop
-      on every reopen (ADR 0005 calls the cap a day's budget). Ask the user
-      whether either is saved with the graph, as the stop now is
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -221,10 +215,9 @@ opacity grade).
       folder's `Path2D` every frame, off-screen loops included, and the zoom
       tightening fragments a large folder into many small loops. Later, the
       user said so
-- [ ] B87 light theme (user, 2026-10-07): the plugin's text looks slightly
-      scaled down with pixels out of place (check for a fractional transform
-      or scale), and the fill behind the arrows of a selected seed is black,
-      fine on dark, wrong on light
+- [ ] B87 light theme (user, 2026-10-07): the fill behind the arrows of a
+      selected seed is black, fine on dark, wrong on light. (The text looking
+      scaled down is gone: the user saw both themes alike on 2026-10-09.)
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -318,6 +311,10 @@ any failure into a new entry above.
       fetches until Resume. Restart Zotero with the tab open: still stopped.
       A saved References graph from before Stage 4 now reopens on References
       at its saved depth instead of Citers at depth 1.
+- [ ] B94: in a saved seeded graph, fetch a hop while offline (or with a
+      provider failing) so a paper fails; reconnect, close and reopen: that
+      paper is not asked again (its hop stays short of drained), and Resume
+      does not bring it back.
 - [ ] B7: in a library with no regular items (an empty group, say), Tools ›
       Meristema › New Graph opens a tab reading "This graph is empty"; add a
       seed from the + button's search and it appears.
@@ -333,7 +330,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B54/B55 (105/1, the floor drag flake below), so
 count with the commits since the one whose subject ends `(B54, B55)`. A clean
-run is 107 passed, 0 failed as of 2026-10-09 (B7's case added).
+run is 108 passed, 0 failed as of 2026-10-09 (B94's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -541,3 +538,10 @@ entries are in git history.
   stopped it: the "contains no regular Zotero items" guard in
   `openGraphWindow`, and the new tab's `itemID` read from the library's first
   paper. Red, then green, in `graphEmptyLibrary.test.ts`.
+- 2026-10-09: B94 done; the user chose to save the failed papers, not the
+  caps. The runner hands out its ordinary failures (`failures`, the deferral
+  limit's left out, as Resume would ask them) and takes them back on reopen
+  (`restoreFailures`); state version 9 carries `failedKeys`. Red, then green,
+  in the runner and state units and the Citation hops suite (r6 added so
+  Fetch hop 4 has a list to fail; a 404 stores an empty list, so the case
+  answers lists with 500).

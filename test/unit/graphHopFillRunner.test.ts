@@ -45,7 +45,7 @@ function fakeHost(overrides: Partial<HopFillHost> = {}) {
     settled: 0,
     planned: 0,
     planEmpty: 0,
-    pausedChanged: 0,
+    savedStateChanged: 0,
     errors: [] as unknown[],
   };
   let direction: HopDirection = "cited-by";
@@ -111,8 +111,8 @@ function fakeHost(overrides: Partial<HopFillHost> = {}) {
     planEmpty: () => {
       calls.planEmpty += 1;
     },
-    pausedChanged: () => {
-      calls.pausedChanged += 1;
+    savedStateChanged: () => {
+      calls.savedStateChanged += 1;
     },
     frame: (run) => {
       frames.push(run);
@@ -351,20 +351,20 @@ describe("createHopFillRunner", function () {
     const runner = createHopFillRunner(fake.host);
     expect(runner.stopped()).to.equal(false);
     runner.resume();
-    expect(fake.calls.pausedChanged).to.equal(0);
+    expect(fake.calls.savedStateChanged).to.equal(0);
     runner.stop();
     runner.stop();
     expect(runner.stopped()).to.equal(true);
-    expect(fake.calls.pausedChanged).to.equal(1);
+    expect(fake.calls.savedStateChanged).to.equal(1);
     runner.reset();
     expect(runner.stopped(), "a reset keeps the stop").to.equal(true);
     runner.fetchMore();
     expect(runner.stopped()).to.equal(false);
-    expect(fake.calls.pausedChanged).to.equal(2);
+    expect(fake.calls.savedStateChanged).to.equal(2);
     runner.stop();
     runner.resume();
     expect(runner.stopped()).to.equal(false);
-    expect(fake.calls.pausedChanged).to.equal(4);
+    expect(fake.calls.savedStateChanged).to.equal(4);
   });
 
   it("raises the cap by 500 for the hops whose papers wait, and reset clears it", async function () {
@@ -522,6 +522,69 @@ describe("createHopFillRunner", function () {
       fake.calls.expanded,
       "the ordinary failure is not the limit's, so Resume must not bring it back",
     ).to.deep.equal(["a", "a", "a", "a"]);
+  });
+});
+
+describe("the fill's failures across a reopen (B94)", function () {
+  it("hands out the papers failed the ordinary way, by direction, and says when one fails", async function () {
+    const fake = fakeHost();
+    fake.failing.add("a");
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(runner.failures()).to.deep.equal({
+      "cited-by": ["a"],
+      references: [],
+    });
+    expect(fake.calls.savedStateChanged).to.equal(1);
+  });
+
+  it("leaves out the papers the deferral limit failed, which a reopen asks again", async function () {
+    const fake = fakeHost();
+    fake.entries.delete("b");
+    fake.refusing.add(S2);
+    fake.refusing.add(OC);
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    await fake.advance(30_000);
+    await fake.advance(60_000);
+    await fake.advance(120_000);
+    expect(runner.state()?.gaveUp).to.equal(1);
+    expect(runner.failures()).to.deep.equal({
+      "cited-by": [],
+      references: [],
+    });
+    expect(fake.calls.savedStateChanged).to.equal(0);
+  });
+
+  it("does not ask a restored failure again, in its direction only, until reset", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    runner.restoreFailures({ "cited-by": ["a"], references: [] });
+    runner.wake();
+    await fake.settle();
+    expect(fake.calls.expanded).to.deep.equal(["b"]);
+    expect(runner.drainedByHop(fake.entries, 2, "cited-by")[1]).to.equal(false);
+    expect(runner.failures()["cited-by"]).to.deep.equal(["a"]);
+    runner.reset();
+    expect(runner.failures()).to.deep.equal({
+      "cited-by": [],
+      references: [],
+    });
+  });
+
+  it("replaces what it held when restored", async function () {
+    const fake = fakeHost();
+    fake.failing.add("a");
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    runner.restoreFailures({ "cited-by": [], references: ["b"] });
+    expect(runner.failures()).to.deep.equal({
+      "cited-by": [],
+      references: ["b"],
+    });
   });
 });
 

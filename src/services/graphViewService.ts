@@ -4185,7 +4185,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       flushCoalescedPresentationRefresh();
       flushHopSnapshot();
     },
-    pausedChanged: () => notifyStateChange(),
+    savedStateChanged: () => notifyStateChange(),
     frame: (run) => hopFillFrames.request(run),
     cancelFrame: (handle) => hopFillFrames.cancel(handle),
     now: () => Date.now(),
@@ -4997,6 +4997,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       floor,
       shared,
       fillStopped: hopFill.stopped(),
+      failedKeys: hopFill.failures(),
       regions: [...regions],
       swatches: swatches.state(),
       seedSwatches: seedSwatches.state(),
@@ -5058,6 +5059,8 @@ ${error instanceof Error ? error.message : String(error)}`,
       // first frame its seeds give the fill (B55).
       if (state.fillStopped) hopFill.stop();
       else hopFill.resume();
+      // A paper that failed before the save is not asked again (B94).
+      hopFill.restoreFailures(state.failedKeys);
       graphFilter.setState({ ...state.filters, collectionIDs: [] });
       // A version 1 recipe named the folders it was scoped to and drew each
       // one's whole subtree, so its ticks are expanded once here — and only

@@ -197,7 +197,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 9 });
+    const other = JSON.stringify({ ...state, version: 10 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -359,7 +359,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 9 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 10 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -628,7 +628,7 @@ describe("hops in the state", function () {
     };
     const parsed = parseGraphViewState(serializeGraphViewState(state))!;
     expect(parsed.hops).to.deep.equal(state.hops);
-    expect(parsed.version).to.equal(8);
+    expect(parsed.version).to.equal(9);
     expect("migratedFromBothDirections" in parsed).to.equal(false);
     const clamped = parseGraphViewState(
       JSON.stringify({
@@ -679,6 +679,37 @@ describe("hops in the state", function () {
     ).to.equal(false);
   });
 
+  it("round-trips the failed papers, and reads one saved before the field as none (B94)", function () {
+    const failed = {
+      ...emptyGraphViewState(),
+      failedKeys: { "cited-by": ["k1", "k2"], references: ["k3"] },
+    };
+    expect(
+      parseGraphViewState(serializeGraphViewState(failed))?.failedKeys,
+    ).to.deep.equal({ "cited-by": ["k1", "k2"], references: ["k3"] });
+    expect(emptyGraphViewState().failedKeys).to.deep.equal({
+      "cited-by": [],
+      references: [],
+    });
+    const eight = JSON.stringify({
+      ...emptyGraphViewState(),
+      version: 8,
+      failedKeys: undefined,
+    });
+    expect(parseGraphViewState(eight)?.failedKeys).to.deep.equal({
+      "cited-by": [],
+      references: [],
+    });
+    expect(
+      parseGraphViewState(
+        JSON.stringify({
+          ...emptyGraphViewState(),
+          failedKeys: { "cited-by": ["k1", 4, "", "k1"], references: "k3" },
+        }),
+      )?.failedKeys,
+    ).to.deep.equal({ "cited-by": ["k1"], references: [] });
+  });
+
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {
     const v3 = parseGraphViewState(
       JSON.stringify({
@@ -689,6 +720,6 @@ describe("hops in the state", function () {
       }),
     )!;
     expect(v3.hops.direction).to.equal("references");
-    expect(v3.version).to.equal(8);
+    expect(v3.version).to.equal(9);
   });
 });

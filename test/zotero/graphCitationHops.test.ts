@@ -124,6 +124,9 @@ const META_LOOKUP = /opencitations\.net\/meta\/v1\/metadata\//i;
  */
 const PROVIDER_HOST =
   /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
+/** A paper's citer or reference list, from the providers that page one. */
+const LIST_REQUEST =
+  /^https:\/\/(api\.semanticscholar\.org|api\.opencitations\.net)\/.*\/(citations|references)(\/|\?|$)/;
 /** Grouped digits as the machine locale prints them (de-CH: 1'200). */
 const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 /**
@@ -214,9 +217,9 @@ const served = (n: string, title: string, year: number, cites: string[]) => ({
 });
 const servedID = (n: string): string => `hops${RUN}${n}`;
 /**
- * The fixture cites three papers, one of which cites a fourth, which cites a
- * fifth, so References reaches hop 2 and B55's Fetch hop 3 has a request to
- * hold. Six papers cite the fixture, and one paper cites all six,
+ * The fixture cites three papers, one of which starts a chain of three, so
+ * References reaches hop 2, B55's Fetch hop 3 has a request to hold, and
+ * B94's Fetch hop 4 has one to fail. Six papers cite the fixture, and one paper cites all six,
  * so every hop-1 expansion under Citers finds a citer and the fill stays
  * busy for six round trips.
  */
@@ -230,7 +233,8 @@ const SERVED_PAPERS: readonly ServedPaper[] = [
   served("r2", "Stage 3 reference two", 2011, []),
   served("r3", "Stage 3 reference three", 2012, []),
   served("r4", "Stage 3 reference of a reference", 2005, [servedID("r5")]),
-  served("r5", "Stage 3 reference three hops out", 2001, []),
+  served("r5", "Stage 3 reference three hops out", 2001, [servedID("r6")]),
+  served("r6", "Stage 3 reference four hops out", 1999, []),
   ...HOP_CITERS.map((n, index) =>
     served(n, `Stage 3 citer ${n}`, 2016 + index, [servedID("seed")]),
   ),
@@ -1557,6 +1561,91 @@ describe("Citation hops (Stage 3)", function () {
       ).to.deep.equal([]);
     } finally {
       release();
+      undo();
+    }
+  });
+
+  it("reopens without asking a paper that failed before the save (B94)", async function () {
+    this.timeout(180_000);
+    // Every list request fails with a server error, so the hop 3 paper
+    // Fetch hop 4 expands stores nothing and fails. A 404 would not do: it
+    // stores an empty list, and the paper counts as expanded. Metadata
+    // lookups go on to the served index: a paper whose metadata failed is
+    // looked up again on a reopen, which is not the fill asking.
+    const asked: string[] = [];
+    const undo = interceptProviders((url) => {
+      asked.push(url);
+      return Promise.resolve({
+        status: 500,
+        responseText: "",
+        getResponseHeader: () => null,
+      });
+    }, LIST_REQUEST);
+    try {
+      const button = await waitFor(() => fetchButton(4), 10_000);
+      expect(button, `hop 4 carries no Fetch button; ladder ${ladder()}`).to
+        .exist;
+      button!.click();
+      expect(
+        await waitFor(() => asked.length > 0, 30_000),
+        `Fetch hop 4 asked nothing; line "${progressText()}", ` +
+          `ladder ${ladder()}`,
+      ).to.equal(true);
+      await untilQuiet(() => asked.length, 3_000, 30_000);
+
+      // The autosave carries the failure to the row.
+      const savedID = (
+        await listSavedGraphs(Zotero.Libraries.userLibraryID)
+      ).find((graph) => graph.name === SAVED_GRAPH_NAME)?.id;
+      expect(savedID, "the saved graph's row").to.not.equal(undefined);
+      const failedCount = (state: any): number =>
+        (state?.failedKeys?.["cited-by"]?.length ?? 0) +
+        (state?.failedKeys?.references?.length ?? 0);
+      const deadline = Date.now() + 30_000;
+      let saved = await loadSavedGraph(savedID!);
+      while (!failedCount(saved?.state) && Date.now() < deadline) {
+        await delay(250);
+        saved = await loadSavedGraph(savedID!);
+      }
+      expect(
+        failedCount(saved?.state),
+        `the row never recorded a failure; line "${progressText()}", ` +
+          `ladder ${ladder()}; asked ${asked.join(" , ")}`,
+      ).to.be.above(0);
+
+      win.Zotero_Tabs.close(reopenedTabID!);
+      reopenedTabID = null;
+      currentTabID = hostTabID;
+      win.Zotero_Tabs.select(hostTabID!);
+      await waitFor(
+        () => tabContent(hostTabID)?.querySelector("canvas"),
+        10_000,
+      );
+      await delay(500);
+      asked.length = 0;
+      reopenedTabID = await openSavedGraphFromFileMenu(
+        hostTabID!,
+        SAVED_GRAPH_NAME,
+      );
+      currentTabID = reopenedTabID;
+      win.Zotero_Tabs.select(reopenedTabID);
+      const row = await waitFor(
+        () =>
+          tabContent(reopenedTabID)?.querySelector(
+            '.cm-scope-hop-row[data-hop="4"]',
+          ),
+        40_000,
+      );
+      expect(row, "the reopened graph drew no hop 4 row").to.exist;
+      await untilQuiet(() => asked.length, 3_000, 20_000);
+      expect(
+        asked,
+        `the reopened graph asked again; line "${progressText()}", ` +
+          `ladder ${ladder()}; saved failures ` +
+          `${JSON.stringify(saved?.state.failedKeys)}; asked ` +
+          asked.join(" , "),
+      ).to.deep.equal([]);
+    } finally {
       undo();
     }
   });

@@ -82,7 +82,8 @@ change.
   resolution came back `complete: false` with no identified works, or the
   refresh returned without storing (discovery stopped, no usable identifier,
   no provider produced a snapshot, the signal cancelled). Failed papers leave
-  the plan for the session and come back after a reopen.
+  the plan and stay out across a reopen: the saved graph keeps them (B94).
+  The refusal limit's failures are not kept; a reopen asks them again.
 - **Parents**: the papers one hop shallower that link to a paper. A hop paper
   keeps all of them, so chains, downstream hiding and, in Stage 4, shared-citer
   counts read the whole picture.
@@ -429,8 +430,7 @@ are now one at a time; showing Citers", through the `setStatus` path B42's
 read-only notice uses. Once the state is saved again as version 5 the notice
 does not recur.
 
-Not persisted: which papers are expanded (derived from the store), the failed
-set, the plan, the per-hop expansion counts and caps, the
+Not persisted: which papers are expanded (derived from the store), the plan, the per-hop expansion counts and caps, the
 reported counts. The design's `loadedDepth` does not exist: under a lazy fill
 "loaded" is a fact per paper, not per hop.
 

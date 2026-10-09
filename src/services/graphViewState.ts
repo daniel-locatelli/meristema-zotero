@@ -33,7 +33,7 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 8;
+export const GRAPH_VIEW_STATE_VERSION = 9;
 
 /**
  * Which view (D4) the graph is on. `null` is "never chosen", which shows
@@ -89,6 +89,13 @@ export interface GraphViewState {
    * Resume instead of fetching by itself (B55). Since version 8.
    */
   fillStopped: boolean;
+  /**
+   * The papers whose list a provider answered with nothing usable, by
+   * direction, so a reopen does not ask them again (B94). A paper the
+   * refusal limit gave up on is not here: a reopen asks it again, as Resume
+   * would. Since version 9.
+   */
+  failedKeys: Record<HopDirection, string[]>;
   /**
    * The folders drawn as regions, oldest selection first. Uncapped since
    * 2026-09-11 (F14): overlapping translucent hulls do stop being readable
@@ -155,6 +162,7 @@ export function emptyGraphViewState(): GraphViewState {
     floor: 0,
     shared: 1,
     fillStopped: false,
+    failedKeys: { "cited-by": [], references: [] },
     regions: [],
     swatches: emptySwatchLedger(),
     seedSwatches: emptySwatchLedger(),
@@ -400,6 +408,14 @@ function parseKeys(value: unknown): string[] {
   ];
 }
 
+function parseFailedKeys(value: unknown): Record<HopDirection, string[]> {
+  const raw = isRecord(value) ? value : {};
+  return {
+    "cited-by": parseKeys(raw["cited-by"]),
+    references: parseKeys(raw.references),
+  };
+}
+
 function normalizedRegions(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   const ids = raw.filter(
@@ -534,6 +550,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 8 &&
     raw.version !== 7 &&
     raw.version !== 6 &&
     raw.version !== 5 &&
@@ -564,7 +581,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   // Regions have been stored since version 3; older records rebuild them
   // from the ticks. Version 4 only added `view`. Version 5 replaced
   // `explore` with `hops`. Version 6 added `floor`. Version 7 added `shared`.
-  // Version 8 added `fillStopped`.
+  // Version 8 added `fillStopped`. Version 9 added `failedKeys`.
   const regions =
     typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
@@ -585,6 +602,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     floor: parseFloor(raw.floor),
     shared: parseShared(raw.shared),
     fillStopped: raw.fillStopped === true,
+    failedKeys: parseFailedKeys(raw.failedKeys),
     regions,
     swatches: parsedLedger(raw.swatches),
     seedSwatches: parsedLedger(raw.seedSwatches),
