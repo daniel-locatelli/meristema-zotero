@@ -5324,7 +5324,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   });
   updateSummary();
   // The dropdown builds its rows when it opens, so there is nothing to draw
-  // here; `refreshViewChip` sets the label and the id the next open ticks.
+  // here; `refreshViewChip` sets the label and the id the next open marks active.
   refreshViewChip();
   maybeShowGallery();
   const localCitationWarmupItemIDs = [

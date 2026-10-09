@@ -665,7 +665,7 @@
 }
 .meristema-root .cm-view-row {
   display: grid;
-  grid-template-columns: 16px 1fr auto;
+  grid-template-columns: 16px 1fr;
   gap: 4px 10px;
   align-items: start;
   width: 100%;
@@ -673,9 +673,29 @@
   text-align: left;
   border-color: transparent;
 }
+/*
+ * The active view wears the hover's own fill and border rather than a check
+ * (D18), so it reads as "you are here" in either theme. The colours are the
+ * ones `.meristema-root button:hover` mixes in paperDetail.css.
+ */
+.meristema-root .cm-view-row[aria-checked="true"] {
+  background: color-mix(in srgb, var(--cm-accent) 10%, Canvas);
+  border-color: color-mix(in srgb, var(--cm-accent) 42%, var(--cm-border));
+}
 .cm-view-row-body {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* The name and its status on one line; the description runs under both. */
+.cm-view-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cm-view-row-name {
+  flex: 1 1 auto;
   min-width: 0;
 }
 .cm-view-row-summary,
@@ -685,12 +705,8 @@
   line-height: 1.35;
 }
 .cm-view-row-note {
-  grid-column: 3;
+  flex: 0 0 auto;
   white-space: nowrap;
-}
-.cm-view-row-tick {
-  grid-column: 3;
-  color: var(--cm-accent);
 }
 .meristema-root .cm-view-row--unavailable {
   opacity: 0.55;
@@ -706,6 +722,11 @@
 .cm-view-menu-rule {
   margin: 4px 6px 0;
   padding: 0;
+}
+/* In the View dropdown the actions stand further off the rows (D18). */
+.cm-view-menu > .cm-view-menu-rule {
+  margin-top: 10px;
+  margin-bottom: 6px;
 }
 .meristema-root .cm-view-action {
   justify-content: flex-start;

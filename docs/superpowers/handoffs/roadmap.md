@@ -136,11 +136,6 @@ opacity grade).
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
       `view-user` icon has no 28px rendering to walk
-- [ ] D18 the View dropdown (user, 2026-10-07): mark the active view with
-      a style like the hover highlight rather than a check; the description
-      and the status lines (`needs a seed`) sit in two columns and fight for
-      width, so move the description under the name; more space above
-      "Save current as view…"
 - [ ] D19 the user did not understand what Folder map is for (2026-10-07).
       The gallery card and the tutorial card do not carry its goal
 - [ ] D20 Who cites whom: the name is unclear, and `Shared by ≥ 2` is not
@@ -298,6 +293,11 @@ any failure into a new entry above.
 - [ ] B20: move a graph tab to its own window, put it in front of the main
       window, then File › New Graph: the main window comes forward on the new
       graph's tab.
+- [ ] D18: choose a view, then open the View dropdown, in Light and in Dark:
+      the active row wears the hover's fill and border (no ✓), each
+      description runs under its name at full width with `needs a seed` on
+      the name's line, and "Save current as view…" stands further off the
+      rows. Keyboard focus and hover still show on every row.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

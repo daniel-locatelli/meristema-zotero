@@ -35,7 +35,7 @@ export interface GraphViewsMenu {
   button: HTMLButtonElement;
   menu: HTMLElement;
   setLabel(name: string | null, edited: boolean): void;
-  /** Which row wears the tick next time the menu is drawn. Draws nothing now. */
+  /** Which row reads as active next time the menu is drawn. Draws nothing now. */
   setActive(id: string | null): void;
   close(): void;
   open(): void;
@@ -59,16 +59,21 @@ function row(
     button.setAttribute("aria-disabled", "true");
   }
   button.append(createIcon(document, view.icon, 16));
+  // The status (`needs a seed`) shares the name's line, and the description
+  // runs under both at the row's full width: beside the status it was a
+  // second column, and the two squeezed each other (D18). The active row
+  // shows by its `aria-checked`, which the stylesheet paints like a hover.
   const body = element(document, "span", "cm-view-row-body");
+  const head = element(document, "span", "cm-view-row-head");
+  head.append(text(document, "span", view.name, "cm-view-row-name"));
+  const note =
+    graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
+  if (note) head.append(text(document, "span", note, "cm-view-row-note"));
   body.append(
-    text(document, "span", view.name, "cm-view-row-name"),
+    head,
     text(document, "span", view.summary, "cm-view-row-summary"),
   );
   button.append(body);
-  const note =
-    graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
-  if (note) button.append(text(document, "span", note, "cm-view-row-note"));
-  if (active) button.append(text(document, "span", "✓", "cm-view-row-tick"));
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     if (!available) return;
@@ -110,8 +115,8 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
   /*
    * The rows are rebuilt when the menu opens, not on every change behind it:
    * a `replaceChildren` under an open menu drops focus, forgets the hover and
-   * swallows the click whose `pointerdown` landed on a row. The tick's owner
-   * is kept here so opening can redraw from it.
+   * swallows the click whose `pointerdown` landed on a row. The active row's
+   * id is kept here so opening can redraw from it.
    */
   let activeID: string | null = null;
   const refresh = (nextActiveID: string | null): void => {
@@ -178,7 +183,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     button.setAttribute("aria-expanded", "false");
   };
   const open = (): void => {
-    // Saved views, their names and the tick are as of this moment, and the
+    // Saved views, their names and the active row are as of this moment, and the
     // reader cannot be mid-click on a row that is about to be replaced.
     o.onOpen?.();
     refresh(activeID);
