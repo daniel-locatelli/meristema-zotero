@@ -349,6 +349,8 @@ any failure into a new entry above.
 - [ ] D11: fill a References graph on an ACM paper: Unknown labels
       resolve into author-year while the fill is still running, not only
       after it stops.
+- [ ] Gear: open New Graph on a folder whose papers have no year, close it,
+      then open New Graph on the library: it keeps your saved axes, not Free.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

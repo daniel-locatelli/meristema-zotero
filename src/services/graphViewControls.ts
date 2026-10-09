@@ -692,11 +692,11 @@ export function createAxesAppearance(
   });
   updateAvailability();
   activate("x");
-  const normalizedInitial = read();
-  if (JSON.stringify(normalizedInitial) !== JSON.stringify(initial)) {
-    persistLayout(normalizedInitial);
-    last = JSON.stringify(normalizedInitial);
-  }
+  // What the selects landed on is what this graph can show, not a choice the
+  // reader made: a graph without years or counts opens on Free axes, and
+  // saving that made every later graph open on Free axes too. The saved
+  // appearance changes only when the reader changes the gear.
+  last = JSON.stringify(read());
   return {
     root,
     button,
