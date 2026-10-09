@@ -297,7 +297,7 @@ any failure into a new entry above.
       `n papers · from N`, the line under them is Stop alone; press Stop: the
       line reads `n not expanded · Resume`, and `n without details` sits under
       it if any paper has no title, year or count. Reopen the saved graph:
-      `from N` reads the same.
+      `from N` reads the same. The spinner turns smoothly while papers land.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

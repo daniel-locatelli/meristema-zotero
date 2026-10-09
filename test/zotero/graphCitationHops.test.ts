@@ -1518,11 +1518,6 @@ describe("Citation hops (Stage 3)", function () {
         ),
         `after Stop the line read "${progressText()}"`,
       ).to.equal(true);
-      const fromBefore = hopFromText(2);
-      expect(fromBefore, `hop 2 carries no from; ladder ${ladder()}`).to.match(
-        /^· from \d+$/,
-      );
-
       // The autosave carries the stop to the row.
       const savedID = (
         await listSavedGraphs(Zotero.Libraries.userLibraryID)
@@ -1538,6 +1533,12 @@ describe("Citation hops (Stage 3)", function () {
         saved?.state.fillStopped,
         `the row never recorded the stop; depth ${saved?.state.hops.depth}`,
       ).to.equal(true);
+      // Read after the autosave confirms the stop: a request in flight at Stop
+      // can still land and raise `from N` before then.
+      const fromBefore = hopFromText(2);
+      expect(fromBefore, `hop 2 carries no from; ladder ${ladder()}`).to.match(
+        /^· from \d+$/,
+      );
 
       win.Zotero_Tabs.close(reopenedTabID!);
       reopenedTabID = null;

@@ -45,6 +45,8 @@ export type RailEmphasis =
   | { kind: "collection"; collectionID: number };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+/** Matches the 0.9s `cm-scope-hop-spin` duration in graph.css: spinners rebuilt mid-turn share one phase. */
+const SPINNER_PERIOD_MS = 900;
 
 /** Gradient ids have to be unique within a document, and rails can coexist. */
 let markSequence = 0;
@@ -751,6 +753,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       if (row.spinning) {
         const spinner = element(document, "span", "cm-scope-hop-spinner");
         spinner.setAttribute("aria-hidden", "true");
+        spinner.style.setProperty(
+          "--cm-spin-phase",
+          `-${Date.now() % SPINNER_PERIOD_MS}ms`,
+        );
         body.appendChild(spinner);
       }
     }

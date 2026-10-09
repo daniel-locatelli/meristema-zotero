@@ -1875,6 +1875,8 @@
   border-inline-end-color: transparent;
   border-radius: 50%;
   animation: cm-scope-hop-spin 0.9s linear infinite;
+  /* Set per rebuild by graphKeyRail.ts so a fresh element joins the shared turn. */
+  animation-delay: var(--cm-spin-phase, 0ms);
 }
 @keyframes cm-scope-hop-spin {
   to {

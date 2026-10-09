@@ -4000,6 +4000,8 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (hopModel && lastScope) {
       for (const [key, entry] of hopModel.entries) {
         if (!lastScope.visibleKeys.has(key)) continue;
+        // `expanded` can hold at hop === depth (a list stored by an earlier,
+        // deeper walk); unguarded it would count into a row past the depth.
         if (entry.expanded && entry.hop < hopDepth)
           expandedByHop[entry.hop + 1] =
             (expandedByHop[entry.hop + 1] ?? 0) + 1;
