@@ -16,7 +16,7 @@ names the commit that removed the older archive.
 Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
-  form of the open entries filed up to 2026-09-11 (B7, B18, B20, B26,
+  form of the open entries filed up to 2026-09-11 (B18, B20, B26,
   B34, B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
@@ -215,8 +215,6 @@ opacity grade).
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
 - [ ] F3 standards without a main author (short brainstorm, small plan)
-- [ ] B7 New Graph on an empty library fails silently (open the empty state,
-      or tell the user; backlog entry B7)
 - [ ] B18 the view fits after it renders, so the graph jumps
 - [ ] B34 panning a 300+ paper folder at maximum zoom lags (D6's walk, failed
       2026-09-11). Measure before touching: `drawRegions` rebuilds every
@@ -320,6 +318,9 @@ any failure into a new entry above.
       fetches until Resume. Restart Zotero with the tab open: still stopped.
       A saved References graph from before Stage 4 now reopens on References
       at its saved depth instead of Citers at depth 1.
+- [ ] B7: in a library with no regular items (an empty group, say), Tools ›
+      Meristema › New Graph opens a tab reading "This graph is empty"; add a
+      seed from the + button's search and it appears.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -332,7 +333,7 @@ may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
 runs alone under a temporary `describe.only`. Last full run: 2026-10-09 with B54/B55 (105/1, the floor drag flake below), so
 count with the commits since the one whose subject ends `(B54, B55)`. A clean
-run is 106 passed, 0 failed as of 2026-10-09 (B55's reopen case added).
+run is 107 passed, 0 failed as of 2026-10-09 (B7's case added).
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -536,3 +537,7 @@ entries are in git history.
   Citers at depth 1; it reads them from version 5 on. Red, then green, in the
   Citation hops suite (the served index gains r5 so hop 3 has a request).
   B94 filed for the failed set and the caps; D23 filed for the narrow layout.
+- 2026-10-09: B7 done; the user chose to open the empty graph. Two things
+  stopped it: the "contains no regular Zotero items" guard in
+  `openGraphWindow`, and the new tab's `itemID` read from the library's first
+  paper. Red, then green, in `graphEmptyLibrary.test.ts`.

@@ -1490,12 +1490,9 @@ export async function openGraphWindow(
   selectionBinding(win);
   liveInstances(win);
   const targetLibraryID = requestedLibraryID(win, libraryID);
+  // A library with no regular items still opens: the view shows its empty
+  // state, and seeds can come from outside the library (B7).
   const snapshot = await loadWholeLibrary(targetLibraryID);
-  if (!snapshot.papers.length) {
-    throw new Error(
-      `${snapshot.libraryName} contains no regular Zotero items for Meristema.`,
-    );
-  }
 
   let instance = requestedInstance(win, options);
   if (!instance) {
@@ -1569,7 +1566,8 @@ export async function openGraphWindow(
     type: TAB_TYPE,
     title: instance.title,
     data: {
-      itemID: firstRequestedItemID(request) ?? snapshot.papers[0].itemID,
+      itemID:
+        firstRequestedItemID(request) ?? snapshot.papers[0]?.itemID ?? null,
       libraryID: snapshot.libraryID,
       graph: true,
       graphInstanceID: instance.instanceID,

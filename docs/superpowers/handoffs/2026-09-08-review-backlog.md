@@ -13,29 +13,6 @@ D6, F1, F2, F14) and the deferred B38 are in
 
 ---
 
-## B7. New Graph on an empty library fails silently
-
-Found 2026-09-08 while reproducing B6 in the Zotero suite: Tools ›
-Meristema › New Graph in a library with no regular items opens no tab.
-This is a deliberate guard, not a crash: `openGraphWindow` in
-`src/services/windowService.ts` throws "<library> contains no regular
-Zotero items for Meristema." before any tab exists, and the menu's
-command handler only passes that to `Zotero.logError`, so the user sees
-nothing unless the error console is open.
-
-Decision needed (short brainstorm): either open the tab on the empty
-library and let the view show its empty state, so seeds can be added from
-outside Zotero straight away; or keep the guard and tell the user through
-a toolbar status or a prompt. The design's Scope rail (Stage 2) leans
-towards the first, since a graph is then a recipe that may start with no
-library items at all.
-
-Test: a Zotero test that runs the command from the Tools menu against a
-library with no regular items (the suite starts with an empty one) and
-expects whichever outcome is chosen.
-
----
-
 ## F3. Standards (ISO etc.) without a main author
 
 Observation: items whose creators are committees or none at all are
