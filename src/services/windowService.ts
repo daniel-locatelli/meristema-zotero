@@ -1603,8 +1603,10 @@ export async function openGraphWindow(
   renderTab(win, instance, result.container, snapshot);
   // The tab is selected, but the command may have come from a detached graph
   // window that sits in front of this one (B20), as an existing tab's
-  // activation already brings the window forward.
-  win.focus();
+  // activation already brings the window forward. Not every host the menus
+  // hand over carries a callable `focus` (the external-seed import's reopen
+  // logged "win.focus is not a function"), so it is asked, not assumed.
+  if (typeof (win as { focus?: unknown }).focus === "function") win.focus();
 }
 
 export async function openNewGraphWindow(
