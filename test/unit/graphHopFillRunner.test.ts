@@ -562,6 +562,15 @@ describe("createHopFillRunner", function () {
       gaveUp: 1,
       refusal: null,
     });
+    expect(runner.gaveUpCount(new Set(["a"]), "cited-by")).to.equal(1);
+    expect(
+      runner.gaveUpCount(new Set(), "cited-by"),
+      "a hidden paper's Resume has no count on the line, so it is not counted",
+    ).to.equal(0);
+    expect(
+      runner.gaveUpCount(new Set(["a"]), "references"),
+      "giving up is per direction",
+    ).to.equal(0);
     fake.refusing.clear();
     runner.retryNow();
     await fake.settle();

@@ -83,6 +83,12 @@ export interface ScopeHopsInput {
   growingByHop: readonly boolean[];
   /** Visible papers whose expansion failed in this direction (D12). */
   failed: number;
+  /**
+   * Visible papers the deferral limit failed in this direction, a part of
+   * `failed`: only Resume brings them back (B72). A hidden one has no count
+   * on the line, so it earns no Resume.
+   */
+  gaveUp: number;
   /** Visible hop papers drawn without details (`lacksDetails`, D12). */
   lacksDetails: number;
   /** The hop category colours by hop while the colouring is Citation hop, else null. */
@@ -92,8 +98,6 @@ export interface ScopeHopsInput {
     remaining: number;
     waiting: number;
     paused: boolean;
-    /** Papers the deferral limit failed; only Resume brings them back (B72). */
-    gaveUp?: number;
     /** Set while the fill cools down: who is refusing, and when it tries again. */
     refusal?: {
       providers: readonly CitationProviderID[];
@@ -414,7 +418,7 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
   } else {
     // At rest: name only what is missing, each with the button that recovers
     // it (D12). A Stop's papers come back with Resume, the cap's with Fetch
-    // more, and the deferral limit's with Resume (ADR 0014).
+    // more, and the deferral limit's visible ones with Resume (ADR 0014).
     const stopped = fill?.paused === true && fill.remaining > 0;
     const notExpanded =
       (stopped ? (fill?.remaining ?? 0) : 0) + (fill?.waiting ?? 0);
@@ -431,7 +435,7 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
       ? "resume"
       : (fill?.waiting ?? 0) > 0
         ? "more"
-        : (fill?.gaveUp ?? 0) > 0
+        : input.gaveUp > 0
           ? "resume"
           : null;
     if (parts.length || details) {

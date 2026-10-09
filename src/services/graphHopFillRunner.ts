@@ -187,6 +187,15 @@ export interface HopFillRunner {
     direction: HopDirection,
   ): number;
   /**
+   * The visible papers the deferral limit failed in the direction: those the
+   * line's Resume brings back. A hidden one has no count on the line, so the
+   * rail offers no Resume for it (B72, ADR 0014).
+   */
+  gaveUpCount(
+    visibleKeys: ReadonlySet<string>,
+    direction: HopDirection,
+  ): number;
+  /**
    * Per hop, whether nothing at it is left, waiting, deferred or failed this
    * session, so the rail can call the hop below empty rather than pending.
    * False for every hop until a plan exists for this direction and this
@@ -563,6 +572,13 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
     failedCount: (visibleKeys, direction) => {
       let count = 0;
       for (const key of failed[direction]) {
+        if (visibleKeys.has(key)) count += 1;
+      }
+      return count;
+    },
+    gaveUpCount: (visibleKeys, direction) => {
+      let count = 0;
+      for (const key of limitFailed[direction]) {
         if (visibleKeys.has(key)) count += 1;
       }
       return count;

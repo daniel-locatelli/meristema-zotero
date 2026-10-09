@@ -75,8 +75,10 @@ at rest     180 not expanded · 12 failed · Resume
     visible (`failedCount`; the deferral limit's failures are already in
     `failed`).
   - The button: **Resume** when stopped with papers still planned; else
-    **Fetch more** when any wait on the cap; else **Resume** when any gave
-    up; else none. Each does what it does today.
+    **Fetch more** when any wait on the cap; else **Resume** when any
+    visible paper gave up (so within `failed`); else none. A hidden one has
+    no count on the line, so it earns no Resume. Each does what it does
+    today.
   - A second line, `{n} without details`: visible hop papers (hop ≥ 1) for
     which `lacksDetails` holds. No button.
 - **Nothing missing**: no line. The cut line stays as it is and keeps saying
@@ -91,12 +93,13 @@ at rest     180 not expanded · 12 failed · Resume
   year and a null citation count.
 - The runner gains `growingByHop(depth, direction)` (true for a hop while
   its last plan, at that direction and depth, still holds parents one hop
-  up not waiting on the cap) and `failedCount(visibleKeys, direction)`
-  (the deferral limit's failures are already in `failed`).
+  up not waiting on the cap), `failedCount(visibleKeys, direction)` (the
+  deferral limit's failures are already in `failed`) and
+  `gaveUpCount(visibleKeys, direction)` for those failures alone.
   `reportedByHop` is removed.
 - `ScopeHopsInput` drops `reportedByHop` and gains `expandedByHop`,
-  `growingByHop`, `failed` (a top-level count, not on `fill`) and
-  `lacksDetails`, all built in `scopeHopsInput()` in `graphViewService.ts`.
+  `growingByHop`, `failed` and `gaveUp` (top-level visible counts, not on
+  `fill`) and `lacksDetails`, all built in `scopeHopsInput()` in `graphViewService.ts`.
 - `ScopeHopRow` drops `reported`, gains `from: string | null`,
   `spinning: boolean`, `shown` and `available`. The rail model decides the
   spinner (running = plan nonempty, not paused, no refusal) from

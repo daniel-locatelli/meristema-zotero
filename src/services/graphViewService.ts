@@ -4033,6 +4033,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       failed: lastScope
         ? hopFill.failedCount(lastScope.visibleKeys, hopDirection)
         : 0,
+      gaveUp: lastScope
+        ? hopFill.gaveUpCount(lastScope.visibleKeys, hopDirection)
+        : 0,
       colours: assignment
         ? Array.from(
             { length: hopDepth + 1 },

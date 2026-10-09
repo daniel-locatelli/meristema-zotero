@@ -447,6 +447,7 @@ function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
     expandedByHop: [0, 1, 3],
     growingByHop: [false, false, false],
     failed: 0,
+    gaveUp: 0,
     lacksDetails: 0,
     colours: null,
     fill: null,
@@ -705,7 +706,8 @@ describe("the Citation hops block", function () {
     const block = railWithHops(
       hopsInput({
         failed: 4,
-        fill: { remaining: 0, waiting: 0, paused: false, gaveUp: 4 },
+        gaveUp: 4,
+        fill: { remaining: 0, waiting: 0, paused: false },
       }),
     )!.hops!;
     expect(block.progress).to.include({
@@ -713,6 +715,25 @@ describe("the Citation hops block", function () {
       text: `${count(4)} failed`,
       action: "resume",
       actionLabel: "Resume",
+    });
+  });
+
+  // A gave-up paper the scope, the floor or a search hides has no count on
+  // the line. The runner still holds it, and so a fill state at rest, but its
+  // Resume would stand bare beside the details, or beside a failure Resume
+  // does not bring back.
+  it("offers no Resume when every gave-up paper is hidden", function () {
+    const atRest = { remaining: 0, waiting: 0, paused: false };
+    const bare = railWithHops(
+      hopsInput({ gaveUp: 0, lacksDetails: 3, fill: atRest }),
+    )!.hops!;
+    expect(bare.progress).to.include({ text: "", action: null });
+    const session = railWithHops(
+      hopsInput({ failed: 2, gaveUp: 0, fill: atRest }),
+    )!.hops!;
+    expect(session.progress).to.include({
+      text: `${count(2)} failed`,
+      action: null,
     });
   });
 
