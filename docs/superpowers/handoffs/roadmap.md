@@ -16,7 +16,7 @@ names the commit that removed the older archive.
 Inputs (do not re-derive them):
 
 - Backlog: `docs/superpowers/handoffs/2026-09-08-review-backlog.md`, the long
-  form of the open entries filed up to 2026-09-11 (B18, B20, B26,
+  form of the open entries filed up to 2026-09-11 (B18, B26,
   B34, B36, F3 to F12, D5). Read one only when you take that item.
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
@@ -189,7 +189,6 @@ opacity grade).
       oversight (backlog entry B26)
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
-- [ ] B20 New Graph from a detached window gives no feedback (low priority)
 - [ ] B38 the region border grows a tip toward a neighbour just before two
       regions merge. Deferred by the user on 2026-09-11 after three
       renderings; not to be reopened unless they do
@@ -296,6 +295,9 @@ any failure into a new entry above.
       line reads `n not expanded · Resume`, and `n without details` sits under
       it if any paper has no title, year or count. Reopen the saved graph:
       `from N` reads the same. The spinner turns smoothly while papers land.
+- [ ] B20: move a graph tab to its own window, put it in front of the main
+      window, then File › New Graph: the main window comes forward on the new
+      graph's tab.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

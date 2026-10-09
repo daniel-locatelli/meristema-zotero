@@ -69,19 +69,6 @@ Pointers: `scheduleFocusFit` and `applySeedProjection` in
 
 ---
 
-## B20. New Graph from a detached window gives no feedback
-
-Found in the walk-through, check 6. Low priority, and the user said so. With
-the graph in its own window, New Graph opens a tab in the main Zotero window,
-which may be behind everything: nothing appears to happen.
-
-Either bring the main window forward, or open the new graph as another
-detached window when the command came from one.
-
-Pointers: `openNewGraphWindow` in `src/services/windowService.ts`.
-
----
-
 ## F5. The node's context menu should offer what the detail pane offers
 
 Found in the walk-through, extra note. Right-clicking a node offers the open

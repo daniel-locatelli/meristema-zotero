@@ -1601,6 +1601,10 @@ export async function openGraphWindow(
   instance.libraryID = snapshot.libraryID;
   instance.lastActivatedAt = Date.now();
   renderTab(win, instance, result.container, snapshot);
+  // The tab is selected, but the command may have come from a detached graph
+  // window that sits in front of this one (B20), as an existing tab's
+  // activation already brings the window forward.
+  win.focus();
 }
 
 export async function openNewGraphWindow(
