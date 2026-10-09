@@ -42,15 +42,15 @@ Hop 3    [Fetch hop 3]
 - A hop at or below the depth reads `{shown} papers` (`1 paper`), followed
   by a muted `· from {N}` when N > 0. N counts the hop entries at `hop - 1`
   with `expanded` set and a key in the scope's visible keys.
-- The spinner follows a row while the runner's plan still holds papers at
-  the hop above (`remainingByHop[hop - 1] > 0`), the fill is not paused and
-  no refusal is cooling down. Every such row spins, not only the deepest. Under
+- The spinner follows a row while the runner's last plan still holds parents
+  one hop up not waiting on the cap (`growingByHop`), the fill is not paused
+  and no refusal is cooling down. Every such row spins, not only the deepest. Under
   `prefers-reduced-motion` the glyph is static. Its style lives in
   `graph.css`.
 - Unchanged: the Seeds row's bare count, `not fetched`, `none yet` and
   `none found`, the Fetch hop N button, checkboxes, swatches, dimming.
-- Deleted: `{shown}/{available}`, `of {reported}`, the runner's
-  `reportedByHop`. The runner's `reported` map stays: the planner orders by
+- Deleted: `{shown}/{available}` from the text (the row keeps them as data
+  attributes), `of {reported}`, the runner's `reportedByHop`. The runner's `reported` map stays: the planner orders by
   it.
 
 ### The line under the rows
@@ -68,17 +68,17 @@ at rest     180 not expanded · 12 failed · Resume
   no text.
 - **Refusing**: unchanged (ADR 0013), countdown included.
 - **At rest**: a gaps line naming only its nonzero parts, in this order:
-  - `{n} not expanded`: the plan's visible parents left unexpanded, whether a
-    Stop holds them or the cap does (`remaining + waiting`).
+  - `{n} not expanded`: the plan's visible parents left unexpanded: those a
+    Stop holds (`remaining`, only while stopped) plus those the cap holds
+    (`waiting`).
   - `{n} failed`: the runner's failed keys in the direction whose papers are
-    visible, plus those that gave up at the deferral limit (`gaveUp`, which
-    the runner does not filter by visibility today; it is filtered the same
-    way).
-  - The button: **Resume** when paused; else **Fetch more** when any wait on
-    the cap; else **Resume** when any gave up; else none. Each does what it
-    does today.
-  - A second line, `{n} without details`: hop papers (hop ≥ 1) for which
-    `lacksDetails` holds. No button.
+    visible (`failedCount`; the deferral limit's failures are already in
+    `failed`).
+  - The button: **Resume** when stopped with papers still planned; else
+    **Fetch more** when any wait on the cap; else **Resume** when any gave
+    up; else none. Each does what it does today.
+  - A second line, `{n} without details`: visible hop papers (hop ≥ 1) for
+    which `lacksDetails` holds. No button.
 - **Nothing missing**: no line. The cut line stays as it is and keeps saying
   what the 50-per-paper cut leaves out.
 - Deleted: `expanding · {n} left`, `500 expanded · {n} waiting`,
@@ -89,15 +89,21 @@ at rest     180 not expanded · 12 failed · Resume
 - `lacksDetails(node)`: a pure predicate beside the graph node type, true when
   the node has no title (or only the `Title unavailable` placeholder), a null
   year and a null citation count.
-- The runner's `state()` gains `remainingByHop` (from its last plan) and
-  `failed` (the count above). `reportedByHop` is removed.
+- The runner gains `growingByHop(depth, direction)` (true for a hop while
+  its last plan, at that direction and depth, still holds parents one hop
+  up not waiting on the cap) and `failedCount(visibleKeys, direction)`
+  (the deferral limit's failures are already in `failed`).
+  `reportedByHop` is removed.
 - `ScopeHopsInput` drops `reportedByHop` and gains `expandedByHop`,
-  `activeByHop` and `lacksDetails`, all built in `scopeHopsInput()` in
-  `graphViewService.ts`. `fill` gains `failed`.
-- `ScopeHopRow` drops `reported`, gains `from: string | null` and
-  `spinning: boolean`. `ScopeHopsProgress` becomes a tagged union:
-  `running`, `refusing` (today's shape), `rest` (`text`, `details: string |
-null`, an optional action).
+  `growingByHop`, `failed` (a top-level count, not on `fill`) and
+  `lacksDetails`, all built in `scopeHopsInput()` in `graphViewService.ts`.
+- `ScopeHopRow` drops `reported`, gains `from: string | null`,
+  `spinning: boolean`, `shown` and `available`. The rail model decides the
+  spinner (running = plan nonempty, not paused, no refusal) from
+  `growingByHop`.
+- `ScopeHopsProgress` is one flat shape: `{afterHop, kind: "running" |
+"refusing" | "rest", text, details, action | null, actionLabel | null,
+countdown, title, left}`.
 - `graphKeyRail.ts` renders the `from` span and the spinner in the row, and a
   rest line of one or two lines.
 
@@ -107,7 +113,7 @@ null`, an optional action).
   cases for `from N` at rest and running, the spinner per row and its absence
   under Stop and a refusal, each gap alone and together, the button
   precedence, and no line when nothing is missing.
-- `test/unit/graphHopFillRunner.test.ts`: `remainingByHop` and `failed`
+- `test/unit/graphHopFillRunner.test.ts`: `growingByHop` and `failedCount`
   replace the `reportedByHop` assertions.
 - A unit case for `lacksDetails`.
 - `test/zotero/graphCitationHops.test.ts`: reads of `expanding · n left` become
