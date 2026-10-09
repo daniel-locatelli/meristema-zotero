@@ -51,6 +51,7 @@ import {
   saveExternalWorkCacheSuccesses,
   shouldResolveExternalWork,
 } from "./externalWorkCacheService";
+import { createHydrationPublisher } from "./hydrationPublisher";
 import {
   getStoredRelationshipCount,
   getStoredRelationshipEntry,
@@ -743,6 +744,60 @@ async function persistHydratedRelationshipMetadata(
   }
 }
 
+/** What one hydration batch resolved, held until the publisher releases it. */
+interface HydratedSummaryBatch {
+  targets: RelationshipMetadataHydrationTarget[];
+  identityKeys: string[];
+}
+
+/**
+ * Invalidate and republish the relationship lists the batches touched, once
+ * each. A large bibliography used to rewrite and republish its complete
+ * relationship record after every 100-summary batch; the summaries stay in
+ * the external-work cache as they are retrieved, and the publisher decides
+ * how often this runs.
+ */
+async function publishHydratedSummaryBatches(
+  batches: readonly HydratedSummaryBatch[],
+): Promise<void> {
+  const hydratedTargets = new Map<
+    string,
+    RelationshipMetadataHydrationTarget
+  >();
+  const hydratedIdentityKeys = new Set<string>();
+  for (const batch of batches) {
+    accumulateHydrationTargets(hydratedTargets, batch.targets);
+    for (const key of batch.identityKeys) hydratedIdentityKeys.add(key);
+  }
+  if (hydratedIdentityKeys.size) {
+    invalidateExternalRelationshipMetadata(hydratedIdentityKeys);
+  }
+  const targets = [...hydratedTargets.values()];
+  if (!targets.length) return;
+  const publicationStartedAt = Date.now();
+  await persistHydratedRelationshipMetadata(targets);
+  const publicationDurationMs = Date.now() - publicationStartedAt;
+  if (publicationDurationMs >= 500) {
+    Zotero.debug(
+      `Meristema: published relationship summaries for ${targets.length} target${
+        targets.length === 1 ? "" : "s"
+      } in ${publicationDurationMs} ms`,
+    );
+  }
+  for (const target of targets) {
+    for (const callback of target.onHydrated) {
+      try {
+        callback();
+      } catch (error) {
+        Zotero.debug(
+          `Meristema: relationship hydration callback failed: ${String(error)}`,
+        );
+      }
+    }
+  }
+  await yieldToUI();
+}
+
 function relationshipMetadataHydrationShowsProgress(): boolean {
   for (const entry of relationshipMetadataHydrationQueue.values()) {
     for (const target of entry.targets.values()) {
@@ -811,11 +866,6 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
   const initialTotal = relationshipMetadataHydrationQueue.size;
   let completed = 0;
   let remainingFallbackLookups = RELATIONSHIP_SUMMARY_BACKGROUND_FALLBACK_LIMIT;
-  const hydratedTargets = new Map<
-    string,
-    RelationshipMetadataHydrationTarget
-  >();
-  const hydratedIdentityKeys = new Set<string>();
   const showProgress = relationshipMetadataHydrationShowsProgress();
   const progress = showProgress
     ? createUpdateProgress({
@@ -824,6 +874,21 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
         total: Math.max(1, initialTotal),
       })
     : relationshipProgress(true, "", "");
+  // Each publication invalidates and rebuilds the affected relationship lists
+  // once for the batches it carries; the publisher holds it to one per window
+  // while work is queued, so a fill's landings show without a rebuild per
+  // batch (D11).
+  const publisher = createHydrationPublisher<HydratedSummaryBatch>({
+    publish: async (batches) => {
+      if (
+        !externalDiscoveryRunning ||
+        generation !== externalDiscoveryGeneration
+      ) {
+        return;
+      }
+      await publishHydratedSummaryBatches(batches);
+    },
+  });
   try {
     while (
       externalDiscoveryRunning &&
@@ -835,6 +900,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
         break;
       }
       if (activeRelationshipMembershipRefreshes > 0) {
+        await publisher.waiting();
         await new Promise<void>((resolve) =>
           setTimeout(resolve, RELATIONSHIP_METADATA_BACKGROUND_DELAY_MS),
         );
@@ -902,20 +968,23 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
       const resolved = hydrated.filter(
         (work) => !needsRelationshipBibliographicMetadata(work),
       );
-      if (resolved.length) {
-        accumulateHydrationTargets(hydratedTargets, targets);
-        for (const work of resolved) {
-          for (const identity of stableWorkAliases(work)) {
-            hydratedIdentityKeys.add(identity);
-          }
-        }
-      }
       completed += input.length;
       progress.setProgress(
         completed,
         currentTotal,
         `${completed}/${currentTotal} related-paper summaries retrieved`,
       );
+      if (resolved.length) {
+        await publisher.batchCompleted(
+          {
+            targets,
+            identityKeys: resolved.flatMap((work) => stableWorkAliases(work)),
+          },
+          relationshipMetadataHydrationQueue.size > 0,
+        );
+      } else {
+        await publisher.waiting();
+      }
 
       if (relationshipMetadataHydrationQueue.size > 0) {
         await new Promise<void>((resolve) =>
@@ -924,47 +993,16 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
       }
     }
 
-    // A large bibliography used to rewrite and republish its complete
-    // relationship record after every 100-summary batch. Keep the newly
-    // resolved metadata in the external-work cache during retrieval, then
-    // invalidate and rebuild each affected relationship list exactly once.
     if (
       externalDiscoveryRunning &&
       generation === externalDiscoveryGeneration
     ) {
-      const finalTargets = [...hydratedTargets.values()];
-      if (hydratedIdentityKeys.size) {
-        invalidateExternalRelationshipMetadata(hydratedIdentityKeys);
-      }
-      if (finalTargets.length) {
-        progress.setProgress(
-          completed,
-          Math.max(initialTotal, completed),
-          "Publishing retrieved summaries",
-        );
-        const publicationStartedAt = Date.now();
-        await persistHydratedRelationshipMetadata(finalTargets);
-        const publicationDurationMs = Date.now() - publicationStartedAt;
-        if (publicationDurationMs >= 500) {
-          Zotero.debug(
-            `Meristema: published relationship summaries for ${finalTargets.length} target${
-              finalTargets.length === 1 ? "" : "s"
-            } in ${publicationDurationMs} ms`,
-          );
-        }
-        for (const target of finalTargets) {
-          for (const callback of target.onHydrated) {
-            try {
-              callback();
-            } catch (error) {
-              Zotero.debug(
-                `Meristema: relationship hydration callback failed: ${String(error)}`,
-              );
-            }
-          }
-        }
-        await yieldToUI();
-      }
+      progress.setProgress(
+        completed,
+        Math.max(initialTotal, completed),
+        "Publishing retrieved summaries",
+      );
+      await publisher.drain();
     }
     if (!progress.isDismissed()) {
       if (isCitationRequestCancellationRequested()) {

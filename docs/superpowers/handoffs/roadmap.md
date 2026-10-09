@@ -79,14 +79,14 @@ opacity grade).
       11/13 DOIs; OpenAlex and Crossref resolve the misses. The seed
       `10.1145/1201775.882296` has a year (2003) in S2, OpenAlex and Crossref,
       so a missing year there means its own summary never hydrated. What is
-      left is starvation, from code reading, unmeasured. The background queue
-      waits whenever `activeRelationshipMembershipRefreshes > 0`, and a fill
-      runs expansions a frame apart, so hydration runs only in the gaps. The
-      queue also publishes (invalidate, `metadata-published`) only once it
-      drains, and a running fill keeps feeding it. Next: measure in Zotero
-      (summaries hydrated while the fill runs against after it stops), then
-      choose a fix: let hydration interleave with fill membership, publish
-      each batch, or both.
+      left is starvation, from code reading. Fixed: the queue published only
+      on drain; it now publishes a batch while work is queued, at most once
+      a second (`hydrationPublisher.ts`). Left: the queue still waits
+      whenever `activeRelationshipMembershipRefreshes > 0`, and a fill runs
+      expansions a frame apart, so hydration runs only in the gaps. Decide
+      (user, it changes provider request rates, ADR 0013 to 0015): let
+      hydration interleave with fill membership, or keep the gaps. Measure
+      first, after the manual check below.
 - [ ] B47 during a fill the nodes jump far more than the new data warrants.
       Cause: `relaxAnchoredNodes` (the overlap step) restarts from the
       anchors on every landing and may move a node 52 world units on a count
@@ -341,6 +341,9 @@ any failure into a new entry above.
       date, then draw it with Author-year labels: the node and its Seeds row
       read `ISO/TC 59 (year)`, not `59 (year)`; a person still reads by last
       name.
+- [ ] D11: fill a References graph on an ACM paper: Unknown labels
+      resolve into author-year while the fill is still running, not only
+      after it stops.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
