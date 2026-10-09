@@ -188,6 +188,59 @@ describe("createHopFillRunner", function () {
     expect(runner.state()).to.equal(null);
   });
 
+  it("says which hops still grow while the plan holds their parents", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    expect(runner.growingByHop(2, "cited-by"), "no plan yet").to.deep.equal([
+      false,
+      false,
+      false,
+    ]);
+    // Stopped, the frame still plans but nothing lands: hop 1's a and b stay
+    // queued, so hop 2 is the hop still growing.
+    runner.stop();
+    runner.wake();
+    await fake.settle();
+    expect(runner.growingByHop(2, "cited-by")).to.deep.equal([
+      false,
+      false,
+      true,
+    ]);
+    expect(
+      runner.growingByHop(2, "references"),
+      "another direction's plan is not this one",
+    ).to.deep.equal([false, false, false]);
+    expect(
+      runner.growingByHop(3, "cited-by"),
+      "nor another depth's",
+    ).to.deep.equal([false, false, false, false]);
+    runner.resume();
+    runner.wake();
+    await fake.settle();
+    expect(runner.growingByHop(2, "cited-by"), "drained").to.deep.equal([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it("counts the visible failures in the direction", async function () {
+    const fake = fakeHost();
+    fake.failing.add("a");
+    const runner = createHopFillRunner(fake.host);
+    runner.wake();
+    await fake.settle();
+    expect(runner.failedCount(new Set(["a", "b"]), "cited-by")).to.equal(1);
+    expect(
+      runner.failedCount(new Set(["b"]), "cited-by"),
+      "a hidden failure is not counted",
+    ).to.equal(0);
+    expect(
+      runner.failedCount(new Set(["a", "b"]), "references"),
+      "failure is per direction",
+    ).to.equal(0);
+  });
+
   it("counts a landing against its hop's cap and stops at the cap", async function () {
     const fake = fakeHost();
     // Three hop-1 papers, a cap already spent by two landings: the third
@@ -197,11 +250,6 @@ describe("createHopFillRunner", function () {
     runner.wake();
     await fake.settle();
     expect(fake.calls.expanded).to.deep.equal(["a", "b", "c"]);
-    expect(runner.reportedByHop(fake.entries, 2, "cited-by")).to.deep.equal([
-      null,
-      null,
-      21,
-    ]);
   });
 
   it("marks a paper that stored nothing failed in that direction only", async function () {
@@ -397,11 +445,6 @@ describe("createHopFillRunner", function () {
     runner.wake();
     await fake.settle();
     expect(fake.calls.expanded).to.deep.equal(["z"]);
-    expect(runner.reportedByHop(fake.entries, 2, "cited-by")).to.deep.equal([
-      null,
-      null,
-      7,
-    ]);
   });
 
   it("logs an escaped rejection, fails the paper, and keeps going", async function () {

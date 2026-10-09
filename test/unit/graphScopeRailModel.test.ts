@@ -444,7 +444,10 @@ function hopsInput(overrides: Partial<ScopeHopsInput> = {}): ScopeHopsInput {
     enabled: [true, true, true, true, true, true, true],
     shownByHop: [1, 4, 9],
     availableByHop: [1, 5, 12],
-    reportedByHop: [null, 1200, null],
+    expandedByHop: [0, 1, 3],
+    growingByHop: [false, false, false],
+    failed: 0,
+    lacksDetails: 0,
     colours: null,
     fill: null,
     drainedByHop: [true, false, false],
@@ -489,13 +492,20 @@ describe("the Citation hops block", function () {
       fetchButton: false,
     });
     expect(block.rows[1]).to.include({
-      count: "4/5",
-      reported: `of ${count(1200)}`,
+      count: `${count(4)} papers`,
+      from: `from ${count(1)}`,
+      shown: 4,
+      available: 5,
+      spinning: false,
       checkbox: true,
     });
-    expect(block.rows[2]).to.include({ count: "9/12", reported: null });
+    expect(block.rows[2]).to.include({
+      count: `${count(9)} papers`,
+      from: `from ${count(3)}`,
+    });
     expect(block.rows[3]).to.include({
       count: "not fetched",
+      from: null,
       fetchButton: true,
       dimmed: true,
       enabled: true,
@@ -507,6 +517,7 @@ describe("the Citation hops block", function () {
       hopsInput({
         shownByHop: [1, 0, 0],
         availableByHop: [1, 0, 0],
+        expandedByHop: [0, 0, 0],
         drainedByHop: [false, false, false],
       }),
     )!.hops!;
@@ -515,7 +526,8 @@ describe("the Citation hops block", function () {
       "Hop 1",
       "Hop 2",
     ]);
-    expect(block.rows[2]).to.include({ count: "0/0", fetchButton: false });
+    expect(block.rows[2]).to.include({ count: "0 papers", fetchButton: false });
+    expect(block.rows[2].from).to.equal(null);
   });
 
   it("reads none yet once the hop above is drained, and none found under References", function () {
@@ -542,7 +554,7 @@ describe("the Citation hops block", function () {
     expect(references.rows[2]).to.include({ count: "none found" });
   });
 
-  it("keeps 0/0 while the hop above has a paper in flight or one that failed", function () {
+  it("reads 0 papers while the hop above has a paper in flight or one that failed", function () {
     const block = railWithHops(
       hopsInput({
         shownByHop: [1, 3, 0],
@@ -550,7 +562,7 @@ describe("the Citation hops block", function () {
         drainedByHop: [true, false, false],
       }),
     )!.hops!;
-    expect(block.rows[2]).to.include({ count: "0/0" });
+    expect(block.rows[2]).to.include({ count: "0 papers" });
   });
 
   it("carries no Fetch row at depth 6", function () {
@@ -559,7 +571,6 @@ describe("the Citation hops block", function () {
         depth: 6,
         shownByHop: [1, 1, 1, 1, 1, 1, 1],
         availableByHop: [1, 1, 1, 1, 1, 1, 1],
-        reportedByHop: [null, null, null, null, null, null, null],
         drainedByHop: [true, true, true, true, true, true, false],
       }),
     )!.hops!;
@@ -574,14 +585,13 @@ describe("the Citation hops block", function () {
         enabled: [true, true, false, true, true, true, true],
         shownByHop: [1, 1, 0, 0, 0, 0, 0],
         availableByHop: [1, 1, 1, 0, 0, 0, 0],
-        reportedByHop: [null, null, null, null, null, null, null],
         drainedByHop: [true, true, false, false, false, false, false],
       }),
     )!.hops!;
     expect(block.rows[2]).to.include({
       enabled: false,
       dimmed: true,
-      count: "0/1",
+      count: "0 papers",
     });
     expect(block.rows.some((row) => row.fetchButton)).to.equal(false);
   });
@@ -598,62 +608,147 @@ describe("the Citation hops block", function () {
     expect(coloured.rows[3].swatch).to.equal(null);
   });
 
-  it("prints the progress line in its three states under the deepest open hop", function () {
+  it("reads 1 paper in the singular", function () {
+    const block = railWithHops(hopsInput({ shownByHop: [1, 1, 9] }))!.hops!;
+    expect(block.rows[1].count).to.equal("1 paper");
+  });
+
+  it("spins the rows still growing while the fill runs, and no other", function () {
     const running = railWithHops(
+      hopsInput({
+        depth: 3,
+        shownByHop: [1, 4, 9, 2],
+        availableByHop: [1, 5, 12, 2],
+        expandedByHop: [0, 1, 3, 1],
+        growingByHop: [false, false, true, true],
+        drainedByHop: [true, false, false, false],
+        fill: { remaining: 7, waiting: 0, paused: false },
+      }),
+    )!.hops!;
+    expect(running.rows.map((row) => row.spinning)).to.deep.equal([
+      false,
+      false,
+      true,
+      true,
+      false,
+    ]);
+    const stopped = railWithHops(
+      hopsInput({
+        growingByHop: [false, false, true],
+        fill: { remaining: 7, waiting: 0, paused: true },
+      }),
+    )!.hops!;
+    expect(stopped.rows.some((row) => row.spinning)).to.equal(false);
+    const refused = railWithHops(
+      hopsInput({
+        growingByHop: [false, false, true],
+        fill: {
+          remaining: 7,
+          waiting: 0,
+          paused: false,
+          refusal: { providers: ["semantic-scholar"], retryAt: 1 },
+        },
+      }),
+    )!.hops!;
+    expect(refused.rows.some((row) => row.spinning)).to.equal(false);
+  });
+
+  it("is Stop alone while the fill runs", function () {
+    const block = railWithHops(
       hopsInput({ fill: { remaining: 7, waiting: 0, paused: false } }),
     )!.hops!;
-    expect(running.progress).to.deep.equal({
+    expect(block.progress).to.deep.equal({
       afterHop: 2,
-      text: "expanding · 7 left",
+      kind: "running",
+      text: "",
+      details: null,
       action: "stop",
       actionLabel: "Stop",
       countdown: null,
       title: null,
+      left: 7,
     });
-    const paused = railWithHops(
-      hopsInput({ fill: { remaining: 7, waiting: 0, paused: true } }),
+  });
+
+  it("names what a Stop left unexpanded, with Resume", function () {
+    const block = railWithHops(
+      hopsInput({ fill: { remaining: 7, waiting: 3, paused: true } }),
     )!.hops!;
-    expect(paused.progress).to.deep.equal({
+    expect(block.progress).to.deep.equal({
       afterHop: 2,
-      text: "expanding · 7 left",
+      kind: "rest",
+      text: `${count(10)} not expanded`,
+      details: null,
       action: "resume",
       actionLabel: "Resume",
       countdown: null,
       title: null,
+      left: 0,
     });
-    const capped = railWithHops(
+  });
+
+  it("offers Fetch more for the papers waiting on the cap", function () {
+    const block = railWithHops(
       hopsInput({ fill: { remaining: 0, waiting: 1800, paused: false } }),
     )!.hops!;
-    expect(capped.progress).to.deep.equal({
-      afterHop: 2,
-      text: `${count(500)} expanded · ${count(1800)} waiting`,
+    expect(block.progress).to.include({
+      kind: "rest",
+      text: `${count(1800)} not expanded`,
       action: "more",
       actionLabel: "Fetch more",
-      countdown: null,
-      title: null,
     });
-    expect(railWithHops(hopsInput({ fill: null }))!.hops!.progress).to.equal(
-      null,
-    );
   });
 
   // B72: a refusal storm ends with the plan empty and every paper limit-failed.
-  // The line carries the only Resume that brings them back, so it has to
-  // outlive the plan that produced them (ADR 0014).
+  // The line carries the only Resume that brings them back (ADR 0014).
   it("keeps a Resume on the line once the deferral limit has failed papers", function () {
-    const gaveUp = railWithHops(
+    const block = railWithHops(
       hopsInput({
+        failed: 4,
         fill: { remaining: 0, waiting: 0, paused: false, gaveUp: 4 },
       }),
     )!.hops!;
-    expect(gaveUp.progress).to.deep.equal({
-      afterHop: 2,
-      text: `${count(4)} gave up`,
+    expect(block.progress).to.include({
+      kind: "rest",
+      text: `${count(4)} failed`,
       action: "resume",
       actionLabel: "Resume",
-      countdown: null,
-      title: null,
     });
+  });
+
+  it("names every gap at rest, in order, with details on their own line", function () {
+    const block = railWithHops(
+      hopsInput({
+        failed: 12,
+        lacksDetails: 40,
+        fill: { remaining: 180, waiting: 0, paused: true },
+      }),
+    )!.hops!;
+    expect(block.progress).to.include({
+      kind: "rest",
+      text: `${count(180)} not expanded · ${count(12)} failed`,
+      details: `${count(40)} without details`,
+      action: "resume",
+    });
+  });
+
+  it("carries no button for gaps nothing on the rail recovers", function () {
+    const block = railWithHops(
+      hopsInput({ failed: 2, lacksDetails: 5, fill: null }),
+    )!.hops!;
+    expect(block.progress).to.include({
+      kind: "rest",
+      text: `${count(2)} failed`,
+      details: `${count(5)} without details`,
+      action: null,
+      actionLabel: null,
+    });
+  });
+
+  it("draws no line when nothing is missing and nothing runs", function () {
+    expect(railWithHops(hopsInput({ fill: null }))!.hops!.progress).to.equal(
+      null,
+    );
   });
 
   it("names the one provider refusing, with a countdown and Stop", function () {
@@ -669,11 +764,14 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(block.progress).to.deep.equal({
       afterHop: 2,
+      kind: "refusing",
       text: `${citationDataSourceLabel("semantic-scholar")} refusing`,
+      details: null,
       action: "stop",
       actionLabel: "Stop",
       countdown: { retryAt: 1_234 },
       title: null,
+      left: 0,
     });
   });
 

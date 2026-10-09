@@ -592,29 +592,40 @@ describe("Citation hops (Stage 3)", function () {
     return text === undefined || text === null ? null : normalize(text);
   }
 
-  /** `{shown}/{available}` as numbers, or null when the row shows no pair. */
+  /** The row's shown and stored counts, from its data attributes. */
   function hopCounts(hop: number): { shown: number; available: number } | null {
-    const text = hopCountText(hop);
-    // The rail groups with Intl.NumberFormat, whose separator follows the
-    // machine's locale — de-CH prints 1'200 — so take each side whole
-    // and strip all that is not a digit, rather than naming separators.
-    const match = text ? new RegExp("^([^/]+)/([^/]+)$").exec(text) : null;
-    if (!match) return null;
+    const row = hopRow(hop);
+    if (!row?.dataset.shown || !row.dataset.available) return null;
+    // The Fetch row is not opened; it carries the attributes but no count.
+    if (!row.querySelector(".cm-scope-row-count")) return null;
     return {
-      shown: Number(match[1]!.replace(/\D/g, "")),
-      available: Number(match[2]!.replace(/\D/g, "")),
+      shown: Number(row.dataset.shown),
+      available: Number(row.dataset.available),
     };
   }
 
-  /** The runner's progress line, absent while it has nothing to do. */
-  function progressText(): string {
-    const line = graphRoot().querySelector(".cm-scope-hop-progress");
-    return line ? normalize(line.textContent) : "no progress line";
+  /** The row's `from {n}` text, or null while it has none. */
+  function hopFromText(hop: number): string | null {
+    const text = hopRow(hop)?.querySelector(".cm-scope-hop-from")?.textContent;
+    return text ? normalize(text) : null;
   }
 
-  /** The progress line while the runner has work in hand: `expanding · {n} left`. */
+  /**
+   * The runner's progress line as `[{kind} left={n}] {text}`, absent while it
+   * has nothing to say. The running line has no text of its own (D7), so the
+   * kind and the queued count come from its data attributes.
+   */
+  function progressText(): string {
+    const line = graphRoot().querySelector(
+      ".cm-scope-hop-progress",
+    ) as HTMLElement | null;
+    if (!line) return "no progress line";
+    return `[${line.dataset.kind} left=${line.dataset.left}] ${normalize(line.textContent)}`;
+  }
+
+  /** The progress line while the runner has work in hand. */
   function isExpanding(line: string): boolean {
-    return /^expanding · \d+ left/.test(line);
+    return /^\[running left=\d+\]/.test(line);
   }
 
   /**
@@ -1235,7 +1246,7 @@ describe("Citation hops (Stage 3)", function () {
     expect(
       moment,
       "the moment read must carry the fill's own progress line",
-    ).to.match(/^expanding · \d+ left/);
+    ).to.match(/^\[running left=\d+\]/);
   });
 
   it("fills hop 2 again after a Refresh", async function () {
@@ -1500,10 +1511,13 @@ describe("Citation hops (Stage 3)", function () {
       expect(stop, `no Stop on "${progressText()}"`).to.exist;
       stop!.click();
       expect(
-        await waitFor(() => / left · Resume$/.test(progressText()), 10_000),
+        await waitFor(
+          () =>
+            / not expanded( · [^·]+ failed)? · Resume$/.test(progressText()),
+          10_000,
+        ),
         `after Stop the line read "${progressText()}"`,
       ).to.equal(true);
-
       // The autosave carries the stop to the row.
       const savedID = (
         await listSavedGraphs(Zotero.Libraries.userLibraryID)
@@ -1519,6 +1533,12 @@ describe("Citation hops (Stage 3)", function () {
         saved?.state.fillStopped,
         `the row never recorded the stop; depth ${saved?.state.hops.depth}`,
       ).to.equal(true);
+      // Read after the autosave confirms the stop: a request in flight at Stop
+      // can still land and raise `from N` before then.
+      const fromBefore = hopFromText(2);
+      expect(fromBefore, `hop 2 carries no from; ladder ${ladder()}`).to.match(
+        /^· from \d+$/,
+      );
 
       win.Zotero_Tabs.close(reopenedTabID!);
       reopenedTabID = null;
@@ -1546,7 +1566,10 @@ describe("Citation hops (Stage 3)", function () {
         40_000,
       );
       const line = await waitFor(
-        () => (/ left · Resume$/.test(progressText()) ? progressText() : null),
+        () =>
+          / not expanded( · [^·]+ failed)? · Resume$/.test(progressText())
+            ? progressText()
+            : null,
         40_000,
       );
       await untilQuiet(() => asked.length, 3_000, 20_000);
@@ -1555,6 +1578,10 @@ describe("Citation hops (Stage 3)", function () {
         `the reopened graph's line read "${progressText()}"; ladder ` +
           `${ladder()}; asked ${asked.join(" , ") || "nothing"}`,
       ).to.exist;
+      expect(
+        hopFromText(2),
+        `the reopened hop 2 read "${hopRowText(2)}"`,
+      ).to.equal(fromBefore);
       expect(
         asked,
         `the reopened graph fetched by itself; line "${progressText()}"`,
@@ -1948,7 +1975,9 @@ describe("Citation hops (Stage 3)", function () {
         stop!.click();
         const paused = await waitFor(
           () =>
-            /1 left · Resume$/.test(progressText()) ? progressText() : null,
+            /\] 1 not expanded · Resume$/.test(progressText())
+              ? progressText()
+              : null,
           10_000,
         );
         expect(paused, `after Stop the line read "${progressText()}"`).to.exist;
@@ -1989,7 +2018,7 @@ describe("Citation hops (Stage 3)", function () {
    *
    * Those hop-1 papers are external and carry OpenCitations' own work ID, so
    * the fill hints it and the lookup that would back their empty list is
-   * skipped. Before the fix each was deferred for ever and `n left` never
+   * skipped. Before the fix each was deferred for ever and `left` never
    * fell; now each is stored as "no citers" and the plan drains.
    *
    * What makes that reachable is the second seed, the refusal anchor
@@ -2004,14 +2033,14 @@ describe("Citation hops (Stage 3)", function () {
    * green before. It has to fetch hop 2: the defect is in expanding the hop-1
    * papers, and only a fetch past the depth puts them in a plan, so expanding
    * the seed alone drains whatever the code does. "Drained" has to mean the
-   * progress line is GONE — pre-fix code alternates expanding and refusing,
-   * and a refusal countdown is not `expanding` either, so any weaker reading
-   * passes on the first cool-down. And the drain cannot be the only signal:
+   * rest line names only the failed anchor — pre-fix code alternates a
+   * running line and a refusal countdown, so any weaker reading passes on
+   * the first cool-down. And the drain cannot be the only signal:
    * the anchor is refused on every cycle, so pre-fix it alone pins the plan
    * for ever whatever the children do. The assertion that is B72's own is that
-   * `n left` FALLS BELOW the three it started at — pre-fix the children are
-   * deferred and stay counted, so it cannot; post-fix each is stored on its
-   * first landing and only the anchor is left.
+   * the running `left` FALLS BELOW the three it started at — pre-fix the
+   * children are deferred and stay counted, so it cannot;
+   * post-fix each is stored on its first landing and only the anchor is left.
    */
   describe("when one provider sits out and another has no citers (B72)", function () {
     let drainTabID: string | null = null;
@@ -2039,7 +2068,7 @@ describe("Citation hops (Stage 3)", function () {
      * Whether the graph's window still delivers animation frames. A window
      * that is covered or minimised gets them late or not at all, and the fill
      * once re-planned on a frame alone (B75: `frames DO NOT fire in 3 s,
-     * visibility hidden` under a line stuck on `expanding · 1 left`), so a
+     * visibility hidden` under a running line stuck on `left=1`), so a
      * stalled line has to say which world it stalled in.
      */
     async function frameProbe(): Promise<string> {
@@ -2100,16 +2129,14 @@ describe("Citation hops (Stage 3)", function () {
     }
 
     /**
-     * The `{n}` of `expanding · {n} left`, or null while the line reads
-     * anything else. A refusal countdown carries no count at all, so null
-     * means "not expanding just now", never "nothing left".
+     * The queued count of a running line, or null while the line is anything
+     * else. A refusal countdown is not a running line, so null means "not
+     * expanding just now", never "nothing left".
      */
     function leftCount(): number | null {
-      // Grouped by Intl.NumberFormat above 999, in the machine's own locale
-      // (de-CH prints 1'200), so take the count whole and strip all that
-      // is not a digit, rather than naming the separators.
-      const match = /^expanding · (.+?) left/.exec(watchedLine());
-      return match ? Number(match[1]!.replace(/\D/g, "")) : null;
+      // `data-left` is the raw count, never grouped by the locale.
+      const match = /^\[running left=(\d+)\]/.exec(watchedLine());
+      return match ? Number(match[1]) : null;
     }
 
     /** Whether a recorded provider URL names this DOI, raw or encoded. */
@@ -2332,17 +2359,19 @@ describe("Citation hops (Stage 3)", function () {
         ).to.exist;
         // The fix's other half, and the slower one: the anchor is refused on
         // every cycle, so only the deferral limit can end it. Drained means
-        // the line is GONE, the one reading a stalled fill cannot produce —
-        // pre-fix it alternates expanding and refusing for ever, and a refusal
-        // countdown is not `expanding` either.
+        // the rest line names only the failed anchor ("N failed · Resume"),
+        // never "not expanded": a stalled fill cannot produce it, since
+        // pre-fix it alternates running and refusing for ever.
         // B72 review, Important 1: "ended" no longer means the line is gone.
         // A paper the deferral limit failed keeps a line carrying the only
-        // Resume that brings it back (ADR 0014), so the anchor settles on
-        // "1 gave up" rather than vanishing. What must stop either way — and
-        // what pre-fix code cannot do — is the expanding/refusing alternation.
+        // Resume that brings it back (ADR 0014), so the anchor settles on a
+        // resting "1 failed" rather than vanishing. What must stop either way
+        // — and what pre-fix code cannot do — is the running/refusing
+        // alternation.
         const drained = await waitFor(() => {
           const line = watchedLine();
-          return line === "no progress line" || /gave up/.test(line)
+          return line === "no progress line" ||
+            /^\[rest left=0\] \d+ failed · Resume$/.test(line)
             ? line
             : null;
         }, 300_000);

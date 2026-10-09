@@ -300,6 +300,9 @@ per-paper refresh that exists today, with its limits.
 
 ### The rail
 
+Amended 2026-10-09 by `2026-10-09-hop-rail-story-design.md`: the counts,
+`of {reported}` and the progress line below are superseded there.
+
 The Scope section gains a **Citation hops** block under Collections, in
 `graphKeyRail.ts` with its rows from `graphScopeRailModel.ts`.
 

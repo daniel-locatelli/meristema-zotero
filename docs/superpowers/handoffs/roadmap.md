@@ -68,23 +68,6 @@ opacity grade).
 
 ## The hop fill
 
-- [ ] D7 the hop rail's numbers do not add up to a story. On screen:
-      `Hop 3 1,557/1,557 of 2,726` over `expanding · 627 left · Stop`. Two
-      units (papers, and parents queued to expand); `shown/available` is a
-      tautology while a fill runs, `of {reported}` climbs like a target running
-      away, and only the parent count converges, unlabelled. Spec-conformant,
-      so a design question: probably one number that converges plus a plain
-      statement of what is unknown. The user proposed a progress bar; the one
-      version the spec's reasoning does not rule out is a bar over the parent
-      count. The cut line (D8) is the plain statement; what remains is the
-      progress numbers themselves
-      2026-10-07 walk: the user still cannot read `Hop 2 182/182 of 394`
-- [ ] D12 nothing says how complete a filled plot is. Three gaps are invisible
-      and look like a paper with no citers: failed expansions (per session, not
-      persisted), papers never reached because a cap or a Stop cut the plan,
-      and papers drawn without metadata (D11). Wants one plain statement of
-      what is missing and why, not another count; decide with D7. The cut line
-      (D8) is the plain statement; what remains is the other two gaps
 - [ ] D11 a reference fill lands many Unknowns. An expansion is membership
       first with summaries hydrated cooperatively, so an Unknown is an
       identifier whose summary has not hydrated or failed to. Two hypotheses:
@@ -93,8 +76,7 @@ opacity grade).
       and its references `10.5555/839277.840020` and `10.5555/826029.826529`
       answer "DOI Not Found", `10.5555` being the legacy ACM and DBLP prefix.
       Check the second first: if it holds, the fix is a fallback lookup (title
-      and author, or the provider's own identifier), not more fetching. Also
-      decide whether unresolved papers are drawn at all. Nothing is measured
+      and author, or the provider's own identifier), not more fetching. Nothing is measured
 - [ ] B47 during a fill the nodes jump far more than the new data warrants.
       Two claims to separate: the whole plot reshuffling on every landing (an
       axis rescale per fetch would do it; B18 is a neighbour), and a single
@@ -106,12 +88,8 @@ opacity grade).
       No data. First establish whether Refresh clears it. Possibly its own
       defect: the rail says such a paper is "parked in a lane off the plot",
       but they sit close to the axis origins and read as real low-low values
-- [ ] B51 opening a deeper hop strands the shallower one. The progress line
-      sits under the deepest open hop, as specified, so hop 3's Stop and Resume
-      vanish once hop 4 opens (seen with 627 of 800 parents queued). Establish
-      whether hop 3's queued parents are still in the plan or dropped, and
-      whether the rail should hold two hops' progress. The user likes the skip
-      itself, so the fix is not to forbid it
+- [ ] B51 opening a deeper hop: establish whether the shallower hop's queued
+      parents stay in the plan (its row now keeps spinning while they do)
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -315,6 +293,11 @@ any failure into a new entry above.
       colour (light on light, dark on dark), and the panel ends just below
       its last row of cards. Shrink the window: the panel keeps 24px margins
       and scrolls.
+- [ ] D7/D12: fill a seeded graph to hop 2: the growing rows spin and read
+      `n papers · from N`, the line under them is Stop alone; press Stop: the
+      line reads `n not expanded · Resume`, and `n without details` sits under
+      it if any paper has no title, year or count. Reopen the saved graph:
+      `from N` reads the same. The spinner turns smoothly while papers land.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -325,11 +308,10 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-09 at `0efe291` (109/1: view 3 in
-`graphViewVisual.test.ts` clicked the gallery's new full-area mask, not the
-canvas; it now presses Start blank first, 16/16 in its file), so count with
-the commits since `0efe291`. A clean run is 110 passed,
-0 failed as of 2026-10-09 (B95's case added).
+runs alone under a temporary `describe.only`. Last full run: 2026-10-09 at `211b49d` (110/0; the run at `463f809` was
+108/2: B72's drain wait still read the removed `gave up` text, and D8 failed
+as a knock-on of B72 holding the graph), so count with the commits since
+`211b49d`. A clean run is 110 passed, 0 failed as of 2026-10-09.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -566,3 +548,8 @@ entries are in git history.
 - 2026-10-09, late: full run at `0efe291` 109/1 (view 3 clicked the
   gallery mask; fixed in `1246ea2`). B87 closed on the user's word; D14 closed
   by the full-area mask (`5f43ba1`). Next: D7 with D12.
+- 2026-10-09, evening: D7 and D12 shipped on `d7-hop-rail-story`. The hop
+  rows read `n papers · from N` with a spinner while their parents are
+  planned, the line is Stop alone while running and one gaps line at rest
+  (`not expanded`, `failed`, Resume or Fetch more) plus `without details`.
+  Full run at `211b49d` 110/0. B51 narrowed.

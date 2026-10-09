@@ -1832,10 +1832,10 @@
 .cm-scope-hop-body {
   cursor: default;
 }
-.cm-scope-hop-reported {
+.cm-scope-hop-from {
   flex: 0 0 auto;
-  /* `182/182 of 394` is one phrase: pull the body's 6px gap in to one 11px
-     space (B91). */
+  /* `182 papers · from 40` is one phrase: pull the body's 6px gap in to one
+     11px space (B91). */
   margin-inline-start: -3px;
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
@@ -1858,6 +1858,35 @@
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
+}
+.cm-scope-hop-details {
+  margin: 0 0 4px 32px;
+  color: var(--cm-muted);
+  font-size: calc(11 * var(--cm-font-unit));
+  font-variant-numeric: tabular-nums;
+}
+/* A hop still growing (D7): a ring with one quarter open, turning. */
+.cm-scope-hop-spinner {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: calc(9 * var(--cm-font-unit));
+  height: calc(9 * var(--cm-font-unit));
+  border: 1.5px solid var(--cm-muted);
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: cm-scope-hop-spin 0.9s linear infinite;
+  /* Set per rebuild by graphKeyRail.ts so a fresh element joins the shared turn. */
+  animation-delay: var(--cm-spin-phase, 0ms);
+}
+@keyframes cm-scope-hop-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-scope-hop-spinner {
+    animation: none;
+  }
 }
 .cm-scope-hop-cut {
   margin: 2px 0 4px 0;
