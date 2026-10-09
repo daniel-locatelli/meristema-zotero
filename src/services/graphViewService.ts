@@ -218,6 +218,7 @@ import {
   additiveGraphModel,
   buildLocalWorkIndexes,
   externalWorkToFocusNode,
+  lacksDetails,
   localNodeForWork,
   synchronizeExternalFocusNode,
   type GraphFocusState,
@@ -3985,6 +3986,32 @@ ${error instanceof Error ? error.message : String(error)}`,
     };
   };
 
+  /**
+   * Per hop, the visible parents one hop up whose list is stored, and the
+   * visible hop papers drawn without details (D7, D12). Both read stored
+   * facts, so a reopened graph reads the same.
+   */
+  const hopRailCounts = (): {
+    expandedByHop: number[];
+    lacksDetails: number;
+  } => {
+    const expandedByHop = Array.from({ length: hopDepth + 1 }, () => 0);
+    let lacking = 0;
+    if (hopModel && lastScope) {
+      for (const [key, entry] of hopModel.entries) {
+        if (!lastScope.visibleKeys.has(key)) continue;
+        if (entry.expanded && entry.hop < hopDepth)
+          expandedByHop[entry.hop + 1] =
+            (expandedByHop[entry.hop + 1] ?? 0) + 1;
+        if (entry.hop >= 1) {
+          const node = hopSubject(key);
+          if (node && lacksDetails(node)) lacking += 1;
+        }
+      }
+    }
+    return { expandedByHop, lacksDetails: lacking };
+  };
+
   const scopeHopsInput = (): ScopeHopsInput => {
     const colouring = renderer?.getLayout().nodeColorMetric === "citation-hop";
     const assignment = colouring ? renderer?.getCategoryAssignment() : null;
@@ -3994,7 +4021,13 @@ ${error instanceof Error ? error.message : String(error)}`,
       enabled: hopEnabled,
       shownByHop: lastScope?.shownByHop ?? [],
       availableByHop: lastScope?.availableByHop ?? [],
-      reportedByHop: [],
+      ...hopRailCounts(),
+      growingByHop: hopModel
+        ? hopFill.growingByHop(hopDepth, hopDirection)
+        : [],
+      failed: lastScope
+        ? hopFill.failedCount(lastScope.visibleKeys, hopDirection)
+        : 0,
       colours: assignment
         ? Array.from(
             { length: hopDepth + 1 },

@@ -210,8 +210,11 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
         {
           hop: 1,
           label: "Hop 1",
-          count: "73/173",
-          reported: null,
+          count: "73 papers",
+          from: "from 12",
+          spinning: false,
+          shown: 73,
+          available: 173,
           fetchButton: false,
           checkbox: true,
           enabled: true,
@@ -328,7 +331,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           ...HOP_ROW_MODEL,
           hops: {
             ...hops,
-            rows: [{ ...hops.rows[0], count: "182/182", reported: "of 394" }],
+            rows: [{ ...hops.rows[0], count: "182 papers", from: "from 40" }],
           },
         });
         return rail.root;

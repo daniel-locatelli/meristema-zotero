@@ -14,7 +14,6 @@ import {
   type GraphScopeResult,
   type GraphViewCollectionTicks,
 } from "./graphScopeModel";
-import { HOP_EXPANSION_CAP } from "./graphHopFillModel";
 import { MAX_HOP_DEPTH, type HopDirection } from "./graphHopModel";
 import type { CitationProviderID } from "../domain/citationTypes";
 import { citationDataSourceLabel } from "./providerPresentation";
@@ -75,8 +74,17 @@ export interface ScopeHopsInput {
   enabled: readonly boolean[];
   shownByHop: readonly number[];
   availableByHop: readonly number[];
-  /** The parents' reported totals summed per hop, or null when unknown. */
-  reportedByHop: readonly (number | null)[];
+  /**
+   * Per hop, the visible papers one hop up whose list in the direction is
+   * stored: the parents the hop came from. Index 0 is 0.
+   */
+  expandedByHop: readonly number[];
+  /** Per hop, whether the plan still holds parents one hop up to expand. */
+  growingByHop: readonly boolean[];
+  /** Visible papers whose expansion failed in this direction (D12). */
+  failed: number;
+  /** Visible hop papers drawn without details (`lacksDetails`, D12). */
+  lacksDetails: number;
   /** The hop category colours by hop while the colouring is Citation hop, else null. */
   colours: readonly (string | null)[] | null;
   /** The runner's state, or null while it has nothing to do and nothing waits. */
@@ -105,10 +113,15 @@ export interface ScopeHopsInput {
 export interface ScopeHopRow {
   hop: number;
   label: string;
-  /** `{shown}/{available}`, the seed count, or `not fetched`. */
+  /** `{shown} papers`, the seed count, `not fetched`, `none yet` or `none found`. */
   count: string;
-  /** `of {reported}` when the parents reported more than is stored. */
-  reported: string | null;
+  /** `from {n}` while some parents one hop up are expanded, else null. */
+  from: string | null;
+  /** The hop still grows: its parents are in a running plan. */
+  spinning: boolean;
+  /** Shown and stored at the hop: the row's data attributes, not its text. */
+  shown: number;
+  available: number;
   /** The Fetch hop N button sits in this row instead of a count. */
   fetchButton: boolean;
   /** The row carries a checkbox: every hop, never Seeds. */
@@ -124,9 +137,14 @@ export interface ScopeHopRow {
 export interface ScopeHopsProgress {
   /** The row the line follows: the deepest open hop. */
   afterHop: number;
+  /** Expanding; cooling down on a refusal; or at rest with something missing. */
+  kind: "running" | "refusing" | "rest";
+  /** Empty while running: the spinners and `from N` say it. */
   text: string;
-  action: "stop" | "resume" | "more";
-  actionLabel: "Stop" | "Resume" | "Fetch more";
+  /** At rest only: `{n} without details`, on its own line. */
+  details: string | null;
+  action: "stop" | "resume" | "more" | null;
+  actionLabel: "Stop" | "Resume" | "Fetch more" | null;
   /**
    * Set while the fill cools down. `retryAt` is fixed for the cool-down, so
    * the model does not change from second to second; the rail counts down to
@@ -135,6 +153,8 @@ export interface ScopeHopsProgress {
   countdown: { retryAt: number } | null;
   /** The refusing providers' names, when the line counts them. */
   title: string | null;
+  /** The parents still queued while running, else 0: the line's `data-left`. */
+  left: number;
 }
 
 export interface ScopeHopsBlock {
@@ -316,12 +336,20 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
     deepestHasPapers ? input.depth + 1 : input.depth,
   );
   const emptyWord = input.direction === "cited-by" ? "none yet" : "none found";
+  const fill = input.fill;
+  const refusal = fill?.refusal ?? null;
+  const running =
+    fill !== null &&
+    fill.remaining > 0 &&
+    !fill.paused &&
+    !(refusal && refusal.providers.length > 0);
+  const papers = (n: number): string =>
+    n === 1 ? "1 paper" : `${COUNT_FORMAT.format(n)} papers`;
   for (let hop = 0; hop <= lastRow; hop += 1) {
     const opened = hop <= input.depth;
     const enabled = hop === 0 ? true : input.enabled[hop] !== false;
     const shown = input.shownByHop[hop] ?? 0;
     const available = input.availableByHop[hop] ?? 0;
-    const reported = input.reportedByHop[hop] ?? null;
     const drainedAbove = hop > 0 && input.drainedByHop[hop - 1] === true;
     rows.push({
       hop,
@@ -333,11 +361,15 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
             ? "not fetched"
             : available === 0 && drainedAbove
               ? emptyWord
-              : `${COUNT_FORMAT.format(shown)}/${COUNT_FORMAT.format(available)}`,
-      reported:
-        opened && hop > 0 && reported !== null && reported > available
-          ? `of ${COUNT_FORMAT.format(reported)}`
+              : papers(shown),
+      from:
+        opened && hop > 0 && (input.expandedByHop[hop] ?? 0) > 0
+          ? `from ${COUNT_FORMAT.format(input.expandedByHop[hop] ?? 0)}`
           : null,
+      spinning:
+        opened && hop > 0 && running && input.growingByHop[hop] === true,
+      shown,
+      available,
       fetchButton: hop === input.depth + 1,
       checkbox: hop > 0,
       enabled,
@@ -346,8 +378,6 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
       swatch: input.colours ? (input.colours[hop] ?? null) : null,
     });
   }
-  const fill = input.fill;
-  const refusal = fill?.refusal ?? null;
   let progress: ScopeHopsProgress | null = null;
   if (refusal && refusal.providers.length > 0) {
     // While every candidate refuses, raising the cap would only defer more
@@ -357,45 +387,71 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
     );
     progress = {
       afterHop: input.depth,
+      kind: "refusing",
       text:
         names.length === 1
           ? `${names[0]} refusing`
           : `${COUNT_FORMAT.format(names.length)} providers refusing`,
+      details: null,
       action: "stop",
       actionLabel: "Stop",
       countdown: { retryAt: refusal.retryAt },
       title: names.length === 1 ? null : names.join(", "),
+      left: 0,
     };
-  } else if (fill && (fill.remaining > 0 || fill.waiting > 0)) {
-    progress =
-      fill.remaining === 0
-        ? {
-            afterHop: input.depth,
-            text: `${COUNT_FORMAT.format(HOP_EXPANSION_CAP)} expanded · ${COUNT_FORMAT.format(fill.waiting)} waiting`,
-            action: "more",
-            actionLabel: "Fetch more",
-            countdown: null,
-            title: null,
-          }
-        : {
-            afterHop: input.depth,
-            text: `expanding · ${COUNT_FORMAT.format(fill.remaining)} left`,
-            action: fill.paused ? "resume" : "stop",
-            actionLabel: fill.paused ? "Resume" : "Stop",
-            countdown: null,
-            title: null,
-          };
-  } else if (fill && (fill.gaveUp ?? 0) > 0) {
-    // The plan is empty but papers gave up, and Resume is the whole of their
-    // recovery (ADR 0014), so the line stays to carry its button.
+  } else if (running) {
     progress = {
       afterHop: input.depth,
-      text: `${COUNT_FORMAT.format(fill.gaveUp ?? 0)} gave up`,
-      action: "resume",
-      actionLabel: "Resume",
+      kind: "running",
+      text: "",
+      details: null,
+      action: "stop",
+      actionLabel: "Stop",
       countdown: null,
       title: null,
+      left: fill?.remaining ?? 0,
     };
+  } else {
+    // At rest: name only what is missing, each with the button that recovers
+    // it (D12). A Stop's papers come back with Resume, the cap's with Fetch
+    // more, and the deferral limit's with Resume (ADR 0014).
+    const stopped = fill?.paused === true && fill.remaining > 0;
+    const notExpanded =
+      (stopped ? (fill?.remaining ?? 0) : 0) + (fill?.waiting ?? 0);
+    const parts: string[] = [];
+    if (notExpanded > 0)
+      parts.push(`${COUNT_FORMAT.format(notExpanded)} not expanded`);
+    if (input.failed > 0)
+      parts.push(`${COUNT_FORMAT.format(input.failed)} failed`);
+    const details =
+      input.lacksDetails > 0
+        ? `${COUNT_FORMAT.format(input.lacksDetails)} without details`
+        : null;
+    const action: ScopeHopsProgress["action"] = stopped
+      ? "resume"
+      : (fill?.waiting ?? 0) > 0
+        ? "more"
+        : (fill?.gaveUp ?? 0) > 0
+          ? "resume"
+          : null;
+    if (parts.length || details) {
+      progress = {
+        afterHop: input.depth,
+        kind: "rest",
+        text: parts.join(" · "),
+        details,
+        action,
+        actionLabel:
+          action === "resume"
+            ? "Resume"
+            : action === "more"
+              ? "Fetch more"
+              : null,
+        countdown: null,
+        title: null,
+        left: 0,
+      };
+    }
   }
   return {
     direction: input.direction,

@@ -680,7 +680,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     for (const row of block.rows) {
       rows.appendChild(hopRowElement(row));
       if (block.progress && block.progress.afterHop === row.hop) {
-        rows.appendChild(progressLine(block.progress));
+        rows.append(...progressLines(block.progress));
       }
     }
     host.appendChild(rows);
@@ -690,6 +690,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   function hopRowElement(row: ScopeHopRow): HTMLElement {
     const wrapper = element(document, "div", "cm-scope-row cm-scope-hop-row");
     wrapper.dataset.hop = String(row.hop);
+    // The counts behind the row's words, for the suite: the text no longer
+    // carries `available` (D7).
+    wrapper.dataset.shown = String(row.shown);
+    wrapper.dataset.available = String(row.available);
+    if (row.spinning) wrapper.setAttribute("aria-busy", "true");
     if (row.dimmed) wrapper.classList.add("cm-scope-hop-row-dimmed");
     if (row.checkbox) {
       const boxLabel = element(document, "label", "cm-scope-check-label");
@@ -737,22 +742,29 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       fetch.addEventListener("click", () => options.onScope.fetchHop(row.hop));
       body.appendChild(fetch);
     } else {
-      const count = text(document, "span", row.count, "cm-scope-row-count");
-      body.appendChild(count);
-      if (row.reported) {
+      body.appendChild(text(document, "span", row.count, "cm-scope-row-count"));
+      if (row.from) {
         body.appendChild(
-          text(document, "span", row.reported, "cm-scope-hop-reported"),
+          text(document, "span", `· ${row.from}`, "cm-scope-hop-from"),
         );
+      }
+      if (row.spinning) {
+        const spinner = element(document, "span", "cm-scope-hop-spinner");
+        spinner.setAttribute("aria-hidden", "true");
+        body.appendChild(spinner);
       }
     }
     wrapper.appendChild(body);
     return wrapper;
   }
 
-  function progressLine(progress: ScopeHopsProgress): HTMLElement {
+  function progressLines(progress: ScopeHopsProgress): HTMLElement[] {
     const line = element(document, "p", "cm-scope-hop-progress");
+    line.dataset.kind = progress.kind;
+    line.dataset.left = String(progress.left);
     if (progress.title) line.title = progress.title;
-    line.append(text(document, "span", progress.text));
+    const parts: HTMLElement[] = [];
+    if (progress.text) parts.push(text(document, "span", progress.text));
     const countdown = progress.countdown;
     if (countdown) {
       // Only this span changes each second. The model's `retryAt` is fixed,
@@ -764,7 +776,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
         formatRetryIn(countdown.retryAt - now()),
         "cm-scope-hop-countdown",
       );
-      line.append(text(document, "span", " · "), span);
+      parts.push(span);
       const view = document.defaultView;
       if (view) {
         countdownTimer = view.setInterval(() => {
@@ -772,17 +784,28 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
         }, 1000);
       }
     }
-    // Its own class, not the hidden line's `cm-scope-show-all`: the two sit in
-    // the same Scope section, and a `querySelector` for one must never answer
-    // with the other (the progress line is rendered above it).
-    const control = element(document, "button", "cm-scope-hop-action");
-    control.type = "button";
-    control.textContent = progress.actionLabel;
-    control.addEventListener("click", () =>
-      options.onScope.fillControl(progress.action),
-    );
-    line.append(text(document, "span", " · "), control);
-    return line;
+    const action = progress.action;
+    if (action && progress.actionLabel) {
+      // Its own class, not the hidden line's `cm-scope-show-all`: the two sit
+      // in the same Scope section, and a `querySelector` for one must never
+      // answer with the other (the progress line is rendered above it).
+      const control = element(document, "button", "cm-scope-hop-action");
+      control.type = "button";
+      control.textContent = progress.actionLabel;
+      control.addEventListener("click", () =>
+        options.onScope.fillControl(action),
+      );
+      parts.push(control);
+    }
+    parts.forEach((part, index) => {
+      if (index > 0) line.append(text(document, "span", " · "));
+      line.append(part);
+    });
+    if (!progress.details) return [line];
+    return [
+      line,
+      text(document, "p", progress.details, "cm-scope-hop-details"),
+    ];
   }
 
   function sectionElement(section: KeySection): HTMLElement {
