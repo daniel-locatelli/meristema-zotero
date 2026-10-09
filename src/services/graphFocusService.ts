@@ -77,6 +77,25 @@ function externalNodeKey(work: RelatedWorkMetadata): string {
   return `focus:${externalWorkLookupIdentity(work)}`;
 }
 
+/** The title an external node carries until its summary hydrates. */
+export const TITLE_UNAVAILABLE = "Title unavailable";
+
+/**
+ * Nothing about the paper ever hydrated: no title, no year, no citation
+ * count. The rail counts these as `without details` (D12); telling "still
+ * hydrating" from "failed to" is D11's work.
+ */
+export function lacksDetails(
+  node: Pick<CitationGraphNode, "title" | "year" | "citationCount">,
+): boolean {
+  const title = node.title.trim();
+  return (
+    (title === "" || title === TITLE_UNAVAILABLE) &&
+    node.year === null &&
+    node.citationCount === null
+  );
+}
+
 export function externalWorkToFocusNode(
   work: RelatedWorkMetadata,
   role: CitationGraphFocusRole,
@@ -105,7 +124,7 @@ export function externalWorkToFocusNode(
     kind: "external",
     focusRole: role,
     externalWork: { ...work, authors: [...work.authors] },
-    title: work.title?.trim() || "Title unavailable",
+    title: work.title?.trim() || TITLE_UNAVAILABLE,
     abstract: work.abstract ?? null,
     sourceTitle: work.sourceTitle ?? null,
     authors: [...work.authors],

@@ -9,6 +9,7 @@ import { mergeExternalWorkMetadata } from "../../src/services/externalWorkMetada
 import {
   additiveGraphModel,
   externalWorkToFocusNode,
+  lacksDetails,
 } from "../../src/services/graphFocusService";
 
 function node(key: string, kind: "local" | "external"): CitationGraphNode {
@@ -171,5 +172,40 @@ describe("a hop node hydrated from another index", function () {
     expect(
       externalWorkToFocusNode(hydrated, "cited-by").referenceCountProvider,
     ).to.equal("opencitations");
+  });
+});
+
+describe("lacksDetails", function () {
+  it("holds for a node with no title, year or citation count", function () {
+    expect(
+      lacksDetails({
+        title: "Title unavailable",
+        year: null,
+        citationCount: null,
+      }),
+    ).to.equal(true);
+    expect(
+      lacksDetails({ title: " ", year: null, citationCount: null }),
+    ).to.equal(true);
+  });
+
+  it("fails once any one detail has landed", function () {
+    expect(
+      lacksDetails({ title: "A paper", year: null, citationCount: null }),
+    ).to.equal(false);
+    expect(
+      lacksDetails({
+        title: "Title unavailable",
+        year: 2020,
+        citationCount: null,
+      }),
+    ).to.equal(false);
+    expect(
+      lacksDetails({
+        title: "Title unavailable",
+        year: null,
+        citationCount: 0,
+      }),
+    ).to.equal(false);
   });
 });
