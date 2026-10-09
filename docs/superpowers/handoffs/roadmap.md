@@ -68,15 +68,25 @@ opacity grade).
 
 ## The hop fill
 
-- [ ] D11 a reference fill lands many Unknowns. An expansion is membership
-      first with summaries hydrated cooperatively, so an Unknown is an
-      identifier whose summary has not hydrated or failed to. Two hypotheses:
-      hydration starved behind membership requests at the fill's rate; and
-      DOIs that were never resolvable — `10.1145/1201775.882296` has no year,
-      and its references `10.5555/839277.840020` and `10.5555/826029.826529`
-      answer "DOI Not Found", `10.5555` being the legacy ACM and DBLP prefix.
-      Check the second first: if it holds, the fix is a fallback lookup (title
-      and author, or the provider's own identifier), not more fetching. Nothing is measured
+- [ ] D11 a reference fill lands many Unknowns ("Unknown" is the
+      author-year label of a node with no authors). Measured 2026-10-09: the
+      dead-DOI hypothesis does not hold. S2 elides ACM reference lists
+      (`data: null`), so a fill's membership comes from OpenCitations, whose
+      rows carry a DOI and an OpenAlex ID but no metadata: every reference
+      lands Unknown until hydration. OpenCitations never lists a `10.5555`
+      DOI (they come only from Crossref's embedded list, which a fill never
+      asks). On three ACM papers, the S2 batch resolved 22/23, 22/23 and
+      11/13 DOIs; OpenAlex and Crossref resolve the misses. The seed
+      `10.1145/1201775.882296` has a year (2003) in S2, OpenAlex and Crossref,
+      so a missing year there means its own summary never hydrated. What is
+      left is starvation, from code reading, unmeasured. The background queue
+      waits whenever `activeRelationshipMembershipRefreshes > 0`, and a fill
+      runs expansions a frame apart, so hydration runs only in the gaps. The
+      queue also publishes (invalidate, `metadata-published`) only once it
+      drains, and a running fill keeps feeding it. Next: measure in Zotero
+      (summaries hydrated while the fill runs against after it stops), then
+      choose a fix: let hydration interleave with fill membership, publish
+      each batch, or both.
 - [ ] B47 during a fill the nodes jump far more than the new data warrants.
       Two claims to separate: the whole plot reshuffling on every landing (an
       axis rescale per fetch would do it; B18 is a neighbour), and a single
