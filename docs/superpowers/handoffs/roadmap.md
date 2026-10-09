@@ -160,9 +160,6 @@ opacity grade).
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
       `view-user` icon has no 28px rendering to walk
-- [ ] D14 the gallery's inset leaves a sliver showing an axis label and a
-      tick. Either fill the full plot area or widen the margin until it reads
-      as a card floating over a graph
 - [ ] D18 the View dropdown (user, 2026-10-07): mark the active view with
       a style like the hover highlight rather than a check; the description
       and the status lines (`needs a seed`) sit in two columns and fight for
@@ -210,9 +207,6 @@ opacity grade).
       folder's `Path2D` every frame, off-screen loops included, and the zoom
       tightening fragments a large folder into many small loops. Later, the
       user said so
-- [ ] B87 light theme (user, 2026-10-07): the fill behind the arrows of a
-      selected seed is black, fine on dark, wrong on light. (The text looking
-      scaled down is gone: the user saw both themes alike on 2026-10-09.)
 - [ ] B26 region membership follows the visible node set, so the search box
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
@@ -569,3 +563,6 @@ entries are in git history.
   The shipped views' paragraphs were cut to 21 to 24 words (from 35 to
   54), each without the "untouched" sentence the footnote already says; a
   unit case holds them at 25 words or fewer, within 5 of each other.
+- 2026-10-09, late: full run at `0efe291` 109/1 (view 3 clicked the
+  gallery mask; fixed in `1246ea2`). B87 closed on the user's word; D14 closed
+  by the full-area mask (`5f43ba1`). Next: D7 with D12.
