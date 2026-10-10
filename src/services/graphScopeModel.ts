@@ -40,6 +40,52 @@ export function onlyCollectionsTicked(
   return { base: "none", except: normalizedIDs(collectionIDs) };
 }
 
+/** What a new graph was opened on; decides the scope it opens with. */
+export type GraphOrigin =
+  /** New Graph with nothing chosen: the whole library. */
+  | { kind: "library" }
+  /** Opened on folders; `collectionIDs` already holds their descendants. */
+  | { kind: "folders"; collectionIDs: readonly number[] }
+  /** Started from chosen papers, which become its seeds. */
+  | { kind: "seeds" };
+
+export interface InitialGraphScope {
+  ticks: GraphViewCollectionTicks;
+  includeUnfiled: boolean;
+  includeExternal: boolean;
+}
+
+/**
+ * The rail's ticks a new graph opens with. A seeded graph is about its seeds,
+ * so no folder and no unfiled paper comes in until the reader ticks one (F7);
+ * External stays on, because the papers the seeds reach are mostly not in
+ * Zotero and a seed only ever adds papers (ADR 0004). Read once, when the
+ * graph is made: seeds added later never untick anything, and a saved graph
+ * reopens with the ticks it saved.
+ */
+export function initialGraphScope(origin: GraphOrigin): InitialGraphScope {
+  switch (origin.kind) {
+    case "seeds":
+      return {
+        ticks: onlyCollectionsTicked([]),
+        includeUnfiled: false,
+        includeExternal: true,
+      };
+    case "folders":
+      return {
+        ticks: onlyCollectionsTicked(origin.collectionIDs),
+        includeUnfiled: true,
+        includeExternal: true,
+      };
+    case "library":
+      return {
+        ticks: allCollectionsTicked(),
+        includeUnfiled: true,
+        includeExternal: true,
+      };
+  }
+}
+
 export function isCollectionTicked(
   ticks: GraphViewCollectionTicks,
   collectionID: number,

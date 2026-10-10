@@ -47,7 +47,9 @@ _Avoid_: filter (filters come after scope), visibility, focus
 
 **Folder rule**:
 A library paper is shown when a folder it is filed in is ticked in the rail.
-Ticking a folder ticks its subfolders.
+Ticking a folder ticks its subfolders. A new graph opens with every folder
+ticked, one opened on folders with only those, and one started from papers
+with none and Unfiled off; seeds added later untick nothing.
 _Avoid_: collection filter
 
 **Hop rule**:

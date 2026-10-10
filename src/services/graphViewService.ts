@@ -84,7 +84,7 @@ import {
   type PaperListFilterState,
 } from "./paperListViewService";
 import {
-  allCollectionsTicked,
+  initialGraphScope,
   collectionTickState,
   computeGraphScope,
   expandTicksThroughDescendants,
@@ -516,20 +516,30 @@ export function renderGraphView(
   );
   /**
    * A graph opened on folders is `none`, so a folder made later does not
-   * quietly appear in it; a library graph is `all`, so it does. The base is
-   * set here, once, and unticking rows never flips it.
+   * quietly appear in it; a library graph is `all`, so it does. A graph
+   * started from papers is `none` with Unfiled off (F7). The base is set
+   * here, once, and unticking rows never flips it. A seed request that
+   * re-renders a graph which already has a state is not a new graph, so it
+   * does not untick anything.
    */
-  let collectionTicks: GraphViewCollectionTicks = options.initialCollectionIDs
-    ?.length
-    ? onlyCollectionsTicked([
-        ...collectionScopeIDs(
-          options.initialCollectionIDs,
-          snapshot.collections,
-        ),
-      ])
-    : allCollectionsTicked();
-  let includeUnfiled = true;
-  let includeExternal = true;
+  const initialScope = initialGraphScope(
+    options.initialFocusItemIDs?.length && !options.initialState
+      ? { kind: "seeds" }
+      : options.initialCollectionIDs?.length
+        ? {
+            kind: "folders",
+            collectionIDs: [
+              ...collectionScopeIDs(
+                options.initialCollectionIDs,
+                snapshot.collections,
+              ),
+            ],
+          }
+        : { kind: "library" },
+  );
+  let collectionTicks: GraphViewCollectionTicks = initialScope.ticks;
+  let includeUnfiled = initialScope.includeUnfiled;
+  let includeExternal = initialScope.includeExternal;
   /**
    * The folders drawn as regions on the plot. A folder graph opens showing
    * its own folders, every one of them (F14: no cap).

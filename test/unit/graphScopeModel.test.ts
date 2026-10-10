@@ -9,6 +9,7 @@ import {
   purgeHiddenKeys,
   computeGraphScope,
   regionMemberKeys,
+  initialGraphScope,
   setCollectionTicks,
 } from "../../src/services/graphScopeModel";
 import type {
@@ -562,5 +563,68 @@ describe("regionMemberKeys", function () {
     expect(
       [...regionMemberKeys(papers, hidden.visibleKeys, 1)].sort(),
     ).to.deep.equal(["b", "d"]);
+  });
+});
+
+describe("initialGraphScope", function () {
+  it("opens a library graph with every folder, Unfiled and External ticked", function () {
+    const scope = initialGraphScope({ kind: "library" });
+    expect(scope.ticks).to.deep.equal(allCollectionsTicked());
+    expect(scope.includeUnfiled).to.equal(true);
+    expect(scope.includeExternal).to.equal(true);
+  });
+
+  it("opens a folder graph with only its folders ticked", function () {
+    const scope = initialGraphScope({
+      kind: "folders",
+      collectionIDs: [3, 2],
+    });
+    expect(scope.ticks).to.deep.equal(onlyCollectionsTicked([2, 3]));
+    expect(scope.includeUnfiled).to.equal(true);
+    expect(scope.includeExternal).to.equal(true);
+  });
+
+  // F7: a graph started from papers is about those papers, so no folder and
+  // no unfiled paper comes in until the reader ticks one; External stays on,
+  // since the seeds' hop papers are mostly not in Zotero.
+  it("opens a seeded graph with no folder and Unfiled off", function () {
+    const scope = initialGraphScope({ kind: "seeds" });
+    expect(scope.ticks).to.deep.equal(onlyCollectionsTicked([]));
+    expect(isCollectionTicked(scope.ticks, 999)).to.equal(false);
+    expect(scope.includeUnfiled).to.equal(false);
+    expect(scope.includeExternal).to.equal(true);
+  });
+
+  it("shows a seeded graph's seeds and reached papers, and no other library paper", function () {
+    const scope = initialGraphScope({ kind: "seeds" });
+    const paper = (
+      key: string,
+      collectionIDs: number[],
+      inLibrary = true,
+    ): ScopePaper => ({ key, collectionIDs, inLibrary, citationCount: null });
+    const result = computeGraphScope({
+      papers: [
+        paper("seed", [1]),
+        paper("citer", [], false),
+        paper("filed", [1]),
+        paper("unfiled", []),
+      ],
+      seedKeys: new Set(["seed"]),
+      hops: {
+        entries: new Map([
+          ["seed", { hop: 0, parents: [] }],
+          ["citer", { hop: 1, parents: ["seed"] }],
+        ]),
+        depth: 1,
+        enabled: [true, true],
+      },
+      ticks: scope.ticks,
+      includeUnfiled: scope.includeUnfiled,
+      includeExternal: scope.includeExternal,
+      hiddenKeys: new Set(),
+      facetAdmits: () => true,
+      floor: 0,
+    });
+    expect([...result.visibleKeys].sort()).to.deep.equal(["citer", "seed"]);
   });
 });

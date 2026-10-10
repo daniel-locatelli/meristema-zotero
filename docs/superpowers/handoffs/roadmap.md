@@ -172,12 +172,6 @@ opacity grade).
 
 ## Seeds, selection and the detail surfaces
 
-- [ ] F7 a graph made from selected papers should open scoped to those seeds,
-      not over the whole library (its gallery asked about all 69 papers); the
-      library comes in by a deliberate tick. It also decides what N the
-      gallery's heading counts. 2026-10-07: the user wants any graph started
-      with seeds to open with folders off
-      Decided 2026-10-11: seeds open with no folder ticked and Unfiled off; a plain New Graph keeps everything ticked.
 - [ ] F6 seed a paper that is not in Zotero into a new graph
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
@@ -361,6 +355,10 @@ any failure into a new entry above.
 - [ ] D9: seed a graph, colour by Citation hop: the Key's Color section reads
       one line, Citation hop (see Citation hops), and only the Citation hops
       rows carry the hop swatches.
+- [ ] F7: right-click a paper, New Graph from it: no folder is ticked, Unfiled
+      is off, and the gallery's N counts the seed and its hop papers only.
+- [ ] F7: Tools › New Graph still ticks everything; adding a seed to it from
+      the + search unticks nothing.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
