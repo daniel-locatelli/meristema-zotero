@@ -896,13 +896,13 @@ describe("formatRetryIn", function () {
   });
 });
 
-describe("the Shared by row", function () {
+describe("the shared rule's row", function () {
   it("is absent without two seeds", function () {
     expect(buildScopeRailModel(baseInput()).shared).to.equal(null);
     expect(
       buildScopeRailModel({
         ...baseInput(),
-        shared: { value: 2, seedCount: 1 },
+        shared: { value: 2, seedCount: 1, direction: "cited-by" },
       }).shared,
     ).to.equal(null);
   });
@@ -910,13 +910,15 @@ describe("the Shared by row", function () {
   it("prints the value, its ceiling and how many it removed", function () {
     const model = buildScopeRailModel({
       ...baseInput(),
-      shared: { value: 2, seedCount: 3 },
+      shared: { value: 2, seedCount: 3, direction: "cited-by" },
       scope: { ...baseInput().scope, belowSharedCount: 4 },
     });
     expect(model.shared).to.deep.equal({
+      label: "Cites at least",
       value: 2,
       stored: 2,
       max: 3,
+      suffix: "of 3 seeds",
       belowText: "4 below",
     });
   });
@@ -925,21 +927,37 @@ describe("the Shared by row", function () {
     expect(
       buildScopeRailModel({
         ...baseInput(),
-        shared: { value: 1, seedCount: 2 },
+        shared: { value: 1, seedCount: 2, direction: "cited-by" },
       }).shared,
-    ).to.deep.equal({ value: 1, stored: 1, max: 2, belowText: "off" });
+    ).to.deep.equal({
+      label: "Cites at least",
+      value: 1,
+      stored: 1,
+      max: 2,
+      suffix: "of 2 seeds",
+      belowText: "off",
+    });
     expect(
       buildScopeRailModel({
         ...baseInput(),
-        shared: { value: 5, seedCount: 2 },
+        shared: { value: 5, seedCount: 2, direction: "cited-by" },
       }).shared?.value,
     ).to.equal(2);
+  });
+
+  it("reads as the seeds citing the paper under References", function () {
+    const row = buildScopeRailModel({
+      ...baseInput(),
+      shared: { value: 2, seedCount: 4, direction: "references" },
+    }).shared;
+    expect(row?.label).to.equal("Cited by at least");
+    expect(row?.suffix).to.equal("of 4 seeds");
   });
 
   it("keeps the stored value beside the clamped one", function () {
     const row = buildScopeRailModel({
       ...baseInput(),
-      shared: { value: 5, seedCount: 2 },
+      shared: { value: 5, seedCount: 2, direction: "cited-by" },
     }).shared;
     expect(row?.value).to.equal(2);
     expect(row?.stored).to.equal(5);

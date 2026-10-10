@@ -123,7 +123,7 @@ const ICON_PATHS: Record<IconName, string[]> = {
     "M8 4l5 8-5 8-5-8 5-8Zm0 3.2L5.2 12 8 16.8 10.8 12 8 7.2Z",
     "M17 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
   ],
-  // Who cites whom: two seeds joined through a bridge paper.
+  // Shared papers: two seeds joined through a paper they share.
   "view-who-cites-whom": [
     "M5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm14 0a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
     "M12 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",

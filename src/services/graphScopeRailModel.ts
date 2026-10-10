@@ -180,7 +180,7 @@ export interface ScopeRailModel {
   /** The Citation hops block, or null on a seedless graph. */
   hops: ScopeHopsBlock | null;
   floor: ScopeFloorRow;
-  /** The Shared by row, or null with fewer than two seeds. */
+  /** The shared rule's row, or null with fewer than two seeds. */
   shared: ScopeSharedRow | null;
 }
 
@@ -191,14 +191,23 @@ export interface ScopeFloorRow {
   belowText: string;
 }
 
-/** The Shared by row: the field's value, its ceiling, and the count beside it. */
+/**
+ * The shared rule's row, `Cites at least [2] of 3 seeds`: the words before
+ * the field, the field's value and ceiling, the words after it, and the count
+ * beside it. Under References a paper's seed links are the seeds citing it, so
+ * the words turn round (D20).
+ */
 export interface ScopeSharedRow {
+  /** `Cites at least`, or `Cited by at least` under References. */
+  label: string;
   /** Already clamped to 1..max. */
   value: number;
   /** The stored value, unclamped: what a typed number is compared against. */
   stored: number;
   /** The seed count. */
   max: number;
+  /** `of {seed count} seeds`. */
+  suffix: string;
   /** `{n} below`, or `off` while the value is 1. */
   belowText: string;
 }
@@ -220,8 +229,8 @@ export interface ScopeRailInput {
   hops: ScopeHopsInput | null;
   /** The citation floor, 0 when off. */
   floor: number;
-  /** The shared rule and the seed count; absent on a seedless graph. */
-  shared?: { value: number; seedCount: number };
+  /** The shared rule, the seed count and the hop direction; absent on a seedless graph. */
+  shared?: { value: number; seedCount: number; direction: HopDirection };
 }
 
 export type ScopeSquareFill = "off" | "on" | "mixed" | "region";
@@ -466,15 +475,20 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
 }
 
 function sharedRow(
-  shared: { value: number; seedCount: number },
+  shared: { value: number; seedCount: number; direction: HopDirection },
   below: number,
 ): ScopeSharedRow {
   const stored = Math.max(1, Math.floor(shared.value));
   const value = Math.min(shared.seedCount, stored);
   return {
+    label:
+      shared.direction === "references"
+        ? "Cited by at least"
+        : "Cites at least",
     value,
     stored,
     max: shared.seedCount,
+    suffix: `of ${COUNT_FORMAT.format(shared.seedCount)} seeds`,
     belowText: value >= 2 ? `${COUNT_FORMAT.format(below)} below` : "off",
   };
 }

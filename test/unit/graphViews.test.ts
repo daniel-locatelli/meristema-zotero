@@ -163,6 +163,11 @@ describe("the shipped views", function () {
     expect(isShippedViewName("Thesis")).to.equal(false);
   });
 
+  it("name the shared-paper view by what it shows, keeping its saved id", function () {
+    const view = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "who-cites-whom")!;
+    expect(view.name).to.equal("Shared papers");
+  });
+
   it("describe themselves in short paragraphs of a like length", function () {
     const words = SHIPPED_GRAPH_VIEWS.map(
       (v) => v.paragraph.trim().split(/\s+/).length,
@@ -172,6 +177,12 @@ describe("the shipped views", function () {
     ).join(", ");
     expect(Math.max(...words), counts).to.be.at.most(25);
     expect(Math.max(...words) - Math.min(...words), counts).to.be.at.most(5);
+    // CONTEXT.md avoids "bridge" for a shared paper (D20).
+    for (const view of SHIPPED_GRAPH_VIEWS) {
+      expect(`${view.summary} ${view.paragraph}`, view.id).not.to.match(
+        /bridge/i,
+      );
+    }
     // The gallery's subtitle and the card's footnote say this already.
     for (const view of SHIPPED_GRAPH_VIEWS) {
       expect(view.paragraph, view.id).not.to.contain("untouched");
@@ -898,8 +909,18 @@ describe("explore on a view", function () {
       hops: under,
     });
     expect(tutorialChips(whoCites, whoPlan, 8)).to.include(
-      "hops 1 · citers · shared ≥ 2",
+      "hops 1 · citers · citing ≥ 2 seeds",
     );
+    expect(
+      tutorialChips(
+        {
+          ...whoCites,
+          explore: { ...whoCites.explore!, direction: "references" },
+        },
+        whoPlan,
+        8,
+      ),
+    ).to.include("hops 1 · references · cited by ≥ 2 seeds");
     expect(tutorialFootnote(plan, cornerstones)).to.include(
       "Opening hops fetches citations from the providers.",
     );

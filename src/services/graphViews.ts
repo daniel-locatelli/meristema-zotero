@@ -130,11 +130,12 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   },
   {
     id: "who-cites-whom",
-    name: "Who cites whom",
+    // The id predates the name; saved graphs reference it (D20).
+    name: "Shared papers",
     summary:
-      "Seeds linked, 1 hop, shared by 2 or more. Bridges between your seeds.",
+      "Seeds linked, 1 hop, citing 2 or more seeds. What your seeds share.",
     paragraph:
-      "Papers one step out that cite at least two of your seeds, coloured by how many, so the bridges between your seeds stand out.",
+      "Papers one step out that cite at least two of your seeds, coloured by how many, so the work your seeds share stands out.",
     icon: "view-who-cites-whom",
     appearance: { ...BASE, nodeColorMetric: "seed-links" },
     regions: null,
@@ -431,6 +432,17 @@ function noDataNote(metric: string): string {
   return ` (no ${metricWord(metric)} data)`;
 }
 
+/**
+ * The shared rule in a line of text: `citing ≥ 2 seeds` under Citers, `cited
+ * by ≥ 2 seeds` under References, where the seeds cite the paper (D20).
+ */
+export function sharedRuleWords(
+  shared: number,
+  direction: HopDirection,
+): string {
+  return `${direction === "references" ? "cited by" : "citing"} ≥ ${shared} seeds`;
+}
+
 export function tutorialChips(
   view: GraphViewDefinition,
   application: GraphViewApplication,
@@ -448,7 +460,7 @@ export function tutorialChips(
   ];
   if (view.explore) {
     chips.push(
-      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}${view.explore.floor ? ` · floor ${view.explore.floor}` : ""}${view.explore.shared && view.explore.shared > 1 ? ` · shared ≥ ${view.explore.shared}` : ""}`,
+      `hops ${view.explore.hops} · ${view.explore.direction === "references" ? "references" : "citers"}${view.explore.floor ? ` · floor ${view.explore.floor}` : ""}${view.explore.shared && view.explore.shared > 1 ? ` · ${sharedRuleWords(view.explore.shared, view.explore.direction)}` : ""}`,
     );
   }
   if (application.regions !== null) {

@@ -119,6 +119,7 @@ import {
   graphViewIsEdited,
   isShippedViewName,
   planGraphView,
+  sharedRuleWords,
   SHIPPED_GRAPH_VIEWS,
   tutorialChips,
   tutorialFootnote,
@@ -2160,7 +2161,7 @@ export function renderGraphView(
     const floorPart = explore.floor ? `, floor ${explore.floor}` : "";
     const sharedPart =
       explore.shared && explore.shared > 1
-        ? `, shared ≥ ${explore.shared}`
+        ? `, ${sharedRuleWords(explore.shared, explore.direction)}`
         : "";
     return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}${floorPart}${sharedPart}`;
   };
@@ -4311,7 +4312,11 @@ ${error instanceof Error ? error.message : String(error)}`,
         hops: hopModel ? scopeHopsInput() : null,
         floor,
         shared: hopModel
-          ? { value: shared, seedCount: hopModel.seeds.length }
+          ? {
+              value: shared,
+              seedCount: hopModel.seeds.length,
+              direction: hopDirection,
+            }
           : undefined,
       }),
     );

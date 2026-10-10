@@ -3595,7 +3595,7 @@ describe("Citation hops (Stage 3)", function () {
       const input = graphRoot().querySelector(
         ".cm-scope-shared-input",
       ) as HTMLInputElement | null;
-      expect(input, "the Shared by field").to.exist;
+      expect(input, "the shared rule's field").to.exist;
       return input!;
     }
 
@@ -3715,6 +3715,9 @@ describe("Citation hops (Stage 3)", function () {
         `hop 1 read "${hopRowText(1)}"; the row read "${sharedRowText()}"`,
       ).to.deep.equal({ shown: 2, available: 4 });
       expect(sharedRowText()).to.include("2 below");
+      // D20: the row reads as a sentence round the field, under Citers.
+      expect(sharedRowText()).to.include("Cites at least");
+      expect(sharedRowText()).to.include("of 2 seeds");
     });
 
     /**

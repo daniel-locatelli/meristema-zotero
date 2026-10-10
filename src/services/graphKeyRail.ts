@@ -562,6 +562,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     stored?: number;
     min: number;
     max: number | null;
+    /** The sign before the field; the shared row's label already says it. */
+    sign: string | null;
     suffix: string | null;
     countText: string;
     commit: (value: number) => void;
@@ -573,7 +575,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     );
     wrapper.append(text(document, "span", spec.label, "cm-scope-row-label"));
     const field = element(document, "label", `cm-scope-${spec.kind}-field`);
-    field.append(text(document, "span", "≥"));
+    if (spec.sign) field.append(text(document, "span", spec.sign));
     const input = element(
       document,
       "input",
@@ -632,6 +634,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       value: row.value,
       min: 0,
       max: null,
+      sign: "≥",
       suffix: null,
       countText: row.belowText,
       commit: (value) => options.onScope.setFloor(value),
@@ -641,12 +644,13 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
   function sharedRowElement(row: ScopeSharedRow): HTMLElement {
     return numberRowElement({
       kind: "shared",
-      label: "Shared by",
+      label: row.label,
       value: row.value,
       stored: row.stored,
       min: 1,
       max: row.max,
-      suffix: "seeds",
+      sign: null,
+      suffix: row.suffix,
       countText: row.belowText,
       commit: (value) => options.onScope.setShared(value),
     });

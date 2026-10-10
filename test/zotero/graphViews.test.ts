@@ -619,7 +619,7 @@ describe("Graph views (D4)", function () {
     this.timeout(30_000);
     const before = chipName();
     await openChipMenu();
-    // Who cites whom is ready as of Stage 4, so the greyed example is the one
+    // Shared papers is ready as of Stage 4, so the greyed example is the one
     // view still waiting: Reading plan, on reading state.
     const row = viewRow("reading-plan");
     expect(
