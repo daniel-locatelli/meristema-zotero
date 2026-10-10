@@ -3767,8 +3767,11 @@ describe("Citation hops (Stage 3)", function () {
      * never reached `updateSummary`, so on a graph whose fill had gone quiet
      * the rail went on naming the hop colours under Uniform. The Key is read
      * straight after the change, before anything else can rebuild it.
+     *
+     * D9: under Citation hop the Key's Color section is one line pointing at
+     * the Citation hops rows, which carry the swatches; it lists no hops.
      */
-    it("drops the hop colours from the Key when the colouring leaves Citation hop", async function () {
+    it("points the Key at the hop rows under Citation hop, and names Uniform after it", async function () {
       this.timeout(120_000);
       // Uniform carries no `data-metric`, so the colour select is found by
       // its Citation hop option and driven by value.
@@ -3785,6 +3788,21 @@ describe("Citation hops (Stage 3)", function () {
         // "Seed" is also a state row, so only the hop rows tell the
         // colouring apart.
         keyEntries().filter((entry) => /^Hop \d/.test(entry));
+      const colourLine = (): string => {
+        const color = [
+          ...(graphRoot().querySelectorAll(
+            ".cm-key-section",
+          ) as unknown as Iterable<Element>),
+        ].find(
+          (section) =>
+            normalize(
+              section?.querySelector(".cm-key-heading")?.textContent,
+            ) === "Color",
+        );
+        return normalize(
+          color?.querySelector(".cm-key-subheading")?.textContent,
+        );
+      };
 
       let seen = openAlexRequests;
       let since = Date.now();
@@ -3798,12 +3816,22 @@ describe("Citation hops (Stage 3)", function () {
       }
 
       colouring("citation-hop");
+      expect(colourLine(), "the Key's colour line").to.equal(
+        "Citation hop (see Citation hops)",
+      );
       expect(
         hopRows(),
         `under Citation hop the Key read: ${keyEntries().join(" | ")}`,
-      ).to.not.be.empty;
+      ).to.be.empty;
+      const scopeHops = [
+        ...graphRoot().querySelectorAll(".cm-scope-hops-heading"),
+      ].map((heading) => normalize(heading?.textContent));
+      expect(scopeHops, "the rail's hop rows heading").to.include(
+        "Citation hops",
+      );
 
       colouring("uniform");
+      expect(colourLine(), "the Key's colour line").to.equal("Uniform");
       expect(
         hopRows(),
         `under Uniform the Key read: ${keyEntries().join(" | ")}`,

@@ -383,3 +383,46 @@ describe("the Key under Seeds linked", function () {
     expect(color.note).to.equal("Only hop 1 is graded, by the links fetched.");
   });
 });
+
+describe("the Key under Citation hop", function () {
+  function hopModel(hopRows: boolean | undefined) {
+    const nodes = [node(1), node(2), node(3)];
+    const hop = new Map([
+      ["k1", 0],
+      ["k2", 1],
+      ["k3", 2],
+    ]);
+    const layout = { ...LAYOUT, nodeColorMetric: "citation-hop" as const };
+    const assignment = assignCategories(nodes, "citation-hop", theme, {
+      ledger: emptySwatchLedger(),
+      hopOf: (key) => hop.get(key),
+    });
+    return buildKeyModel({
+      layout,
+      assignment,
+      nodes,
+      theme,
+      edgeCount: 0,
+      states: QUIET,
+      hopRows,
+    });
+  }
+
+  it("names the channel and points at the hop rows, which carry the swatches (D9)", function () {
+    const color = hopModel(true).sections.find((s) => s.kind === "color")!;
+    expect(color.heading).to.equal("Color");
+    expect(color.subheading).to.equal("Citation hop (see Citation hops)");
+    expect(color.entries).to.deep.equal([]);
+    expect(color.note).to.equal(null);
+  });
+
+  it("keeps its swatches where no hop rows are drawn", function () {
+    const color = hopModel(undefined).sections.find((s) => s.kind === "color")!;
+    expect(color.subheading).to.equal("Citation hop");
+    expect(color.entries.map((e) => e.label)).to.have.members([
+      "Seed",
+      "Hop 1",
+      "Hop 2",
+    ]);
+  });
+});

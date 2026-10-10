@@ -121,10 +121,6 @@ opacity grade).
       Weigh a channel that separates adjacent hops (ring, stroke weight, size),
       opacity for emphasis alone, and no ramp when the colouring already says
       hop
-- [ ] D9 under the Citation hop colouring the rail shows the hop colours
-      twice, on the hop rows and in the Key's Color section. Both are
-      specified; decide which yields
-      Decided 2026-10-11: the Key's Color section names the channel and points to the hop rows, which keep their swatches.
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
@@ -362,6 +358,9 @@ any failure into a new entry above.
 - [ ] F4 fold: open ABSTRACT and close ADVANCED, then select another paper
       with an abstract: ABSTRACT stays open and ADVANCED closed; reverse
       both and select again: they stay as you left them.
+- [ ] D9: seed a graph, colour by Citation hop: the Key's Color section reads
+      one line, Citation hop (see Citation hops), and only the Citation hops
+      rows carry the hop swatches.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

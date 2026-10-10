@@ -132,6 +132,12 @@ export interface KeyModelInput {
   /** How many links are drawn. Zero means there is no link encoding to name. */
   edgeCount: number;
   states: KeyStates;
+  /**
+   * The rail is drawing the Scope section's Citation hops rows. Under the
+   * Citation hop colouring those rows already carry the hop swatches, so the
+   * Key names the channel and points at them rather than painting them twice.
+   */
+  hopRows?: boolean;
 }
 
 function metricLabel(metric: GraphNodeColorMetric | MetricID): string {
@@ -198,6 +204,19 @@ function colorSection(input: KeyModelInput): KeySection {
   }
 
   const subheading = metricLabel(metric);
+
+  // The Citation hops rows paint Seeds and Hop 1 … Hop 6 in the colouring's
+  // own swatches, with their counts. A second list of the same seven colours
+  // a few rows down said nothing new (D9), so the section shrinks to one line.
+  if (metric === "citation-hop" && input.hopRows) {
+    return {
+      kind: "color",
+      heading,
+      subheading: `${subheading} (see Citation hops)`,
+      entries: [],
+      note: null,
+    };
+  }
 
   if (!isCategoricalColorMetric(metric)) {
     const entries: KeyEntry[] = [];

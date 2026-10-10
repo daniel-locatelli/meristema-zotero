@@ -348,8 +348,10 @@ waiting` with a **Fetch more** link. The line disappears when the plan is
   the ghost preview in `graphRendererScene.ts`; the view decoder's
   `COLOUR_METRICS`, or a saved view with this colouring fails to decode; and
   the tooltip's metric switch. Categories `Seed`, `Hop 1` … `Hop 6`, drawn
-  through the category swatch ledger like publication type, explained by the
-  Key's category section. It is not a supplementary property in
+  through the category swatch ledger like publication type. The Citation
+  hops rows carry the swatches, so the Key's Color section is one line,
+  `Citation hop (see Citation hops)`, rather than a second list of the same
+  colours (D9). It is not a supplementary property in
   `metricRegistry.ts`, so it is not a column and puts no row in the item pane,
   and it is not a Filter facet.
 - Hop opacity: the design's ramp `[1, .9, .8, .7, .6, .5, .4]` by hop, applied

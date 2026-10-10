@@ -4325,6 +4325,9 @@ ${error instanceof Error ? error.message : String(error)}`,
         scaleNodes: model.nodes,
         theme: active.getTheme(),
         edgeCount: active.getVisibleEdgeCount(),
+        // The Scope section draws the Citation hops rows exactly when there
+        // is a hop model (refreshScopeRail's `hops`).
+        hopRows: hopModel !== null,
         states: {
           selectedKey: selectedNode?.key ?? null,
           seedKeys: new Set(seedKeysOf()),
