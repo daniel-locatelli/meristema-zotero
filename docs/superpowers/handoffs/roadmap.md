@@ -163,9 +163,6 @@ opacity grade).
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
       `view-user` icon has no 28px rendering to walk
-- [ ] D19 the user did not understand what Folder map is for (2026-10-07).
-      The gallery card and the tutorial card do not carry its goal
-      Decided 2026-10-11: the summary and card ask "Do your folders match how the papers cite each other?"
 
 ## Seeds, selection and the detail surfaces
 
@@ -359,6 +356,8 @@ any failure into a new entry above.
 - [ ] D20: the gallery lists Shared papers (no Who cites whom), and with two
       seeds the rail reads `Cites at least [2] of 2 seeds`; switch to
       References and it reads `Cited by at least`, unclipped in a narrow rail.
+- [ ] D19: Folder map's menu row, gallery card and tutorial card each ask
+      "Do your folders match how the papers cite each other?"
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

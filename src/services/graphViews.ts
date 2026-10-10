@@ -147,10 +147,11 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "folder-map",
     name: "Folder map",
-    summary: "Free layout, folder regions. How your collections overlap.",
-    // draft: reconcile with boards 3a/3b
+    // The question it answers, in the user's words (D19, 2026-10-11).
+    summary:
+      "Free layout, folder regions. Do your folders match how the papers cite each other?",
     paragraph:
-      "Papers settle where their citations pull them, with each ticked folder drawn as a region, so folders that share papers overlap.",
+      "Do your folders match how the papers cite each other? Papers settle where their citations pull them, and each ticked folder becomes a region.",
     icon: "view-folder-map",
     appearance: {
       ...BASE,

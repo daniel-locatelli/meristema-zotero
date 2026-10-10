@@ -168,6 +168,13 @@ describe("the shipped views", function () {
     expect(view.name).to.equal("Shared papers");
   });
 
+  it("ask the question Folder map answers", function () {
+    const view = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "folder-map")!;
+    const question = "Do your folders match how the papers cite each other?";
+    expect(view.summary).to.contain(question);
+    expect(view.paragraph).to.contain(question);
+  });
+
   it("describe themselves in short paragraphs of a like length", function () {
     const words = SHIPPED_GRAPH_VIEWS.map(
       (v) => v.paragraph.trim().split(/\s+/).length,
