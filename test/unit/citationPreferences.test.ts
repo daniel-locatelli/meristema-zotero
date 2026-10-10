@@ -6,6 +6,7 @@ import {
   getGraphAppearance,
   initialGraphAppearance,
 } from "../../src/services/citationPreferences";
+import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
 
 const prefKey = (name: string): string => `${config.prefsPrefix}.${name}`;
 
@@ -37,6 +38,14 @@ afterEach(function () {
 });
 
 describe("the graph appearance preference", function () {
+  it("opens a new graph on Overview's appearance (D22)", function () {
+    // One neutral grey wasted the colour channel; Overview colours by
+    // publication type, and a graph with nothing stored opens the same way.
+    const overview = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "overview")!;
+    expect(overview.appearance.nodeColorMetric).to.equal("publication-type");
+    expect(getGraphAppearance()).to.deep.equal(overview.appearance);
+  });
+
   it("coerces a stored Collection colouring to Uniform", function () {
     // Collection is not a node colouring any more — folders are regions. The
     // appearance schema version is deliberately not bumped to force this: a

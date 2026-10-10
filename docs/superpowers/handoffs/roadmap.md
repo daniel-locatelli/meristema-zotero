@@ -116,11 +116,6 @@ opacity grade).
 
 ## Views, gallery and menus
 
-- [ ] D22 views that open in one neutral grey waste the colour channel
-      (user, 2026-10-08): colour by citations, or whatever tells the reader
-      something about the view. Overview's summary promises "all in one
-      colour" on purpose, so decide per view, and for a new graph's default
-      Decided 2026-10-11: Overview colours by publication type; Folder map stays uniform; a new graph opens on Overview's.
 - [ ] D17 a new seeded graph inherits the appearance the reader last edited
       (B41's design: a stored `focusGraphAppearance` overrides
       `getFocusGraphAppearance`'s defaults). The user wants a stable default,
@@ -342,6 +337,8 @@ any failure into a new entry above.
       crowd nudges only its neighbours, and no node strays past half a year
       or a quarter tick from its value. The axes only widen while the fill
       runs; once it stops (or Stop) they settle tight.
+- [ ] D22: apply Overview to an enriched graph: nodes colour by
+      publication type and the card says so; Folder map stays one grey.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -168,13 +168,14 @@ export function getDebugLoggingEnabled(): boolean {
 const GRAPH_APPEARANCE_SCHEMA_VERSION = 4;
 const FOCUS_GRAPH_APPEARANCE_SCHEMA_VERSION = 1;
 
+/** Overview's appearance (D22): a new graph opens the way that view does. */
 const DEFAULT_GRAPH_LAYOUT: GraphLayoutOptions = {
   xMetric: "year",
   xScale: "linear",
   yMetric: "citations",
   yScale: "linear",
   nodeSizeMetric: "citations",
-  nodeColorMetric: "uniform",
+  nodeColorMetric: "publication-type",
   nodeLabelMode: "author-year",
 };
 

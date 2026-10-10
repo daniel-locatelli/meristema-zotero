@@ -39,7 +39,11 @@ function node(overrides: Partial<CitationGraphNode>): CitationGraphNode {
   } as CitationGraphNode;
 }
 
-const nodes = [node({ key: "a" }), node({ key: "b", citationCount: 40 })];
+// A publication type, so Overview's colouring (D22) is not substituted.
+const nodes = [
+  node({ key: "a", publicationType: "journal-article" }),
+  node({ key: "b", citationCount: 40 }),
+];
 
 const folders: ViewFolder[] = [
   {
@@ -776,7 +780,7 @@ describe("explore on a view", function () {
     expect(
       graphViewIsEdited(overview, {
         ...live,
-        layout: liveLayout,
+        layout: overview.appearance,
         hops: { ...under, depth: 5 },
       }),
     ).to.equal(false);

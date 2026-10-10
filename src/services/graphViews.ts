@@ -86,12 +86,15 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "overview",
     name: "Overview",
-    summary: "Year × citations, uniform fill. Where things are.",
+    summary: "Year × citations, colour publication type. Where things are.",
     // draft: reconcile with boards 3a/3b
     paragraph:
-      "Every paper placed by year and citations, all in one colour, so the shape of the field shows before anything else does.",
+      "Every paper placed by year and citations, coloured by publication type, so the shape of the field shows before anything else does.",
     icon: "view-overview",
-    appearance: { ...BASE },
+    // D22: one neutral grey wasted the colour channel. A new graph opens on
+    // this appearance too (`DEFAULT_GRAPH_LAYOUT`); Folder map stays uniform,
+    // since its regions carry the colour there.
+    appearance: { ...BASE, nodeColorMetric: "publication-type" },
     regions: null,
     filters: null,
     explore: null,
