@@ -97,6 +97,7 @@ opacity grade).
       positions so a landing moves only its neighbours, and cap the
       displacement in value terms (half a year; a fraction of a tick); and
       hold the domain grow-only during a fill, settling at rest
+      Decided 2026-10-11: all three (warm start, value cap, grow-only domain during a fill).
 - [ ] B48 the No data lane reads as real low-low values: it is drawn inside
       the plot frame, 35 world units past each axis minimum (both missing:
       just off the origin), behind a dashed line, while the rail says "a lane
@@ -104,10 +105,12 @@ opacity grade).
       inside it (a tinted band, a wider gap), or reword the rail. The year
       half shipped: Refresh re-reads the visible papers' Zotero fields
       (B47's fix keeps a No data paper out of the plot; recheck)
+      Decided 2026-10-11: a tinted band with a wider gap inside the frame, and the rail reworded to match.
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
       the plot says why they stay
+      Decided 2026-10-11: no count is unknown; the floor row adds `· n with no count kept`, and a click flips `includeMissingCitations`. ADR 0016 stands.
 
 ## The rail and the Key
 
@@ -121,6 +124,7 @@ opacity grade).
 - [ ] D9 under the Citation hop colouring the rail shows the hop colours
       twice, on the hop rows and in the Key's Color section. Both are
       specified; decide which yields
+      Decided 2026-10-11: the Key's Color section names the channel and points to the hop rows, which keep their swatches.
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
@@ -144,6 +148,7 @@ opacity grade).
       (user, 2026-10-08): colour by citations, or whatever tells the reader
       something about the view. Overview's summary promises "all in one
       colour" on purpose, so decide per view, and for a new graph's default
+      Decided 2026-10-11: Overview colours by publication type; Folder map stays uniform; a new graph opens on Overview's.
 - [ ] D17 a new seeded graph inherits the appearance the reader last edited
       (B41's design: a stored `focusGraphAppearance` overrides
       `getFocusGraphAppearance`'s defaults). The user wants a stable default,
@@ -151,19 +156,23 @@ opacity grade).
       with per-graph edits against a remembered default with a reset, and
       whether a drifted graph should say so. A graph saved with a view applied
       does reopen on that view, so that path is not affected
+      Decided 2026-10-11: fixed defaults, gear edits stay per graph, and a "Make this the default" button opts in.
 - [ ] D15 transient confirmations ("Copied", "Saved") are too quiet. The
       toolbar status carries both the notices that must stay up and the ones
       that must pass. The user suggests a toast bottom-right, as sonner does:
       the toolbar keeps what persists, the toast takes what passes. The bug
       half is fixed: a passing message no longer wipes a sticky notice
+      Decided 2026-10-11: a toast inside the graph tab, bottom-right, ~3 s, no close button; the toolbar keeps sticky notices.
 - [ ] D16 the gallery offers only the shipped views, never the reader's saved
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
       `view-user` icon has no 28px rendering to walk
 - [ ] D19 the user did not understand what Folder map is for (2026-10-07).
       The gallery card and the tutorial card do not carry its goal
+      Decided 2026-10-11: the summary and card ask "Do your folders match how the papers cite each other?"
 - [ ] D20 Who cites whom: the name is unclear, and `Shared by ≥ 2` is not
       intuitive (user, 2026-10-07)
+      Decided 2026-10-11: renamed "Shared papers" (id stays `who-cites-whom`, "bridges" dropped); the field reads "Cites at least [2] of N seeds", or "Cited by at least…" under References.
 
 ## Seeds, selection and the detail surfaces
 
@@ -172,6 +181,7 @@ opacity grade).
       library comes in by a deliberate tick. It also decides what N the
       gallery's heading counts. 2026-10-07: the user wants any graph started
       with seeds to open with folders off
+      Decided 2026-10-11: seeds open with no folder ticked and Unfiled off; a plain New Graph keeps everything ticked.
 - [ ] F6 seed a paper that is not in Zotero into a new graph
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
@@ -203,6 +213,7 @@ opacity grade).
       can reshape or empty a selected folder's hull, while a swatch survives
       the same filter (B24). Never decided as a rule: intended asymmetry or
       oversight (backlog entry B26)
+      Decided 2026-10-11: hulls come from `scopeKeys`; search only dims.
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
