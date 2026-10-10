@@ -1709,20 +1709,11 @@ describe("Citation hops (Stage 3)", function () {
       status,
       `the toolbar of the version 4 graph read "${statusText(v4TabID)}"`,
     ).to.equal(BOTH_NOTICE);
-    // The notice is sticky: `setStatus` arms no auto-clear timer for a
-    // sticky message (graphViewService.ts's `setStatus`), so it cannot be
-    // cleared by the 2500 ms timeout on its own. The status bar is a shared,
-    // last-writer-wins surface though, so another `setStatus` call may land
-    // on top of it in the meantime; the case only owns "sticky is honoured",
-    // not exclusive ownership of the bar for three seconds. Accept the
-    // notice or any other non-empty status, and fail only on the empty
-    // string that a timed-out non-sticky message would leave behind.
-    // So the case records every text the bar shows over the next 2.8 s
-    // (the auto-clear is 2.5 s) and fails only on the notice going straight
-    // to "": an empty bar after some *other* message is that message's own
-    // timeout, which the contract allows (the 2026-09-13 suite run saw
-    // exactly that once; the sample at 2.8 s alone could not tell the two
-    // apart).
+    // The notice is sticky: it sits in the toolbar until a null clears it,
+    // and passing messages go to the toast instead (D15). Another sticky
+    // notice may still land on top of it, so the case records every text the
+    // bar shows over the next 2.8 s and fails only on the notice going
+    // straight to "", which is what an auto-clear would leave behind.
     const shown: string[] = [BOTH_NOTICE];
     for (let tick = 0; tick < 28; tick += 1) {
       await delay(100);

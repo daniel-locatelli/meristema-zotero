@@ -145,12 +145,6 @@ opacity grade).
       whether a drifted graph should say so. A graph saved with a view applied
       does reopen on that view, so that path is not affected
       Decided 2026-10-11: fixed defaults, gear edits stay per graph, and a "Make this the default" button opts in.
-- [ ] D15 transient confirmations ("Copied", "Saved") are too quiet. The
-      toolbar status carries both the notices that must stay up and the ones
-      that must pass. The user suggests a toast bottom-right, as sonner does:
-      the toolbar keeps what persists, the toast takes what passes. The bug
-      half is fixed: a passing message no longer wipes a sticky notice
-      Decided 2026-10-11: a toast inside the graph tab, bottom-right, ~3 s, no close button; the toolbar keeps sticky notices.
 - [ ] D16 the gallery offers only the shipped views, never the reader's saved
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
@@ -354,6 +348,9 @@ any failure into a new entry above.
       missing a year, a count, and both: each No data lane is a tinted band
       past a bare gap, labelled No data, the two bands meet in one L at the
       corner with the both-missing paper in it, and Fit shows all of it.
+- [ ] D15: in a graph tab and in a detached graph window, use Copy JSON and
+      File › Save: "Copied"/"Saved" slides in at the plot's bottom right,
+      reads for ~3 s and fades, in light and dark; the toolbar stays quiet.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

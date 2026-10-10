@@ -1484,9 +1484,13 @@ describe("Graph view, as the product builds it", function () {
     await settle(view.window, 4);
     expect(calls).to.deep.equal(["save"]);
     expect(menu.hidden, "closed after Save").to.equal(true);
+    // A passing confirmation: the toast says it, the toolbar stays quiet (D15).
+    const toast = view.root.querySelector(
+      ".cm-status-toast-region .cm-status-toast",
+    ) as HTMLElement | null;
+    expect(toast?.textContent, "the toast says Saved").to.equal("Saved");
     const status = view.root.querySelector(".cm-toolbar-status") as HTMLElement;
-    expect(status.textContent).to.equal("Saved");
-    expect(status.hidden).to.equal(false);
+    expect(status.hidden, "the toolbar has nothing to keep").to.equal(true);
 
     button.click();
     await settle(view.window, 4);

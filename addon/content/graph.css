@@ -34,6 +34,7 @@
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
   --cm-surface-raised: color-mix(in srgb, Canvas 98%, CanvasText 2%);
   --cm-muted: color-mix(in srgb, CanvasText 68%, transparent);
+  --cm-toast-shadow: color-mix(in srgb, black 18%, transparent);
   /*
    * Zotero's own two inks for a pane's secondary text and for the rules
    * between an item pane's sections: `--fill-secondary` is 55% of the ink in
@@ -1050,6 +1051,58 @@
   display: none;
 }
 /*
+ * The toast: a passing confirmation ("Copied", "Saved") in the plot's corner,
+ * over the tutorial card, for three seconds (D15). The region is the live
+ * region and takes no room; the toast slides in and fades out. Canvas and
+ * CanvasText follow the stamped scheme, so the surface turns with the theme
+ * as the tutorial card's does; the dark scheme only deepens the shadow.
+ */
+.cm-status-toast-region {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 13;
+  max-width: calc(100% - 28px);
+  pointer-events: none;
+}
+.cm-status-toast {
+  padding: 7px 12px;
+  border: 1px solid var(--cm-border);
+  border-radius: 8px;
+  background: var(--cm-surface-raised);
+  color: CanvasText;
+  box-shadow: 0 6px 18px var(--cm-toast-shadow);
+  font-size: calc(12 * var(--cm-font-unit));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: cm-status-toast-in 180ms ease-out;
+}
+.cm-status-toast[data-state="closing"] {
+  animation: cm-status-toast-out 180ms ease-in forwards;
+}
+@keyframes cm-status-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes cm-status-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-status-toast {
+    animation: none;
+  }
+  .cm-status-toast[data-state="closing"] {
+    animation: none;
+    opacity: 0;
+  }
+}
+/*
  * The node's right-click menu. Absolute inside `.cm-graph-area`, placed by
  * `clampMenuPosition` so it never leaves the plot; the same surface as the
  * export menu so the two read as one family.
@@ -1090,6 +1143,7 @@
  */
 .meristema-root[data-cm-scheme="dark"] {
   --cm-link: #8fb8ff;
+  --cm-toast-shadow: color-mix(in srgb, black 45%, transparent);
   --cm-warning-ink: #e8894a;
   --cm-icon-color: #f2f2f2;
   --cm-sidepane: var(--material-sidepane, #303030);

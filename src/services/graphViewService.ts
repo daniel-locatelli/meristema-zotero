@@ -163,12 +163,10 @@ import {
 } from "./sourceMetricsService";
 import { buildKeyModel } from "./graphKeyModel";
 import {
-  EMPTY_STATUS_SLOT,
-  expireTransient,
-  postStatus,
-  shownStatus,
-  type StatusSlot,
-} from "./graphStatusSlot";
+  routeStatus,
+  STATUS_TOAST_FADE_MS,
+  STATUS_TOAST_MS,
+} from "./graphStatusRoute";
 import { createKeyRail, type RailEmphasis } from "./graphKeyRail";
 import {
   attachPaneResizer,
@@ -351,9 +349,9 @@ export interface GraphViewController {
    */
   markExternalSeedImported(identityKey: string, itemKey: string): void;
   /**
-   * Shows a short message in the toolbar for a moment; null clears it. A
-   * sticky one stays until the next sticky or a null; a transient message
-   * shows over it and, when it passes, the sticky one comes back.
+   * Shows a message. A sticky one sits in the toolbar until the next sticky
+   * or a null, which clears it; any other passes in a toast in the plot's
+   * corner, replacing the toast before it (D15).
    */
   setStatus(message: string | null, options?: { sticky?: boolean }): void;
   setActive(active: boolean): void;
@@ -1137,6 +1135,14 @@ export function renderGraphView(
   const tutorialLayer = element(document, "div", "cm-view-card-layer");
   tutorialLayer.append(tutorialCard.root);
   graphArea.append(tutorialLayer, viewGallery.root, savePanel.root);
+  // Passing confirmations ("Copied", "Saved"), in the plot's corner (D15).
+  // The toolbar status keeps the notices that must stay up. The live region
+  // is always there, so a toast put into it is announced; the toast itself
+  // comes and goes.
+  const statusToastRegion = element(document, "div", "cm-status-toast-region");
+  statusToastRegion.setAttribute("role", "status");
+  statusToastRegion.setAttribute("aria-live", "polite");
+  graphArea.appendChild(statusToastRegion);
 
   // The node's right-click menu. Two items: the seed toggle and Explore-from.
   // It lives in the graph area so it is clamped to the plot, not the window.
@@ -4536,40 +4542,38 @@ ${error instanceof Error ? error.message : String(error)}`,
       );
     });
   });
-  let statusTimer = 0;
-  let statusSlot: StatusSlot = EMPTY_STATUS_SLOT;
-  const showStatusSlot = (): void => {
-    const shown = shownStatus(statusSlot);
-    toolbarStatus.textContent = shown ?? "";
-    toolbarStatus.hidden = !shown;
+  let statusToastTimer = 0;
+  const hideStatusToast = (): void => {
+    if (statusToastTimer) clearFocusTask(statusToastTimer);
+    statusToastTimer = 0;
+    statusToastRegion.replaceChildren();
+  };
+  const showStatusToast = (message: string): void => {
+    hideStatusToast();
+    // A fresh element each time, so a replacing toast slides in again.
+    const toast = text(document, "div", message, "cm-status-toast");
+    toast.dataset.state = "open";
+    statusToastRegion.append(toast);
+    statusToastTimer = scheduleFocusTask(() => {
+      toast.dataset.state = "closing";
+      statusToastTimer = scheduleFocusTask(
+        hideStatusToast,
+        STATUS_TOAST_FADE_MS,
+      );
+    }, STATUS_TOAST_MS);
   };
   const setStatus = (
     message: string | null,
     options: { sticky?: boolean } = {},
   ): void => {
     if (cleaned) return;
-    statusSlot = postStatus(statusSlot, message, options);
-    // A sticky notice set while a transient is up waits under it, so the
-    // transient keeps its timer; a new transient or a clear restarts it.
-    const restartsTimer = !message || !options.sticky;
-    const view = document.defaultView;
-    if (statusTimer && restartsTimer) {
-      if (view) view.clearTimeout(statusTimer);
-      else clearTimeout(statusTimer);
-      statusTimer = 0;
+    const route = routeStatus(message, options);
+    if (route.to === "toast") {
+      showStatusToast(route.message);
+      return;
     }
-    showStatusSlot();
-    if (!message || options.sticky) return;
-    const expire = (): void => {
-      statusTimer = 0;
-      // The sticky notice the transient covered, or one set meanwhile,
-      // comes back (D15).
-      statusSlot = expireTransient(statusSlot);
-      showStatusSlot();
-    };
-    statusTimer = view
-      ? view.setTimeout(expire, 2500)
-      : (setTimeout(expire, 2500) as unknown as number);
+    toolbarStatus.textContent = route.message ?? "";
+    toolbarStatus.hidden = !route.message;
   };
 
   const formatSavedDate = (iso: string): string => {
@@ -5451,11 +5455,9 @@ ${error instanceof Error ? error.message : String(error)}`,
       true,
     );
     document.removeEventListener("keydown", closeViewsMenuOnEscape, true);
-    if (statusTimer) {
-      const view = document.defaultView;
-      if (view) view.clearTimeout(statusTimer);
-      else clearTimeout(statusTimer);
-      statusTimer = 0;
+    if (statusToastTimer) {
+      clearFocusTask(statusToastTimer);
+      statusToastTimer = 0;
     }
     graphMenuListGeneration += 1;
     if (stateChangeTimer) {

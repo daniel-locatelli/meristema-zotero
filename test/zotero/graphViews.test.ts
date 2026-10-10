@@ -686,6 +686,78 @@ describe("Graph views (D4)", function () {
     ).to.include(SAVED_VIEW_NAME);
   });
 
+  it("says Copied in a toast in the plot's corner that passes (D15)", async function () {
+    this.timeout(30_000);
+    let panel: HTMLElement | null = null;
+    for (let attempt = 0; attempt < 5 && !panel; attempt += 1) {
+      await openChipMenu();
+      const action = (
+        Array.from(
+          graphRoot().querySelectorAll(".cm-view-action"),
+        ) as HTMLButtonElement[]
+      ).find(
+        (candidate) =>
+          normalize(candidate.textContent) === "Save current as view…",
+      );
+      expect(action, "the Save current as view… action").to.exist;
+      action!.click();
+      panel = await waitFor(() => {
+        const live = graphRoot().querySelector(
+          ".cm-view-save",
+        ) as HTMLElement | null;
+        return live && !live.hidden ? live : null;
+      }, 2_000);
+    }
+    expect(panel, "the save panel opened from the dropdown's action").to.exist;
+    panel = panel as HTMLElement;
+    const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
+    name.value = "D15 copied view";
+    fire(name, "input");
+    // The clipboard is the test profile's, but the case has no need of it.
+    const internal = Zotero.Utilities.Internal as unknown as {
+      copyTextToClipboard: (text: string) => void;
+    };
+    const copy = internal.copyTextToClipboard;
+    const copied: string[] = [];
+    internal.copyTextToClipboard = (text: string) => {
+      copied.push(text);
+    };
+    try {
+      buttonReading(panel, "Copy JSON").click();
+    } finally {
+      internal.copyTextToClipboard = copy;
+    }
+    expect(copied.length, "Copy JSON reached the clipboard").to.equal(1);
+    const toastText = (): string =>
+      normalize(
+        graphRoot().querySelector(".cm-status-toast-region .cm-status-toast")
+          ?.textContent,
+      );
+    expect(toastText(), "the toast says Copied").to.equal("Copied");
+    const region = graphRoot().querySelector(
+      ".cm-status-toast-region",
+    ) as HTMLElement;
+    expect(region.getAttribute("role"), "the toast is a status").to.equal(
+      "status",
+    );
+    expect(region.getAttribute("aria-live")).to.equal("polite");
+    const status = graphRoot().querySelector(
+      ".cm-toolbar-status",
+    ) as HTMLElement;
+    expect(
+      normalize(status.textContent),
+      "the toolbar keeps its own notices",
+    ).to.not.equal("Copied");
+    // Three seconds up and a short fade; it is gone well inside five.
+    await delay(2_000);
+    expect(toastText(), "still up after two seconds").to.equal("Copied");
+    const gone = await waitFor(() => toastText() === "", 3_000);
+    expect(gone, `after five seconds the toast read "${toastText()}"`).to.equal(
+      true,
+    );
+    buttonReading(panel, "Cancel").click();
+  });
+
   it("reopens a version 3 graph with the gallery", async function () {
     this.timeout(60_000);
     // A version 3 row, written raw: the store always writes the current
