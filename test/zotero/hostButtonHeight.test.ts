@@ -226,7 +226,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       progress: null,
       cutLine: "Top 50 citers per paper, most cited first",
     },
-    floor: { value: 0, belowText: "off" },
+    floor: { value: 0, belowText: "off", noCount: null },
     shared: null,
   };
 
@@ -266,6 +266,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
             toggleHop: () => undefined,
             fillControl: () => undefined,
             setFloor: () => undefined,
+            setKeepNoCount: () => undefined,
             setShared: () => undefined,
           },
         });
@@ -323,6 +324,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
             toggleHop: () => undefined,
             fillControl: () => undefined,
             setFloor: () => undefined,
+            setKeepNoCount: () => undefined,
             setShared: () => undefined,
           },
         });

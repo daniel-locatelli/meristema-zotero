@@ -10,3 +10,11 @@ counts what it removed, and not a renderer overlay, since the renderer never
 decides visibility. The design's outline rendering of papers under the floor
 was not built: a third node state at D13's densities, and the dashed ghost
 outline already means something (citation-floor spec, 2026-09-18).
+
+Amended 2026-10-11 (D21): a paper with no count still passes, since no count
+is unknown, not low, but a reader read one staying above a raised floor as a
+bug. The floor's rail row now says `· n with no count kept`, and a click hides
+them by turning off the Filter's "Include missing citations" (the row then
+reads `hidden`, and a click brings them back). The scope reads that switch
+beside the floor rather than among the facets, so the row can count what it
+hides.

@@ -1544,6 +1544,13 @@ export function renderGraphView(
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
       setFloor: (value) => setFloor(value),
+      // The Filter popover's switch, flipped from the floor's row (D21);
+      // setState re-applies the filters and saves the view.
+      setKeepNoCount: (keep) =>
+        graphFilter.setState({
+          ...graphFilter.state(),
+          includeMissingCitations: keep,
+        }),
       setShared: (value) => setShared(value),
     },
     onCollapsedChange: (collapsed) => collectionsPane.setCollapsed(collapsed),
@@ -4317,6 +4324,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         ),
         hops: hopModel ? scopeHopsInput() : null,
         floor,
+        keepNoCount: graphFilter.state().includeMissingCitations,
         shared: hopModel
           ? {
               value: shared,
@@ -4397,9 +4405,14 @@ ${error instanceof Error ? error.message : String(error)}`,
       // box: it narrows what is drawn without moving a count the rail prints.
       facetAdmits: (key) => {
         const descriptor = graphFilterDescriptors.get(key);
-        return descriptor ? graphFilter.matches(descriptor) : false;
+        return descriptor
+          ? graphFilter.matches(descriptor, { ignoreMissingCitations: true })
+          : false;
       },
       floor,
+      // The missing-citations switch is the scope's, beside the floor, so the
+      // floor's row can count what it keeps or hides (D21).
+      keepNoCount: graphFilter.state().includeMissingCitations,
       shared,
     });
     lastScope = scope;

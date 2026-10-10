@@ -83,7 +83,15 @@ export interface PaperFilterControllerOptions {
 export interface PaperFilterController {
   root: HTMLDivElement;
   button: HTMLButtonElement;
-  matches(descriptor: PaperListDescriptor): boolean;
+  /**
+   * Whether the filters admit a paper. `ignoreMissingCitations` leaves the
+   * "Include missing citations" switch to a caller that applies it itself:
+   * the graph's scope, which counts what it hides (D21).
+   */
+  matches(
+    descriptor: PaperListDescriptor,
+    options?: { ignoreMissingCitations?: boolean },
+  ): boolean;
   state(): PaperListFilterState;
   hasActiveFilters(): boolean;
   /** Replaces every filter at once, then fires `onChange` once. */
@@ -1148,7 +1156,10 @@ export function createPaperFilterController(
   );
   updateFilterButton();
 
-  const matches = (descriptor: PaperListDescriptor): boolean => {
+  const matches = (
+    descriptor: PaperListDescriptor,
+    matchOptions: { ignoreMissingCitations?: boolean } = {},
+  ): boolean => {
     if (filters.collectionIDs.length) {
       const allowedCollections = collectionScopeIDs(
         filters.collectionIDs,
@@ -1184,7 +1195,11 @@ export function createPaperFilterController(
         return false;
       }
     }
-    if (!filters.includeMissingCitations && descriptor.citationCount === null) {
+    if (
+      !matchOptions.ignoreMissingCitations &&
+      !filters.includeMissingCitations &&
+      descriptor.citationCount === null
+    ) {
       return false;
     }
     if (

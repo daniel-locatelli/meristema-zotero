@@ -165,6 +165,8 @@ export interface ScopeRailHandlers {
   fillControl(action: "stop" | "resume" | "more"): void;
   /** The Citation floor field committed a value (Enter or blur). */
   setFloor(value: number): void;
+  /** The floor row's no-count note: keep (true) or hide the papers with no count. */
+  setKeepNoCount(keep: boolean): void;
   /** The Shared by field committed a value (Enter or blur). */
   setShared(value: number): void;
 }
@@ -566,6 +568,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     sign: string | null;
     suffix: string | null;
     countText: string;
+    /** Appended to the count after a dot; the floor's no-count note. */
+    countExtra?: HTMLElement;
     commit: (value: number) => void;
   }): HTMLElement {
     const wrapper = element(
@@ -616,10 +620,11 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     });
     field.append(input);
     if (spec.suffix) field.append(text(document, "span", spec.suffix));
-    wrapper.append(
-      field,
-      text(document, "span", spec.countText, "cm-scope-row-count"),
-    );
+    const count = text(document, "span", spec.countText, "cm-scope-row-count");
+    if (spec.countExtra) {
+      count.append(text(document, "span", " · "), spec.countExtra);
+    }
+    wrapper.append(field, count);
     return wrapper;
   }
 
@@ -628,6 +633,28 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
    * only control when no axis shows citations, so it is always editable.
    */
   function floorRowElement(row: ScopeFloorRow): HTMLElement {
+    const noCount = row.noCount;
+    let note: HTMLElement | undefined;
+    if (noCount) {
+      // No count is unknown, not low, so the floor keeps these (ADR 0016);
+      // the note says so and is the way to hide them, or bring them back.
+      // Not `cm-scope-show-all`: a query for the hidden line's link must
+      // never answer with this one.
+      const button = element(
+        document,
+        "button",
+        "cm-link-button cm-scope-floor-no-count",
+      );
+      button.type = "button";
+      button.textContent = noCount.text;
+      button.title = noCount.hidden
+        ? "Show the papers with no citation count"
+        : "Hide the papers with no citation count";
+      button.addEventListener("click", () =>
+        options.onScope.setKeepNoCount(noCount.hidden),
+      );
+      note = button;
+    }
     return numberRowElement({
       kind: "floor",
       label: "Citation floor",
@@ -637,6 +664,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       sign: "≥",
       suffix: null,
       countText: row.belowText,
+      countExtra: note,
       commit: (value) => options.onScope.setFloor(value),
     });
   }

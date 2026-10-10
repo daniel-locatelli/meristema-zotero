@@ -189,6 +189,11 @@ export interface ScopeFloorRow {
   value: number;
   /** `{n} below`, or `off` while the floor is 0. */
   belowText: string;
+  /**
+   * `{n} with no count kept`, or `hidden` once the reader hid them; a click
+   * flips which (D21). Null while the floor is off or none is in view.
+   */
+  noCount: { text: string; hidden: boolean } | null;
 }
 
 /**
@@ -229,6 +234,8 @@ export interface ScopeRailInput {
   hops: ScopeHopsInput | null;
   /** The citation floor, 0 when off. */
   floor: number;
+  /** False once the reader hid the papers with no count; absent keeps them. */
+  keepNoCount?: boolean;
   /** The shared rule, the seed count and the hop direction; absent on a seedless graph. */
   shared?: { value: number; seedCount: number; direction: HopDirection };
 }
@@ -551,6 +558,13 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
         input.floor > 0
           ? `${COUNT_FORMAT.format(input.scope.belowFloorCount)} below`
           : "off",
+      noCount:
+        input.floor > 0 && input.scope.noCountCount > 0
+          ? {
+              text: `${COUNT_FORMAT.format(input.scope.noCountCount)} with no count ${input.keepNoCount === false ? "hidden" : "kept"}`,
+              hidden: input.keepNoCount === false,
+            }
+          : null,
     },
     shared:
       input.shared && input.shared.seedCount >= 2

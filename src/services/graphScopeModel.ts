@@ -205,6 +205,13 @@ export interface GraphScopeInput {
    */
   floor: number;
   /**
+   * Whether a non-seed paper with no count is shown (D21). Absent or true
+   * keeps it: no count is unknown, not low, so the floor lets it pass. The
+   * Filter popover's "Include missing citations" switch, read here rather than
+   * among the facets so the floor's row can count what it keeps or hides.
+   */
+  keepNoCount?: boolean;
+  /**
    * The seed links a hop-1 paper needs to be shown (the shared rule); absent
    * or 1 is off, and a value above the seed count reads as the seed count.
    * Inert with fewer than two seeds. After the floor, so a paper under the
@@ -234,6 +241,12 @@ export interface GraphScopeResult {
    * parent check, so a floored parent's under-floor child is counted too.
    */
   belowFloorCount: number;
+  /**
+   * Papers with no count that reached the floor while it was raised, counted
+   * where `belowFloorCount` is: what the floor kept, or what `keepNoCount`
+   * hid. 0 while the floor is off.
+   */
+  noCountCount: number;
   /** Hop-1 papers the shared rule removed, after every other rule. */
   belowSharedCount: number;
 }
@@ -268,6 +281,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
   let externalCount = 0;
   let hiddenCount = 0;
   let belowFloorCount = 0;
+  let noCountCount = 0;
   let belowSharedCount = 0;
   const shared =
     input.seedKeys.size >= 2
@@ -317,6 +331,10 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     if (!paper.inLibrary && !input.includeExternal) continue;
     if (input.hiddenKeys.has(paper.key)) continue;
     if (!input.facetAdmits(paper.key)) continue;
+    if (paper.citationCount === null) {
+      if (input.floor > 0) noCountCount += 1;
+      if (input.keepNoCount === false) continue;
+    }
     if (
       input.floor > 0 &&
       paper.citationCount !== null &&
@@ -350,6 +368,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     externalCount,
     hiddenCount,
     belowFloorCount,
+    noCountCount,
     belowSharedCount,
     shownByHop,
     availableByHop,

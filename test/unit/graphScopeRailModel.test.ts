@@ -18,6 +18,9 @@ import {
   scopeSquare,
 } from "../../src/services/graphScopeRailModel";
 
+/** The rail's formatter: the machine's locale groups digits its own way. */
+const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
+
 function noHops(): GraphScopeHops {
   return { entries: new Map(), depth: 1, enabled: [true, true] };
 }
@@ -330,12 +333,56 @@ describe("the Citation floor row", function () {
       floor: 20,
       scope: { ...baseInput().scope, belowFloorCount: 143 },
     });
-    expect(model.floor).to.deep.equal({ value: 20, belowText: "143 below" });
+    expect(model.floor).to.deep.equal({
+      value: 20,
+      belowText: "143 below",
+      noCount: null,
+    });
   });
 
   it("reads off at 0, on a seedless graph too", function () {
     const model = buildScopeRailModel({ ...baseInput(), hops: null, floor: 0 });
-    expect(model.floor).to.deep.equal({ value: 0, belowText: "off" });
+    expect(model.floor).to.deep.equal({
+      value: 0,
+      belowText: "off",
+      noCount: null,
+    });
+  });
+
+  it("says how many papers with no count a raised floor kept (D21)", function () {
+    const model = buildScopeRailModel({
+      ...baseInput(),
+      floor: 20,
+      scope: { ...baseInput().scope, noCountCount: 1200 },
+    });
+    expect(model.floor.noCount).to.deep.equal({
+      text: `${COUNT_FORMAT.format(1200)} with no count kept`,
+      hidden: false,
+    });
+  });
+
+  it("says they are hidden once the reader hid them (D21)", function () {
+    const model = buildScopeRailModel({
+      ...baseInput(),
+      floor: 20,
+      keepNoCount: false,
+      scope: { ...baseInput().scope, noCountCount: 3 },
+    });
+    expect(model.floor.noCount).to.deep.equal({
+      text: "3 with no count hidden",
+      hidden: true,
+    });
+  });
+
+  it("says nothing of them with the floor off or none in view", function () {
+    const off = buildScopeRailModel({
+      ...baseInput(),
+      floor: 0,
+      scope: { ...baseInput().scope, noCountCount: 3 },
+    });
+    expect(off.floor.noCount).to.equal(null);
+    const none = buildScopeRailModel({ ...baseInput(), floor: 20 });
+    expect(none.floor.noCount).to.equal(null);
   });
 });
 

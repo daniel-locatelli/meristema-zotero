@@ -3479,6 +3479,78 @@ describe("Citation hops (Stage 3)", function () {
         `pages after the drag: ${pagedFilters().join(" | ")}`,
       ).to.deep.equal(["cites:W901", "cites:W902"]);
     });
+
+    it("says how many papers with no count the floor kept, and hides them on a click (D21)", async function () {
+      this.timeout(60_000);
+      /** The note's count; digits grouped in the machine's locale. */
+      const noteCount = (note: Element | null): number =>
+        Number(
+          /^(\S+) with no count/
+            .exec(normalize(note?.textContent))?.[1]
+            ?.replace(/\D/g, "") ?? "NaN",
+        );
+      /** `{shown}` of the rail's count line, in the same locale. */
+      const shown = (): number =>
+        Number(
+          /^(\S+) of/
+            .exec(
+              normalize(
+                graphRoot().querySelector(".cm-scope-count")?.textContent,
+              ),
+            )?.[1]
+            ?.replace(/\D/g, "") ?? "NaN",
+        );
+      const note = (): HTMLButtonElement | null =>
+        graphRoot().querySelector(".cm-scope-floor-no-count");
+
+      // The floor is off after the case before, so the row says nothing.
+      expect(note(), floorEvidence()).to.equal(null);
+      await typeFloor(FLOOR);
+      const kept = await waitFor(
+        () =>
+          /with no count kept/.test(note()?.textContent ?? "") ? note() : null,
+        10_000,
+      );
+      expect(kept, `no kept note: ${floorEvidence()}`).to.exist;
+      // NO_DATA_TITLE has no count at all; other suites' papers may add more.
+      const n = noteCount(kept);
+      expect(n, floorRowText()).to.be.at.least(1);
+      expect(floorRowText()).to.include(" · ");
+      const before = shown();
+
+      kept!.click();
+      const hidden = await waitFor(
+        () =>
+          /with no count hidden/.test(note()?.textContent ?? "")
+            ? note()
+            : null,
+        10_000,
+      );
+      expect(hidden, `no hidden note: ${floorEvidence()}`).to.exist;
+      expect(noteCount(hidden), floorRowText()).to.equal(n);
+      expect(shown(), "the count line drops by the papers hidden").to.equal(
+        before - n,
+      );
+
+      hidden!.click();
+      const back = await waitFor(
+        () =>
+          /with no count kept/.test(note()?.textContent ?? "") ? note() : null,
+        10_000,
+      );
+      expect(back, `the note never read kept again: ${floorEvidence()}`).to
+        .exist;
+      expect(shown(), "the count line is back").to.equal(before);
+      // typeFloor waits for a "below" the floor off never prints.
+      floorInput().value = "0";
+      floorInput().dispatchEvent(new win.Event("change", { bubbles: true }));
+      const gone = await waitFor(
+        () => (/off/.test(floorRowText()) ? true : null),
+        10_000,
+      );
+      expect(gone, floorEvidence()).to.equal(true);
+      expect(note(), floorEvidence()).to.equal(null);
+    });
   });
 
   describe("with shared citers (Stage 4)", function () {

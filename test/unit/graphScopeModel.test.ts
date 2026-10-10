@@ -438,6 +438,43 @@ describe("computeGraphScope with a floor", function () {
     expect(result.belowFloorCount).to.equal(1);
   });
 
+  it("counts the papers with no count the floor kept (D21)", function () {
+    const result = scope({
+      papers: [
+        paper("s", [], true, null),
+        paper("u", [1], true, null),
+        paper("v", [1], true, null),
+        paper("w", [1], true, 50),
+      ],
+      seedKeys: new Set(["s"]),
+      facetAdmits: (key) => key !== "v",
+      floor: 10,
+    });
+    expect([...result.visibleKeys].sort()).to.deep.equal(["s", "u", "w"]);
+    expect(result.noCountCount).to.equal(1);
+  });
+
+  it("hides the papers with no count when told to, and still counts them (D21)", function () {
+    const result = scope({
+      papers: [paper("u", [1], true, null), paper("w", [1], true, 50)],
+      floor: 10,
+      keepNoCount: false,
+    });
+    expect([...result.visibleKeys]).to.deep.equal(["w"]);
+    expect(result.noCountCount).to.equal(1);
+    expect(result.belowFloorCount).to.equal(0);
+  });
+
+  it("hides the papers with no count at floor 0 too, without counting them", function () {
+    const result = scope({
+      papers: [paper("u", [1], true, null), paper("w", [1], true, 50)],
+      floor: 0,
+      keepNoCount: false,
+    });
+    expect([...result.visibleKeys]).to.deep.equal(["w"]);
+    expect(result.noCountCount).to.equal(0);
+  });
+
   it("removes nothing at 0", function () {
     const result = scope({ papers, seedKeys: new Set(["s"]), hops, floor: 0 });
     expect(result.visibleKeys.size).to.equal(5);

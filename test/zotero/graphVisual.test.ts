@@ -435,6 +435,7 @@ describe("Graph view, looked at", function () {
         toggleHop: () => undefined,
         fillControl: () => undefined,
         setFloor: () => undefined,
+        setKeepNoCount: () => undefined,
         setShared: () => undefined,
       },
     });

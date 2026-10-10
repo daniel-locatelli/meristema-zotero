@@ -1972,6 +1972,13 @@
 .cm-scope-shared-row {
   margin-top: 8px;
 }
+/* The no-count note makes the count long; it wraps under the field (D21). */
+.cm-scope-floor-row {
+  flex-wrap: wrap;
+}
+.cm-scope-floor-row .cm-scope-row-count {
+  margin-inline-start: auto;
+}
 .cm-scope-floor-field,
 .cm-scope-shared-field {
   display: inline-flex;

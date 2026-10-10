@@ -98,11 +98,6 @@ opacity grade).
       displacement in value terms (half a year; a fraction of a tick); and
       hold the domain grow-only during a fill, settling at rest
       Decided 2026-10-11: all three (warm start, value cap, grow-only domain during a fill).
-- [ ] D21 a paper with no citation count stays when the floor rises (user,
-      2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
-      read it as a bug. Decide whether the floor hides count-less papers, or
-      the plot says why they stay
-      Decided 2026-10-11: no count is unknown; the floor row adds `· n with no count kept`, and a click flips `includeMissingCitations`. ADR 0016 stands.
 
 ## The rail and the Key
 
@@ -351,6 +346,9 @@ any failure into a new entry above.
 - [ ] D15: in a graph tab and in a detached graph window, use Copy JSON and
       File › Save: "Copied"/"Saved" slides in at the plot's bottom right,
       reads for ~3 s and fades, in light and dark; the toolbar stays quiet.
+- [ ] Floor (D21): raise it on a graph with papers that have no count; the
+      row reads `· n with no count kept`, a click hides them (`hidden`, the
+      count line drops by n, the Filter's switch is off), a click restores.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
