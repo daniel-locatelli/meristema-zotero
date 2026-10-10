@@ -209,11 +209,6 @@ opacity grade).
       cache-age gate already re-plans it. Open, for the user: what labels a
       paper with no creators at all (publisher, report number, short title),
       and whether matching may use title+year alone
-- [ ] B26 region membership follows the visible node set, so the search box
-      can reshape or empty a selected folder's hull, while a swatch survives
-      the same filter (B24). Never decided as a rule: intended asymmetry or
-      oversight (backlog entry B26)
-      Decided 2026-10-11: hulls come from `scopeKeys`; search only dims.
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
@@ -362,6 +357,8 @@ any failure into a new entry above.
       after it stops.
 - [ ] Gear: open New Graph on a folder whose papers have no year, close it,
       then open New Graph on the library: it keeps your saved axes, not Free.
+- [ ] B26: select a folder's region, then type a search that matches none
+      of its papers: the hull stays put; clearing the search changes nothing.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

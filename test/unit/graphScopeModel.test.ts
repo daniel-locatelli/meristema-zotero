@@ -8,6 +8,7 @@ import {
   onlyCollectionsTicked,
   purgeHiddenKeys,
   computeGraphScope,
+  regionMemberKeys,
   setCollectionTicks,
 } from "../../src/services/graphScopeModel";
 import type {
@@ -530,5 +531,36 @@ describe("computeGraphScope with the shared rule", function () {
     });
     expect(result.belowFloorCount).to.equal(1);
     expect(result.belowSharedCount).to.equal(0);
+  });
+});
+
+describe("regionMemberKeys", function () {
+  // B26: a region is drawn from the folder's papers in scope, not from what
+  // the search box leaves on the plot, so typing never reshapes or empties
+  // a selected folder's hull. Search is not an input here at all.
+  const papers = [
+    paper("a", [1], true, 50),
+    paper("b", [1, 2], true, 3),
+    paper("c", [2], true, 50),
+    paper("d", [1], true, 50),
+  ];
+
+  it("holds the folder's papers in scope and no other folder's", function () {
+    const keys = regionMemberKeys(papers, new Set(["a", "b", "c", "d"]), 1);
+    expect([...keys].sort()).to.deep.equal(["a", "b", "d"]);
+  });
+
+  it("drops a paper the scope's rules removed: floor, facet, hidden", function () {
+    const result = scope({
+      papers,
+      floor: 10,
+      facetAdmits: (key) => key !== "d",
+    });
+    const keys = regionMemberKeys(papers, result.visibleKeys, 1);
+    expect([...keys]).to.deep.equal(["a"]);
+    const hidden = scope({ papers, hiddenKeys: new Set(["a"]) });
+    expect(
+      [...regionMemberKeys(papers, hidden.visibleKeys, 1)].sort(),
+    ).to.deep.equal(["b", "d"]);
   });
 });

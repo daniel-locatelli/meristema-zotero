@@ -322,3 +322,30 @@ export function purgeHiddenKeys(
   const seeds = new Set(seedKeys);
   return new Set([...hiddenKeys].filter((key) => !seeds.has(key)));
 }
+
+/**
+ * The papers a folder's region is drawn around: its own members among
+ * `scopeKeys`, the set `computeGraphScope` returned (B26).
+ *
+ * Scope, not the visible set. Every rule that changes a count the rail
+ * prints — ticks, hops, hidden papers, the facets, the floor, the shared
+ * rule — also changes the hull, since those decide what the graph is a graph
+ * of. The search box does not: it is a transient lens, so typing never
+ * reshapes or empties a selected folder's region, just as it never moves a
+ * swatch (B24).
+ */
+export function regionMemberKeys(
+  papers: readonly Pick<ScopePaper, "key" | "collectionIDs">[],
+  scopeKeys: ReadonlySet<string>,
+  collectionID: number,
+): Set<string> {
+  return new Set(
+    papers
+      .filter(
+        (paper) =>
+          scopeKeys.has(paper.key) &&
+          paper.collectionIDs.includes(collectionID),
+      )
+      .map((paper) => paper.key),
+  );
+}

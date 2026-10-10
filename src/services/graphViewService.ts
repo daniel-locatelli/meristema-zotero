@@ -90,6 +90,7 @@ import {
   expandTicksThroughDescendants,
   onlyCollectionsTicked,
   purgeHiddenKeys,
+  regionMemberKeys,
   setCollectionTicks,
   type GraphScopeResult,
   type GraphViewCollectionTicks,
@@ -3941,7 +3942,9 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   /**
    * The regions handed to the renderer: each region's folder colour, from
-   * the swatch ledger, and its papers currently on the plot. Colour follows
+   * the swatch ledger, and its papers in scope. Not the search-narrowed
+   * `visibleKeys`: the search box is a lens, so it never reshapes or empties
+   * a selected folder's hull (B26). Colour follows
    * the folder's key through the ledger, so ticking or unticking one folder
    * can never repaint another's swatch (backlog B12).
    *
@@ -3968,15 +3971,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         swatchIndexFor(ledger, String(collectionID)),
         theme,
       ),
-      nodeKeys: new Set(
-        model.nodes
-          .filter(
-            (node) =>
-              visibleKeys.has(node.key) &&
-              node.collectionIDs.includes(collectionID),
-          )
-          .map((node) => node.key),
-      ),
+      nodeKeys: regionMemberKeys(model.nodes, scopeKeys, collectionID),
     }));
   };
 
@@ -4382,7 +4377,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     });
     lastScope = scope;
     // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
-    // Key and the colour assignment are built from it. `visibleKeys` narrows
+    // Key, the colour assignment and the regions' hulls are built from it. `visibleKeys` narrows
     // it by the search box, which is a transient lens and must not reshuffle
     // the swatches under the reader as they type.
     scopeKeys = scope.visibleKeys;

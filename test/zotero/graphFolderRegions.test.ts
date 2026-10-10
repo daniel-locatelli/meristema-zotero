@@ -57,6 +57,17 @@ function paintedPixels(canvas: HTMLCanvasElement): number {
   return different;
 }
 
+/** Every 40th pixel of the plot canvas, to compare two frames. */
+function sampledPixels(canvas: HTMLCanvasElement): number[] {
+  const context = canvas.getContext("2d")!;
+  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const sample: number[] = [];
+  for (let index = 0; index < data.length; index += 160) {
+    sample.push(data[index], data[index + 1], data[index + 2]);
+  }
+  return sample;
+}
+
 /**
  * Selecting a folder's row now draws it as a region on the plot (Task 8/9);
  * this walks that through the plugin's own chrome rather than the model, per
@@ -237,6 +248,58 @@ describe("The graph's folder regions", function () {
       expect(after, "the plot still has something on it").to.be.greaterThan(50);
     } finally {
       (Zotero as any).logError = original;
+    }
+  });
+
+  /**
+   * B26. A region's hull is built from the folder's papers in scope, not from
+   * what the search box leaves on the plot. The search here matches only the
+   * sibling's paper, so before the fix the first folder's region had no keys
+   * and selecting it drew nothing; now its hull is drawn around its paper
+   * even while search hides that paper.
+   */
+  it("keeps a selected folder's region while search hides its papers", async function () {
+    this.timeout(30_000);
+    const canvas = graphRoot().querySelector(
+      "canvas.cm-graph-canvas",
+    ) as HTMLCanvasElement;
+    const search = graphRoot().querySelector(
+      "input.cm-search",
+    ) as HTMLInputElement;
+    expect(canvas, "the plot canvas").to.exist;
+    expect(search, "the search box").to.exist;
+
+    // Ticked first, so the selection below is the only change on the plot.
+    const box = scopeRowBody(collectionID!).parentElement?.querySelector(
+      ".cm-scope-check",
+    ) as HTMLInputElement;
+    if (!box.checked) {
+      box.checked = true;
+      box.dispatchEvent(new win.Event("change"));
+      await delay(200);
+    }
+    if (isSelected(collectionID!)) {
+      scopeRowBody(collectionID!).click();
+      await waitFor(() => !isSelected(collectionID!), 5_000);
+    }
+    try {
+      search.value = `${SIBLING_NAME} paper`;
+      search.dispatchEvent(new win.Event("input"));
+      await delay(400);
+      const before = sampledPixels(canvas);
+
+      scopeRowBody(collectionID!).click();
+      await waitFor(() => isSelected(collectionID!), 5_000);
+      await delay(400);
+      const after = sampledPixels(canvas);
+      const changed = after.filter((value, index) => value !== before[index]);
+      expect(
+        changed.length,
+        "selecting the folder drew its region under the search",
+      ).to.be.greaterThan(0);
+    } finally {
+      search.value = "";
+      search.dispatchEvent(new win.Event("input"));
     }
   });
 });

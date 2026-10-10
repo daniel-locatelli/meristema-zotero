@@ -88,7 +88,8 @@ _Avoid_: template, preset, layout (an axis choice), theme (light or dark)
 
 **Region**:
 A tinted outline drawn around the papers of a ticked folder, one per subtree
-top.
+top. It holds the folder's papers in scope, so a filter that changes the
+rail's counts reshapes it; the search box never does.
 _Avoid_: hull, halo, cluster, contour (the curve that draws it)
 
 **Seed marks**:
