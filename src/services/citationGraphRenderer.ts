@@ -26,6 +26,8 @@ import {
   projectRendererPositions,
   MISSING_X,
   MISSING_Y,
+  noDataBands,
+  type WorldRect,
   type RendererSceneContext,
 } from "./graphRendererScene";
 import { fontScaleOf } from "./zoteroFontSize";
@@ -1311,8 +1313,8 @@ export class CitationGraphRenderer {
 
   /**
    * Whether any node is actually parked in an axis's no-data lane. Mirrors the
-   * test `projectRendererPositions` makes when it places them, so the lane's
-   * separator and label appear only when there is something in the lane.
+   * test `projectRendererPositions` makes when it places them, so the band and
+   * its label appear only when there is something in the lane.
    */
   private hasParkedNodes(nodes: CitationGraphNode[], axis: "x" | "y"): boolean {
     const metric = axis === "x" ? this.layout.xMetric : this.layout.yMetric;
@@ -1325,71 +1327,75 @@ export class CitationGraphRenderer {
   }
 
   /**
-   * The lane an axis parks its valueless nodes in: a dashed separator between
-   * the lane and the data, and a NO DATA label at the far end of the lane,
-   * away from the corner where the two lanes meet.
+   * The bands the axes park their valueless nodes in (B48): a tinted fill
+   * set apart from the data by a bare gap, and a NO DATA label at the far end
+   * of each band, away from the corner where the two meet. Both bands go into
+   * one path and one fill, so the corner they share is tinted once.
    *
-   * The x lane is a narrow vertical strip, so its label is rotated to fit. The
-   * y lane is a wide horizontal one and reads horizontally; rotating it would
-   * cost legibility for nothing.
+   * The x band is a narrow vertical strip, so its label is rotated to fit.
+   * The y band is a wide horizontal one and reads horizontally; rotating it
+   * would cost legibility for nothing.
    */
-  private drawNoDataLane(
-    plot: PlotRect,
-    axis: "x" | "y",
-    nodes: CitationGraphNode[],
-  ): void {
-    if (!this.hasParkedNodes(nodes, axis)) return;
+  private drawNoDataBands(plot: PlotRect, nodes: CitationGraphNode[]): void {
+    const bands = noDataBands({
+      x: this.hasParkedNodes(nodes, "x"),
+      y: this.hasParkedNodes(nodes, "y"),
+    });
+    if (!bands.x && !bands.y) return;
     const context = this.context;
     const ratio = this.ratio;
     const size = Math.round(GRAPH_TYPE_SCALE.gutter * ratio * this.fontScale);
     const pad = 8 * ratio;
+    const screen = (band: WorldRect) => {
+      const topLeft = this.projectToScreen({ x: band.left, y: band.top });
+      const bottomRight = this.projectToScreen({
+        x: band.right,
+        y: band.bottom,
+      });
+      return {
+        left: topLeft.x,
+        top: topLeft.y,
+        right: bottomRight.x,
+        bottom: bottomRight.y,
+      };
+    };
 
     context.save();
-    context.strokeStyle = this.theme.surfaces.hairline;
-    context.fillStyle = this.theme.inks.muted;
-    context.lineWidth = Math.max(1, ratio);
-    context.setLineDash([4 * ratio, 4 * ratio]);
-    context.font = `${size}px ${this.fontStack}`;
+    context.fillStyle = this.theme.surfaces.noDataBand;
+    context.beginPath();
+    for (const band of [bands.x, bands.y]) {
+      if (!band) continue;
+      const rect = screen(band);
+      context.rect(
+        rect.left,
+        rect.top,
+        rect.right - rect.left,
+        rect.bottom - rect.top,
+      );
+    }
+    context.fill();
 
-    if (axis === "x") {
-      const separator = this.projectToScreen({
-        x: (MISSING_X + PLOT_LEFT) / 2,
-        y: 0,
-      }).x;
+    context.fillStyle = this.theme.inks.muted;
+    context.font = `${size}px ${this.fontStack}`;
+    context.textBaseline = "middle";
+    if (bands.x) {
       const lane = this.projectToScreen({ x: MISSING_X, y: 0 }).x;
-      if (separator > plot.left && separator < plot.right) {
-        context.beginPath();
-        context.moveTo(separator, plot.top);
-        context.lineTo(separator, plot.bottom);
-        context.stroke();
-      }
+      const top = Math.max(plot.top, screen(bands.x).top);
       if (lane > plot.left && lane < plot.right) {
-        context.setLineDash([]);
         context.save();
-        context.translate(lane, plot.top + pad);
+        context.translate(lane, top + pad);
         context.rotate(-Math.PI / 2);
         context.textAlign = "right";
-        context.textBaseline = "middle";
         fillTrackedText(context, "No data", 0, 0, size);
         context.restore();
       }
-    } else {
-      const separator = this.projectToScreen({
-        x: 0,
-        y: (MISSING_Y + PLOT_BOTTOM) / 2,
-      }).y;
+    }
+    if (bands.y) {
       const lane = this.projectToScreen({ x: 0, y: MISSING_Y }).y;
-      if (separator > plot.top && separator < plot.bottom) {
-        context.beginPath();
-        context.moveTo(plot.left, separator);
-        context.lineTo(plot.right, separator);
-        context.stroke();
-      }
+      const right = Math.min(plot.right, screen(bands.y).right);
       if (lane > plot.top && lane < plot.bottom) {
-        context.setLineDash([]);
         context.textAlign = "right";
-        context.textBaseline = "middle";
-        fillTrackedText(context, "No data", plot.right - pad, lane, size);
+        fillTrackedText(context, "No data", right - pad, lane, size);
       }
     }
     context.restore();
@@ -1578,8 +1584,7 @@ export class CitationGraphRenderer {
       }
     }
 
-    this.drawNoDataLane(plot, "x", nodes);
-    this.drawNoDataLane(plot, "y", nodes);
+    this.drawNoDataBands(plot, nodes);
     context.restore();
   }
 
@@ -2631,6 +2636,15 @@ export class CitationGraphRenderer {
     }
     if (includeAxisBounds && this.layout.yMetric !== "free") {
       yCoordinates.push(PLOT_TOP, PLOT_BOTTOM);
+    }
+    if (includeAxisBounds) {
+      // The No data bands are part of the plot the reader is shown (B48).
+      const bands = noDataBands({
+        x: this.hasParkedNodes(nodes, "x"),
+        y: this.hasParkedNodes(nodes, "y"),
+      });
+      if (bands.x) xCoordinates.push(bands.x.left);
+      if (bands.y) yCoordinates.push(bands.y.bottom);
     }
     // Labels are drawn to the right of most nodes. Keep additional horizontal
     // room without forcing the complete world/axis rectangle into the fit.

@@ -98,14 +98,6 @@ opacity grade).
       displacement in value terms (half a year; a fraction of a tick); and
       hold the domain grow-only during a fill, settling at rest
       Decided 2026-10-11: all three (warm start, value cap, grow-only domain during a fill).
-- [ ] B48 the No data lane reads as real low-low values: it is drawn inside
-      the plot frame, 35 world units past each axis minimum (both missing:
-      just off the origin), behind a dashed line, while the rail says "a lane
-      off the plot". Decide: move the lanes outside the frame, set them apart
-      inside it (a tinted band, a wider gap), or reword the rail. The year
-      half shipped: Refresh re-reads the visible papers' Zotero fields
-      (B47's fix keeps a No data paper out of the plot; recheck)
-      Decided 2026-10-11: a tinted band with a wider gap inside the frame, and the rail reworded to match.
 - [ ] D21 a paper with no citation count stays when the floor rises (user,
       2026-10-07). ADR 0016 and CONTEXT.md say it passes by design; the user
       read it as a bug. Decide whether the floor hides count-less papers, or
@@ -358,6 +350,10 @@ any failure into a new entry above.
       References and it reads `Cited by at least`, unclipped in a narrow rail.
 - [ ] D19: Folder map's menu row, gallery card and tutorial card each ask
       "Do your folders match how the papers cite each other?"
+- [ ] B48: in light and in dark, open a Year × Citations graph with papers
+      missing a year, a count, and both: each No data lane is a tinted band
+      past a bare gap, labelled No data, the two bands meet in one L at the
+      corner with the both-missing paper in it, and Fit shows all of it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

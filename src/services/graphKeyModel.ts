@@ -485,7 +485,7 @@ function stateSection(input: KeyModelInput): KeySection | null {
         subheading: null,
         entries,
         note: parked.length
-          ? "A paper with no value for an axis is parked in a lane off the plot."
+          ? "A paper with no value for an axis is parked in a shaded band at the plot's edge."
           : null,
       }
     : null;

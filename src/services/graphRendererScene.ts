@@ -97,12 +97,61 @@ const PLOT_RIGHT = 1030;
 const PLOT_TOP = 60;
 const PLOT_BOTTOM = 675;
 /**
- * Where a node whose value for the axis metric is missing is parked. The
- * renderer draws the separator and the NO DATA label for these lanes, so the
- * two have to agree about the world coordinate.
+ * Bare paper between the data region and a No data band, in world units. Wide
+ * enough that the largest disc at an axis minimum and the largest disc in the
+ * band cannot touch, so a parked paper never reads as a low value (B48).
  */
-export const MISSING_X = PLOT_LEFT - 35;
-export const MISSING_Y = PLOT_BOTTOM + 35;
+export const NO_DATA_GAP = 40;
+/** How deep a No data band runs, away from the plot. */
+const NO_DATA_DEPTH = 50;
+/**
+ * Where a node whose value for the axis metric is missing is parked: the
+ * middle of its axis's No data band. The renderer draws the band and its
+ * NO DATA label from `noDataBands`, so the two agree about the world
+ * coordinate.
+ */
+export const MISSING_X = PLOT_LEFT - NO_DATA_GAP - NO_DATA_DEPTH / 2;
+export const MISSING_Y = PLOT_BOTTOM + NO_DATA_GAP + NO_DATA_DEPTH / 2;
+
+export interface WorldRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The tinted band each axis parks its valueless papers in, in world
+ * coordinates, or null for an axis with nothing parked. The x band runs the
+ * plot's height left of it, the y band its width below it. When both are
+ * drawn each reaches into the corner where they meet, so the two read as one
+ * L and the paper missing both values sits in the corner they share.
+ */
+export function noDataBands(parked: { x: boolean; y: boolean }): {
+  x: WorldRect | null;
+  y: WorldRect | null;
+} {
+  const xLeft = PLOT_LEFT - NO_DATA_GAP - NO_DATA_DEPTH;
+  const yBottom = PLOT_BOTTOM + NO_DATA_GAP + NO_DATA_DEPTH;
+  return {
+    x: parked.x
+      ? {
+          left: xLeft,
+          right: PLOT_LEFT - NO_DATA_GAP,
+          top: PLOT_TOP,
+          bottom: parked.y ? yBottom : PLOT_BOTTOM,
+        }
+      : null,
+    y: parked.y
+      ? {
+          left: parked.x ? xLeft : PLOT_LEFT,
+          right: PLOT_RIGHT,
+          top: PLOT_BOTTOM + NO_DATA_GAP,
+          bottom: yBottom,
+        }
+      : null,
+  };
+}
 const NODE_GAP = 7;
 const GRID_CELL_SIZE = 48;
 
@@ -201,8 +250,8 @@ function gridKey(x: number, y: number): string {
 
 /**
  * The span a node's centre may occupy on one axis: the plot when its anchor
- * is a value inside it, or the margin on the anchor's side when it is parked
- * in a No data lane. The relaxation never carries a node across a plot edge:
+ * is a value inside it, or the No data band on the anchor's side when it is
+ * parked there, never the gap between the two. The relaxation never carries a node across a plot edge:
  * a paper at the domain's floor pushed past it reads as a value below the
  * floor and lands in the No data lane, and a No data paper pushed inside
  * reads as a real value (B47).
@@ -212,8 +261,12 @@ function sideOfPlotEdge(
   low: number,
   high: number,
 ): [number, number] {
-  if (anchor < low) return [low - 45, low];
-  if (anchor > high) return [high, high + 45];
+  if (anchor < low) {
+    return [low - NO_DATA_GAP - NO_DATA_DEPTH, low - NO_DATA_GAP];
+  }
+  if (anchor > high) {
+    return [high + NO_DATA_GAP, high + NO_DATA_GAP + NO_DATA_DEPTH];
+  }
   return [low, high];
 }
 
@@ -459,12 +512,12 @@ export function shortLabel(
  */
 function labelBounds(renderer: RendererSceneContext): Rectangle {
   const topLeft = renderer.projectToScreen({
-    x: PLOT_LEFT - 45,
+    x: PLOT_LEFT - NO_DATA_GAP - NO_DATA_DEPTH,
     y: PLOT_TOP - 25,
   });
   const bottomRight = renderer.projectToScreen({
     x: PLOT_RIGHT + 115,
-    y: PLOT_BOTTOM + 40,
+    y: PLOT_BOTTOM + NO_DATA_GAP + NO_DATA_DEPTH + 10,
   });
   return {
     left: topLeft.x,

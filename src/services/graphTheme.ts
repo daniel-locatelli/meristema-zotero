@@ -29,6 +29,12 @@ export interface GraphSurfaceTokens {
   hairline: string;
   /** Gridlines at every axis tick, beneath the nodes. */
   grid: string;
+  /**
+   * The bands papers with no value for an axis are parked in (B48): a step
+   * darker than the panel, so the band reads as recessed from the paper and
+   * set apart from the data without leaving the frame.
+   */
+  noDataBand: string;
 }
 
 export interface GraphInkTokens {
@@ -127,6 +133,7 @@ const LIGHT_THEME: GraphTheme = {
     paper: "#fdfdfc",
     hairline: "#d9dad4",
     grid: "#ecece6",
+    noDataBand: "#f0f0ec",
   },
   inks: {
     primary: "#1b1d19",
@@ -178,6 +185,7 @@ const DARK_THEME: GraphTheme = {
     paper: "#232320",
     hairline: "#35352f",
     grid: "#2b2b27",
+    noDataBand: "#1a1a18",
   },
   inks: {
     primary: "#e8e9e3",
