@@ -622,29 +622,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-type Decoded =
-  { ok: true; view: GraphViewDefinition } | { ok: false; field: string };
-
-export function decodeGraphView(json: string): Decoded {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(json);
-  } catch {
-    return { ok: false, field: "json" };
-  }
-  return decodeGraphViewRecord(raw);
-}
-
-export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
-  if (!isRecord(raw)) return { ok: false, field: "json" };
-  if (raw.meristemaView !== GRAPH_VIEW_WIRE_VERSION) {
-    return { ok: false, field: "meristemaView" };
-  }
-  if (typeof raw.name !== "string" || !raw.name.trim()) {
-    return { ok: false, field: "name" };
-  }
-  const paragraph = typeof raw.paragraph === "string" ? raw.paragraph : "";
-  const a = raw.appearance;
+/**
+ * A stored appearance, checked field by field: a view's, or a saved graph's
+ * own (D17). The failing field is named the way the view's wire names it.
+ */
+export function decodeGraphAppearance(
+  a: unknown,
+): { ok: true; appearance: GraphLayoutOptions } | { ok: false; field: string } {
   if (!isRecord(a)) return { ok: false, field: "appearance" };
   const axis = (v: unknown): v is GraphAxisMetric =>
     AXIS_METRICS.has(v as string) || isMetricID(v);
@@ -668,15 +652,45 @@ export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
   if (!LABELS.has(a.nodeLabelMode as string)) {
     return { ok: false, field: "appearance.nodeLabelMode" };
   }
-  const appearance: GraphLayoutOptions = {
-    xMetric: a.xMetric,
-    xScale: a.xScale as GraphScaleType,
-    yMetric: a.yMetric,
-    yScale: a.yScale as GraphScaleType,
-    nodeSizeMetric: a.nodeSizeMetric as GraphNodeSizeMetric,
-    nodeColorMetric: a.nodeColorMetric as GraphNodeColorMetric,
-    nodeLabelMode: a.nodeLabelMode as GraphNodeLabelMode,
+  return {
+    ok: true,
+    appearance: {
+      xMetric: a.xMetric,
+      xScale: a.xScale as GraphScaleType,
+      yMetric: a.yMetric,
+      yScale: a.yScale as GraphScaleType,
+      nodeSizeMetric: a.nodeSizeMetric as GraphNodeSizeMetric,
+      nodeColorMetric: a.nodeColorMetric as GraphNodeColorMetric,
+      nodeLabelMode: a.nodeLabelMode as GraphNodeLabelMode,
+    },
   };
+}
+
+type Decoded =
+  { ok: true; view: GraphViewDefinition } | { ok: false; field: string };
+
+export function decodeGraphView(json: string): Decoded {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return { ok: false, field: "json" };
+  }
+  return decodeGraphViewRecord(raw);
+}
+
+export function decodeGraphViewRecord(raw: unknown, id?: string): Decoded {
+  if (!isRecord(raw)) return { ok: false, field: "json" };
+  if (raw.meristemaView !== GRAPH_VIEW_WIRE_VERSION) {
+    return { ok: false, field: "meristemaView" };
+  }
+  if (typeof raw.name !== "string" || !raw.name.trim()) {
+    return { ok: false, field: "name" };
+  }
+  const paragraph = typeof raw.paragraph === "string" ? raw.paragraph : "";
+  const decoded = decodeGraphAppearance(raw.appearance);
+  if (!decoded.ok) return decoded;
+  const appearance = decoded.appearance;
   let regions: string[] | null = null;
   if (raw.regions !== null && raw.regions !== undefined) {
     if (

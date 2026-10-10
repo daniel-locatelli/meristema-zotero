@@ -247,6 +247,41 @@ describe("Graph views (D4)", function () {
     return opened!.id as string;
   }
 
+  /**
+   * Tools › Meristema › New Graph, through the plugin's own menu; hands back
+   * the new tab's id once its View chip is rendered, the tab selected.
+   */
+  async function openNewGraphFromTools(): Promise<string> {
+    const doc = win.document as Document;
+    const already = new Set(graphTabs().map((tab) => tab.id));
+    const toolsPopup = doc.getElementById("menu_ToolsPopup")!;
+    let showing = shown(toolsPopup);
+    (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
+    await showing;
+    const tools = customMenu(toolsPopup, `${config.addonRef}-tools-submenu`);
+    showing = shown(tools.menupopup);
+    tools.openMenu(true);
+    await showing;
+    command(
+      customMenu(tools.menupopup, `${config.addonRef}-new-graph-view-command`),
+    );
+    (toolsPopup as any).hidePopup();
+
+    const tab = await waitFor(
+      () => graphTabs().find((candidate) => !already.has(candidate.id)),
+      20_000,
+    );
+    expect(tab, "the graph's tab").to.exist;
+    const id = tab!.id as string;
+    win.Zotero_Tabs.select(id);
+    const chipButton = await waitFor(
+      () => tabContent(id)?.querySelector(".cm-view-chip"),
+      30_000,
+    );
+    expect(chipButton, "the View chip is rendered").to.exist;
+    return id;
+  }
+
   before(async function () {
     this.timeout(60_000);
     win = Zotero.getMainWindows()[0];
@@ -278,33 +313,7 @@ describe("Graph views (D4)", function () {
       fixtureIDs.push(await item.saveTx());
     }
 
-    const doc = win.document as Document;
-    const already = new Set(graphTabs().map((tab) => tab.id));
-    const toolsPopup = doc.getElementById("menu_ToolsPopup")!;
-    let showing = shown(toolsPopup);
-    (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
-    await showing;
-    const tools = customMenu(toolsPopup, `${config.addonRef}-tools-submenu`);
-    showing = shown(tools.menupopup);
-    tools.openMenu(true);
-    await showing;
-    command(
-      customMenu(tools.menupopup, `${config.addonRef}-new-graph-view-command`),
-    );
-    (toolsPopup as any).hidePopup();
-
-    const tab = await waitFor(
-      () => graphTabs().find((candidate) => !already.has(candidate.id)),
-      20_000,
-    );
-    expect(tab, "the graph's tab").to.exist;
-    tabID = tab!.id;
-    win.Zotero_Tabs.select(tabID);
-    const chipButton = await waitFor(
-      () => tabContent(tabID)?.querySelector(".cm-view-chip"),
-      30_000,
-    );
-    expect(chipButton, "the View chip is rendered").to.exist;
+    tabID = await openNewGraphFromTools();
   });
 
   /*
@@ -321,20 +330,6 @@ describe("Graph views (D4)", function () {
     const record = (error: unknown): void => {
       if (failure === null) failure = error;
     };
-    // The gear's Label select writes the graph appearance preference, so the
-    // suite hands it back the way it found it — if the graph is still there.
-    try {
-      const select = tabContent(tabID)?.querySelector(
-        '.cm-appearance-panel select[data-role="labels"]',
-      ) as HTMLSelectElement | null;
-      if (select && select.value !== "author-year") {
-        select.value = "author-year";
-        fire(select, "change");
-        await delay(100);
-      }
-    } catch (error) {
-      record(error);
-    }
     try {
       if (openedTabID) win.Zotero_Tabs.close(openedTabID);
       if (tabID) win.Zotero_Tabs.close(tabID);
@@ -997,5 +992,115 @@ describe("Graph views (D4)", function () {
       "no view was added",
     ).to.equal(before);
     await closeChipMenu();
+  });
+
+  /**
+   * D17: a gear edit stays with its graph, and a new graph opens on the
+   * default until the reader presses "Make this the default". "Reset to
+   * built-in default" is offered only while a made default exists, and
+   * forgets it. The suite's graph is a library graph, so the library
+   * default is the one in play; the profile's records are handed back.
+   */
+  it("keeps a gear edit with its graph until Make this the default (D17)", async function () {
+    this.timeout(90_000);
+    const names = [
+      "graphAppearance",
+      "graphAppearanceVersion",
+      "focusGraphAppearance",
+      "focusGraphAppearanceVersion",
+    ].map((name) => `${config.prefsPrefix}.${name}`);
+    const previous = names.map((name) => Zotero.Prefs.get(name, true));
+    const stored = (): string =>
+      String(
+        Zotero.Prefs.get(`${config.prefsPrefix}.graphAppearance`, true) ?? "",
+      );
+    const labelsIn = (id: string | null): string =>
+      (
+        tabContent(id)?.querySelector(
+          '.cm-appearance-panel select[data-role="labels"]',
+        ) as HTMLSelectElement | null
+      )?.value ?? "";
+    let otherTab: string | null = null;
+    try {
+      for (const name of names) Zotero.Prefs.clear(name, true);
+      win.Zotero_Tabs.select(tabID);
+      const panel = await waitFor(() => {
+        const live = graphRoot().querySelector(
+          ".cm-appearance-panel",
+        ) as HTMLElement | null;
+        if (live && !live.hidden) return live;
+        (
+          graphRoot().querySelector(
+            ".cm-appearance-button",
+          ) as HTMLButtonElement
+        ).click();
+        return null;
+      }, 5_000);
+      expect(panel, "the gear's panel opened").to.exist;
+      const back = (): HTMLButtonElement =>
+        buttonReading(panel!, "Reset to built-in default");
+      expect(back().hidden, "no made default, no way back").to.equal(true);
+
+      const labels = labelSelect();
+      labels.value = labels.value === "title" ? "none" : "title";
+      const edited = labels.value;
+      fire(labels, "change");
+      await delay(300);
+      expect(stored(), "the gear edit stored a default").to.equal("");
+
+      otherTab = await openNewGraphFromTools();
+      expect(labelsIn(otherTab), "a new graph inherited the edit").to.equal(
+        "author-year",
+      );
+      win.Zotero_Tabs.close(otherTab);
+      otherTab = null;
+      await delay(300);
+
+      win.Zotero_Tabs.select(tabID);
+      buttonReading(panel!, "Make this the default").click();
+      expect(
+        JSON.parse(stored()).nodeLabelMode,
+        `the made default; stored ${stored()}`,
+      ).to.equal(edited);
+      expect(back().hidden, "the way back is offered").to.equal(false);
+
+      otherTab = await openNewGraphFromTools();
+      expect(
+        labelsIn(otherTab),
+        "a new graph opens on the made default",
+      ).to.equal(edited);
+      win.Zotero_Tabs.close(otherTab);
+      otherTab = null;
+      await delay(300);
+
+      win.Zotero_Tabs.select(tabID);
+      back().click();
+      expect(stored(), "the made default is forgotten").to.equal("");
+      expect(labelSelect().value, "the graph is on the built-in one").to.equal(
+        "author-year",
+      );
+      expect(back().hidden, "nothing left to forget").to.equal(true);
+    } finally {
+      if (otherTab) win.Zotero_Tabs.close(otherTab);
+      names.forEach((name, i) => {
+        const value = previous[i];
+        if (value === undefined || value === null) {
+          Zotero.Prefs.clear(name, true);
+        } else {
+          Zotero.Prefs.set(name, value as string | number, true);
+        }
+      });
+      // Leave the gear shut for whatever runs next.
+      const open = tabContent(tabID)?.querySelector(
+        ".cm-appearance-panel",
+      ) as HTMLElement | null;
+      if (open && !open.hidden) {
+        (
+          tabContent(tabID)?.querySelector(
+            ".cm-appearance-button",
+          ) as HTMLButtonElement | null
+        )?.click();
+      }
+    }
   });
 });

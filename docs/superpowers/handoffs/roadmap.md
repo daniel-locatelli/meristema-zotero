@@ -116,14 +116,6 @@ opacity grade).
 
 ## Views, gallery and menus
 
-- [ ] D17 a new seeded graph inherits the appearance the reader last edited
-      (B41's design: a stored `focusGraphAppearance` overrides
-      `getFocusGraphAppearance`'s defaults). The user wants a stable default,
-      as Tools › Meristema › New Graph already behaves. Weigh a fixed default
-      with per-graph edits against a remembered default with a reset, and
-      whether a drifted graph should say so. A graph saved with a view applied
-      does reopen on that view, so that path is not affected
-      Decided 2026-10-11: fixed defaults, gear edits stay per graph, and a "Make this the default" button opts in.
 - [ ] D16 the gallery offers only the shipped views, never the reader's saved
       ones, which live in the View dropdown alone. Decide between cards, a row
       beneath the columns, or a line on the last card. Until then the
@@ -339,6 +331,11 @@ any failure into a new entry above.
       runs; once it stops (or Stop) they settle tight.
 - [ ] D22: apply Overview to an enriched graph: nodes colour by
       publication type and the card says so; Folder map stays one grey.
+- [ ] D17: change the gear on a graph, open New Graph: it opens on the
+      default. Press "Make this the default", open New Graph: it opens on
+      your settings; "Reset to built-in default" undoes that.
+- [ ] D17: change the gear on a saved graph, save, close and reopen it:
+      the edit is still there.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

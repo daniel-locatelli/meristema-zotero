@@ -197,7 +197,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("returns null for another version", function () {
-    const other = JSON.stringify({ ...state, version: 10 });
+    const other = JSON.stringify({ ...state, version: 11 });
     expect(parseGraphViewState(other)).to.equal(null);
   });
 
@@ -359,7 +359,7 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 
   it("still returns null for a version it does not know", function () {
-    const future = JSON.stringify({ ...emptyGraphViewState(), version: 10 });
+    const future = JSON.stringify({ ...emptyGraphViewState(), version: 11 });
     expect(parseGraphViewState(future)).to.equal(null);
   });
 });
@@ -628,7 +628,7 @@ describe("hops in the state", function () {
     };
     const parsed = parseGraphViewState(serializeGraphViewState(state))!;
     expect(parsed.hops).to.deep.equal(state.hops);
-    expect(parsed.version).to.equal(9);
+    expect(parsed.version).to.equal(10);
     expect("migratedFromBothDirections" in parsed).to.equal(false);
     const clamped = parseGraphViewState(
       JSON.stringify({
@@ -710,6 +710,38 @@ describe("hops in the state", function () {
     ).to.deep.equal({ "cited-by": ["k1"], references: [] });
   });
 
+  it("round-trips the graph's own appearance, and reads one saved before the field as none (D17)", function () {
+    const layout = {
+      xMetric: "free",
+      xScale: "linear",
+      yMetric: "citations",
+      yScale: "log",
+      nodeSizeMetric: "uniform",
+      nodeColorMetric: "provider",
+      nodeLabelMode: "title",
+    } as const;
+    const own = { ...emptyGraphViewState(), layout };
+    expect(
+      parseGraphViewState(serializeGraphViewState(own))?.layout,
+    ).to.deep.equal(layout);
+    expect(emptyGraphViewState().layout).to.equal(null);
+    const nine = JSON.stringify({
+      ...emptyGraphViewState(),
+      version: 9,
+      layout: undefined,
+    });
+    expect(parseGraphViewState(nine)?.layout).to.equal(null);
+    expect(
+      parseGraphViewState(
+        JSON.stringify({
+          ...emptyGraphViewState(),
+          layout: { ...layout, nodeColorMetric: "collection" },
+        }),
+      )?.layout,
+      "a malformed appearance opens on the default",
+    ).to.equal(null);
+  });
+
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {
     const v3 = parseGraphViewState(
       JSON.stringify({
@@ -720,6 +752,6 @@ describe("hops in the state", function () {
       }),
     )!;
     expect(v3.hops.direction).to.equal("references");
-    expect(v3.version).to.equal(9);
+    expect(v3.version).to.equal(10);
   });
 });

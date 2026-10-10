@@ -448,6 +448,7 @@
 }
 .cm-appearance-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
   justify-content: flex-end;
   margin-top: 10px;

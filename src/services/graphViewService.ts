@@ -259,6 +259,8 @@ import {
 } from "./focusGraphCacheService";
 import {
   getGraphAppearance,
+  hasStoredFocusGraphAppearance,
+  hasStoredGraphAppearance,
   initialGraphAppearance,
   resetFocusGraphAppearance,
   resetGraphAppearance,
@@ -751,14 +753,22 @@ export function renderGraphView(
   }> = () => [];
   /** What the search is currently matching, so the Key can name that mark. */
   let searchMatchKeys: Set<string> | null = null;
-  // B41: a graph that opens seeded reads the focus record the gear writes
-  // while a graph is seeded (see `createAxesAppearance`'s persist callback
-  // below), not the library graph's; otherwise a gear change made on a seeded
-  // graph was written and never read back.
+  // D17: a graph that carries its own appearance (a saved graph, a restored
+  // tab, a rebuild) opens on it; any other opens on the default for its kind.
+  // B41: a graph that opens seeded takes the seeded default, the one "Make
+  // this the default" writes while a graph is seeded (see the gear below).
   const opensSeeded = Boolean(
     options.initialFocusItemIDs?.length || options.initialState?.seeds.length,
   );
-  const initialLayout = initialGraphAppearance(opensSeeded);
+  const initialLayout =
+    options.initialState?.layout ?? initialGraphAppearance(opensSeeded);
+  /**
+   * The appearance this graph keeps (D17): what it opened on until the gear
+   * or a view changes it. Not the gear's reading: on a graph whose papers
+   * carry no years the gear shows Free axes, and keeping that would reopen
+   * the graph on Free axes once the years arrived (da2b54d).
+   */
+  let keptLayout = initialLayout;
   const selectPaper = async (itemID: number): Promise<void> => {
     try {
       await options.onSelectPaper(itemID);
@@ -1320,6 +1330,7 @@ export function renderGraphView(
     model.nodes,
     (layout) => {
       currentLayout = layout;
+      keptLayout = layout;
       renderer?.setLayout(layout);
       // A layout change does not end in `updateSummary`, so the Key is
       // rebuilt here: without it the rail went on naming the last colouring
@@ -1328,15 +1339,24 @@ export function renderGraphView(
       fitCurrentGraph();
       refreshSourceMetricsForLayout(layout);
       refreshViewChip();
+      // The appearance is part of the graph's state now, so a rebuild, a
+      // restored tab and the saved graph all keep the edit.
+      notifyStateChange();
     },
-    (layout) => {
-      if (hopModel) setFocusGraphAppearance(layout);
-      else setGraphAppearance(layout);
+    // A seeded graph and a library graph keep separate defaults (B41).
+    {
+      current: () => initialGraphAppearance(Boolean(hopModel)),
+      stored: () =>
+        hopModel ? hasStoredFocusGraphAppearance() : hasStoredGraphAppearance(),
+      make: (layout) => {
+        if (hopModel) setFocusGraphAppearance(layout);
+        else setGraphAppearance(layout);
+      },
+      forget: () =>
+        hopModel
+          ? resetFocusGraphAppearance(getGraphAppearance())
+          : resetGraphAppearance(),
     },
-    () =>
-      hopModel
-        ? resetFocusGraphAppearance(getGraphAppearance())
-        : resetGraphAppearance(),
   );
   currentLayout = appearance.getLayout();
   // Citation hop is "available while the graph has a seed" (spec, "The
@@ -1345,7 +1365,7 @@ export function renderGraphView(
   // offered it on a plain library graph, where choosing it greys every node.
   // Not when the restored layout already is Citation hop: a saved seeded
   // graph arrives with the colouring chosen and its seeds a moment behind,
-  // and disabling a selected option knocks it back to Uniform and persists
+  // and disabling a selected option knocks it back to Uniform and keeps
   // that. The same holds for Seeds linked, guarded just below.
   if (currentLayout.nodeColorMetric !== "citation-hop") {
     appearance.setColourOptionAvailable("citation-hop", false);
@@ -2286,8 +2306,9 @@ export function renderGraphView(
       shared = Math.max(1, Math.floor(chosen.explore.shared));
       notifyStateChange();
     }
-    // Appearance goes through the gear's own controller, so its selects, the
-    // instance's live layout and the preference all move together.
+    // Appearance goes through the gear's own controller, so its selects and
+    // the instance's live layout move together. Like a gear edit, it stays
+    // with this graph (D17).
     appearance.setLayout(plan.layout);
     if (plan.regions !== null) {
       regions = [...plan.regions];
@@ -5137,6 +5158,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       camera: renderer?.getViewTransform() ?? null,
       title: options.title ?? null,
       view: activeViewRef,
+      layout: keptLayout,
     };
   };
 

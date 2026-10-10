@@ -1,5 +1,8 @@
 import type { RelatedWorkMetadata } from "../domain/citationTypes";
-import type { CitationGraphNode } from "../domain/graphTypes";
+import type {
+  CitationGraphNode,
+  GraphLayoutOptions,
+} from "../domain/graphTypes";
 import {
   normalizeDOI,
   stableExternalWorkIdentity,
@@ -21,6 +24,7 @@ import {
   type PaperListFilterState,
 } from "./paperListViewService";
 import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
+import { decodeGraphAppearance } from "./graphViews";
 
 export type { GraphViewCollectionTicks };
 
@@ -33,7 +37,7 @@ export type { GraphViewCollectionTicks };
  * Plain data, no DOM, so it serialises to JSON, survives a view rebuild, and
  * can be stored.
  */
-export const GRAPH_VIEW_STATE_VERSION = 9;
+export const GRAPH_VIEW_STATE_VERSION = 10;
 
 /**
  * Which view (D4) the graph is on. `null` is "never chosen", which shows
@@ -132,6 +136,12 @@ export interface GraphViewState {
   title: string | null;
   view: GraphViewRef;
   /**
+   * The gear's settings on this graph. A gear edit stays with its graph
+   * (D17), so a reopen, a restored tab or a rebuild shows them again; null
+   * opens on the default a new graph would. Since version 10.
+   */
+  layout: GraphLayoutOptions | null;
+  /**
    * True when the ticks came out of the version 1 migration and still name
    * only the folders that recipe listed. The view expands them once through
    * the library's folder tree, because version 1 drew a scoped parent's whole
@@ -170,6 +180,7 @@ export function emptyGraphViewState(): GraphViewState {
     camera: null,
     title: null,
     view: null,
+    layout: null,
   };
 }
 
@@ -365,6 +376,11 @@ function parseCamera(value: unknown): GraphViewTransform | null {
     : { x, y, scale };
 }
 
+function parseLayout(value: unknown): GraphLayoutOptions | null {
+  const decoded = decodeGraphAppearance(value);
+  return decoded.ok ? decoded.appearance : null;
+}
+
 function parseViewRef(value: unknown): GraphViewRef {
   if (value === "blank") return "blank";
   if (isRecord(value) && typeof value.id === "string" && value.id.trim()) {
@@ -550,6 +566,7 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   if (!isRecord(raw)) return null;
   if (
     raw.version !== GRAPH_VIEW_STATE_VERSION &&
+    raw.version !== 9 &&
     raw.version !== 8 &&
     raw.version !== 7 &&
     raw.version !== 6 &&
@@ -581,7 +598,8 @@ export function parseGraphViewState(json: string): GraphViewState | null {
   // Regions have been stored since version 3; older records rebuild them
   // from the ticks. Version 4 only added `view`. Version 5 replaced
   // `explore` with `hops`. Version 6 added `floor`. Version 7 added `shared`.
-  // Version 8 added `fillStopped`. Version 9 added `failedKeys`.
+  // Version 8 added `fillStopped`. Version 9 added `failedKeys`. Version 10
+  // added `layout`.
   const regions =
     typeof raw.version === "number" && raw.version >= 3
       ? normalizedRegions(raw.regions)
@@ -610,5 +628,6 @@ export function parseGraphViewState(json: string): GraphViewState | null {
     camera: parseCamera(raw.camera),
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title : null,
     view: parseViewRef(raw.view),
+    layout: parseLayout(raw.layout),
   };
 }

@@ -4,7 +4,13 @@ import { config } from "../../package.json";
 import {
   getFocusGraphAppearance,
   getGraphAppearance,
+  hasStoredFocusGraphAppearance,
+  hasStoredGraphAppearance,
   initialGraphAppearance,
+  resetFocusGraphAppearance,
+  resetGraphAppearance,
+  setFocusGraphAppearance,
+  setGraphAppearance,
 } from "../../src/services/citationPreferences";
 import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
 
@@ -28,6 +34,9 @@ beforeEach(function () {
       get: (name: string) => store[name],
       set: (name: string, value: unknown) => {
         store[name] = value;
+      },
+      clear: (name: string) => {
+        delete store[name];
       },
     },
   };
@@ -147,9 +156,104 @@ describe("the appearance a graph opens with (B41)", function () {
     expect(seeded.xMetric).to.equal("citation-sequence");
     expect(seeded.xScale).to.equal("linear");
     expect(seeded.yMetric).to.equal("citations");
-    expect(
-      store[prefKey("focusGraphAppearance")],
-      "the fallback is written, so the gear's next write has a base",
-    ).to.be.a("string");
+  });
+});
+
+describe("the default a new graph opens with (D17)", function () {
+  const mine = {
+    xMetric: "free",
+    xScale: "linear",
+    yMetric: "citations",
+    yScale: "log",
+    nodeSizeMetric: "references",
+    nodeColorMetric: "provider",
+    nodeLabelMode: "title",
+  } as const;
+  /** The built-in default before D22: what every open used to write. */
+  const legacy = {
+    xMetric: "year",
+    xScale: "linear",
+    yMetric: "citations",
+    yScale: "linear",
+    nodeSizeMetric: "citations",
+    nodeColorMetric: "uniform",
+    nodeLabelMode: "author-year",
+  } as const;
+
+  it("reads without writing, so nothing is stored until the reader asks", function () {
+    initialGraphAppearance(false);
+    initialGraphAppearance(true);
+    expect(store, "an open stored a default").to.deep.equal({});
+    expect(hasStoredGraphAppearance()).to.equal(false);
+    expect(hasStoredFocusGraphAppearance()).to.equal(false);
+  });
+
+  it("opens on a default the reader made, library and seeded kept apart", function () {
+    setGraphAppearance(mine);
+    expect(hasStoredGraphAppearance()).to.equal(true);
+    expect(hasStoredFocusGraphAppearance()).to.equal(false);
+    expect(initialGraphAppearance(false)).to.deep.equal(mine);
+    expect(initialGraphAppearance(true).xMetric).to.equal("citation-sequence");
+    setFocusGraphAppearance({ ...mine, xMetric: "year" });
+    expect(hasStoredFocusGraphAppearance()).to.equal(true);
+    expect(initialGraphAppearance(true).xMetric).to.equal("year");
+  });
+
+  it("honours a record stored before D17 as the reader's default", function () {
+    stubPrefs({
+      graphAppearanceVersion: 4,
+      graphAppearance: JSON.stringify(mine),
+      focusGraphAppearanceVersion: 1,
+      focusGraphAppearance: JSON.stringify({ ...mine, xMetric: "year" }),
+    });
+    expect(hasStoredGraphAppearance()).to.equal(true);
+    expect(initialGraphAppearance(false)).to.deep.equal(mine);
+    expect(hasStoredFocusGraphAppearance()).to.equal(true);
+    expect(initialGraphAppearance(true).xMetric).to.equal("year");
+  });
+
+  it("reads a record that only repeats the old built-in default as no default", function () {
+    // Every open before D17 wrote the built-in default whether or not the
+    // reader chose anything, so such a record is not a choice. Honouring it
+    // would keep every existing reader on one grey after D22.
+    stubPrefs({
+      graphAppearanceVersion: 4,
+      graphAppearance: JSON.stringify(legacy),
+      focusGraphAppearanceVersion: 1,
+      focusGraphAppearance: JSON.stringify({
+        ...legacy,
+        xMetric: "citation-sequence",
+      }),
+    });
+    expect(hasStoredGraphAppearance()).to.equal(false);
+    expect(hasStoredFocusGraphAppearance()).to.equal(false);
+    expect(initialGraphAppearance(false).nodeColorMetric).to.equal(
+      "publication-type",
+    );
+    expect(initialGraphAppearance(true).nodeColorMetric).to.equal(
+      "publication-type",
+    );
+  });
+
+  it("keeps the old built-in default when the reader makes it the default", function () {
+    setGraphAppearance(legacy);
+    expect(hasStoredGraphAppearance()).to.equal(true);
+    expect(initialGraphAppearance(false)).to.deep.equal(legacy);
+  });
+
+  it("forgets a made default on reset and answers the built-in one", function () {
+    setGraphAppearance(mine);
+    setFocusGraphAppearance({ ...mine, xMetric: "year" });
+    const seeded = resetFocusGraphAppearance(getGraphAppearance());
+    expect(hasStoredFocusGraphAppearance()).to.equal(false);
+    expect(seeded).to.deep.equal(initialGraphAppearance(true));
+    expect(hasStoredGraphAppearance(), "the library default is apart").to.equal(
+      true,
+    );
+    const library = resetGraphAppearance();
+    expect(hasStoredGraphAppearance()).to.equal(false);
+    expect(library).to.deep.equal(initialGraphAppearance(false));
+    expect(library.nodeColorMetric).to.equal("publication-type");
+    expect(store, "both records are gone").to.deep.equal({});
   });
 });

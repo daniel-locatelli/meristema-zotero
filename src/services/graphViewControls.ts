@@ -342,18 +342,33 @@ function createMetricHelp(
   return help;
 }
 
+/**
+ * The default a new graph opens with, for the kind of graph the gear is on
+ * (a library graph and a seeded one keep separate defaults). The gear's own
+ * edits stay with its graph (D17); only these write the stored default.
+ */
+export interface AppearanceDefaults {
+  /** What a new graph opens with: the made default, else the built-in one. */
+  current: () => GraphLayoutOptions;
+  /** Whether the reader has made a default of their own. */
+  stored: () => boolean;
+  /** Makes `layout` the default. */
+  make: (layout: GraphLayoutOptions) => void;
+  /** Forgets the made default and answers the built-in one. */
+  forget: () => GraphLayoutOptions;
+}
+
 export function createAxesAppearance(
   document: Document,
   initial: GraphLayoutOptions,
   nodes: CitationGraphNode[],
   onChange: (layout: GraphLayoutOptions) => void,
-  persistLayout: (layout: GraphLayoutOptions) => void,
-  resetLayout: () => GraphLayoutOptions,
+  defaults: AppearanceDefaults,
 ): {
   root: HTMLDivElement;
   button: HTMLButtonElement;
   panel: HTMLDivElement;
-  setLayout: (layout: GraphLayoutOptions, persist?: boolean) => void;
+  setLayout: (layout: GraphLayoutOptions) => void;
   getLayout: () => GraphLayoutOptions;
   close: () => void;
   /**
@@ -598,10 +613,33 @@ export function createAxesAppearance(
 
   panel.append(tabs, xPane, yPane, nodesPane);
   const actions = element(document, "div", "cm-appearance-actions");
-  const reset = element(document, "button", "cm-secondary-button");
-  reset.type = "button";
-  reset.textContent = "Reset";
-  actions.appendChild(reset);
+  const actionButton = (label: string, title: string): HTMLButtonElement => {
+    const action = element(document, "button", "cm-secondary-button");
+    action.type = "button";
+    action.textContent = label;
+    action.title = title;
+    actions.appendChild(action);
+    return action;
+  };
+  const reset = actionButton(
+    "Reset",
+    "Put this graph back on the settings a new graph opens with.",
+  );
+  const makeDefault = actionButton(
+    "Make this the default",
+    "Open every new graph of this kind with these settings.",
+  );
+  const forgetDefault = actionButton(
+    "Reset to built-in default",
+    "Forget the default you made and open new graphs on the built-in one.",
+  );
+  /** The way back is offered only while there is a made default to forget. */
+  const refreshDefaultActions = (): void => {
+    const stored = defaults.stored();
+    forgetDefault.hidden = !stored;
+    forgetDefault.style.display = stored ? "" : "none";
+  };
+  refreshDefaultActions();
   panel.appendChild(actions);
   root.append(button, panel);
 
@@ -631,15 +669,12 @@ export function createAxesAppearance(
     }
   };
   let last = JSON.stringify(read());
-  const commit = (
-    layout: GraphLayoutOptions,
-    force = false,
-    persist = true,
-  ): void => {
+  // A change stays with this graph (D17): the stored default moves only
+  // through "Make this the default" and "Reset to built-in default".
+  const commit = (layout: GraphLayoutOptions, force = false): void => {
     const signature = JSON.stringify(layout);
     if (!force && signature === last) return;
     onChange(layout);
-    if (persist) persistLayout(layout);
     last = signature;
   };
   for (const control of [
@@ -668,6 +703,9 @@ export function createAxesAppearance(
       panel.hidden = false;
       panel.style.display = "block";
       button.setAttribute("aria-expanded", "true");
+      // The graph may have gained or lost its seeds since, and with them
+      // the default the actions speak for.
+      refreshDefaultActions();
       activate("x");
     } else {
       close();
@@ -683,19 +721,27 @@ export function createAxesAppearance(
     labels.value = layout.nodeLabelMode;
     updateAvailability();
   };
-  const setLayout = (layout: GraphLayoutOptions, persist = true): void => {
+  const setLayout = (layout: GraphLayoutOptions): void => {
     setControls(layout);
-    commit(read(), true, persist);
+    commit(read(), true);
   };
   reset.addEventListener("click", () => {
-    setLayout(resetLayout(), false);
+    setLayout(defaults.current());
+  });
+  makeDefault.addEventListener("click", () => {
+    defaults.make(read());
+    refreshDefaultActions();
+  });
+  forgetDefault.addEventListener("click", () => {
+    setLayout(defaults.forget());
+    refreshDefaultActions();
   });
   updateAvailability();
   activate("x");
   // What the selects landed on is what this graph can show, not a choice the
   // reader made: a graph without years or counts opens on Free axes, and
-  // saving that made every later graph open on Free axes too. The saved
-  // appearance changes only when the reader changes the gear.
+  // saving that as the default made every later graph open on Free axes too
+  // (da2b54d). Opening stores nothing; only "Make this the default" does.
   last = JSON.stringify(read());
   return {
     root,

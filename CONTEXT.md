@@ -106,8 +106,14 @@ _Avoid_: overlay, decorations, hop map (one part of it)
 
 **Saved graph**:
 A graph kept by name in the reader's profile as a recipe (seeds, ticks,
-settings, camera) that reopens the same graph later.
+settings, appearance, camera) that reopens the same graph later.
 _Avoid_: snapshot (a cached result), session, bookmark
+
+**Default appearance**:
+What a new graph opens with: built in, or made by the reader from the gear,
+one for a library graph and one for a seeded graph. A gear edit changes only
+its own graph (ADR 0019).
+_Avoid_: preferences, remembered appearance
 
 ### Citation hops
 
