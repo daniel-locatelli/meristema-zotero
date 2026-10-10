@@ -4,6 +4,7 @@ import type {
   GhostPreview,
   GraphLayoutOptions,
   GraphNodeColorMetric,
+  GraphScaleType,
   MetricID,
 } from "../domain/graphTypes";
 import {
@@ -221,6 +222,19 @@ export class CitationGraphRenderer {
   private readonly context: CanvasRenderingContext2D;
   private readonly model: CitationGraphModel;
   private readonly positions = new Map<string, Position>();
+  /** The last projection's anchors and axes; see RendererSceneContext. */
+  private lastAnchors = new Map<string, Position>();
+  private lastAnchorAxes: string | null = null;
+  /**
+   * A fill is landing papers. While it is, each axis domain only grows, so a
+   * paper that leaves or a rebuild that drops one does not move every node;
+   * the fill at rest settles it tight (B47).
+   */
+  private fillActive = false;
+  private readonly heldDomains: Record<
+    "x" | "y",
+    { metric: string; scale: GraphScaleType; domain: [number, number] } | null
+  > = { x: null, y: null };
   /**
    * The world positions projected into canvas device pixels, refreshed once per
    * frame. Every draw call reads this rather than applying the transform to the
@@ -491,14 +505,15 @@ export class CitationGraphRenderer {
     const base = axisScaleForNodes(nodes, metric, scale, 6, this.metricNumber);
     if (!base) return null;
     if (metric === "free") return base;
+    const domain = this.heldDomain(axis, metric, scale, base.domain);
     const visibleDomain = visibleMetricDomain(
       this.axisViewport(),
       axis,
-      base.domain,
+      domain,
       scale,
     );
     return {
-      domain: base.domain,
+      domain,
       ticks: axisTicksForVisibleDomain(
         visibleDomain,
         metric,
@@ -506,6 +521,48 @@ export class CitationGraphRenderer {
         this.axisTickTarget(axis),
       ),
     };
+  }
+
+  /**
+   * The domain an axis draws: the nodes' own while no fill runs, else the
+   * union of every domain the axis has had since the fill started.
+   */
+  private heldDomain(
+    axis: "x" | "y",
+    metric: string,
+    scale: GraphScaleType,
+    domain: [number, number],
+  ): [number, number] {
+    if (!this.fillActive) return domain;
+    const held = this.heldDomains[axis];
+    const next: [number, number] =
+      held && held.metric === metric && held.scale === scale
+        ? [
+            Math.min(held.domain[0], domain[0]),
+            Math.max(held.domain[1], domain[1]),
+          ]
+        : domain;
+    this.heldDomains[axis] = { metric, scale, domain: next };
+    return next;
+  }
+
+  /**
+   * The view says whether a fill is landing papers. At rest the held domains
+   * go and the nodes settle onto the tight ones.
+   */
+  public setFillActive(active: boolean): void {
+    if (this.fillActive === active) return;
+    this.fillActive = active;
+    if (active) return;
+    const held = this.heldDomains.x ?? this.heldDomains.y;
+    this.heldDomains.x = null;
+    this.heldDomains.y = null;
+    if (!held) return;
+    this.projectPositionsToLayout(
+      this.layout.xMetric === "free",
+      this.layout.yMetric === "free",
+    );
+    this.draw();
   }
 
   /** Drop the pending coalesced resize, if one is waiting. */

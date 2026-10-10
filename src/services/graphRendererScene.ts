@@ -21,6 +21,7 @@ import {
   scaleValue,
 } from "./graphMetricScale";
 import type { GraphTheme } from "./graphTheme";
+import { axisTicksForVisibleDomain } from "./graphAxisTickEnhancer";
 import {
   createLabelBudget,
   createRectangleIndex,
@@ -53,6 +54,13 @@ export interface RendererSceneContext {
     nodeLabelMode: "title" | "author-year" | "none";
   };
   positions: Map<string, Position>;
+  /**
+   * The anchors the last projection relaxed nodes around, and the axes they
+   * were read on. A projection on the same axes warm-starts from them, so a
+   * landing moves only the nodes it overlaps (B47).
+   */
+  lastAnchors: Map<string, Position>;
+  lastAnchorAxes: string | null;
   /** `positions` projected into canvas device pixels for the current frame. */
   screenPositions: Map<string, Position>;
   /** Device pixels per CSS pixel for the current frame. */
@@ -229,10 +237,49 @@ function ghostColor(
   return numericColor(normalized, theme);
 }
 
-function maximumDisplacement(metric: GraphAxisMetric): number {
+/**
+ * The farthest the overlap relaxation may carry a node from its anchor, in
+ * world units, before B47 sized it by value. It is still the ceiling: a narrow
+ * domain must not let half a year spread a node across the plot.
+ */
+function worldDisplacementCeiling(metric: GraphAxisMetric): number {
   if (metric === "year") return 36;
   if (metric === "free") return 0;
   return 52;
+}
+
+/** Half a year on a year axis: a node never reads as the next year. */
+const YEAR_DISPLACEMENT = 0.5;
+/** A quarter of a tick on any other axis, so the cap follows the scale. */
+const TICK_DISPLACEMENT = 0.25;
+
+/**
+ * The farthest the relaxation may carry a node from its anchor along one
+ * axis, in world units: a displacement that means the same value whatever the
+ * domain (B47). A year axis allows half a year; a count or log axis a quarter
+ * of the spacing between its ticks at the unzoomed view, so the cap shrinks
+ * with the scale instead of letting a node drift 8% of the axis.
+ */
+function maximumDisplacement(
+  metric: GraphAxisMetric,
+  scale: GraphScaleType,
+  domain: [number, number] | undefined,
+  span: number,
+): number {
+  const ceiling = worldDisplacementCeiling(metric);
+  if (metric === "free" || !domain || !(domain[1] > domain[0])) return ceiling;
+  if (metric === "year" && scale === "linear") {
+    return Math.min(
+      ceiling,
+      (YEAR_DISPLACEMENT / (domain[1] - domain[0])) * span,
+    );
+  }
+  const ticks = axisTicksForVisibleDomain(domain, metric, scale, 6);
+  if (ticks.length < 2) return ceiling;
+  const first = scaleValue(ticks[0], domain[0], domain[1], scale);
+  const last = scaleValue(ticks.at(-1)!, domain[0], domain[1], scale);
+  const spacing = ((last - first) / (ticks.length - 1)) * span;
+  return spacing > 0 ? Math.min(ceiling, TICK_DISPLACEMENT * spacing) : ceiling;
 }
 
 function anchorStrength(metric: GraphAxisMetric): number {
@@ -288,15 +335,64 @@ function clampAroundAnchor(
   );
 }
 
+/**
+ * Where a node starts a warm relaxation: its offset from its anchor at the
+ * last projection, and whether its anchor has moved since.
+ */
+interface WarmStart {
+  offset: Position;
+  moved: boolean;
+}
+
+/**
+ * Spread a crowd of anchored nodes so each disc can be read, keeping each
+ * within `maxX`/`maxY` of its anchor. Cold (`warm` null), every node starts
+ * at its anchor and every node moves. Warm, a node keeps its last offset from
+ * its anchor and stays put unless its anchor moved, it is new, or a node that
+ * moves comes to overlap it: a paper landing in a crowd moves only the
+ * neighbours it pushes, not the whole crowd (B47).
+ */
 function relaxAnchoredNodes(
   renderer: RendererSceneContext,
   nodes: CitationGraphNode[],
   anchors: Map<string, Position>,
+  maxX: number,
+  maxY: number,
+  warm: Map<string, WarmStart> | null,
 ): void {
   if (nodes.length < 2) return;
   const ordered = [...nodes].sort((left, right) =>
     left.key.localeCompare(right.key),
   );
+  const active = new Set<string>();
+  // Nodes the last projection placed. Their places are the rest state: the
+  // spring pulls each back to where it stood, and the overlaps they started
+  // with are the crowd as it already stood, which pushes and wakes nobody.
+  const placed = new Set<string>();
+  const rest = new Map<string, Position>();
+  for (const node of ordered) {
+    const position = renderer.positions.get(node.key);
+    const anchor = anchors.get(node.key);
+    if (!position || !anchor) continue;
+    const start = warm?.get(node.key);
+    if (start) {
+      position.x = anchor.x + start.offset.x;
+      position.y = anchor.y + start.offset.y;
+      placed.add(node.key);
+      if (start.moved) active.add(node.key);
+    } else {
+      const seed = hashString(node.key);
+      const angle = ((seed % 360) * Math.PI) / 180;
+      const jitter = 1.5 + ((seed >>> 9) % 35) / 10;
+      position.x = anchor.x + Math.cos(angle) * Math.min(jitter, maxX);
+      position.y = anchor.y + Math.sin(angle) * Math.min(jitter, maxY);
+      active.add(node.key);
+    }
+    clampAroundAnchor(position, anchor, maxX, maxY);
+    rest.set(node.key, start ? { x: position.x, y: position.y } : anchor);
+  }
+  if (!active.size) return;
+
   const sizeValues =
     renderer.layout.nodeSizeMetric === "uniform"
       ? []
@@ -311,36 +407,28 @@ function relaxAnchoredNodes(
   const radii = new Map(
     ordered.map((node) => [node.key, renderer.nodeRadius(node, sizeDomain)]),
   );
-  const maxX = maximumDisplacement(renderer.layout.xMetric);
-  const maxY = maximumDisplacement(renderer.layout.yMetric);
   const springX = anchorStrength(renderer.layout.xMetric);
   const springY = anchorStrength(renderer.layout.yMetric);
   const iterations =
     ordered.length <= 500 ? 34 : ordered.length <= 1500 ? 22 : 14;
-
-  for (const node of ordered) {
-    const position = renderer.positions.get(node.key);
-    const anchor = anchors.get(node.key);
-    if (!position || !anchor) continue;
-    const seed = hashString(node.key);
-    const angle = ((seed % 360) * Math.PI) / 180;
-    const jitter = 1.5 + ((seed >>> 9) % 35) / 10;
-    position.x = anchor.x + Math.cos(angle) * Math.min(jitter, maxX);
-    position.y = anchor.y + Math.sin(angle) * Math.min(jitter, maxY);
-    clampAroundAnchor(position, anchor, maxX, maxY);
-  }
+  // How far apart each overlapping pair of placed nodes started: a pair is
+  // pushed apart, and a still node woken, only when it comes closer than that,
+  // not at every residual overlap the displacement cap left in a crowd.
+  const startDistances = new Map<number, number>();
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
     const forces = new Map<string, Position>();
     const grid = new Map<string, number[]>();
+    // A still node that a moving one overlaps joins the next round.
+    const woken = new Set<string>();
 
     for (const [index, node] of ordered.entries()) {
       const position = renderer.positions.get(node.key);
-      const anchor = anchors.get(node.key);
-      if (!position || !anchor) continue;
+      const target = rest.get(node.key);
+      if (!position || !target) continue;
       forces.set(node.key, {
-        x: (anchor.x - position.x) * springX,
-        y: (anchor.y - position.y) * springY,
+        x: (target.x - position.x) * springX,
+        y: (target.y - position.y) * springY,
       });
       const key = gridKey(
         gridCoordinate(position.x),
@@ -362,6 +450,8 @@ function relaxAnchoredNodes(
             []) {
             if (otherIndex <= index) continue;
             const other = ordered[otherIndex];
+            const leftActive = active.has(node.key);
+            const rightActive = active.has(other.key);
             const otherPosition = renderer.positions.get(other.key);
             if (!otherPosition) continue;
             let deltaX = otherPosition.x - position.x;
@@ -372,6 +462,22 @@ function relaxAnchoredNodes(
               (radii.get(other.key) ?? 7) +
               NODE_GAP;
             if (distance >= required) continue;
+            const pair = index * ordered.length + otherIndex;
+            if (
+              iteration === 0 &&
+              placed.has(node.key) &&
+              placed.has(other.key)
+            ) {
+              startDistances.set(pair, distance);
+            }
+            if (!leftActive && !rightActive) continue;
+            const room = Math.min(
+              required,
+              startDistances.get(pair) ?? required,
+            );
+            if (distance >= room - 0.01) continue;
+            if (!leftActive) woken.add(node.key);
+            if (!rightActive) woken.add(other.key);
             if (distance < 1e-5) {
               const angle =
                 ((hashString(`${node.key}\u001f${other.key}`) % 360) *
@@ -381,7 +487,7 @@ function relaxAnchoredNodes(
               deltaY = Math.sin(angle);
               distance = 1;
             }
-            const overlap = required - distance;
+            const overlap = room - distance;
             const push = overlap * 0.82;
             const unitX = deltaX / distance;
             const unitY = deltaY / distance;
@@ -398,6 +504,7 @@ function relaxAnchoredNodes(
 
     let maximumMovement = 0;
     for (const node of ordered) {
+      if (!active.has(node.key)) continue;
       const position = renderer.positions.get(node.key);
       const anchor = anchors.get(node.key);
       const force = forces.get(node.key);
@@ -412,12 +519,14 @@ function relaxAnchoredNodes(
         Math.hypot(movementX, movementY),
       );
     }
-    if (maximumMovement < 0.08) break;
+    for (const key of woken) active.add(key);
+    if (maximumMovement < 0.08 && !woken.size) break;
   }
 
   // Finish with a collision-only pass. The spring phase keeps every node near
   // its metric anchor; this pass removes the small residual overlaps left at
-  // the spring/repulsion equilibrium without changing the anchor limits.
+  // the spring/repulsion equilibrium without changing the anchor limits. A
+  // still node holds its place and the moving one takes the whole correction.
   for (let pass = 0; pass < 10; pass += 1) {
     const grid = new Map<string, number[]>();
     for (const [index, node] of ordered.entries()) {
@@ -443,6 +552,9 @@ function relaxAnchoredNodes(
             []) {
             if (otherIndex <= index) continue;
             const other = ordered[otherIndex];
+            const leftActive = active.has(node.key);
+            const rightActive = active.has(other.key);
+            if (!leftActive && !rightActive) continue;
             const otherPosition = renderer.positions.get(other.key);
             const anchor = anchors.get(node.key);
             const otherAnchor = anchors.get(other.key);
@@ -454,7 +566,12 @@ function relaxAnchoredNodes(
               (radii.get(node.key) ?? 7) +
               (radii.get(other.key) ?? 7) +
               NODE_GAP;
-            if (distance >= required - 0.02) continue;
+            const room = Math.min(
+              required,
+              startDistances.get(index * ordered.length + otherIndex) ??
+                required,
+            );
+            if (distance >= room - 0.02) continue;
             if (distance < 1e-5) {
               const angle =
                 ((hashString(`${node.key}\u001f${other.key}`) % 360) *
@@ -464,15 +581,20 @@ function relaxAnchoredNodes(
               deltaY = Math.sin(angle);
               distance = 1;
             }
-            const correction = (required - distance) / 2 + 0.08;
+            const share = leftActive && rightActive ? 2 : 1;
+            const correction = (room - distance) / share + 0.08;
             const unitX = deltaX / distance;
             const unitY = deltaY / distance;
-            position.x -= unitX * correction;
-            position.y -= unitY * correction;
-            otherPosition.x += unitX * correction;
-            otherPosition.y += unitY * correction;
-            clampAroundAnchor(position, anchor, maxX, maxY);
-            clampAroundAnchor(otherPosition, otherAnchor, maxX, maxY);
+            if (leftActive) {
+              position.x -= unitX * correction;
+              position.y -= unitY * correction;
+              clampAroundAnchor(position, anchor, maxX, maxY);
+            }
+            if (rightActive) {
+              otherPosition.x += unitX * correction;
+              otherPosition.y += unitY * correction;
+              clampAroundAnchor(otherPosition, otherAnchor, maxX, maxY);
+            }
             corrected = true;
           }
         }
@@ -548,12 +670,21 @@ export function projectRendererPositions(
   const xScale = renderer.axisScale(nodes, "x");
   const yScale = renderer.axisScale(nodes, "y");
   const anchors = new Map<string, Position>();
+  const { xMetric, xScale: xType, yMetric, yScale: yType } = renderer.layout;
+  const anchored = xMetric !== "free" && yMetric !== "free";
+  const axes = `${xMetric}:${xType}|${yMetric}:${yType}`;
+  // On the axes the last projection used, each node starts from where it was
+  // relative to its anchor; on new axes the relaxation starts cold.
+  const previous =
+    anchored && renderer.lastAnchorAxes === axes ? renderer.lastAnchors : null;
+  const warm = previous ? new Map<string, WarmStart>() : null;
 
   for (const [index, node] of nodes.entries()) {
     const position = renderer.positions.get(node.key);
     if (!position) continue;
     let x = position.x;
     let y = position.y;
+    const before = previous?.get(node.key);
 
     if (renderer.layout.xMetric === "free") {
       if (!preserveFreeX) {
@@ -605,17 +736,39 @@ export function projectRendererPositions(
               (PLOT_BOTTOM - PLOT_TOP);
     }
 
+    if (before && warm) {
+      warm.set(node.key, {
+        offset: { x: position.x - before.x, y: position.y - before.y },
+        moved: Math.abs(x - before.x) > 1e-6 || Math.abs(y - before.y) > 1e-6,
+      });
+    }
     position.x = x;
     position.y = y;
     anchors.set(node.key, { x, y });
   }
 
-  if (
-    renderer.layout.xMetric !== "free" &&
-    renderer.layout.yMetric !== "free"
-  ) {
-    relaxAnchoredNodes(renderer, nodes, anchors);
+  if (anchored) {
+    relaxAnchoredNodes(
+      renderer,
+      nodes,
+      anchors,
+      maximumDisplacement(
+        xMetric,
+        xType,
+        xScale?.domain,
+        PLOT_RIGHT - PLOT_LEFT,
+      ),
+      maximumDisplacement(
+        yMetric,
+        yType,
+        yScale?.domain,
+        PLOT_BOTTOM - PLOT_TOP,
+      ),
+      warm,
+    );
   }
+  renderer.lastAnchors = anchors;
+  renderer.lastAnchorAxes = anchored ? axes : null;
 }
 
 export function hitTestRenderer(

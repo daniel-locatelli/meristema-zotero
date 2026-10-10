@@ -5,6 +5,7 @@ import type { HopEntry, HopDirection } from "../../src/services/graphHopModel";
 import { HOP_EXPANSION_CAP } from "../../src/services/graphHopFillModel";
 import {
   createHopFillRunner,
+  fillLanding,
   type HopFillHost,
   type HopFillPlanInput,
 } from "../../src/services/graphHopFillRunner";
@@ -975,5 +976,28 @@ describe("the fill under provider refusals", function () {
     // deferral ends (ADR 0013).
     expect(state?.remaining).to.equal(1);
     expect(fake.timers.map((timer) => timer.at)).to.deep.equal([30_000]);
+  });
+});
+
+describe("fillLanding", function () {
+  const state = {
+    remaining: 3,
+    waiting: 0,
+    paused: false,
+    gaveUp: 0,
+    refusal: null,
+  };
+
+  it("is landing while the plan holds papers it will expand", function () {
+    expect(fillLanding(state)).to.equal(true);
+  });
+
+  it("is at rest with no plan, after Stop, or with only capped or given-up papers left", function () {
+    expect(fillLanding(null), "no plan").to.equal(false);
+    expect(fillLanding({ ...state, paused: true }), "stopped").to.equal(false);
+    expect(
+      fillLanding({ ...state, remaining: 0, waiting: 4, gaveUp: 2 }),
+      "capped or given up",
+    ).to.equal(false);
   });
 });

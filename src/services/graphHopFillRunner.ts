@@ -133,6 +133,15 @@ export interface HopFillState {
   refusal: HopFillRefusal | null;
 }
 
+/**
+ * The fill is landing papers: the plan still holds some it will expand and
+ * nobody pressed Stop. Papers waiting on the cap or given up do not count, so
+ * a fill held there is at rest and the plot may settle (B47).
+ */
+export function fillLanding(state: HopFillState | null): boolean {
+  return state !== null && !state.paused && state.remaining > 0;
+}
+
 export interface HopFillRunner {
   /** Re-plan on the next frame and expand the plan's first paper. */
   wake(): void;

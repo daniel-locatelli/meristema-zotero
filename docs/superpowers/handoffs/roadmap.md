@@ -87,17 +87,6 @@ opacity grade).
       (user, it changes provider request rates, ADR 0013 to 0015): let
       hydration interleave with fill membership, or keep the gaps. Measure
       first, after the manual check below.
-- [ ] B47 during a fill the nodes jump far more than the new data warrants.
-      Cause: `relaxAnchoredNodes` (the overlap step) restarts from the
-      anchors on every landing and may move a node 52 world units on a count
-      axis (8.5% of it) and 36 on year; one paper landing in a crowd of 40
-      moved 40 by up to 67 units. The axis domain is recomputed from all nodes
-      too (a new maximum moved 39 of 42 by up to 123). Crossing a plot edge
-      is fixed. Decide: warm-start the relaxation from the last
-      positions so a landing moves only its neighbours, and cap the
-      displacement in value terms (half a year; a fraction of a tick); and
-      hold the domain grow-only during a fill, settling at rest
-      Decided 2026-10-11: all three (warm start, value cap, grow-only domain during a fill).
 
 ## The rail and the Key
 
@@ -349,6 +338,10 @@ any failure into a new entry above.
 - [ ] Floor (D21): raise it on a graph with papers that have no count; the
       row reads `· n with no count kept`, a click hides them (`hidden`, the
       count line drops by n, the Filter's switch is off), a click restores.
+- [ ] B47: fill a seeded graph by year and citations: a paper landing in a
+      crowd nudges only its neighbours, and no node strays past half a year
+      or a quarter tick from its value. The axes only widen while the fill
+      runs; once it stops (or Stop) they settle tight.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

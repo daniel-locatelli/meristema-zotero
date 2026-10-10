@@ -235,7 +235,7 @@ import {
   type LocalWorkIndexes,
 } from "./graphFocusService";
 import { createFrameOrTimer } from "./frameOrTimer";
-import { createHopFillRunner } from "./graphHopFillRunner";
+import { createHopFillRunner, fillLanding } from "./graphHopFillRunner";
 import { projectToScreen } from "./graphViewport";
 import {
   buildGraphHopModel,
@@ -3011,6 +3011,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     refreshModelNodeIndex();
     Object.assign(model.statistics, libraryModel.statistics);
     rebuildGraphFilterDescriptors();
+    renderer?.setFillActive(false);
     renderer?.syncModel({ draw: false });
     renderer?.setSeedMarks(null, false);
     appearance.setColourOptionAvailable("citation-hop", false);
@@ -4263,7 +4264,12 @@ ${error instanceof Error ? error.message : String(error)}`,
     settled: () => {
       rebuildCurrentFocus();
     },
-    planned: () => refreshScopeRail(),
+    planned: () => {
+      // The plot holds its axes grow-only while papers land, and settles them
+      // once the fill is at rest (B47).
+      renderer?.setFillActive(fillLanding(hopFill.state()));
+      refreshScopeRail();
+    },
     planEmpty: () => {
       flushCoalescedPresentationRefresh();
       flushHopSnapshot();
