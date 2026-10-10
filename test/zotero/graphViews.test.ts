@@ -744,8 +744,14 @@ describe("Graph views (D4)", function () {
       "the toolbar keeps its own notices",
     ).to.not.equal("Copied");
     // Three seconds up and a short fade; it is gone well inside five.
+    const rootBefore = graphRoot();
+    const toastBefore = rootBefore.querySelector(".cm-status-toast");
     await delay(2_000);
-    expect(toastText(), "still up after two seconds").to.equal("Copied");
+    expect(
+      toastText(),
+      `still up after two seconds (root replaced: ${graphRoot() !== rootBefore}, ` +
+        `toast connected: ${toastBefore?.isConnected}, state ${(toastBefore as HTMLElement | null)?.dataset.state})`,
+    ).to.equal("Copied");
     const gone = await waitFor(() => toastText() === "", 3_000);
     expect(gone, `after five seconds the toast read "${toastText()}"`).to.equal(
       true,

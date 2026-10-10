@@ -134,6 +134,8 @@ describe("A graph started from selected papers", function () {
     const doc = win.document as Document;
     const already = new Set(graphTabs().map((tab) => tab.id));
     const itemMenu = doc.getElementById("zotero-itemmenu")!;
+    // Plugin entries are built into the menu only by Zotero's own builder.
+    await win.ZoteroPane.buildItemContextMenu();
     const showing = shown(itemMenu);
     (itemMenu as any).openPopup(null, "after_start", 0, 0, true, false);
     await showing;
