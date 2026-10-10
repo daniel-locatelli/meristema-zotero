@@ -50,6 +50,8 @@ import {
   mergeRelationEntries,
   paperAbstract,
   relationshipTabLabel,
+  type DetailFold,
+  type DetailFoldMemory,
   type DetailTab,
   type DetailTabLabel,
   type RelationEntry,
@@ -287,16 +289,33 @@ export function createBadges(
 
 /* ------------------------------------------------------------- metrics */
 
+/**
+ * Opens `details` as `folds` last saw it, or as `fallback` says without one,
+ * and has `folds` remember whatever the reader does to it next.
+ */
+function rememberFold(
+  details: HTMLDetailsElement,
+  fold: DetailFold,
+  folds: DetailFoldMemory | undefined,
+  fallback: boolean,
+): void {
+  details.open = folds ? folds.isOpen(fold) : fallback;
+  if (!folds) return;
+  details.addEventListener("toggle", () => folds.remember(fold, details.open));
+}
+
 function advancedMetrics(
   document: Document,
   node: CitationGraphNode,
+  folds?: DetailFoldMemory,
 ): HTMLElement {
   const details = element(document, "details", "cm-advanced-details");
   // Open by default (B22): nothing in it is editable, so there is nothing to
   // protect the reader from, and a closed disclosure only hides what the
   // plugin knows. Every row stays, dashes included: a dash says the plugin
-  // looked and found nothing (F8), and F9 is what fills it.
-  details.open = true;
+  // looked and found nothing (F8), and F9 is what fills it. A reader who
+  // closes it keeps it closed for the next paper, when `folds` is given.
+  rememberFold(details, "advanced", folds, true);
   details.appendChild(text(document, "summary", "Advanced"));
   const rows = element(document, "dl", "cm-metric-list");
   const append = (label: string, value: string, description: string): void => {
@@ -330,11 +349,13 @@ function advancedMetrics(
 /**
  * Three figures — FWCI, citations per year, percentile — or one sentence when
  * none is known, then Advanced with the rest of the registry. The tab row
- * above already states the citation and reference counts.
+ * above already states the citation and reference counts. With `folds`,
+ * Advanced opens as the reader last left it.
  */
 export function createOverviewMetrics(
   document: Document,
   node: CitationGraphNode,
+  folds?: DetailFoldMemory,
 ): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const headline = [
@@ -374,7 +395,7 @@ export function createOverviewMetrics(
     fragment.appendChild(detailSection(document, rows));
   }
   fragment.appendChild(
-    detailSection(document, advancedMetrics(document, node)),
+    detailSection(document, advancedMetrics(document, node, folds)),
   );
   return fragment;
 }
@@ -383,12 +404,14 @@ export function createOverviewMetrics(
  * The paper's abstract as a folded section under the header (F4), or null
  * when `paperAbstract` finds none, so a paper without one shows nothing
  * rather than an empty fold. Closed by default: an abstract runs to a dozen
- * lines and would push the metrics out of a short pane. The head is the one
- * Advanced draws.
+ * lines and would push the metrics out of a short pane. With `folds`, it opens
+ * as the reader last left it, so an abstract opened once stays open from
+ * paper to paper. The head is the one Advanced draws.
  */
 export function createAbstractSection(
   document: Document,
   node: CitationGraphNode,
+  folds?: DetailFoldMemory,
 ): HTMLElement | null {
   const abstract = paperAbstract(node);
   if (!abstract) return null;
@@ -401,6 +424,7 @@ export function createAbstractSection(
     text(document, "summary", "Abstract"),
     text(document, "p", abstract),
   );
+  rememberFold(details, "abstract", folds, false);
   return detailSection(document, details);
 }
 

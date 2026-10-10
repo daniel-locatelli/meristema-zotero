@@ -8,6 +8,7 @@ import type {
 import type { ExternalWork } from "../../src/domain/externalWork";
 import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import {
+  createDetailFoldMemory,
   ignoredRelationDescriptorFor,
   mergeRelationEntries,
   paperAbstract,
@@ -330,5 +331,38 @@ describe("paperAbstract", () => {
       externalWork: work({ abstract: null }),
     });
     expect(paperAbstract(hop)).to.equal(null);
+  });
+});
+
+describe("createDetailFoldMemory", () => {
+  it("starts with Abstract closed and Advanced open", () => {
+    const folds = createDetailFoldMemory();
+    expect(folds.isOpen("abstract")).to.equal(false);
+    expect(folds.isOpen("advanced")).to.equal(true);
+  });
+
+  it("keeps a fold the reader opened open for the next paper", () => {
+    const folds = createDetailFoldMemory();
+    folds.remember("abstract", true);
+    expect(folds.isOpen("abstract")).to.equal(true);
+    expect(folds.isOpen("advanced"), "the other fold is untouched").to.equal(
+      true,
+    );
+  });
+
+  it("keeps a fold the reader closed closed", () => {
+    const folds = createDetailFoldMemory();
+    folds.remember("abstract", true);
+    folds.remember("abstract", false);
+    folds.remember("advanced", false);
+    expect(folds.isOpen("abstract")).to.equal(false);
+    expect(folds.isOpen("advanced")).to.equal(false);
+  });
+
+  it("remembers per memory, so two graph views do not share one", () => {
+    const first = createDetailFoldMemory();
+    const second = createDetailFoldMemory();
+    first.remember("abstract", true);
+    expect(second.isOpen("abstract")).to.equal(false);
   });
 });

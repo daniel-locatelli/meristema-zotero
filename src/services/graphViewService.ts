@@ -210,6 +210,7 @@ import {
   type RelationshipList,
   type RowAction,
 } from "./paperDetailView";
+import { createDetailFoldMemory } from "./paperDetailModel";
 import {
   createIcon,
   PANE_TOGGLE_ICON_SIZE,
@@ -566,6 +567,8 @@ export function renderGraphView(
   /** What the last `applyFilters` decided, for the rail to print. */
   let lastScope: GraphScopeResult | null = null;
   let selectedNode: CitationGraphNode | null = null;
+  // The Abstract and Advanced folds as the reader last left them (F4).
+  const detailFolds = createDetailFoldMemory();
   let detailTabs: ReturnType<typeof createDetailTabs> | null = null;
 
   /**
@@ -3573,9 +3576,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
 
     appendPaperHeader(node, "overview");
-    const abstract = createAbstractSection(document, node);
+    const abstract = createAbstractSection(document, node, detailFolds);
     if (abstract) detailBody.appendChild(abstract);
-    detailBody.appendChild(createOverviewMetrics(document, node));
+    detailBody.appendChild(createOverviewMetrics(document, node, detailFolds));
 
     if (node.kind === "external" && node.externalWork) {
       const work = node.externalWork as ExternalWork;

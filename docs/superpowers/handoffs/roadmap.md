@@ -359,6 +359,9 @@ any failure into a new entry above.
       then open New Graph on the library: it keeps your saved axes, not Free.
 - [ ] B26: select a folder's region, then type a search that matches none
       of its papers: the hull stays put; clearing the search changes nothing.
+- [ ] F4 fold: open ABSTRACT and close ADVANCED, then select another paper
+      with an abstract: ABSTRACT stays open and ADVANCED closed; reverse
+      both and select again: they stay as you left them.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
