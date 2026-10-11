@@ -350,12 +350,13 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-10 at `da2b54d` (111/0; the two runs before it
-failed B28's "keeps drawing the plot" case, because B7's empty-library case
-saved Free/Free axes into the preference: fixed in `da2b54d`), so count with
-the commits since `da2b54d`. A clean run is 111 passed, 0 failed as of
-2026-10-10. B28's case deselects the folder the case before it left selected,
-so it does not test what its name says.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-11 at `2b25538` (117/0; the run before it, 113/4,
+found B48's band under the floor tag, fixed in `2b25538`, and two new cases
+that read the item menu unbuilt or lost a toast to a remount), so count with
+the commits since `2b25538`. A clean run is 117 passed, 0 failed as of
+2026-10-11. B28's case deselects the folder the case before it left selected,
+so it does not test what its name says. The D15 toast case names a remount in
+its message if it fails again.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -604,3 +605,8 @@ entries are in git history.
   sticky notice and F3's committee label fixed, each entry rewritten to the
   decision it waits on; the gear no longer saves axes it fell back to. Full
   run at `da2b54d` 111/0. Not pushed.
+- 2026-10-11: the user decided eleven open entries; B26, D9, D15, D17, D19,
+  D20, D21, D22, F7, B47 and B48 shipped in parallel worktrees, and F4's folds
+  keep their state across selections (ADR 0019 for D17). The full run found
+  the floor tag covering B48's band; a paper under the tag now wins. Full run
+  at `2b25538` 117/0. Not pushed.
