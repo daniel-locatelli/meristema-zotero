@@ -795,12 +795,12 @@ export class CitationGraphRenderer {
     if (event.button !== 0) return;
     this.markViewAdjusted();
     this.canvas.setPointerCapture?.(event.pointerId);
-    // The tag always grabs the floor; a node wins over the bare line.
+    // A node wins over the floor, tag or line: the tag of a floor at the
+    // axis minimum covers the No data band's end, where a paper parks (B48).
     const floorHit = this.floorHit(event.clientX, event.clientY);
-    if (floorHit === "tag") return this.beginFloorDrag(event);
     const world = this.screenToWorld(event.clientX, event.clientY);
     const node = this.hitTest(world.x, world.y);
-    if (!node && floorHit === "line") return this.beginFloorDrag(event);
+    if (!node && floorHit) return this.beginFloorDrag(event);
     const canDragNode = Boolean(
       node &&
       (this.layout.xMetric === "free" || this.layout.yMetric === "free"),
@@ -869,9 +869,9 @@ export class CitationGraphRenderer {
     }
     const floorHit = this.floorHit(event.clientX, event.clientY);
     const world = this.screenToWorld(event.clientX, event.clientY);
-    // The tag is over the plot; the bare line yields to a node under it.
-    const node = floorHit === "tag" ? null : this.hitTest(world.x, world.y);
-    const overFloor = floorHit === "tag" || (floorHit === "line" && !node);
+    // The floor, tag or line, yields to a node under it.
+    const node = this.hitTest(world.x, world.y);
+    const overFloor = floorHit !== null && !node;
     const key = node?.key ?? null;
     if (key !== this.hoverKey || overFloor !== this.floorHovered) {
       this.hoverKey = key;

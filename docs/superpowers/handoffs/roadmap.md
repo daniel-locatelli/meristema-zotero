@@ -336,6 +336,10 @@ any failure into a new entry above.
       your settings; "Reset to built-in default" undoes that.
 - [ ] D17: change the gear on a saved graph, save, close and reopen it:
       the edit is still there.
+- [ ] Floor tag: on a year/citations graph with a paper that has no count
+      and the oldest year, hover the No data band under the floor tag: the
+      paper names itself and right-click offers its menu; the tag still
+      drags from its other end.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

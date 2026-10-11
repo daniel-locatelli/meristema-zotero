@@ -290,7 +290,7 @@ describe("CitationGraphRenderer floor", function () {
     expect(changes).to.deep.equal([expected]);
   });
 
-  it("lets a node win over the bare line, and the tag win over a node", function () {
+  it("lets a node win over the bare line", function () {
     const selected: string[] = [];
     const changes: number[] = [];
     const { renderer, canvas } = makeRenderer(CITATIONS_Y, {
@@ -306,6 +306,59 @@ describe("CitationGraphRenderer floor", function () {
     canvas.fire("pointerup", { pointerId: 1, ...press });
     expect(selected).to.deep.equal(["mid"]);
     expect(changes).to.be.empty;
+  });
+
+  it("lets a paper under the tag win its hover and press, and the tag the rest", function () {
+    // A paper with no count parks in the No data band (B48), whose left end
+    // the tag of a floor at the axis minimum covers.
+    const selected: string[] = [];
+    const changes: number[] = [];
+    const canvas = new FakeCanvas();
+    const renderer = new CitationGraphRenderer({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      model: model([
+        node("counted", { year: 2015, citationCount: 6 }),
+        node("parked", { year: 2012, citationCount: null }),
+      ]),
+      layout: { ...FREE_LAYOUT, ...CITATIONS_Y },
+      collectionLabels: new Map(),
+      onSelectionChange: (node) => selected.push(node?.key ?? "none"),
+      onOpenNode: () => undefined,
+      onFloorChange: (floor) => changes.push(floor),
+    });
+    attachView(canvas);
+    renderer.setFloor(0, 0);
+    renderer.fitView();
+    const tag = theTag(renderer);
+    const parked = toClient(renderer, renderer.positionOf("parked")!);
+    // The point of the tag nearest the paper, still on the paper.
+    const press = {
+      clientX: Math.min(Math.max(parked.clientX, tag.left), tag.right),
+      clientY: Math.min(Math.max(parked.clientY, tag.top), tag.bottom),
+    };
+    const view = renderer.getViewTransform();
+    const under = (
+      renderer as unknown as {
+        hitTest(x: number, y: number): CitationGraphNode | null;
+      }
+    ).hitTest(
+      (press.clientX - view.x) / view.scale,
+      (press.clientY - view.y) / view.scale,
+    );
+    expect(under?.key, "the tag covers part of the paper").to.equal("parked");
+    canvas.fire("pointermove", press);
+    expect(canvas.title, "the paper names itself").to.not.equal(
+      floorTagText(0, 0),
+    );
+    expect(canvas.title).to.not.equal("");
+    canvas.fire("pointerdown", { button: 0, pointerId: 1, ...press });
+    canvas.fire("pointerup", { pointerId: 1, ...press });
+    expect(selected).to.deep.equal(["parked"]);
+    expect(changes).to.be.empty;
+    // Clear of the paper, the tag still names the floor.
+    const far = { clientX: tag.right - 2, clientY: (tag.top + tag.bottom) / 2 };
+    canvas.fire("pointermove", far);
+    expect(canvas.title).to.equal(floorTagText(0, 0));
   });
 
   it("names the tag in the canvas title while it is hovered", function () {
