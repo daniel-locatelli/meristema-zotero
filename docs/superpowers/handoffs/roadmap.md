@@ -168,8 +168,6 @@ Fixes (no decision needed):
 - [ ] B98 clicking a Seeds row centres the seed in the view, not just brings
       it in
 - [ ] B99 a selected node's edges cast a black shadow in light mode
-- [ ] B100 Add seed panel: drop the row's `+` hint; the scrollbar overlaps the
-      rows, give it its own gutter
 - [ ] B101 a hovered paper's full-title label draws a leader line to its node
       when it is placed away; drop the line. The native `title` tooltip still
       shows on hover sometimes; drop it on the plot
@@ -241,6 +239,9 @@ any failure into a new entry above.
       after it stops.
 - [ ] D24: apply Folder map: papers fill by citation count, the card
       reads "colour citations", and the regions still show the folders.
+- [ ] B100: + Add seed, search a query with enough rows to scroll: no `+`
+      on any row, a click anywhere adds it, and the scrollbar keeps a clear
+      gap from a hovered row's fill, in light and dark.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

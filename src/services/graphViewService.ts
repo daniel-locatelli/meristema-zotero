@@ -1944,10 +1944,7 @@ export function renderGraphView(
       };
       row.appendChild(main);
       if (!isSeed) {
-        // The + says what the row does; the row is the button.
-        const hint = text(document, "span", "+", "cm-focus-seed-result-add");
-        hint.setAttribute("aria-hidden", "true");
-        main.appendChild(hint);
+        // The row is the button; it carries no + of its own (B100).
         main.addEventListener("click", () => {
           const node = nodeForRow();
           if (!node) return;

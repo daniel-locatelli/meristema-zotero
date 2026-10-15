@@ -1236,6 +1236,13 @@
   max-height: min(360px, 52vh);
   overflow: auto;
   overscroll-behavior: contain;
+  /*
+   * The scrollbar keeps its own lane beside the rows' hover fill (B100): the
+   * gutter for a classic scrollbar, the padding for an overlay one, which
+   * draws over the padding box and takes no gutter.
+   */
+  scrollbar-gutter: stable;
+  padding-right: 10px;
 }
 .cm-focus-seed-result {
   display: flex;
@@ -1249,8 +1256,7 @@
 .meristema-root .cm-focus-seed-result-main {
   display: flex;
   flex: 1 1 auto;
-  /* The text, and a non-seed row's + beside it: the row is the button (B15). */
-  gap: 8px;
+  /* The row is the button (B15); it holds only the text. */
   min-width: 0;
   padding: 7px 8px;
   border-color: transparent;
@@ -1282,20 +1288,6 @@
 .cm-focus-seed-result-meta {
   color: color-mix(in srgb, CanvasText 68%, transparent);
   font-size: calc(11 * var(--cm-font-unit));
-}
-/* Not a control: it says what a click on its row does. */
-.cm-focus-seed-result-add {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-right: -4px;
-  border-radius: 50%;
-  font-size: 16px; /* glyph: a + in a fixed box is an icon (B93) */
-}
-.cm-focus-seed-result:hover .cm-focus-seed-result-add {
-  background: color-mix(in srgb, var(--cm-accent) 14%, Canvas);
 }
 .meristema-root .cm-focus-seed-result-remove {
   align-self: center;

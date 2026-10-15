@@ -495,7 +495,23 @@ describe("The graph's Scope rail", function () {
       "the space between the title and its metadata line",
     ).to.be.at.least(6);
 
-    // The reader clicks the paper's title, not the + at the row's end.
+    // B100: the row carries no + hint, and it stops short of the lane an
+    // overlay scrollbar draws over at the list's right edge.
+    expect(row!.querySelector(".cm-focus-seed-result-add"), "the row's + hint")
+      .to.not.exist;
+    const results = popover.querySelector(
+      ".cm-focus-seed-results",
+    ) as HTMLElement;
+    const resultsRight =
+      results.getBoundingClientRect().left +
+      results.clientLeft +
+      results.clientWidth;
+    expect(
+      resultsRight - row!.getBoundingClientRect().right,
+      "the gap between a row and the list's scrollbar lane",
+    ).to.be.at.least(8);
+
+    // The reader clicks the paper's title anywhere on the row.
     (row!.querySelector(".cm-focus-seed-result-title") as HTMLElement).click();
     await waitFor(() => seedRowCount() === 2, 5_000);
     expect(seedRowCount(), "one click on the row seeds the paper").to.equal(2);
