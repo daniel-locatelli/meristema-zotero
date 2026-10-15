@@ -1010,29 +1010,8 @@ export function drawRendererLabels(
 
     obstacles.insert(chosen.rectangle);
     if (!important) budget.placed(width * height);
-    const defaultPlacement = chosen === evaluated[0];
-    // The hovered paper's label needs no leader: the pointer already marks
-    // whose it is, and a line across a whole wrapped title reads as an edge
-    // (B101).
-    if (!defaultPlacement && node.key !== renderer.hoverKey) {
-      const labelEdgeX = clamp(
-        position.x,
-        chosen.rectangle.left,
-        chosen.rectangle.right,
-      );
-      const labelEdgeY = clamp(
-        position.y,
-        chosen.rectangle.top,
-        chosen.rectangle.bottom,
-      );
-      context.beginPath();
-      context.moveTo(position.x, position.y);
-      context.lineTo(labelEdgeX, labelEdgeY);
-      context.strokeStyle = renderer.getTheme().inks.muted;
-      context.lineWidth = 0.8 * ratio;
-      context.stroke();
-    }
-
+    // A pushed-aside label draws no leader to its node: a line from the disc
+    // to the label reads as an edge (B101, B103).
     const ghosted = renderer.isNodeGhosted(node);
     // The label fades with its disc: hop opacity and the Key's emphasis both
     // feed it, so a dimmed hop-6 paper does not keep a full-strength name.
