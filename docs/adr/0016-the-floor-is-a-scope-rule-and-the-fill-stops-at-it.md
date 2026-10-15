@@ -18,3 +18,8 @@ them by turning off the Filter's "Include missing citations" (the row then
 reads `hidden`, and a click brings them back). The scope reads that switch
 beside the floor rather than among the facets, so the row can count what it
 hides.
+
+Amended 2026-10-15 (D29): the note read as lost on the floor's row, so it is
+its own switch row under it, `Papers with no count (n)`, like the folder and
+hop rows: on keeps them, off hides them. It shows only while the floor is
+raised and one is in view, and counts them either way.

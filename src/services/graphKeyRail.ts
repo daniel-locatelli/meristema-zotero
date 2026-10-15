@@ -24,6 +24,7 @@ import {
   formatRetryIn,
   scopeSquare,
   type ScopeFloorRow,
+  type ScopeNoCountRow,
   type ScopeSharedRow,
   type ScopeHopRow,
   type ScopeHopsBlock,
@@ -165,7 +166,7 @@ export interface ScopeRailHandlers {
   fillControl(action: "stop" | "resume" | "more"): void;
   /** The Citation floor field committed a value (Enter or blur). */
   setFloor(value: number): void;
-  /** The floor row's no-count note: keep (true) or hide the papers with no count. */
+  /** The no-count switch under the floor: keep (true) or hide the papers with no count. */
   setKeepNoCount(keep: boolean): void;
   /** The Shared by field committed a value (Enter or blur). */
   setShared(value: number): void;
@@ -568,8 +569,6 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     sign: string | null;
     suffix: string | null;
     countText: string;
-    /** Appended to the count after a dot; the floor's no-count note. */
-    countExtra?: HTMLElement;
     commit: (value: number) => void;
   }): HTMLElement {
     const wrapper = element(
@@ -620,11 +619,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     });
     field.append(input);
     if (spec.suffix) field.append(text(document, "span", spec.suffix));
-    const count = text(document, "span", spec.countText, "cm-scope-row-count");
-    if (spec.countExtra) {
-      count.append(text(document, "span", " · "), spec.countExtra);
-    }
-    wrapper.append(field, count);
+    wrapper.append(
+      field,
+      text(document, "span", spec.countText, "cm-scope-row-count"),
+    );
     return wrapper;
   }
 
@@ -633,28 +631,6 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
    * only control when no axis shows citations, so it is always editable.
    */
   function floorRowElement(row: ScopeFloorRow): HTMLElement {
-    const noCount = row.noCount;
-    let note: HTMLElement | undefined;
-    if (noCount) {
-      // No count is unknown, not low, so the floor keeps these (ADR 0016);
-      // the note says so and is the way to hide them, or bring them back.
-      // Not `cm-scope-show-all`: a query for the hidden line's link must
-      // never answer with this one.
-      const button = element(
-        document,
-        "button",
-        "cm-link-button cm-scope-floor-no-count",
-      );
-      button.type = "button";
-      button.textContent = noCount.text;
-      button.title = noCount.hidden
-        ? "Show the papers with no citation count"
-        : "Hide the papers with no citation count";
-      button.addEventListener("click", () =>
-        options.onScope.setKeepNoCount(noCount.hidden),
-      );
-      note = button;
-    }
     return numberRowElement({
       kind: "floor",
       label: "Citation floor",
@@ -664,9 +640,53 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       sign: "≥",
       suffix: null,
       countText: row.belowText,
-      countExtra: note,
       commit: (value) => options.onScope.setFloor(value),
     });
+  }
+
+  /**
+   * `Papers with no count (n)` under the floor's row, a switch row like the
+   * folder and hop rows: the square on keeps them, off hides them (D29). Its
+   * body is no button, since there is nothing to select.
+   */
+  function noCountRowElement(row: ScopeNoCountRow): HTMLElement {
+    const wrapper = element(
+      document,
+      "div",
+      "cm-scope-row cm-scope-no-count-row",
+    );
+    const boxLabel = element(document, "label", "cm-scope-check-label");
+    const box = element(
+      document,
+      "input",
+      "cm-scope-check",
+    ) as HTMLInputElement;
+    box.type = "checkbox";
+    box.checked = row.kept;
+    box.title = row.kept
+      ? "Hide the papers with no citation count"
+      : "Show the papers with no citation count";
+    boxLabel.title = box.title;
+    box.addEventListener("change", () =>
+      options.onScope.setKeepNoCount(box.checked),
+    );
+    const square = element(document, "span", "cm-scope-square");
+    square.setAttribute("aria-hidden", "true");
+    square.classList.add(
+      row.kept ? "cm-scope-square-on" : "cm-scope-square-off",
+    );
+    boxLabel.append(box, square);
+    const body = element(
+      document,
+      "div",
+      "cm-scope-row-body cm-scope-no-count-body",
+    );
+    body.append(
+      text(document, "span", row.label, "cm-scope-row-label"),
+      text(document, "span", row.count, "cm-scope-row-count"),
+    );
+    wrapper.append(boxLabel, body);
+    return wrapper;
   }
 
   function sharedRowElement(row: ScopeSharedRow): HTMLElement {
@@ -930,6 +950,9 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       scopeHost.appendChild(rows);
       if (model.hops) scopeHost.appendChild(hopsBlockElement(model.hops));
       scopeHost.appendChild(floorRowElement(model.floor));
+      if (model.noCount) {
+        scopeHost.appendChild(noCountRowElement(model.noCount));
+      }
       if (model.shared) scopeHost.appendChild(sharedRowElement(model.shared));
       if (model.hiddenLine) {
         const hidden = element(document, "p", "cm-scope-hidden");

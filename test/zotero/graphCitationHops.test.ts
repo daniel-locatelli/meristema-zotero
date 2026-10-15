@@ -3480,13 +3480,21 @@ describe("Citation hops (Stage 3)", function () {
       ).to.deep.equal(["cites:W901", "cites:W902"]);
     });
 
-    it("says how many papers with no count the floor kept, and hides them on a click (D21)", async function () {
+    it("gives the papers with no count the floor kept a switch row, and hides them when it is off (D29)", async function () {
       this.timeout(60_000);
-      /** The note's count; digits grouped in the machine's locale. */
-      const noteCount = (note: Element | null): number =>
+      const row = (): HTMLElement | null =>
+        graphRoot().querySelector(".cm-scope-no-count-row");
+      const box = (): HTMLInputElement | null =>
+        row()?.querySelector(".cm-scope-check") ?? null;
+      /** The row's `(n)`; digits grouped in the machine's locale. */
+      const rowCount = (): number =>
         Number(
-          /^(\S+) with no count/
-            .exec(normalize(note?.textContent))?.[1]
+          /^\((\S+)\)$/
+            .exec(
+              normalize(
+                row()?.querySelector(".cm-scope-row-count")?.textContent,
+              ),
+            )?.[1]
             ?.replace(/\D/g, "") ?? "NaN",
         );
       /** `{shown}` of the rail's count line, in the same locale. */
@@ -3500,46 +3508,49 @@ describe("Citation hops (Stage 3)", function () {
             )?.[1]
             ?.replace(/\D/g, "") ?? "NaN",
         );
-      const note = (): HTMLButtonElement | null =>
-        graphRoot().querySelector(".cm-scope-floor-no-count");
+      const rowEvidence = (): string =>
+        `row "${normalize(row()?.textContent)}", checked ${String(box()?.checked)}; ${floorEvidence()}`;
 
-      // The floor is off after the case before, so the row says nothing.
-      expect(note(), floorEvidence()).to.equal(null);
+      // The floor is off after the case before, so there is no row.
+      expect(row(), floorEvidence()).to.equal(null);
       await typeFloor(FLOOR);
       const kept = await waitFor(
-        () =>
-          /with no count kept/.test(note()?.textContent ?? "") ? note() : null,
+        () => (box()?.checked === true ? row() : null),
         10_000,
       );
-      expect(kept, `no kept note: ${floorEvidence()}`).to.exist;
+      expect(kept, `no switch row: ${rowEvidence()}`).to.exist;
+      expect(
+        normalize(kept!.querySelector(".cm-scope-row-label")?.textContent),
+      ).to.equal("Papers with no count");
+      // Its own row: the floor's row says only what sits below.
+      expect(
+        kept!.previousElementSibling?.classList.contains("cm-scope-floor-row"),
+        rowEvidence(),
+      ).to.equal(true);
+      expect(floorRowText()).not.to.include("no count");
       // NO_DATA_TITLE has no count at all; other suites' papers may add more.
-      const n = noteCount(kept);
-      expect(n, floorRowText()).to.be.at.least(1);
-      expect(floorRowText()).to.include(" · ");
+      const n = rowCount();
+      expect(n, rowEvidence()).to.be.at.least(1);
       const before = shown();
 
-      kept!.click();
+      // The click flips the old box at once; the rail's answer is a new row.
+      box()!.click();
       const hidden = await waitFor(
-        () =>
-          /with no count hidden/.test(note()?.textContent ?? "")
-            ? note()
-            : null,
+        () => (row() !== kept && box()?.checked === false ? row() : null),
         10_000,
       );
-      expect(hidden, `no hidden note: ${floorEvidence()}`).to.exist;
-      expect(noteCount(hidden), floorRowText()).to.equal(n);
+      expect(hidden, `the switch never read off: ${rowEvidence()}`).to.exist;
+      expect(rowCount(), rowEvidence()).to.equal(n);
       expect(shown(), "the count line drops by the papers hidden").to.equal(
         before - n,
       );
 
-      hidden!.click();
+      box()!.click();
       const back = await waitFor(
-        () =>
-          /with no count kept/.test(note()?.textContent ?? "") ? note() : null,
+        () => (row() !== hidden && box()?.checked === true ? row() : null),
         10_000,
       );
-      expect(back, `the note never read kept again: ${floorEvidence()}`).to
-        .exist;
+      expect(back, `the switch never read on again: ${rowEvidence()}`).to.exist;
       expect(shown(), "the count line is back").to.equal(before);
       // typeFloor waits for a "below" the floor off never prints.
       floorInput().value = "0";
@@ -3549,7 +3560,7 @@ describe("Citation hops (Stage 3)", function () {
         10_000,
       );
       expect(gone, floorEvidence()).to.equal(true);
-      expect(note(), floorEvidence()).to.equal(null);
+      expect(row(), rowEvidence()).to.equal(null);
     });
   });
 

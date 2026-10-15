@@ -336,7 +336,6 @@ describe("the Citation floor row", function () {
     expect(model.floor).to.deep.equal({
       value: 20,
       belowText: "143 below",
-      noCount: null,
     });
   });
 
@@ -345,44 +344,45 @@ describe("the Citation floor row", function () {
     expect(model.floor).to.deep.equal({
       value: 0,
       belowText: "off",
-      noCount: null,
     });
   });
 
-  it("says how many papers with no count a raised floor kept (D21)", function () {
+  it("gives the papers with no count a raised floor kept a switch row (D29)", function () {
     const model = buildScopeRailModel({
       ...baseInput(),
       floor: 20,
       scope: { ...baseInput().scope, noCountCount: 1200 },
     });
-    expect(model.floor.noCount).to.deep.equal({
-      text: `${COUNT_FORMAT.format(1200)} with no count kept`,
-      hidden: false,
+    expect(model.noCount).to.deep.equal({
+      label: "Papers with no count",
+      count: `(${COUNT_FORMAT.format(1200)})`,
+      kept: true,
     });
   });
 
-  it("says they are hidden once the reader hid them (D21)", function () {
+  it("turns the switch off once the reader hid them (D29)", function () {
     const model = buildScopeRailModel({
       ...baseInput(),
       floor: 20,
       keepNoCount: false,
       scope: { ...baseInput().scope, noCountCount: 3 },
     });
-    expect(model.floor.noCount).to.deep.equal({
-      text: "3 with no count hidden",
-      hidden: true,
+    expect(model.noCount).to.deep.equal({
+      label: "Papers with no count",
+      count: "(3)",
+      kept: false,
     });
   });
 
-  it("says nothing of them with the floor off or none in view", function () {
+  it("has no switch row with the floor off or none in view", function () {
     const off = buildScopeRailModel({
       ...baseInput(),
       floor: 0,
       scope: { ...baseInput().scope, noCountCount: 3 },
     });
-    expect(off.floor.noCount).to.equal(null);
+    expect(off.noCount).to.equal(null);
     const none = buildScopeRailModel({ ...baseInput(), floor: 20 });
-    expect(none.floor.noCount).to.equal(null);
+    expect(none.noCount).to.equal(null);
   });
 });
 

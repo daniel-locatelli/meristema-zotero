@@ -63,9 +63,9 @@ never hides a paper the folder rule admits.
 The citation count a paper needs to be shown. A paper under it is not shown
 and is not followed by the fill; one with no count passes. Seeds are never
 under it. Set by dragging the line on the plot or typing in the rail.
-While it is raised, its rail row says how many papers with no count it kept,
-and a click on that hides them (the Filter's "Include missing citations"),
-or brings them back.
+While it is raised, a switch row under it, `Papers with no count (n)`, says
+how many papers with no count it kept; off hides them (the Filter's "Include
+missing citations"), on brings them back.
 _Avoid_: threshold, cutoff, min citations
 
 **Shared rule**:

@@ -180,6 +180,8 @@ export interface ScopeRailModel {
   /** The Citation hops block, or null on a seedless graph. */
   hops: ScopeHopsBlock | null;
   floor: ScopeFloorRow;
+  /** The switch row under the floor's, or null while it has nothing to say. */
+  noCount: ScopeNoCountRow | null;
   /** The shared rule's row, or null with fewer than two seeds. */
   shared: ScopeSharedRow | null;
 }
@@ -189,11 +191,20 @@ export interface ScopeFloorRow {
   value: number;
   /** `{n} below`, or `off` while the floor is 0. */
   belowText: string;
-  /**
-   * `{n} with no count kept`, or `hidden` once the reader hid them; a click
-   * flips which (D21). Null while the floor is off or none is in view.
-   */
-  noCount: { text: string; hidden: boolean } | null;
+}
+
+/**
+ * `Papers with no count (n)`, the switch row under the floor's (D29). No count
+ * is unknown, not low, so a raised floor keeps these (ADR 0016); the switch
+ * is the way to hide them, or bring them back. Only while the floor is raised
+ * and one is in view.
+ */
+export interface ScopeNoCountRow {
+  label: string;
+  /** `({n})`, counted whether they are kept or hidden. */
+  count: string;
+  /** The switch: on keeps them, off hides them. */
+  kept: boolean;
 }
 
 /**
@@ -558,14 +569,15 @@ export function buildScopeRailModel(input: ScopeRailInput): ScopeRailModel {
         input.floor > 0
           ? `${COUNT_FORMAT.format(input.scope.belowFloorCount)} below`
           : "off",
-      noCount:
-        input.floor > 0 && input.scope.noCountCount > 0
-          ? {
-              text: `${COUNT_FORMAT.format(input.scope.noCountCount)} with no count ${input.keepNoCount === false ? "hidden" : "kept"}`,
-              hidden: input.keepNoCount === false,
-            }
-          : null,
     },
+    noCount:
+      input.floor > 0 && input.scope.noCountCount > 0
+        ? {
+            label: "Papers with no count",
+            count: `(${COUNT_FORMAT.format(input.scope.noCountCount)})`,
+            kept: input.keepNoCount !== false,
+          }
+        : null,
     shared:
       input.shared && input.shared.seedCount >= 2
         ? sharedRow(input.shared, input.scope.belowSharedCount)

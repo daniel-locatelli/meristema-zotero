@@ -1565,7 +1565,7 @@ export function renderGraphView(
       toggleHop: (hop, on) => setHopEnabled(hop, on),
       fillControl: (action) => fillControl(action),
       setFloor: (value) => setFloor(value),
-      // The Filter popover's switch, flipped from the floor's row (D21);
+      // The Filter popover's switch, flipped from the no-count row (D21, D29);
       // setState re-applies the filters and saves the view.
       setKeepNoCount: (keep) =>
         graphFilter.setState({

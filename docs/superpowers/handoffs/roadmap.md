@@ -241,6 +241,9 @@ any failure into a new entry above.
       both themes; a ring hovers and selects across its whole disc.
 - [ ] F14: the Key's States lists In Zotero and Not in Zotero with counts;
       hovering each dims the other kind. A library-only graph shows neither.
+- [ ] D29: raise the floor on a graph with uncounted papers: a
+      `Papers with no count (n)` switch row sits under the floor's, styled
+      like Unfiled; off drops the count line by n, on brings them back.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
