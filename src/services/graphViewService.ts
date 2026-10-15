@@ -166,6 +166,7 @@ import {
   routeStatus,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_MS,
+  toolbarStatusAfter,
 } from "./graphStatusRoute";
 import { createKeyRail, type RailEmphasis } from "./graphKeyRail";
 import {
@@ -4605,12 +4606,13 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): void => {
     if (cleaned) return;
     const route = routeStatus(message, options);
-    if (route.to === "toast") {
-      showStatusToast(route.message);
-      return;
-    }
-    toolbarStatus.textContent = route.message ?? "";
-    toolbarStatus.hidden = !route.message;
+    if (route.to === "toast") showStatusToast(route.message);
+    const toolbar = toolbarStatusAfter(
+      toolbarStatus.hidden ? null : toolbarStatus.textContent,
+      route,
+    );
+    toolbarStatus.textContent = toolbar ?? "";
+    toolbarStatus.hidden = !toolbar;
   };
 
   const formatSavedDate = (iso: string): string => {

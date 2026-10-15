@@ -877,6 +877,118 @@ describe("Graph views (D4)", function () {
     win.Zotero_Tabs.select(tabID);
   });
 
+  it("keeps the read-only notice in the toolbar through a toast and after it passes (D15)", async function () {
+    this.timeout(60_000);
+    // The row the case above left raw: nothing ever wrote the newer state back.
+    expect(newerGraphID, "the read-only case left its newer row").to.not.equal(
+      null,
+    );
+    openedTabID = await openSavedGraphFromFileMenu(NEWER_GRAPH_NAME);
+    const root = (): HTMLElement => {
+      const found = tabContent(openedTabID)?.querySelector(
+        ".meristema-root",
+      ) as HTMLElement | null;
+      expect(found, "the read-only graph is rendered").to.exist;
+      return found as HTMLElement;
+    };
+    const notice = (): string => {
+      const status = root().querySelector(
+        ".cm-toolbar-status",
+      ) as HTMLElement | null;
+      return status && !status.hidden ? normalize(status.textContent) : "";
+    };
+    await waitFor(() => notice() === SAVED_GRAPH_READ_ONLY_STATUS, 25_000);
+    expect(notice(), "the notice is up before any toast").to.equal(
+      SAVED_GRAPH_READ_ONLY_STATUS,
+    );
+    const greeting = await waitFor(() => {
+      const section = root().querySelector(
+        ".cm-view-gallery",
+      ) as HTMLElement | null;
+      return section && !section.hidden ? section : null;
+    }, 25_000);
+    if (greeting) {
+      buttonReading(greeting, "Start blank").click();
+      await waitFor(() => greeting.hidden, 5_000);
+    }
+
+    // A toast, raised the way a reader raises one: Copy JSON in Save view.
+    let panel: HTMLElement | null = null;
+    for (let attempt = 0; attempt < 5 && !panel; attempt += 1) {
+      const menu = await waitFor(() => {
+        const live = root().querySelector(
+          ".cm-view-menu",
+        ) as HTMLElement | null;
+        if (live && !live.hidden) return live;
+        (root().querySelector(".cm-view-chip") as HTMLButtonElement).click();
+        return null;
+      }, 10_000);
+      expect(menu, "the read-only graph's View dropdown").to.exist;
+      const action = (
+        Array.from(
+          root().querySelectorAll(".cm-view-action"),
+        ) as HTMLButtonElement[]
+      ).find(
+        (candidate) =>
+          normalize(candidate.textContent) === "Save current as view…",
+      );
+      expect(action, "the Save current as view… action").to.exist;
+      action!.click();
+      panel = await waitFor(() => {
+        const live = root().querySelector(
+          ".cm-view-save",
+        ) as HTMLElement | null;
+        return live && !live.hidden ? live : null;
+      }, 2_000);
+    }
+    expect(panel, "the save panel opened on the read-only graph").to.exist;
+    panel = panel as HTMLElement;
+    const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
+    name.value = "D15 sticky view";
+    fire(name, "input");
+    const internal = Zotero.Utilities.Internal as unknown as {
+      copyTextToClipboard: (text: string) => void;
+    };
+    const copy = internal.copyTextToClipboard;
+    internal.copyTextToClipboard = () => {};
+    try {
+      buttonReading(panel, "Copy JSON").click();
+    } finally {
+      internal.copyTextToClipboard = copy;
+    }
+    const toast = (): HTMLElement | null =>
+      root().querySelector(
+        ".cm-status-toast-region .cm-status-toast",
+      ) as HTMLElement | null;
+    expect(normalize(toast()?.textContent), "the toast says Copied").to.equal(
+      "Copied",
+    );
+    // D25: the toast reads as a card, not a whisper.
+    const style = root().ownerDocument.defaultView!.getComputedStyle(toast()!)!;
+    expect(
+      `${style.fontWeight} ${style.borderTopWidth} ${style.borderTopStyle} ` +
+        `${style.borderTopLeftRadius} ${style.boxShadow !== "none"}`,
+      "the toast's weight, rule, corner and shadow",
+    ).to.equal("500 1px solid 8px true");
+    expect(notice(), "the notice stays up under the toast").to.equal(
+      SAVED_GRAPH_READ_ONLY_STATUS,
+    );
+
+    const gone = await waitFor(() => !toast(), 5_000);
+    expect(gone, `the toast still read "${toast()?.textContent}"`).to.equal(
+      true,
+    );
+    expect(notice(), "the notice is back once the toast passed").to.equal(
+      SAVED_GRAPH_READ_ONLY_STATUS,
+    );
+
+    buttonReading(panel, "Cancel").click();
+    win.Zotero_Tabs.close(openedTabID);
+    openedTabID = null;
+    await delay(300);
+    win.Zotero_Tabs.select(tabID);
+  });
+
   it("imports a view from a JSON file and suffixes a taken name", async function () {
     this.timeout(60_000);
     const wire = encodeGraphView(

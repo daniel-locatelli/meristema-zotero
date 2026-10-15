@@ -34,7 +34,12 @@
   --cm-surface: color-mix(in srgb, Canvas 95%, CanvasText 5%);
   --cm-surface-raised: color-mix(in srgb, Canvas 98%, CanvasText 2%);
   --cm-muted: color-mix(in srgb, CanvasText 68%, transparent);
-  --cm-toast-shadow: color-mix(in srgb, black 18%, transparent);
+  /* The toast's card (D25): the plot's own ground, lifted by a rule and a
+   * soft two-layer shadow; the dark scheme lifts the ground a step instead. */
+  --cm-toast-surface: Canvas;
+  --cm-toast-border: color-mix(in srgb, CanvasText 14%, transparent);
+  --cm-toast-shadow: color-mix(in srgb, black 12%, transparent);
+  --cm-toast-shadow-near: color-mix(in srgb, black 8%, transparent);
   /*
    * Zotero's own two inks for a pane's secondary text and for the rules
    * between an item pane's sections: `--fill-secondary` is 55% of the ink in
@@ -1053,27 +1058,34 @@
 }
 /*
  * The toast: a passing confirmation ("Copied", "Saved") in the plot's corner,
- * over the tutorial card, for three seconds (D15). The region is the live
- * region and takes no room; the toast slides in and fades out. Canvas and
- * CanvasText follow the stamped scheme, so the surface turns with the theme
- * as the tutorial card's does; the dark scheme only deepens the shadow.
+ * over the tutorial card, for three seconds (D15). It reads as a card (D25):
+ * its own surface, rule and shadow, medium-weight text two steps over the
+ * plot's, set in the graph's font unit so B93's sizing carries it. The region
+ * is the live region and takes no room; the toast slides up and fades in,
+ * then fades down and out.
  */
 .cm-status-toast-region {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  right: 16px;
+  bottom: 16px;
   z-index: 13;
-  max-width: calc(100% - 28px);
+  max-width: calc(100% - 32px);
   pointer-events: none;
 }
 .cm-status-toast {
-  padding: 7px 12px;
-  border: 1px solid var(--cm-border);
+  box-sizing: border-box;
+  min-width: min(200px, 100%);
+  padding: 12px 16px;
+  border: 1px solid var(--cm-toast-border);
   border-radius: 8px;
-  background: var(--cm-surface-raised);
+  background: var(--cm-toast-surface);
   color: CanvasText;
-  box-shadow: 0 6px 18px var(--cm-toast-shadow);
-  font-size: calc(12 * var(--cm-font-unit));
+  box-shadow:
+    0 10px 15px -3px var(--cm-toast-shadow),
+    0 4px 6px -4px var(--cm-toast-shadow-near);
+  font-size: calc(14 * var(--cm-font-unit));
+  font-weight: 500;
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1085,7 +1097,7 @@
 @keyframes cm-status-toast-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(12px);
   }
 }
 @keyframes cm-status-toast-out {
@@ -1144,7 +1156,10 @@
  */
 .meristema-root[data-cm-scheme="dark"] {
   --cm-link: #8fb8ff;
+  --cm-toast-surface: color-mix(in srgb, Canvas 92%, CanvasText 8%);
+  --cm-toast-border: color-mix(in srgb, CanvasText 20%, transparent);
   --cm-toast-shadow: color-mix(in srgb, black 45%, transparent);
+  --cm-toast-shadow-near: color-mix(in srgb, black 30%, transparent);
   --cm-warning-ink: #e8894a;
   --cm-icon-color: #f2f2f2;
   --cm-sidepane: var(--material-sidepane, #303030);

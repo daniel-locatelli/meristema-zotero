@@ -20,6 +20,17 @@ export function routeStatus(
   return options.sticky ? { to: "toolbar", message } : { to: "toast", message };
 }
 
+/**
+ * What the toolbar reads once a routed message lands: a toast leaves the
+ * sticky notice where it was, so the notice outlasts every toast after it.
+ */
+export function toolbarStatusAfter(
+  toolbar: string | null,
+  route: StatusRoute,
+): string | null {
+  return route.to === "toolbar" ? route.message : toolbar;
+}
+
 /** How long the toast reads before it starts to fade. */
 export const STATUS_TOAST_MS = 3000;
 /** The fade out; the CSS animation on `.cm-status-toast` lasts as long. */

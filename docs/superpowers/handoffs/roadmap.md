@@ -159,8 +159,6 @@ Fixes (no decision needed):
 
 - [ ] B96 the View dropdown's descriptions leave one word on the last line
       (Overview's "are.", Reading plan's "next."): widen the dropdown a little
-- [ ] D25 the toast is too shy: make it read like a shadcn toast (a card
-      with border, shadow and weight). "Copy JSON" sits in the Save view panel
 - [ ] B97 a growing hop row reads `n papers · from N O`: the spinner reads as
       a cropped letter. Drop the `·` and make the spinner read as one
 - [ ] D26 under Citation hop the Key drops its Color section; the Citation
@@ -172,8 +170,6 @@ Fixes (no decision needed):
       when it is placed away; drop the line. The native `title` tooltip still
       shows on hover sometimes; drop it on the plot
 - [ ] B102 Tools › Meristema › Open (saved graphs) reads Load
-- [ ] D15 (bug half) the user could not raise a sticky notice to walk it:
-      cover the sticky-notice-returns-after-toast path with a suite case
 
 Design (user, brainstorm first):
 
@@ -243,6 +239,9 @@ any failure into a new entry above.
 - [ ] D27: select a paper with an abstract: Paper details shows an ABSTRACT
       heading (no twisty) and the full text; a paper without one shows none.
       Close Advanced, select another paper: it stays closed.
+- [ ] D25: Copy JSON in Save view, in light and dark: the toast is a card
+      (rule, shadow, medium text) 16px in from the plot's bottom right, slides
+      up, stays about 3s and fades; with a larger Zotero font it grows too.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
