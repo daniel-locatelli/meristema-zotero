@@ -135,7 +135,7 @@ export interface KeyModelInput {
   /**
    * The rail is drawing the Scope section's Citation hops rows. Under the
    * Citation hop colouring those rows already carry the hop swatches, so the
-   * Key names the channel and points at them rather than painting them twice.
+   * Key drops its Color section rather than painting them twice (D26).
    */
   hopRows?: boolean;
 }
@@ -173,7 +173,7 @@ function extentDetail(
   };
 }
 
-function colorSection(input: KeyModelInput): KeySection {
+function colorSection(input: KeyModelInput): KeySection | null {
   const { assignment, nodes, theme, layout, states } = input;
   const metric = layout.nodeColorMetric;
   const heading = "Color";
@@ -207,16 +207,9 @@ function colorSection(input: KeyModelInput): KeySection {
 
   // The Citation hops rows paint Seeds and Hop 1 … Hop 6 in the colouring's
   // own swatches, with their counts. A second list of the same seven colours
-  // a few rows down said nothing new (D9), so the section shrinks to one line.
-  if (metric === "citation-hop" && input.hopRows) {
-    return {
-      kind: "color",
-      heading,
-      subheading: `${subheading} (see Citation hops)`,
-      entries: [],
-      note: null,
-    };
-  }
+  // said nothing new (D9), and a pointer line to them said little more, so
+  // the section goes and the rows carry the colouring alone (D26).
+  if (metric === "citation-hop" && input.hopRows) return null;
 
   if (!isCategoricalColorMetric(metric)) {
     const entries: KeyEntry[] = [];
@@ -492,9 +485,9 @@ function stateSection(input: KeyModelInput): KeySection | null {
 }
 
 /**
- * The Key for the graph as it currently stands. There is always a colour
- * encoding, so that section is always present; the other three appear only when
- * the graph is using them.
+ * The Key for the graph as it currently stands. The colour section is present
+ * except under Citation hop beside the hop rows, which carry its swatches
+ * (D26); the other three appear only when the graph is using them.
  */
 export function buildKeyModel(input: KeyModelInput): KeyModel {
   const sections = [

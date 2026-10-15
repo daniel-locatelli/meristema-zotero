@@ -408,12 +408,9 @@ describe("the Key under Citation hop", function () {
     });
   }
 
-  it("names the channel and points at the hop rows, which carry the swatches (D9)", function () {
-    const color = hopModel(true).sections.find((s) => s.kind === "color")!;
-    expect(color.heading).to.equal("Color");
-    expect(color.subheading).to.equal("Citation hop (see Citation hops)");
-    expect(color.entries).to.deep.equal([]);
-    expect(color.note).to.equal(null);
+  it("drops its Color section where the hop rows carry the swatches (D26)", function () {
+    const sections = hopModel(true).sections;
+    expect(sections.map((s) => s.kind)).to.not.include("color");
   });
 
   it("keeps its swatches where no hop rows are drawn", function () {

@@ -3834,10 +3834,10 @@ describe("Citation hops (Stage 3)", function () {
      * the rail went on naming the hop colours under Uniform. The Key is read
      * straight after the change, before anything else can rebuild it.
      *
-     * D9: under Citation hop the Key's Color section is one line pointing at
-     * the Citation hops rows, which carry the swatches; it lists no hops.
+     * D26 (replacing D9's pointer line): under Citation hop the Key has no
+     * Color section; the Citation hops rows carry the swatches alone.
      */
-    it("points the Key at the hop rows under Citation hop, and names Uniform after it", async function () {
+    it("drops the Key's Color section under Citation hop, and names Uniform after it", async function () {
       this.timeout(120_000);
       // Uniform carries no `data-metric`, so the colour select is found by
       // its Citation hop option and driven by value.
@@ -3854,7 +3854,8 @@ describe("Citation hops (Stage 3)", function () {
         // "Seed" is also a state row, so only the hop rows tell the
         // colouring apart.
         keyEntries().filter((entry) => /^Hop \d/.test(entry));
-      const colourLine = (): string => {
+      /** The Color section's subheading, or null while the Key has none. */
+      const colourLine = (): string | null => {
         const color = [
           ...(graphRoot().querySelectorAll(
             ".cm-key-section",
@@ -3865,8 +3866,9 @@ describe("Citation hops (Stage 3)", function () {
               section?.querySelector(".cm-key-heading")?.textContent,
             ) === "Color",
         );
+        if (!color) return null;
         return normalize(
-          color?.querySelector(".cm-key-subheading")?.textContent,
+          color.querySelector(".cm-key-subheading")?.textContent,
         );
       };
 
@@ -3882,9 +3884,10 @@ describe("Citation hops (Stage 3)", function () {
       }
 
       colouring("citation-hop");
-      expect(colourLine(), "the Key's colour line").to.equal(
-        "Citation hop (see Citation hops)",
-      );
+      expect(
+        colourLine(),
+        `under Citation hop the Key read: ${keyEntries().join(" | ")}`,
+      ).to.equal(null);
       expect(
         hopRows(),
         `under Citation hop the Key read: ${keyEntries().join(" | ")}`,

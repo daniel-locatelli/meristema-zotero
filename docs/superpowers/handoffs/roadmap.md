@@ -157,8 +157,6 @@ opacity grade).
 
 Fixes (no decision needed):
 
-- [ ] D26 under Citation hop the Key drops its Color section; the Citation
-      hops rows carry the swatches alone (replaces D9's pointer line)
 - [ ] B98 clicking a Seeds row centres the seed in the view, not just brings
       it in
 - [ ] B99 a selected node's edges cast a black shadow in light mode
@@ -242,6 +240,8 @@ any failure into a new entry above.
       one word (Overview, Reading plan included).
 - [ ] B97: while a hop grows, its row reads `n papers from N` then a ring
       (faint track, blue arc turning), clear of the text and not a letter.
+- [ ] D26: colour a seeded graph by Citation hop: the Key shows no Color
+      section; the Citation hops rows carry the swatches.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
