@@ -103,16 +103,6 @@ opacity grade).
       rows (Link, Reference, Cited by) on a channel the reader cannot use
       2026-10-07 walk: a seed with many citers piles the nodes up into a mess
       that says nothing; the nodes need the same answer as the edges (B89)
-- [ ] B89 pan and zoom lag badly on a seed with many citers (user,
-      2026-10-07). Node bench (1,500 nodes, 4,000 edges): JS is ~1.5 ms a
-      frame; the cost was canvas calls, ~11,000 a frame at any zoom. Nodes,
-      edges and region shapes off the canvas are now culled (912 calls at
-      max zoom), but at the fit zoom every edge is still one save, stroke and
-      restore. Pan moves, wheel notches and node drags now draw at most once a
-      frame (timer fallback when covered), and those frames reuse the edge
-      order instead of re-sorting. Next, if the manual check still lags: a
-      live Firefox profile; batching edges by style changes how translucent
-      edges overlap, so it is a design call (D13's neighbour)
 
 ## Views, gallery and menus
 
@@ -149,7 +139,9 @@ opacity grade).
       defect: enrichment re-asks a creator-less item only when the planner's
       cache-age gate already re-plans it. Open, for the user: what labels a
       paper with no creators at all (publisher, report number, short title),
-      and whether matching may use title+year alone
+      and whether matching may use title+year alone. 2026-10-15 walk: an ISO
+      standard reads Unknown and sits in the No data corner (no year, no
+      count); the user suggests labelling it by its code, from Short Title
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
@@ -160,6 +152,48 @@ opacity grade).
       vocabulary rename) wait for a decision; 3 is large and comes after Stage
       4's spec. Left from the same pass: M6 and M13 (behaviour, need a
       brainstorm), M12 (a service-path coverage gap), N2 (suite dependency)
+
+## From the 2026-10-15 walk
+
+Fixes (no decision needed):
+
+- [ ] B96 the View dropdown's descriptions leave one word on the last line
+      (Overview's "are.", Reading plan's "next."): widen the dropdown a little
+- [ ] D24 Folder map colours by citation count, not one grey (user)
+- [ ] D25 the toast is too shy: make it read like a shadcn toast (a card
+      with border, shadow and weight). "Copy JSON" sits in the Save view panel
+- [ ] B97 a growing hop row reads `n papers · from N O`: the spinner reads as
+      a cropped letter. Drop the `·` and make the spinner read as one
+- [ ] D26 under Citation hop the Key drops its Color section; the Citation
+      hops rows carry the swatches alone (replaces D9's pointer line)
+- [ ] B98 clicking a Seeds row centres the seed in the view, not just brings
+      it in
+- [ ] B99 a selected node's edges cast a black shadow in light mode
+- [ ] B100 Add seed panel: drop the row's `+` hint; the scrollbar overlaps the
+      rows, give it its own gutter
+- [ ] B101 a hovered paper's full-title label draws a leader line to its node
+      when it is placed away; drop the line. The native `title` tooltip still
+      shows on hover sometimes; drop it on the plot
+- [ ] D27 the Abstract is a plain, always open section in Paper details, not a
+      fold
+- [ ] B102 Tools › Meristema › Open (saved graphs) reads Load
+- [ ] D15 (bug half) the user could not raise a sticky notice to walk it:
+      cover the sticky-notice-returns-after-toast path with a suite case
+
+Design (user, brainstorm first):
+
+- [ ] F14 a graph started from papers ticks no folders, so nothing says which
+      hop papers are already in Zotero (hovering a folder row dims the rest,
+      but only per folder). Show "in Zotero" on the plot
+- [ ] D28 "Make this the default" sets Start blank's default only, but the
+      reader applies a view (Overview) first and reads it as overriding that
+      view. Say what the default governs, or scope it
+- [ ] D29 the floor's `n with no count kept` note looks lost in the rail
+- [ ] F15 open graph tabs come back after a Zotero restart, as reader tabs do
+- [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
+      coloured by hop
+- [ ] D30 Settings › Libraries to update: its help is hard to read for a new
+      user; keep the choice, or always update every library?
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -192,58 +226,10 @@ any failure into a new entry above.
       check request. Clear the key in Settings with the graph open: the
       citer reads `Cite 1 seed` at once, no reopen; put it back and it reads
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B52: on a filled seeded graph, switch the colouring from Citation hop to
-      Uniform in the gear: the Key drops the hop rows at once.
-- [ ] B82: with the Key showing, switch Appearance between Light and Dark:
-      the Key's swatches change with the plot. Colour by Journal h-index
-      right after a library update fills in journal metrics: the Key's range
-      matches the plot's.
-- [ ] B91: on a hop row whose index reports more than it lists, the count and
-      its total read `182/182 of 394`, one space apart.
-- [ ] B34, B89: at maximum zoom, pan and zoom across a 300+ paper folder, then
-      a seed with many citers; judge whether it is smooth. Shapes, edges and
-      nodes at the plot's edge still draw in full as they come into view. Also
-      at the fit zoom: a fast drag-pan and a flick of the wheel track the
-      pointer without trailing; drag a free-axis node, release: it lands
-      where you let go, and selecting a paper mid-pan lights its edges at once.
-- [ ] B92: the rail footer's zoom in, zoom out, fit and gear icons read
-      larger in their buttons; drag the floor tag: its arrow is drawn, not a
-      small character, and the tag still grabs. Both themes.
-- [ ] B81: on a seeded graph filled with OpenCitations on, select a citer
+- [ ] B81 (the user could not reach it on 2026-10-15): on a seeded graph filled with OpenCitations on, select a citer
       hop paper and hover its Citations count in Paper details: the tooltip
       names the index that reported the count (Semantic Scholar or
       OpenAlex), not OpenCitations.
-- [ ] F13: hover a paper with a long title, under Title and under Author
-      (year) labels: its label at once reads the whole title over a few
-      lines, beside the node; other labels keep the `…` cut. Both themes.
-- [ ] B93: View › Font Size › Bigger a few times, then Reset: the graph tab's
-      rail, toolbars, Paper details and the plot's labels, ticks and axis
-      titles grow and shrink with Zotero's own panes, and so do the item
-      pane's Meristema section and the update popup. The × and + buttons
-      keep their size. At the default size, text in the graph that sized
-      with `font: menu` (titles set to `inherit`) may now read 13px, as
-      Zotero's own panes do. Repeat in a detached graph window.
-- [ ] F11: on a seeded graph, click a Seeds row (not its ×): the seed is
-      selected on the plot, brought into view if it was off screen, and its
-      row in the library list is selected. Select the seed node on the plot,
-      or its row in the list: its Seeds row lights with an accent tint;
-      select any other paper: the tint goes. Judge the tint in both themes.
-- [ ] B15/B45: on a seeded graph, + Add seed, type part of a title: a
-      paper that is not a seed is added by a click anywhere on its row (the + at its end is only a hint, tinted on hover); the panel stays open
-      with the query. A seed's row still selects it, and its × removes it.
-      Judge the space between each row's title and its author line (now 6px,
-      was 4px) in both themes.
-- [ ] B90: with a graph tab open, narrow Zotero below ~950px, visit the
-      library tab (Zotero stacks the item pane under the items list) and
-      return: Paper details keeps its side width (about 340px) instead of
-      spanning the window. Widen again: still the same width.
-- [ ] B54/B55: fill a seeded graph to hop 2 or 3, let it finish, save,
-      close and reopen it: the hop counts come back at once and the progress
-      line never reads `expanding`. Fetch the next hop and press Stop while
-      it runs; close and reopen: the line reads `… left · Resume` and nothing
-      fetches until Resume. Restart Zotero with the tab open: still stopped.
-      A saved References graph from before Stage 4 now reopens on References
-      at its saved depth instead of Citers at depth 1.
 - [ ] B86: on the laptop (125%), the Scope rail's empty child checkboxes
       show no line through them; the guide beside the children stays. On the
       HDMI screen, say whether the guide shows at all now.
@@ -251,95 +237,9 @@ any failure into a new entry above.
       provider failing) so a paper fails; reconnect, close and reopen: that
       paper is not asked again (its hop stays short of drained), and Resume
       does not bring it back.
-- [ ] B7: in a library with no regular items (an empty group, say), Tools ›
-      Meristema › New Graph opens a tab reading "This graph is empty"; add a
-      seed from the + button's search and it appears.
-- [ ] B95: Tools › Meristema › New Graph: the view gallery sits centred
-      over the graph, which shows dimmed through a mask in the theme's own
-      colour (light on light, dark on dark), and the panel ends just below
-      its last row of cards. Shrink the window: the panel keeps 24px margins
-      and scrolls.
-- [ ] B18: open a new graph, then seed a paper: neither shows the plot under
-      one camera and then moves it; the first frame is already fitted.
-- [ ] B47: on a filled graph by year and citations, no 0-citation paper sits
-      below the zero line and no No data paper sits inside the plot.
-- [ ] D7/D12: fill a seeded graph to hop 2: the growing rows spin and read
-      `n papers · from N`, the line under them is Stop alone; press Stop: the
-      line reads `n not expanded · Resume`, and `n without details` sits under
-      it if any paper has no title, year or count. Reopen the saved graph:
-      `from N` reads the same. The spinner turns smoothly while papers land.
-- [ ] B20: move a graph tab to its own window, put it in front of the main
-      window, then File › New Graph: the main window comes forward on the new
-      graph's tab.
-- [ ] D18: choose a view, then open the View dropdown, in Light and in Dark:
-      the active row wears the hover's fill and border (no ✓), each
-      description runs under its name at full width with `needs a seed` on
-      the name's line, and "Save current as view…" stands further off the
-      rows. Keyboard focus and hover still show on every row.
-- [ ] F4: in a graph, select a library paper that has an abstract: Paper
-      details shows a closed ABSTRACT fold under the header, styled like
-      ADVANCED; open it and the Zotero abstract reads in full. A library paper
-      with no abstract shows no fold. Select a hop paper: the fold shows when
-      its provider summary carried an abstract, and is absent otherwise.
-      Both themes.
-- [ ] B48: with updates for modified items off in Settings, give a paper in
-      the Year axis's No data lane a Date in Zotero and press the graph's
-      Refresh: it leaves the lane for its year, in a library graph and in a
-      seeded one.
-- [ ] D15 (bug half): open a graph showing a sticky notice (the read-only
-      one or the migrated-directions one), press Copy or Save, wait 3 s: the
-      sticky notice is back.
-- [ ] F3: give an item a single-field creator such as "ISO/TC 59" and a
-      date, then draw it with Author-year labels: the node and its Seeds row
-      read `ISO/TC 59 (year)`, not `59 (year)`; a person still reads by last
-      name.
 - [ ] D11: fill a References graph on an ACM paper: Unknown labels
       resolve into author-year while the fill is still running, not only
       after it stops.
-- [ ] Gear: open New Graph on a folder whose papers have no year, close it,
-      then open New Graph on the library: it keeps your saved axes, not Free.
-- [ ] B26: select a folder's region, then type a search that matches none
-      of its papers: the hull stays put; clearing the search changes nothing.
-- [ ] F4 fold: open ABSTRACT and close ADVANCED, then select another paper
-      with an abstract: ABSTRACT stays open and ADVANCED closed; reverse
-      both and select again: they stay as you left them.
-- [ ] D9: seed a graph, colour by Citation hop: the Key's Color section reads
-      one line, Citation hop (see Citation hops), and only the Citation hops
-      rows carry the hop swatches.
-- [ ] F7: right-click a paper, New Graph from it: no folder is ticked, Unfiled
-      is off, and the gallery's N counts the seed and its hop papers only.
-- [ ] F7: Tools › New Graph still ticks everything; adding a seed to it from
-      the + search unticks nothing.
-- [ ] D20: the gallery lists Shared papers (no Who cites whom), and with two
-      seeds the rail reads `Cites at least [2] of 2 seeds`; switch to
-      References and it reads `Cited by at least`, unclipped in a narrow rail.
-- [ ] D19: Folder map's menu row, gallery card and tutorial card each ask
-      "Do your folders match how the papers cite each other?"
-- [ ] B48: in light and in dark, open a Year × Citations graph with papers
-      missing a year, a count, and both: each No data lane is a tinted band
-      past a bare gap, labelled No data, the two bands meet in one L at the
-      corner with the both-missing paper in it, and Fit shows all of it.
-- [ ] D15: in a graph tab and in a detached graph window, use Copy JSON and
-      File › Save: "Copied"/"Saved" slides in at the plot's bottom right,
-      reads for ~3 s and fades, in light and dark; the toolbar stays quiet.
-- [ ] Floor (D21): raise it on a graph with papers that have no count; the
-      row reads `· n with no count kept`, a click hides them (`hidden`, the
-      count line drops by n, the Filter's switch is off), a click restores.
-- [ ] B47: fill a seeded graph by year and citations: a paper landing in a
-      crowd nudges only its neighbours, and no node strays past half a year
-      or a quarter tick from its value. The axes only widen while the fill
-      runs; once it stops (or Stop) they settle tight.
-- [ ] D22: apply Overview to an enriched graph: nodes colour by
-      publication type and the card says so; Folder map stays one grey.
-- [ ] D17: change the gear on a graph, open New Graph: it opens on the
-      default. Press "Make this the default", open New Graph: it opens on
-      your settings; "Reset to built-in default" undoes that.
-- [ ] D17: change the gear on a saved graph, save, close and reopen it:
-      the edit is still there.
-- [ ] Floor tag: on a year/citations graph with a paper that has no count
-      and the oldest year, hover the No data band under the floor tag: the
-      paper names itself and right-click offers its menu; the tag still
-      drags from its other end.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
