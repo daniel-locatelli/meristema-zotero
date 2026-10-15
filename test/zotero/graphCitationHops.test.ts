@@ -1537,7 +1537,7 @@ describe("Citation hops (Stage 3)", function () {
       // can still land and raise `from N` before then.
       const fromBefore = hopFromText(2);
       expect(fromBefore, `hop 2 carries no from; ladder ${ladder()}`).to.match(
-        /^· from \d+$/,
+        /^from \d+$/,
       );
 
       win.Zotero_Tabs.close(reopenedTabID!);

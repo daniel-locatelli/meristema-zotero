@@ -157,8 +157,6 @@ opacity grade).
 
 Fixes (no decision needed):
 
-- [ ] B97 a growing hop row reads `n papers · from N O`: the spinner reads as
-      a cropped letter. Drop the `·` and make the spinner read as one
 - [ ] D26 under Citation hop the Key drops its Color section; the Citation
       hops rows carry the swatches alone (replaces D9's pointer line)
 - [ ] B98 clicking a Seeds row centres the seed in the view, not just brings
@@ -242,6 +240,8 @@ any failure into a new entry above.
 - [ ] B102: Tools › Meristema lists Load (not Open) for saved graphs.
 - [ ] B96: open the View dropdown: no description ends on a line holding
       one word (Overview, Reading plan included).
+- [ ] B97: while a hop grows, its row reads `n papers from N` then a ring
+      (faint track, blue arc turning), clear of the text and not a letter.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

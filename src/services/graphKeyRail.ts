@@ -778,9 +778,7 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     } else {
       body.appendChild(text(document, "span", row.count, "cm-scope-row-count"));
       if (row.from) {
-        body.appendChild(
-          text(document, "span", `· ${row.from}`, "cm-scope-hop-from"),
-        );
+        body.appendChild(text(document, "span", row.from, "cm-scope-hop-from"));
       }
       if (row.spinning) {
         const spinner = element(document, "span", "cm-scope-hop-spinner");

@@ -364,7 +364,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
-   * B91: the count and where it came from read as one phrase, `182 papers ·
+   * B91: the count and where it came from read as one phrase, `182 papers
    * from 40`, with one space between them. The source span sat in the body's
    * 6px flex gap and added a 4px margin of its own, so the row read two
    * spaces wide.
@@ -436,6 +436,91 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       `the count and its source sit one space (${measured.space.toFixed(1)}px) ` +
         `apart, but the gap is ${measured.gap.toFixed(1)}px`,
     ).to.be.lessThan(1);
+  });
+
+  /**
+   * B97: a growing row read `n papers · from N` and then a muted ring with one
+   * quarter open, one word-gap after the text, which read as a cropped "C" or
+   * "O". The spinner is a whole ring, a faint track under an accent arc, set
+   * further off than a space and drawn whole inside its row.
+   */
+  it("draws a growing hop row's spinner as a ring set apart from the text", async function () {
+    const measured = await inMainWindowStyled(
+      (document) => {
+        const rail = createKeyRail({
+          document,
+          onEmphasise: () => undefined,
+          onScope: {
+            toggleRow: () => undefined,
+            selectRow: () => undefined,
+            removeSeed: () => undefined,
+            selectSeed: () => undefined,
+            addSeed: () => undefined,
+            showAllHidden: () => undefined,
+            setHopDirection: () => undefined,
+            fetchHop: () => undefined,
+            toggleHop: () => undefined,
+            fillControl: () => undefined,
+            setFloor: () => undefined,
+            setKeepNoCount: () => undefined,
+            setShared: () => undefined,
+          },
+        });
+        const hops = HOP_ROW_MODEL.hops!;
+        rail.renderScope({
+          ...HOP_ROW_MODEL,
+          hops: { ...hops, rows: [{ ...hops.rows[0], spinning: true }] },
+        });
+        return rail.root;
+      },
+      (mount, host) => {
+        const row = mount.querySelector(".cm-scope-hop-row") as HTMLElement;
+        const from = mount.querySelector(".cm-scope-hop-from") as HTMLElement;
+        const spinner = mount.querySelector(
+          ".cm-scope-hop-spinner",
+        ) as HTMLElement;
+        expect(from, "the hop row carries where it came from").to.exist;
+        expect(spinner, "a growing hop row carries a spinner").to.exist;
+        // Still, so the box is the ring's own and not a rotated bound.
+        spinner.style.animation = "none";
+        const style = host.getComputedStyle(spinner)!;
+        const box = spinner.getBoundingClientRect();
+        const rowBox = row.getBoundingClientRect();
+        return {
+          text: (from.textContent ?? "").trim(),
+          gap: box.left - from.getBoundingClientRect().right,
+          width: box.width,
+          height: box.height,
+          clipped:
+            box.top < rowBox.top - 0.5 || box.bottom > rowBox.bottom + 0.5,
+          arc: style.borderTopColor,
+          track: style.borderBottomColor,
+          trackOpen: parseColor(style.borderBottomColor)?.[3] ?? 0,
+        };
+      },
+    );
+    expect(measured.text, "no separator before the source").to.match(
+      /^from \d+$/,
+    );
+    expect(measured.width, "the ring was laid out").to.be.greaterThan(4);
+    expect(
+      Math.abs(measured.width - measured.height),
+      `the ring is round: ${measured.width}x${measured.height}`,
+    ).to.be.lessThan(0.5);
+    expect(measured.clipped, "the ring sits whole inside its row").to.equal(
+      false,
+    );
+    expect(
+      measured.gap,
+      `the ring sits clear of the text: ${measured.gap.toFixed(1)}px`,
+    ).to.be.greaterThan(6);
+    expect(
+      measured.trackOpen,
+      `the track closes the ring: ${measured.track}`,
+    ).to.be.greaterThan(0);
+    expect(measured.arc, "the arc stands out from its track").to.not.equal(
+      measured.track,
+    );
   });
 
   /**

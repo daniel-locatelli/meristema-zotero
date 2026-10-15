@@ -1923,8 +1923,9 @@
 }
 .cm-scope-hop-from {
   flex: 0 0 auto;
-  /* `182 papers · from 40` is one phrase: pull the body's 6px gap in to one
-     11px space (B91). */
+  /* `182 papers from 40` is one phrase: pull the body's 6px gap in to one
+     11px space (B91). No `·` between them, which read as part of the
+     spinner's glyph (B97). */
   margin-inline-start: -3px;
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
@@ -1954,14 +1955,22 @@
   font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
-/* A hop still growing (D7): a ring with one quarter open, turning. */
+/* A hop still growing (D7): a faint full track with an accent arc turning
+ * on it. The old ring was a muted border with one quarter left transparent,
+ * the text's own colour at about its cap height and one word-gap after it,
+ * so it read as a clipped "C" or "O" ending the phrase (B97). The track
+ * closes the circle, the accent arc is not a glyph colour, and the extra
+ * margin sets it apart from the words. Its 9px is the cap height of the
+ * row's 12px type; box-sizing keeps the border inside it, and the row's
+ * centre alignment leaves it whole inside the line box. */
 .cm-scope-hop-spinner {
   flex: 0 0 auto;
   box-sizing: border-box;
   width: calc(9 * var(--cm-font-unit));
   height: calc(9 * var(--cm-font-unit));
-  border: 1.5px solid var(--cm-muted);
-  border-inline-end-color: transparent;
+  margin-inline-start: 3px;
+  border: 2px solid color-mix(in srgb, var(--cm-muted) 30%, transparent);
+  border-block-start-color: var(--cm-accent);
   border-radius: 50%;
   animation: cm-scope-hop-spin 0.9s linear infinite;
   /* Set per rebuild by graphKeyRail.ts so a fresh element joins the shared turn. */
