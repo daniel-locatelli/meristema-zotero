@@ -105,3 +105,54 @@ describe("CitationGraphRenderer hovered label", function () {
     expect(texts).to.include("Smith (2019)");
   });
 });
+
+/**
+ * B101: a hovered paper whose label is pushed off its default spot draws no
+ * leader line back to its node; the placement itself stays.
+ */
+describe("CitationGraphRenderer displaced hovered label", function () {
+  it("draws no line from the label to its node", function () {
+    const canvas = new FakeCanvas();
+    const renderer = new CitationGraphRenderer({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      model: model([
+        node("long", { title: "A paper whose title is long enough to wrap" }),
+        node("right", { title: "Neighbour" }),
+      ]),
+      layout: { ...FREE_LAYOUT, nodeLabelMode: "title" },
+      collectionLabels: new Map(),
+      onSelectionChange: () => undefined,
+      onOpenNode: () => undefined,
+    });
+    attachView(canvas);
+    // The neighbour's disc sits where the label would go by default, on the
+    // right, so the label is placed elsewhere.
+    renderer.setNodePositions(
+      new Map([
+        ["long", { x: 400, y: 300 }],
+        ["right", { x: 480, y: 300 }],
+      ]),
+    );
+    const moves: Array<[number, number]> = [];
+    canvas.context.moveTo = (x: number, y: number) => {
+      moves.push([x, y]);
+    };
+    canvas.context.calls = [];
+    canvas.fire("pointermove", { clientX: 400, clientY: 300 });
+    expect(renderer.getHoverKey(), "the pointer is over the paper").to.equal(
+      "long",
+    );
+    const title = canvas.context.calls.find(
+      (call) =>
+        call.method === "fillText" &&
+        String(call.args[0]).startsWith("A paper"),
+    );
+    expect(
+      Number(title?.args[1]),
+      "the label left its default spot",
+    ).to.be.below(400);
+    expect(moves, "no leader starts at the node").to.not.deep.include([
+      400, 300,
+    ]);
+  });
+});

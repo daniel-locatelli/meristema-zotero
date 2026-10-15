@@ -1011,7 +1011,10 @@ export function drawRendererLabels(
     obstacles.insert(chosen.rectangle);
     if (!important) budget.placed(width * height);
     const defaultPlacement = chosen === evaluated[0];
-    if (!defaultPlacement) {
+    // The hovered paper's label needs no leader: the pointer already marks
+    // whose it is, and a line across a whole wrapped title reads as an edge
+    // (B101).
+    if (!defaultPlacement && node.key !== renderer.hoverKey) {
       const labelEdgeX = clamp(
         position.x,
         chosen.rectangle.left,
