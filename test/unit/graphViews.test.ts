@@ -113,10 +113,11 @@ const liveHops = {
 };
 
 describe("the shipped views", function () {
-  it("are five, with unique ids and full appearance records", function () {
+  it("are six, with unique ids and full appearance records", function () {
     expect(SHIPPED_GRAPH_VIEWS.map((v) => v.id)).to.deep.equal([
       "overview",
       "cornerstones",
+      "impact",
       "reading-plan",
       "who-cites-whom",
       "folder-map",
@@ -134,9 +135,11 @@ describe("the shipped views", function () {
       expect(view.explore, view.id).to.deep.equal(
         view.id === "cornerstones"
           ? { direction: "references", hops: 2, floor: 10 }
-          : view.id === "who-cites-whom"
-            ? { direction: "cited-by", hops: 1, shared: 2 }
-            : null,
+          : view.id === "impact"
+            ? { direction: "cited-by", hops: 2, floor: 0, shared: 1 }
+            : view.id === "who-cites-whom"
+              ? { direction: "cited-by", hops: 1, shared: 2 }
+              : null,
       );
     }
     const cornerstones = SHIPPED_GRAPH_VIEWS.find(
@@ -171,6 +174,19 @@ describe("the shipped views", function () {
   it("name the shared-paper view by what it shows, keeping its saved id", function () {
     const view = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "who-cites-whom")!;
     expect(view.name).to.equal("Shared papers");
+  });
+
+  it("ask who built on a seed with Impact, coloured by hop (F16)", function () {
+    const view = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "impact")!;
+    expect(view.name).to.equal("Impact");
+    const question = "Who built on this paper, and who built on them?";
+    expect(view.summary).to.contain(question);
+    expect(view.paragraph).to.contain(question);
+    expect(view.appearance.nodeColorMetric).to.equal("citation-hop");
+    expect(view.requires).to.equal("seed");
+    expect(graphViewRequirementLine(view)).to.equal("needs a seed");
+    expect(view.availability).to.equal("ready");
+    expect(view.icon).to.equal("view-impact");
   });
 
   it("ask the question Folder map answers", function () {

@@ -23,6 +23,7 @@ export type IconName =
   | "view"
   | "view-overview"
   | "view-cornerstones"
+  | "view-impact"
   | "view-reading-plan"
   | "view-who-cites-whom"
   | "view-folder-map"
@@ -117,6 +118,16 @@ const ICON_PATHS: Record<IconName, string[]> = {
     "M6 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z",
     "M8 9.5l6-2 .5 1.4-6 2-.5-1.4Zm0 1l6 3-.6 1.3-6-3 .6-1.3Z",
     "M16 9a1.7 1.7 0 1 0 0-3.4A1.7 1.7 0 0 0 16 9Zm0 8a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Zm4-4a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z",
+  ],
+  /*
+   * Impact: the seed's ring below, its citers above it, and theirs above
+   * them; a tree growing upward. Generated from centres and radii, the links
+   * trimmed to the discs' edges.
+   */
+  "view-impact": [
+    "M12 15a3 3 0 1 0 0 6a3 3 0 1 0 0 -6ZM12 16.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0 -3Z",
+    "M10.49 15.61L8.21 12.7L7.26 13.44L9.55 16.35ZM14.45 16.35L16.74 13.44L15.79 12.7L13.51 15.61ZM6.26 9.43L4.68 5.73L3.58 6.21L5.16 9.9ZM8.21 10.3L11.48 6.13L10.54 5.39L7.26 9.56ZM16.74 9.56L13.46 5.39L12.52 6.13L15.79 10.3ZM18.84 9.9L20.42 6.21L19.32 5.73L17.74 9.43Z",
+    "M6.5 9.7a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0 -3.6ZM17.5 9.7a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0 -3.6ZM3.5 3.1a1.4 1.4 0 1 0 0 2.8a1.4 1.4 0 1 0 0 -2.8ZM12 3.1a1.4 1.4 0 1 0 0 2.8a1.4 1.4 0 1 0 0 -2.8ZM20.5 3.1a1.4 1.4 0 1 0 0 2.8a1.4 1.4 0 1 0 0 -2.8Z",
   ],
   // Reading plan: a diamond (unread) beside a disc (read).
   "view-reading-plan": [

@@ -116,6 +116,24 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     availability: "ready",
   },
   {
+    id: "impact",
+    name: "Impact",
+    // Cornerstones' other direction (F16, 2026-10-15). It carries floor 0 and
+    // shared 1, so a floor or a shared rule left by another view cannot thin
+    // out the citers, the youngest of which have few citations of their own.
+    summary:
+      "Seeds, 2 hops of citers, colour citation hop. Who built on this paper, and who built on them?",
+    paragraph:
+      "Who built on this paper, and who built on them? The papers citing your seed, and the papers citing those, coloured by hop.",
+    icon: "view-impact",
+    appearance: { ...BASE, nodeColorMetric: "citation-hop" },
+    regions: null,
+    filters: null,
+    explore: { direction: "cited-by", hops: 2, floor: 0, shared: 1 },
+    requires: "seed",
+    availability: "ready",
+  },
+  {
     id: "reading-plan",
     name: "Reading plan",
     summary: "Unread frontier, shape = read state. What to read next.",

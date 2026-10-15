@@ -162,8 +162,6 @@ opacity grade).
       but only per folder). Show "in Zotero" on the plot. Decided 2026-10-15:
       papers in the Zotero library draw as filled discs, papers known only
       through hops as outlined rings, under every colouring
-- [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
-      coloured by hop. Decided 2026-10-15: Citers only, depth 2, needs a seed
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -241,6 +239,9 @@ any failure into a new entry above.
       Use for new blank graphs and Restore built-in blank graph.
 - [ ] D30: Settings shows no "Libraries to update" box; the button reads
       "Update all libraries now" and also refreshes a group library's items.
+- [ ] F16: on a seeded graph choose Impact (gallery or View dropdown, after
+      Cornerstones): Citers, 2 hops, coloured by Citation hop; the dropdown's
+      Impact line ends on two words or more, and its icon reads at 16px.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
