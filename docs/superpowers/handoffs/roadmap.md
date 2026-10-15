@@ -254,13 +254,12 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-11 at `2b25538` (117/0; the run before it, 113/4,
-found B48's band under the floor tag, fixed in `2b25538`, and two new cases
-that read the item menu unbuilt or lost a toast to a remount), so count with
-the commits since `2b25538`. A clean run is 117 passed, 0 failed as of
-2026-10-11. B28's case deselects the folder the case before it left selected,
-so it does not test what its name says. The D15 toast case names a remount in
-its message if it fails again.
+runs alone under a temporary `describe.only`. Last full run: 2026-10-15 at `96d3963` (121/2: the D15
+notice case wanted a 1px rule that computes to 0.8px at 125%, and its failing
+midway left a tab open that failed the D17 case after it; the file alone then
+ran 13/0), so count with the commits since `96d3963`. A clean run is 123
+cases as of 2026-10-15. B28's case deselects the folder the case before it left
+selected, so it does not test what its name says.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
   its floor) and B50's countdown case ("the line was rebuilt while counting
@@ -514,3 +513,7 @@ entries are in git history.
   keep their state across selections (ADR 0019 for D17). The full run found
   the floor tag covering B48's band; a paper under the tag now wins. Full run
   at `2b25538` 117/0. Not pushed.
+- 2026-10-15: the user walked the 2026-10-11 build; most checks passed. Fixed
+  from the walk: B96 to B103, D24 to D27, D15's notice case; built from the
+  user's calls: F14 (ADR 0020), F15 (ADR 0021), F16, D28, D29, D30, F3's
+  labels. Full run at `96d3963` 121/2, both in the test, fixed. Not pushed.

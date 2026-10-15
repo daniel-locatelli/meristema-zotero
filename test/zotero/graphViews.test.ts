@@ -975,10 +975,12 @@ describe("Graph views (D4)", function () {
     // D25: the toast reads as a card, not a whisper.
     const style = root().ownerDocument.defaultView!.getComputedStyle(toast()!)!;
     expect(
-      `${style.fontWeight} ${style.borderTopWidth} ${style.borderTopStyle} ` +
-        `${style.borderTopLeftRadius} ${style.boxShadow !== "none"}`,
+      // A 1px rule computes to device pixels (0.8px at 125%), so ask only for one.
+      `${style.fontWeight} ${parseFloat(style.borderTopWidth) > 0} ` +
+        `${style.borderTopStyle} ${style.borderTopLeftRadius} ` +
+        `${style.boxShadow !== "none"}`,
       "the toast's weight, rule, corner and shadow",
-    ).to.equal("500 1px solid 8px true");
+    ).to.equal("500 true solid 8px true");
     expect(notice(), "the notice stays up under the toast").to.equal(
       SAVED_GRAPH_READ_ONLY_STATUS,
     );
