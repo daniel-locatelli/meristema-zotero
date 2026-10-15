@@ -141,7 +141,9 @@ opacity grade).
       paper with no creators at all (publisher, report number, short title),
       and whether matching may use title+year alone. 2026-10-15 walk: an ISO
       standard reads Unknown and sits in the No data corner (no year, no
-      count); the user suggests labelling it by its code, from Short Title
+      count); the user suggests labelling it by its code, from Short Title.
+      Decided 2026-10-15: a paper with no creators labels by its Short Title,
+      else the start of its title; the No data band stays its place
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
@@ -164,8 +166,14 @@ opacity grade).
       reader applies a view (Overview) first and reads it as overriding that
       view. Decided 2026-10-15: rename it "Use for new blank graphs" and have
       the gear say which view, if any, the graph came from; views stay fixed
-- [ ] D29 the floor's `n with no count kept` note looks lost in the rail
-- [ ] F15 open graph tabs come back after a Zotero restart, as reader tabs do
+- [ ] D29 the floor's `n with no count kept` note looks lost in the rail.
+      Decided 2026-10-15: its own switch row under the floor, `Papers with no
+    count (n)`, like the other Scope switches
+- [ ] F15 open graph tabs come back after a Zotero restart, as reader tabs do.
+      Decided 2026-10-15: every graph tab, unsaved ones from a snapshot in the
+      profile; a stopped fill stays stopped
+- [ ] B103 pushed-aside labels still draw a leader line to their node; drop
+      them all (user, 2026-10-15, after B101 dropped the hovered one's)
 - [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
       coloured by hop. Decided 2026-10-15: Citers only, depth 2, needs a seed
 - [ ] D30 Settings › Libraries to update: its help is hard to read for a new
