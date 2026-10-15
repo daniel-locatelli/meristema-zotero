@@ -60,7 +60,7 @@ function buttonNamed(root: Element, label: string): HTMLButtonElement | null {
  * press Add to Zotero from its detail pane; the import fails or the seed
  * stays external. The test bundle is a second copy of the plugin, so nothing
  * here reaches into the view: a saved graph carrying one external seed is
- * opened from Tools › Meristema › Open Saved Graph, the pane's own buttons
+ * opened from Tools › Meristema › Load, the pane's own buttons
  * are pressed, and the outcome is read from the library and from the
  * graph's autosaved state.
  */
@@ -155,7 +155,7 @@ describe("Adding an external seed to Zotero", function () {
     await showing;
     const open = customMenu(
       tools.menupopup,
-      `${config.addonRef}-open-saved-graph-submenu`,
+      `${config.addonRef}-load-saved-graph-submenu`,
     );
     showing = shown(open.menupopup);
     open.openMenu(true);

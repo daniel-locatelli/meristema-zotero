@@ -48,7 +48,7 @@ function command(element: Element): void {
  * B3 in the 2026-09-08 review backlog: renaming a saved graph's tab did not
  * rename the saved graph's row. Everything here goes through the plugin's
  * own copy of the code, the way the user does it: the graph opens from
- * Tools › Meristema › Open Saved Graph, the tab is renamed from the tab
+ * Tools › Meristema › Load, the tab is renamed from the tab
  * context menu's Rename View… entry, and the list is read back.
  */
 describe("Renaming a saved graph's tab", function () {
@@ -141,7 +141,7 @@ describe("Renaming a saved graph's tab", function () {
     await showing;
     const open = customMenu(
       tools.menupopup,
-      `${config.addonRef}-open-saved-graph-submenu`,
+      `${config.addonRef}-load-saved-graph-submenu`,
     );
     showing = shown(open.menupopup);
     open.openMenu(true);

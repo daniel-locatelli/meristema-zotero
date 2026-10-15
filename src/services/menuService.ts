@@ -365,10 +365,10 @@ function fillSavedGraphPopup(
   });
 }
 
-function openSavedGraphSubmenu(): MenuData {
+function loadSavedGraphSubmenu(): MenuData {
   return {
     menuType: "submenu",
-    l10nID: `${config.addonRef}-open-saved-graph-submenu`,
+    l10nID: `${config.addonRef}-load-saved-graph-submenu`,
     onShowing: (_event: Event, context: any) => {
       const menuElem = safeContextValue(context, "menuElem") as
         HTMLElement | undefined;
@@ -386,7 +386,7 @@ function openSavedGraphSubmenu(): MenuData {
     menus: [
       {
         menuType: "menuitem",
-        l10nID: `${config.addonRef}-open-saved-graph-empty-command`,
+        l10nID: `${config.addonRef}-load-saved-graph-empty-command`,
         onShowing: (_event: Event, context: any) => {
           context.setEnabled(false);
           // Created on the submenu's first showing, after the fill above has
@@ -429,7 +429,7 @@ function graphStateCommand(
 }
 
 /**
- * The submenu carries the icon; its rows do not. Open, Save and Save as… sit
+ * The submenu carries the icon; its rows do not. Load, Save and Save as… sit
  * inside an entry already labelled Meristema and already marked with it, and
  * repeating the mark on every row said nothing (B17). The item and folder
  * context menus are the opposite case: flat, so each row keeps its icon.
@@ -443,7 +443,7 @@ function toolsSubmenu(): MenuData {
       commandItem(`${config.addonRef}-new-graph-view-command`, (context) =>
         openNewGraphWindow(contextWindow(context), activeLibraryID(context)),
       ),
-      openSavedGraphSubmenu(),
+      loadSavedGraphSubmenu(),
       graphStateCommand(`${config.addonRef}-save-command`, (view, win) =>
         saveGraphView(view.instanceID, win),
       ),

@@ -45,12 +45,12 @@ async function rowsIn(popup: Element, timeoutMs: number): Promise<Element[]> {
 }
 
 /**
- * B2 in the 2026-09-08 review backlog: Tools › Meristema › Open Saved Graph
+ * B2 in the 2026-09-08 review backlog: Tools › Meristema › Load
  * listed nothing the first time it opened after a restart, and the graphs
  * only the second time. This walks the real menubar once, in a Zotero that
  * has never opened that submenu, and expects the rows on that first showing.
  */
-describe("Tools › Meristema › Open Saved Graph", function () {
+describe("Tools › Meristema › Load", function () {
   let toolsPopup: Element;
   let graphID: number | null = null;
 
@@ -86,13 +86,15 @@ describe("Tools › Meristema › Open Saved Graph", function () {
     tools.openMenu(true);
     await showing;
 
-    const open = customMenu(
+    const load = customMenu(
       tools.menupopup,
-      `${config.addonRef}-open-saved-graph-submenu`,
+      `${config.addonRef}-load-saved-graph-submenu`,
     );
-    const popup = open.menupopup as Element;
+    // B102: the submenu reads Load, not Open.
+    expect(load.getAttribute("label"), "the submenu's label").to.equal("Load");
+    const popup = load.menupopup as Element;
     showing = shown(popup);
-    open.openMenu(true);
+    load.openMenu(true);
     await showing;
 
     const rows = await rowsIn(popup, 3_000);
@@ -102,7 +104,7 @@ describe("Tools › Meristema › Open Saved Graph", function () {
     const empty = Array.from(popup.children).find(
       (child) =>
         (child as HTMLElement).dataset?.l10nId ===
-        `${config.addonRef}-open-saved-graph-empty-command`,
+        `${config.addonRef}-load-saved-graph-empty-command`,
     ) as HTMLElement | undefined;
     expect(empty, "the empty entry").to.exist;
     expect(empty!.hidden, "the empty entry is hidden").to.equal(true);

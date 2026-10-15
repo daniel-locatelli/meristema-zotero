@@ -169,7 +169,6 @@ Fixes (no decision needed):
 - [ ] B101 a hovered paper's full-title label draws a leader line to its node
       when it is placed away; drop the line. The native `title` tooltip still
       shows on hover sometimes; drop it on the plot
-- [ ] B102 Tools › Meristema › Open (saved graphs) reads Load
 
 Design (user, brainstorm first):
 
@@ -242,6 +241,7 @@ any failure into a new entry above.
 - [ ] D25: Copy JSON in Save view, in light and dark: the toast is a card
       (rule, shadow, medium text) 16px in from the plot's bottom right, slides
       up, stays about 3s and fades; with a larger Zotero font it grows too.
+- [ ] B102: Tools › Meristema lists Load (not Open) for saved graphs.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

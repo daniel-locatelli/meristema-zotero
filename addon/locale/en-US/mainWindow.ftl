@@ -77,8 +77,8 @@ rename-view-command =
 refresh-library-command =
     .label = Refresh Library
 
-open-saved-graph-submenu =
-    .label = Open
+load-saved-graph-submenu =
+    .label = Load
 
 save-command =
     .label = Save
@@ -86,7 +86,7 @@ save-command =
 save-as-command =
     .label = Save as…
 
-open-saved-graph-empty-command =
+load-saved-graph-empty-command =
     .label = No saved graphs yet.
 
 add-to-submenu =
