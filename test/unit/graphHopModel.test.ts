@@ -278,12 +278,9 @@ describe("buildGraphHopModel", function () {
     const merged = additiveGraphModel({ nodes: [seed, held], edges: [] }, walk);
     const marks = seedMarks(walk, merged, {
       seedColors: new Map([["s", "#123456"]]),
-      isLibraryPaper: (key) => key === "a" || key === "s",
     });
     expect([...marks.seedKeys]).to.deep.equal(["s"]);
     expect(marks.seedColors.get("s")).to.equal("#123456");
-    // The seed is never ringed, and "x" is external.
-    expect([...marks.inLibraryReachedKeys]).to.deep.equal(["a"]);
     expect(marks.hops.get("b")).to.equal(2);
     expect(marks.citationSequence.get("s")).to.equal(0);
     expect(marks.citationSequence.size).to.equal(merged.nodes.length);
@@ -291,7 +288,6 @@ describe("buildGraphHopModel", function () {
     const within = seedMarksWithin(marks, new Set(["s", "b"]));
     expect(within.hops.has("a")).to.equal(false);
     expect(within.hops.get("b")).to.equal(2);
-    expect(within.inLibraryReachedKeys.size).to.equal(0);
     expect(within.citationSequence.has("a")).to.equal(false);
     expect(within.seedKeys.has("s")).to.equal(true);
   });
@@ -309,7 +305,6 @@ describe("buildGraphHopModel", function () {
     const merged = additiveGraphModel({ nodes: [s, t], edges: [] }, walk);
     const marks = seedMarks(walk, merged, {
       seedColors: new Map(),
-      isLibraryPaper: () => false,
     });
     expect(marks.direction).to.equal("cited-by");
     expect(marks.seedLinks.get("a")).to.equal(2);

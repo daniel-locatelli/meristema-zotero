@@ -392,6 +392,32 @@ function stateSection(input: KeyModelInput): KeySection | null {
     dashed,
   });
 
+  // A paper in Zotero fills; one known only through a hop is a ring (F14).
+  // Named only when the plot shows both, since one kind alone tells nothing.
+  const inZotero = (node: CitationGraphNode): boolean =>
+    node.kind !== "external";
+  const owned = nodes.filter(inZotero).length;
+  if (owned > 0 && owned < nodes.length) {
+    entries.push(
+      {
+        id: "in-zotero",
+        label: "In Zotero",
+        count: owned,
+        detail: null,
+        mark: { kind: "swatch", colors: [theme.inks.muted] },
+        matches: inZotero,
+      },
+      {
+        id: "not-in-zotero",
+        label: "Not in Zotero",
+        count: nodes.length - owned,
+        detail: null,
+        mark: ring(theme.inks.muted),
+        matches: (node) => !inZotero(node),
+      },
+    );
+  }
+
   if (states.selectedKey !== null) {
     const selectedKey = states.selectedKey;
     entries.push({

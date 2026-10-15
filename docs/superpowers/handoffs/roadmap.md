@@ -157,12 +157,6 @@ opacity grade).
 
 ## From the 2026-10-15 walk
 
-- [ ] F14 a graph started from papers ticks no folders, so nothing says which
-      hop papers are already in Zotero (hovering a folder row dims the rest,
-      but only per folder). Show "in Zotero" on the plot. Decided 2026-10-15:
-      papers in the Zotero library draw as filled discs, papers known only
-      through hops as outlined rings, under every colouring
-
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
@@ -242,6 +236,11 @@ any failure into a new entry above.
 - [ ] F16: on a seeded graph choose Impact (gallery or View dropdown, after
       Cornerstones): Citers, 2 hops, coloured by Citation hop; the dropdown's
       Impact line ends on two words or more, and its icon reads at 16px.
+- [ ] F14: grow a seed with hop 1: hop papers in Zotero are filled discs,
+      the rest rings in their colour, under Uniform, a category and a ramp, in
+      both themes; a ring hovers and selects across its whole disc.
+- [ ] F14: the Key's States lists In Zotero and Not in Zotero with counts;
+      hovering each dims the other kind. A library-only graph shows neither.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

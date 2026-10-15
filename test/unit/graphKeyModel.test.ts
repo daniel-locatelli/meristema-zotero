@@ -297,6 +297,31 @@ describe("Graph key model", () => {
     expect(section(model, "states")).to.equal(undefined);
   });
 
+  it("names a filled disc In Zotero and a ring Not in Zotero when the graph has both (F14)", () => {
+    const nodes = [node(1), node(2), node(3, { kind: "external" })];
+    const states = section(build(nodes), "states")!;
+    const [inZotero, notInZotero] = states.entries;
+    expect(inZotero!.label).to.equal("In Zotero");
+    expect(inZotero!.count).to.equal(2);
+    expect(inZotero!.mark.kind).to.equal("swatch");
+    expect(notInZotero!.label).to.equal("Not in Zotero");
+    expect(notInZotero!.count).to.equal(1);
+    expect(notInZotero!.mark.kind).to.equal("ring");
+    expect(nodes.filter(notInZotero!.matches!).map((n) => n.key)).to.deep.equal(
+      ["k3"],
+    );
+  });
+
+  it("names neither when every paper is in Zotero, or none is", () => {
+    expect(section(build([node(1), node(2)]), "states")).to.equal(undefined);
+    expect(
+      section(
+        build([node(1, { kind: "external" }), node(2, { kind: "external" })]),
+        "states",
+      ),
+    ).to.equal(undefined);
+  });
+
   it("matches the nodes an entry stands for, so hovering can emphasise them", () => {
     const nodes = [
       node(1, { publicationType: "article" }),

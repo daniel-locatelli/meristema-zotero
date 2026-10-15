@@ -2633,7 +2633,6 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): SeedMarks =>
     seedMarks(next, merged, {
       seedColors: seedColorsFor(next),
-      isLibraryPaper: (key) => libraryGraphIndex.nodeByKey.has(key),
     });
 
   const applyHopModel = (

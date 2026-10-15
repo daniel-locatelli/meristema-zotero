@@ -20,11 +20,13 @@ whether or not it is in Zotero.
 _Avoid_: item (a Zotero record), node (the drawing), work (a provider's record)
 
 **Library paper**:
-A paper that exists as an item in the reader's Zotero library.
+A paper that exists as an item in the reader's Zotero library, including a hop
+paper matched to one. Drawn as a filled disc; the Key calls it In Zotero.
 
 **External paper**:
 A paper the graph knows only from a provider; it can be added to Zotero, after
-which it is a library paper under the same graph key.
+which it is a library paper under the same graph key. Drawn as a ring in its
+colour; the Key and the rail call it Not in Zotero.
 _Avoid_: candidate, ghost, missing paper
 
 **Edge**:
@@ -99,9 +101,8 @@ _Avoid_: hull, halo, cluster, contour (the curve that draws it)
 
 **Seed marks**:
 What a seeded graph adds to the plot per paper: the seed's bullseye in its own
-colour, the thin ring on a reached paper the library holds, the paper's hop and
-its seed-relative citation sequence. One record by paper, never a field on a
-node (ADR 0008); a library graph has none.
+colour, the paper's hop and its seed-relative citation sequence. One record by
+paper, never a field on a node (ADR 0008); a library graph has none.
 _Avoid_: overlay, decorations, hop map (one part of it)
 
 **Saved graph**:

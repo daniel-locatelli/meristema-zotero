@@ -46,7 +46,6 @@ import {
 import {
   graphThemeFor,
   hopOpacity,
-  inLibraryRingColor,
   litEdgeHalo,
   observeGraphScheme,
   resolveGraphScheme,
@@ -1180,16 +1179,38 @@ export class CitationGraphRenderer {
     context.globalAlpha = emphasis;
     context.save();
     if (ghosted) context.globalAlpha = 0.46 * emphasis;
+    // A paper in Zotero is a filled disc; one known only through a hop is a
+    // ring in its own colour, hollow on the plot's paper (F14, ADR 0020). The
+    // ring spans the disc's full radius, so hit-testing is unchanged.
+    const inZotero = node.kind !== "external";
     context.beginPath();
     context.arc(position.x, position.y, radius, 0, Math.PI * 2);
-    context.fillStyle = color;
+    context.fillStyle = inZotero ? color : this.theme.surfaces.paper;
     context.fill();
-    context.lineWidth = (node.isRetracted ? 3 : 1.1) * ratio;
     if (ghosted) context.setLineDash([4 * ratio, 3 * ratio]);
-    context.strokeStyle = node.isRetracted
-      ? this.theme.states.retracted
-      : this.theme.inks.primary;
-    context.stroke();
+    if (!inZotero) {
+      const ringWidth = Math.max(1.8 * ratio, radius * 0.34);
+      context.beginPath();
+      context.arc(
+        position.x,
+        position.y,
+        Math.max(0, radius - ringWidth / 2),
+        0,
+        Math.PI * 2,
+      );
+      context.lineWidth = ringWidth;
+      context.strokeStyle = color;
+      context.stroke();
+    }
+    if (inZotero || node.isRetracted) {
+      context.beginPath();
+      context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+      context.lineWidth = (node.isRetracted ? 3 : 1.1) * ratio;
+      context.strokeStyle = node.isRetracted
+        ? this.theme.states.retracted
+        : this.theme.inks.primary;
+      context.stroke();
+    }
     context.restore();
     if (this.searchMatches?.has(node.key)) {
       context.beginPath();
@@ -1199,23 +1220,6 @@ export class CitationGraphRenderer {
       context.stroke();
     }
     const marks = this.seedMarks;
-    if (
-      marks &&
-      marks.inLibraryReachedKeys.has(node.key) &&
-      !marks.seedKeys.has(node.key)
-    ) {
-      // A result you already own, told from one you do not. Thin, and a tint
-      // of the node's own fill: stage 4 reserves unfilled outlines for papers
-      // below the citation floor, and two outline meanings cannot be told
-      // apart on one plot.
-      context.save();
-      context.beginPath();
-      context.arc(position.x, position.y, radius + 2.5 * ratio, 0, Math.PI * 2);
-      context.lineWidth = 1.4 * ratio;
-      context.strokeStyle = inLibraryRingColor(color, this.theme);
-      context.stroke();
-      context.restore();
-    }
     if (marks?.seedKeys.has(node.key)) {
       context.save();
       context.beginPath();

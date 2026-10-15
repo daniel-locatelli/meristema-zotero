@@ -66,13 +66,6 @@ export interface GraphStateTokens {
   seed: string;
   searchMatch: string;
   retracted: string;
-  /**
-   * The in-library ring's colour when a node's fill cannot be brightened —
-   * a ramp stop given as `rgba(...)`, or a missing fill. Neutral on purpose:
-   * it used to be `#4f9a5e`, which *is* ramp stop three, so a ring on an
-   * unparseable fill read as a metric value.
-   */
-  inLibraryRing: string;
   /** Every non-seed node when no colour metric is chosen. */
   uniformFill: string;
   /** The citation floor's dashed line and its handle tag's border. */
@@ -181,7 +174,6 @@ const LIGHT_THEME: GraphTheme = {
     seed: "#63665d",
     searchMatch: "#0f110d",
     retracted: "#a33a3a",
-    inLibraryRing: "#6f736a",
     uniformFill: "#8d928a",
     floorLine: "#2563eb",
     floorBand: "rgba(27, 29, 25, .06)",
@@ -234,7 +226,6 @@ const DARK_THEME: GraphTheme = {
     seed: "#9a9c93",
     searchMatch: "#ffffff",
     retracted: "#d98b8b",
-    inLibraryRing: "#a8ada2",
     uniformFill: "#787d75",
     floorLine: "#8fb8ff",
     floorBand: "rgba(0, 0, 0, .28)",
@@ -391,27 +382,4 @@ export function seedColorAt(paletteIndex: number, theme: GraphTheme): string {
   const position =
     Number.isInteger(paletteIndex) && paletteIndex > 0 ? paletteIndex : 0;
   return seeds[position % seeds.length];
-}
-
-function hexChannel(value: string, start: number): number | null {
-  const parsed = Number.parseInt(value.slice(start, start + 2), 16);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * A brighter tint of a node's own fill: a hop result already in the library
- * wears a thin ring, so a paper you own is told from one you do not at a
- * glance while still reading as the same category. Only `#rrggbb` fills can be
- * brightened; anything else takes the theme's token.
- */
-export function inLibraryRingColor(fill: string, theme: GraphTheme): string {
-  if (!/^#[0-9a-fA-F]{6}$/.test(fill)) return theme.states.inLibraryRing;
-  const channels = [1, 3, 5].map((start) => hexChannel(fill, start));
-  if (channels.some((channel) => channel === null)) {
-    return theme.states.inLibraryRing;
-  }
-  const brightened = (channels as number[]).map((channel) =>
-    Math.min(255, Math.round(channel + (255 - channel) * 0.45)),
-  );
-  return `#${brightened.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
