@@ -864,7 +864,7 @@ describe("Citation hops (Stage 3)", function () {
       for (let y = top + 4; y < box.bottom - 4; y += 5) {
         for (let x = left + 4; x < box.right - 4; x += 5) {
           move(x, y);
-          const paper = canvas.title;
+          const paper = canvas.getAttribute("aria-description") ?? "";
           if (!paper || tried.has(paper)) continue;
           tried.add(paper);
           if (!paper.includes(titleIncludes)) continue;
@@ -3226,7 +3226,7 @@ describe("Citation hops (Stage 3)", function () {
     }
 
     /**
-     * Walk the plot in whole CSS pixels (B43) until the canvas title reads the
+     * Walk the plot in whole CSS pixels (B43) until the canvas description reads the
      * floor. Either end of the gesture serves: the tag always grabs the floor,
      * and the bare line grabs it wherever no node sits under it.
      */
@@ -3249,7 +3249,7 @@ describe("Citation hops (Stage 3)", function () {
               clientY: y,
             }),
           );
-          const title = canvas.title;
+          const title = canvas.getAttribute("aria-description") ?? "";
           if (title.startsWith("floor:")) return { point: { x, y }, seen: [] };
           if (title) seen.add(`${title.split("\n")[0]} @${x},${y}`);
         }

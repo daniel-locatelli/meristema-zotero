@@ -126,6 +126,7 @@ export class FakeCanvas {
     createElement: (tag: string) => FakeCanvas;
   };
   private listeners = new Map<string, Array<(event: unknown) => void>>();
+  private attributes = new Map<string, string>();
 
   constructor() {
     this.ownerDocument = {
@@ -169,6 +170,23 @@ export class FakeCanvas {
   }
   setPointerCapture(): void {}
   releasePointerCapture(): void {}
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name, value);
+  }
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name) ?? null;
+  }
+  removeAttribute(name: string): void {
+    this.attributes.delete(name);
+  }
+}
+
+/**
+ * What the canvas says is under the pointer. It is an ARIA description, not a
+ * `title`, so the host draws no native tooltip over the plot (B101).
+ */
+export function hoverText(canvas: FakeCanvas): string {
+  return canvas.getAttribute("aria-description") ?? "";
 }
 
 export function node(

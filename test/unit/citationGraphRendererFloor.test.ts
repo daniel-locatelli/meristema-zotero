@@ -13,6 +13,7 @@ import {
   attachView,
   FakeCanvas,
   FREE_LAYOUT,
+  hoverText,
   model,
   node,
 } from "./graphRendererDoubles";
@@ -347,10 +348,10 @@ describe("CitationGraphRenderer floor", function () {
     );
     expect(under?.key, "the tag covers part of the paper").to.equal("parked");
     canvas.fire("pointermove", press);
-    expect(canvas.title, "the paper names itself").to.not.equal(
+    expect(hoverText(canvas), "the paper names itself").to.not.equal(
       floorTagText(0, 0),
     );
-    expect(canvas.title).to.not.equal("");
+    expect(hoverText(canvas)).to.not.equal("");
     canvas.fire("pointerdown", { button: 0, pointerId: 1, ...press });
     canvas.fire("pointerup", { pointerId: 1, ...press });
     expect(selected).to.deep.equal(["parked"]);
@@ -358,17 +359,17 @@ describe("CitationGraphRenderer floor", function () {
     // Clear of the paper, the tag still names the floor.
     const far = { clientX: tag.right - 2, clientY: (tag.top + tag.bottom) / 2 };
     canvas.fire("pointermove", far);
-    expect(canvas.title).to.equal(floorTagText(0, 0));
+    expect(hoverText(canvas)).to.equal(floorTagText(0, 0));
   });
 
-  it("names the tag in the canvas title while it is hovered", function () {
+  it("names the tag in the canvas description while it is hovered", function () {
     const { renderer, canvas } = makeRenderer(CITATIONS_Y);
     renderer.setFloor(20, 3);
     canvas.fire("pointermove", centerOf(theTag(renderer)));
-    expect(canvas.title).to.equal(floorTagText(20, 3));
+    expect(hoverText(canvas)).to.equal(floorTagText(20, 3));
     expect(canvas.style.cursor).to.equal("ns-resize");
     canvas.fire("pointermove", { clientX: 5, clientY: 5 });
-    expect(canvas.title).to.equal("");
+    expect(hoverText(canvas)).to.equal("");
   });
 
   it("recovers the hover after a drag and after the pointer leaves", function () {
@@ -376,7 +377,7 @@ describe("CitationGraphRenderer floor", function () {
     renderer.setFloor(20, 3);
     const grab = centerOf(theTag(renderer));
     canvas.fire("pointermove", grab);
-    expect(canvas.title).to.equal(floorTagText(20, 3));
+    expect(hoverText(canvas)).to.equal(floorTagText(20, 3));
 
     const target = (WORLD_PLOT.top + WORLD_PLOT.bottom) / 2;
     const expected = floorAtWorld("y", axisInput(renderer, "y"), target);
@@ -395,15 +396,15 @@ describe("CitationGraphRenderer floor", function () {
     // value the drag arrived at, not the one it started from.
     canvas.fire("pointermove", grab);
     expect(canvas.style.cursor).to.equal("ns-resize");
-    expect(canvas.title).to.equal(floorTagText(expected, 3));
+    expect(hoverText(canvas)).to.equal(floorTagText(expected, 3));
 
     // That hover redrew the floor, so the tag has moved to the new value.
     const moved = centerOf(theTag(renderer));
     canvas.fire("pointerleave", {});
-    expect(canvas.title).to.equal("");
+    expect(hoverText(canvas)).to.equal("");
     canvas.fire("pointermove", moved);
     expect(canvas.style.cursor).to.equal("ns-resize");
-    expect(canvas.title).to.equal(floorTagText(expected, 3));
+    expect(hoverText(canvas)).to.equal(floorTagText(expected, 3));
   });
 
   it("draws and drags the floor on an X axis that shows citations", function () {

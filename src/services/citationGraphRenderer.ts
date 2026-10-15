@@ -886,11 +886,13 @@ export class CitationGraphRenderer {
             ? "move"
             : "pointer"
           : "grab";
-      this.canvas.title = overFloor
-        ? floorTagText(this.floor, this.floorBelow)
-        : node
-          ? this.tooltipForNode(node)
-          : "";
+      this.describeHover(
+        overFloor
+          ? floorTagText(this.floor, this.floorBelow)
+          : node
+            ? this.tooltipForNode(node)
+            : "",
+      );
       this.draw();
     }
   };
@@ -905,7 +907,7 @@ export class CitationGraphRenderer {
       this.floorDragging = false;
       this.pointer.down = false;
       // The hover is forgotten with the drag: the next move over the tag has
-      // to restore the resize cursor and retitle the canvas with the value
+      // to restore the resize cursor and redescribe the canvas with the value
       // the drag just left behind.
       this.floorHovered = false;
       this.canvas.style.cursor = "grab";
@@ -943,11 +945,11 @@ export class CitationGraphRenderer {
   private onPointerLeave = (): void => {
     if (!this.pointer.down) {
       this.hoverKey = null;
-      // Cleared with the title it wrote, so re-entering over the tag counts
-      // as a change again and names the floor once more.
+      // Cleared with the description it wrote, so re-entering over the tag
+      // counts as a change again and names the floor once more.
       this.floorHovered = false;
       this.onHoverChange(null);
-      this.canvas.title = "";
+      this.describeHover("");
       this.draw();
     }
   };
@@ -2293,6 +2295,16 @@ export class CitationGraphRenderer {
     }
   }
 
+  /**
+   * Names what is under the pointer as the canvas's ARIA description. Never
+   * its `title`: the host drew that as a native tooltip over the plugin's own
+   * hover label (B101).
+   */
+  private describeHover(text: string): void {
+    if (text) this.canvas.setAttribute("aria-description", text);
+    else this.canvas.removeAttribute("aria-description");
+  }
+
   private tooltipForNode(node: CitationGraphNode): string {
     // Under "uniform" or a numeric metric, `nodeCategory` returns null for
     // every node — there is no category to name — so `labelFor` falls back
@@ -2400,7 +2412,7 @@ export class CitationGraphRenderer {
     const rendered = this.renderedKeys();
     if (this.hoverKey && !rendered.has(this.hoverKey)) {
       this.hoverKey = null;
-      this.canvas.title = "";
+      this.describeHover("");
     }
     // Filtering is a visibility operation, not a layout operation. Keeping
     // positions fixed preserves the user's mental map and lets a selected

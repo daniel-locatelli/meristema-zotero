@@ -7,6 +7,7 @@ import {
   attachView,
   FakeCanvas,
   FREE_LAYOUT,
+  hoverText,
   model,
   node,
 } from "./graphRendererDoubles";
@@ -134,7 +135,10 @@ describe("CitationGraphRenderer displaced hovered label", function () {
       ]),
     );
     const moves: Array<[number, number]> = [];
-    canvas.context.moveTo = (x: number, y: number) => {
+    // The double does not record path moves; this case listens for them.
+    (
+      canvas.context as unknown as { moveTo(x: number, y: number): void }
+    ).moveTo = (x, y) => {
       moves.push([x, y]);
     };
     canvas.context.calls = [];
@@ -154,5 +158,35 @@ describe("CitationGraphRenderer displaced hovered label", function () {
     expect(moves, "no leader starts at the node").to.not.deep.include([
       400, 300,
     ]);
+  });
+});
+
+/**
+ * B101: the plot sets no `title`, so the host never lays its native tooltip
+ * over the plugin's own label. What is under the pointer is the canvas's ARIA
+ * description instead.
+ */
+describe("CitationGraphRenderer hover without a native tooltip", function () {
+  it("names the hovered paper without titling the canvas", function () {
+    const canvas = new FakeCanvas();
+    const renderer = new CitationGraphRenderer({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      model: model([node("paper", { title: "A hovered paper" })]),
+      layout: FREE_LAYOUT,
+      collectionLabels: new Map(),
+      onSelectionChange: () => undefined,
+      onOpenNode: () => undefined,
+    });
+    attachView(canvas);
+    renderer.setNodePositions(new Map([["paper", { x: 300, y: 300 }]]));
+    canvas.fire("pointermove", { clientX: 300, clientY: 300 });
+    expect(renderer.getHoverKey()).to.equal("paper");
+    expect(canvas.title, "no native tooltip").to.equal("");
+    expect(hoverText(canvas)).to.include("A hovered paper");
+    canvas.fire("pointermove", { clientX: 5, clientY: 5 });
+    expect(hoverText(canvas), "cleared off the paper").to.equal("");
+    canvas.fire("pointermove", { clientX: 300, clientY: 300 });
+    canvas.fire("pointerleave");
+    expect(hoverText(canvas), "cleared when the pointer leaves").to.equal("");
   });
 });

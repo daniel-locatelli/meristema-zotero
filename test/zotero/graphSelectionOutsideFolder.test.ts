@@ -103,7 +103,7 @@ describe("Selecting a node whose paper is outside the open folder", function () 
       for (let y = box.top + 4; y < box.bottom - 4; y += 5) {
         for (let x = box.left + 4; x < box.right - 4; x += 5) {
           move(x, y);
-          const paper = canvas.title;
+          const paper = canvas.getAttribute("aria-description") ?? "";
           if (!paper) continue;
           seen.add(paper);
           if (paper.includes(title)) return { x, y };

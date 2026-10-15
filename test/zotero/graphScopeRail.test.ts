@@ -192,7 +192,7 @@ describe("The graph's Scope rail", function () {
       for (let y = top + 4; y < box.bottom - 4; y += 5) {
         for (let x = left + 4; x < box.right - 4; x += 5) {
           move(x, y);
-          const paper = canvas.title;
+          const paper = canvas.getAttribute("aria-description") ?? "";
           if (!paper || tried.has(paper)) continue;
           tried.add(paper);
           const rightClick = new win.MouseEvent("contextmenu", {

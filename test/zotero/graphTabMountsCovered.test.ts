@@ -238,7 +238,8 @@ describe("A new graph tab mounts on a covered window", function () {
                 clientY: y,
               }),
             );
-            if (canvas.title) seen.add(canvas.title.split("\n")[0]!);
+            const paper = canvas.getAttribute("aria-description");
+            if (paper) seen.add(paper.split("\n")[0]!);
           }
         }
       }

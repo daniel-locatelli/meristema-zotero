@@ -13,6 +13,7 @@ import {
   FakeCanvas,
   FakePath2D,
   FREE_LAYOUT,
+  hoverText,
   lastRegionStroke,
   lastRegionStrokeOf,
   model,
@@ -182,10 +183,10 @@ describe("CitationGraphRenderer regions", function () {
       renderer.setNodePositions(new Map([["n1", { x: 200, y: 200 }]]));
 
       // A bare hover (no prior pointerdown) at the node's own position sets
-      // `canvas.title` from `tooltipForNode`.
+      // the canvas's description from `tooltipForNode`.
       canvas.fire("pointermove", { clientX: 200, clientY: 200 });
 
-      const title = (canvas as unknown as { title: string }).title;
+      const title = hoverText(canvas);
       expect(title.length).to.be.greaterThan(0);
       // Under "uniform" — the shipped default — `nodeCategory` returns null
       // for every node, and `labelFor` used to fall back to the literal

@@ -155,14 +155,6 @@ opacity grade).
 
 ## From the 2026-10-15 walk
 
-Fixes (no decision needed):
-
-- [ ] B101 a hovered paper's full-title label draws a leader line to its node
-      when it is placed away; drop the line. The native `title` tooltip still
-      shows on hover sometimes; drop it on the plot
-
-Design (user, brainstorm first):
-
 - [ ] F14 a graph started from papers ticks no folders, so nothing says which
       hop papers are already in Zotero (hovering a folder row dims the rest,
       but only per folder). Show "in Zotero" on the plot
@@ -243,6 +235,8 @@ any failure into a new entry above.
       pans to centre it at the same zoom.
 - [ ] B99: in light mode select a node with references and citations: its lit
       edges cast no dark shadow; in dark mode they still glow.
+- [ ] B101: hover a paper whose title has no room on its right: the label
+      sits elsewhere with no line to the node, and no native tooltip appears.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
