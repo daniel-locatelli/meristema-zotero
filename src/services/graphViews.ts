@@ -362,6 +362,21 @@ function sameIDs(a: readonly number[], b: readonly number[]): boolean {
 }
 
 /**
+ * The gear's half of "(edited)" (D28): the live layout differs from the
+ * view's, both normalised for this graph so a metric the graph lacks does
+ * not count as an edit.
+ */
+export function graphViewLayoutIsEdited(
+  view: GraphViewDefinition,
+  nodes: readonly CitationGraphNode[],
+  layout: GraphLayoutOptions,
+): boolean {
+  const expected = normaliseLayoutFor(nodes, view.appearance);
+  const liveLayout = normaliseLayoutFor(nodes, layout);
+  return LAYOUT_KEYS.some((key) => expected[key] !== liveLayout[key]);
+}
+
+/**
  * The chip's "(edited)": the live settings differ from the view on a field
  * the view owns. Compared after normalising the view for this graph, so a
  * metric the graph lacks does not count as an edit.
@@ -370,9 +385,7 @@ export function graphViewIsEdited(
   view: GraphViewDefinition,
   live: GraphViewLiveInput & { regions: readonly number[] },
 ): boolean {
-  const expected = normaliseLayoutFor(live.nodes, view.appearance);
-  const liveLayout = normaliseLayoutFor(live.nodes, live.layout);
-  if (LAYOUT_KEYS.some((key) => expected[key] !== liveLayout[key])) return true;
+  if (graphViewLayoutIsEdited(view, live.nodes, live.layout)) return true;
   if (view.regions !== null) {
     const resolved = resolveViewRegions(view.regions, live.folders);
     if (resolved && !sameIDs(resolved.collectionIDs, live.regions)) return true;

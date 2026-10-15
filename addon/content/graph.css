@@ -451,6 +451,11 @@
   font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.35;
 }
+.cm-appearance-source {
+  margin: 0 0 8px;
+  color: var(--cm-muted);
+  font-size: calc(11 * var(--cm-font-unit));
+}
 .cm-appearance-actions {
   display: flex;
   flex-wrap: wrap;

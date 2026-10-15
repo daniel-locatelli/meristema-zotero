@@ -162,16 +162,6 @@ opacity grade).
       but only per folder). Show "in Zotero" on the plot. Decided 2026-10-15:
       papers in the Zotero library draw as filled discs, papers known only
       through hops as outlined rings, under every colouring
-- [ ] D28 "Make this the default" sets Start blank's default only, but the
-      reader applies a view (Overview) first and reads it as overriding that
-      view. Decided 2026-10-15: rename it "Use for new blank graphs" and have
-      the gear say which view, if any, the graph came from; views stay fixed
-- [ ] D29 the floor's `n with no count kept` note looks lost in the rail.
-      Decided 2026-10-15: its own switch row under the floor,
-      `Papers with no count (n)`, like the other Scope switches
-- [ ] F15 open graph tabs come back after a Zotero restart, as reader tabs do.
-      Decided 2026-10-15: every graph tab, unsaved ones from a snapshot in the
-      profile; a stopped fill stays stopped
 - [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
       coloured by hop. Decided 2026-10-15: Citers only, depth 2, needs a seed
 - [ ] D30 Settings › Libraries to update: its help is hard to read for a new
@@ -249,6 +239,9 @@ any failure into a new entry above.
       sits elsewhere with no line to the node, and no native tooltip appears.
 - [ ] B103: in Title labels, zoom out until labels crowd: no pushed-aside
       label draws a line to its node, hovered or not.
+- [ ] D28: apply Overview and open the gear: it reads `From view: Overview`,
+      then `Edited from view: Overview` after a change; the buttons read
+      Use for new blank graphs and Restore built-in blank graph.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

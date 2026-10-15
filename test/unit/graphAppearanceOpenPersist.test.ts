@@ -219,7 +219,7 @@ function colourSelect(gear: { root: HTMLDivElement }): FakeElement {
 
 /**
  * D17: a gear edit stays with its graph. The stored default changes only
- * through "Make this the default", and "Reset to built-in default" is there
+ * through "Use for new blank graphs", and "Restore built-in blank graph" is there
  * only while a made default exists.
  */
 describe("The gear's default", () => {
@@ -242,7 +242,7 @@ describe("The gear's default", () => {
     expect(persisted, "a gear edit stored a default").to.deep.equal([]);
   });
 
-  it("stores the graph's settings on Make this the default, then offers the way back", () => {
+  it("stores the graph's settings on Use for new blank graphs, then offers the way back", () => {
     const { defaults, persisted } = fakeDefaults(false);
     const gear = createAxesAppearance(
       fakeDocument,
@@ -251,19 +251,19 @@ describe("The gear's default", () => {
       () => {},
       defaults,
     );
-    const back = buttonReading(gear, "Reset to built-in default");
+    const back = buttonReading(gear, "Restore built-in blank graph");
     expect(back.hidden, "no made default, no way back").to.equal(true);
     const select = colourSelect(gear);
     select.value = "provider";
     select.fire("change");
-    buttonReading(gear, "Make this the default").fire("click");
+    buttonReading(gear, "Use for new blank graphs").fire("click");
     expect(persisted).to.deep.equal([
       { ...BUILT_IN, nodeColorMetric: "provider" },
     ]);
     expect(back.hidden).to.equal(false);
   });
 
-  it("forgets a made default on Reset to built-in default and shows the built-in one", () => {
+  it("forgets a made default on Restore built-in blank graph and shows the built-in one", () => {
     const { defaults, forgotten } = fakeDefaults(true);
     const changes: GraphLayoutOptions[] = [];
     const gear = createAxesAppearance(
@@ -273,7 +273,7 @@ describe("The gear's default", () => {
       (layout) => changes.push(layout),
       defaults,
     );
-    const back = buttonReading(gear, "Reset to built-in default");
+    const back = buttonReading(gear, "Restore built-in blank graph");
     expect(back.hidden, "a made default offers the way back").to.equal(false);
     back.fire("click");
     expect(forgotten()).to.equal(1);
@@ -295,5 +295,45 @@ describe("The gear's default", () => {
     expect(gear.getLayout()).to.deep.equal(SAVED);
     expect(persisted).to.deep.equal([]);
     expect(forgotten()).to.equal(0);
+  });
+});
+
+function sourceLine(gear: { root: HTMLDivElement }): FakeElement {
+  const found = (gear.root as unknown as FakeElement)
+    .descendants()
+    .find((el) => el.className.split(" ").includes("cm-appearance-source"));
+  if (!found) throw new Error("no source line");
+  return found;
+}
+
+/*
+ * D28: the gear names the view its settings came from, so a reader who
+ * applied Overview and then pressed "Use for new blank graphs" can see
+ * that Overview itself is untouched.
+ */
+describe("The gear's source line", () => {
+  const gearOn = () =>
+    createAxesAppearance(
+      fakeDocument,
+      BUILT_IN,
+      RICH,
+      () => {},
+      fakeDefaults(false).defaults,
+    );
+
+  it("says nothing on a graph no view was applied to", () => {
+    const line = sourceLine(gearOn());
+    expect(line.hidden).to.equal(true);
+  });
+
+  it("names the view, and says so once the settings moved from it", () => {
+    const gear = gearOn();
+    gear.setSource({ name: "Overview", edited: false });
+    expect(sourceLine(gear).hidden).to.equal(false);
+    expect(sourceLine(gear).textContent).to.equal("From view: Overview");
+    gear.setSource({ name: "Overview", edited: true });
+    expect(sourceLine(gear).textContent).to.equal("Edited from view: Overview");
+    gear.setSource(null);
+    expect(sourceLine(gear).hidden).to.equal(true);
   });
 });

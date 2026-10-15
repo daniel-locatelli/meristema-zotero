@@ -9,6 +9,7 @@ import {
   encodeGraphView,
   graphViewAvailabilityLine,
   graphViewIsEdited,
+  graphViewLayoutIsEdited,
   graphViewRequirementLine,
   isShippedViewName,
   planGraphView,
@@ -274,6 +275,40 @@ describe("planGraphView", function () {
     });
     expect(plan.regions).to.deep.equal([1, 4]);
     expect(plan.filters.collectionIDs).to.deep.equal([]);
+  });
+});
+
+/*
+ * D28: the gear says which view its settings came from, and whether they
+ * have moved since. Only the layout counts there: regions and filters are
+ * the rail's, not the gear's.
+ */
+describe("graphViewLayoutIsEdited", function () {
+  it("is false on the view's own layout and true once a gear field moves", function () {
+    expect(
+      graphViewLayoutIsEdited(overview, nodes, overview.appearance),
+    ).to.equal(false);
+    expect(
+      graphViewLayoutIsEdited(overview, nodes, {
+        ...overview.appearance,
+        nodeLabelMode:
+          overview.appearance.nodeLabelMode === "title" ? "none" : "title",
+      }),
+    ).to.equal(true);
+  });
+
+  it("does not count a metric the graph lacks as an edit", function () {
+    const poor = [node({ citationCount: null })];
+    const plan = planGraphView(overview, {
+      nodes: poor,
+      layout: liveLayout,
+      filters: defaultPaperListFilterState(),
+      folders,
+      hops: liveHops,
+    });
+    expect(graphViewLayoutIsEdited(overview, poor, plan.layout)).to.equal(
+      false,
+    );
   });
 });
 

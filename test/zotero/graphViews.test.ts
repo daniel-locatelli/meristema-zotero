@@ -491,7 +491,7 @@ describe("Graph views (D4)", function () {
     expect(chipText(), "the chip still reads View").to.contain("View");
   });
 
-  it("applies Overview from the chip, labels it, and marks a gear edit", async function () {
+  it("applies Overview from the chip, labels it, and marks a gear edit (D28)", async function () {
     this.timeout(30_000);
     await openChipMenu();
     viewRow("overview").click();
@@ -514,6 +514,12 @@ describe("Graph views (D4)", function () {
       return panel && !panel.hidden ? panel : null;
     }, 5_000);
     expect(panelOpen, "the gear's panel opened").to.exist;
+    // D28: the gear names the view its settings came from.
+    const source = (): string =>
+      normalize(
+        panelOpen!.querySelector(".cm-appearance-source")?.textContent ?? "",
+      );
+    expect(source()).to.equal("From view: Overview");
     const labels = labelSelect();
     expect(labels.value, "Overview's own label mode").to.equal("author-year");
     labels.value = "none";
@@ -522,6 +528,7 @@ describe("Graph views (D4)", function () {
     expect(chipName(), `chip text was "${chipText()}"`).to.equal(
       "Overview (edited)",
     );
+    expect(source()).to.equal("Edited from view: Overview");
     // Leave the gear shut for the cases that follow.
     await waitFor(() => {
       const panel = graphRoot().querySelector(
@@ -1116,12 +1123,12 @@ describe("Graph views (D4)", function () {
 
   /**
    * D17: a gear edit stays with its graph, and a new graph opens on the
-   * default until the reader presses "Make this the default". "Reset to
-   * built-in default" is offered only while a made default exists, and
+   * default until the reader presses "Use for new blank graphs". "Restore
+   * built-in blank graph" is offered only while a made default exists, and
    * forgets it. The suite's graph is a library graph, so the library
    * default is the one in play; the profile's records are handed back.
    */
-  it("keeps a gear edit with its graph until Make this the default (D17)", async function () {
+  it("keeps a gear edit with its graph until Use for new blank graphs (D17)", async function () {
     this.timeout(90_000);
     const names = [
       "graphAppearance",
@@ -1158,7 +1165,7 @@ describe("Graph views (D4)", function () {
       }, 5_000);
       expect(panel, "the gear's panel opened").to.exist;
       const back = (): HTMLButtonElement =>
-        buttonReading(panel!, "Reset to built-in default");
+        buttonReading(panel!, "Restore built-in blank graph");
       expect(back().hidden, "no made default, no way back").to.equal(true);
 
       const labels = labelSelect();
@@ -1177,7 +1184,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      buttonReading(panel!, "Make this the default").click();
+      buttonReading(panel!, "Use for new blank graphs").click();
       expect(
         JSON.parse(stored()).nodeLabelMode,
         `the made default; stored ${stored()}`,

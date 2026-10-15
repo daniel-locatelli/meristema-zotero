@@ -358,6 +358,12 @@ export interface AppearanceDefaults {
   forget: () => GraphLayoutOptions;
 }
 
+/** The view a graph's settings came from, and whether the gear moved them. */
+export interface AppearanceSource {
+  name: string;
+  edited: boolean;
+}
+
 export function createAxesAppearance(
   document: Document,
   initial: GraphLayoutOptions,
@@ -371,6 +377,8 @@ export function createAxesAppearance(
   setLayout: (layout: GraphLayoutOptions) => void;
   getLayout: () => GraphLayoutOptions;
   close: () => void;
+  /** Name the view the settings came from (D28); null hides the line. */
+  setSource: (source: AppearanceSource | null) => void;
   /**
    * Enable or disable one colouring's option. Citation hop means nothing
    * without a seed, so the view flips it with seededness; a disabled
@@ -611,7 +619,18 @@ export function createAxesAppearance(
     createMetricHelp(document, colorMetric, "Choose node colour."),
   );
 
-  panel.append(tabs, xPane, yPane, nodesPane);
+  // D28: "Use for new blank graphs" reads as overwriting the view the graph
+  // came from unless the gear says which view that was.
+  const sourceLine = text(document, "p", "", "cm-appearance-source");
+  const setSource = (source: AppearanceSource | null): void => {
+    sourceLine.hidden = !source;
+    sourceLine.style.display = source ? "" : "none";
+    sourceLine.textContent = source
+      ? `${source.edited ? "Edited from" : "From"} view: ${source.name}`
+      : "";
+  };
+  setSource(null);
+  panel.append(sourceLine, tabs, xPane, yPane, nodesPane);
   const actions = element(document, "div", "cm-appearance-actions");
   const actionButton = (label: string, title: string): HTMLButtonElement => {
     const action = element(document, "button", "cm-secondary-button");
@@ -623,15 +642,17 @@ export function createAxesAppearance(
   };
   const reset = actionButton(
     "Reset",
-    "Put this graph back on the settings a new graph opens with.",
+    "Put this graph back on the settings a new blank graph opens with.",
   );
+  // D28: the stored default is what Start blank and a plain new graph open
+  // with; a view keeps its own settings, so the label says which it moves.
   const makeDefault = actionButton(
-    "Make this the default",
-    "Open every new graph of this kind with these settings.",
+    "Use for new blank graphs",
+    "Open every new blank graph of this kind with these settings. Views keep their own.",
   );
   const forgetDefault = actionButton(
-    "Reset to built-in default",
-    "Forget the default you made and open new graphs on the built-in one.",
+    "Restore built-in blank graph",
+    "Forget the settings you chose and open new blank graphs on the built-in ones.",
   );
   /** The way back is offered only while there is a made default to forget. */
   const refreshDefaultActions = (): void => {
@@ -670,7 +691,7 @@ export function createAxesAppearance(
   };
   let last = JSON.stringify(read());
   // A change stays with this graph (D17): the stored default moves only
-  // through "Make this the default" and "Reset to built-in default".
+  // through "Use for new blank graphs" and "Restore built-in blank graph".
   const commit = (layout: GraphLayoutOptions, force = false): void => {
     const signature = JSON.stringify(layout);
     if (!force && signature === last) return;
@@ -741,7 +762,7 @@ export function createAxesAppearance(
   // What the selects landed on is what this graph can show, not a choice the
   // reader made: a graph without years or counts opens on Free axes, and
   // saving that as the default made every later graph open on Free axes too
-  // (da2b54d). Opening stores nothing; only "Make this the default" does.
+  // (da2b54d). Opening stores nothing; only "Use for new blank graphs" does.
   last = JSON.stringify(read());
   return {
     root,
@@ -750,6 +771,7 @@ export function createAxesAppearance(
     setLayout,
     getLayout: read,
     close,
+    setSource,
     setColourOptionAvailable(metric, available) {
       const option = colorMetric.querySelector(
         `option[data-metric="${metric}"]`,
