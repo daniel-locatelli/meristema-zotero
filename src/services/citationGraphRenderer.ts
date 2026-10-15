@@ -69,6 +69,7 @@ import { emptySwatchLedger, type SwatchLedgerState } from "./graphSwatchLedger";
 import {
   boxMissesRect,
   devicePixelScale,
+  centredTransform,
   offscreenPanDelta,
   projectToScreen,
   projectToWorld,
@@ -2490,10 +2491,14 @@ export class CitationGraphRenderer {
     if (center) {
       const position = this.positions.get(key);
       if (position) {
-        this.transform.x =
-          this.canvas.width / 2 - position.x * this.transform.scale;
-        this.transform.y =
-          this.canvas.height / 2 - position.y * this.transform.scale;
+        // A pending initial fit would otherwise take the centring back.
+        this.markViewAdjusted();
+        this.transform = centredTransform(
+          position,
+          this.transform,
+          this.canvas.width,
+          this.canvas.height,
+        );
       }
     }
     this.draw();

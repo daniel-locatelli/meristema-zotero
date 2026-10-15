@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import { expect } from "chai";
 import {
   boxMissesRect,
+  centredTransform,
   devicePixelScale,
   segmentMissesRect,
   offscreenPanDelta,
@@ -58,6 +59,20 @@ describe("Graph viewport", function () {
     expect(devicePixelScale(2000, 1000)).to.equal(2);
     expect(devicePixelScale(1000, 1000)).to.equal(1);
     expect(devicePixelScale(4, 0)).to.equal(4);
+  });
+});
+
+describe("Centring on a point", function () {
+  it("puts the point at the canvas centre and keeps the zoom", function () {
+    for (const transform of TRANSFORMS) {
+      for (const point of POINTS) {
+        const centred = centredTransform(point, transform, 800, 600);
+        expect(centred.scale).to.equal(transform.scale);
+        const screen = projectToScreen(point, centred);
+        expect(screen.x).to.be.closeTo(400, 1e-9);
+        expect(screen.y).to.be.closeTo(300, 1e-9);
+      }
+    }
   });
 });
 

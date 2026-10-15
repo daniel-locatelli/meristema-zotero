@@ -68,6 +68,23 @@ export function screenLengthToWorld(
 }
 
 /**
+ * The view that puts a world point at the canvas centre at the same zoom —
+ * where a seed picked from the rail is shown (B98).
+ */
+export function centredTransform(
+  position: ViewportPoint,
+  transform: ViewportTransform,
+  width: number,
+  height: number,
+): ViewportTransform {
+  return {
+    x: width / 2 - position.x * transform.scale,
+    y: height / 2 - position.y * transform.scale,
+    scale: transform.scale,
+  };
+}
+
+/**
  * How far to shift the view so a screen point sits inside the canvas with
  * `margin` to spare, or zero on an axis where it already does. Used to bring
  * a node selected elsewhere into view without changing the zoom.

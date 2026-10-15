@@ -1547,11 +1547,10 @@ export function renderGraphView(
       },
       removeSeed: (seedKey) => removeFocusSeed(seedKey),
       // The same path as a click on the node: the selection is reported to
-      // the list, and the seed is brought into view if it is off screen.
+      // the list, and the view pans, at the same zoom, to centre the seed
+      // wherever it was (B98).
       selectSeed: (seedKey) => {
-        if (renderer?.selectNode(seedKey, false)) {
-          renderer.panToNodeIfOffscreen(seedKey);
-        }
+        renderer?.selectNode(seedKey);
       },
       addSeed: (anchor) => openFocusSeedPopover(anchor),
       showAllHidden: () => {

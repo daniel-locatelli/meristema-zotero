@@ -380,6 +380,32 @@ describe("The graph's Scope rail", function () {
       ...(win.ZoteroPane.itemsView.getSelectedItems(true) as number[]),
     ]).to.deep.equal([seedID]);
 
+    // The row centres the seed, even one already on screen (B98): a
+    // right-click at the canvas centre lands on a node, and its menu is a
+    // seed's. The renderer prevents the default only when its hit test found
+    // a node.
+    await delay(300);
+    const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+    const box = canvas.getBoundingClientRect();
+    const atCentre = new win.MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: Math.round(box.left + box.width / 2),
+      clientY: Math.round(box.top + box.height / 2),
+    });
+    canvas.dispatchEvent(atCentre);
+    const centreMenu = nodeMenuItems()
+      .map((button) => button.textContent?.trim())
+      .join(", ");
+    closeNodeMenu();
+    expect(
+      atCentre.defaultPrevented,
+      `a node sits at the canvas centre; menu [${centreMenu}]`,
+    ).to.equal(true);
+    expect(centreMenu, "the node at the centre is the seed").to.include(
+      "Remove seed",
+    );
+
     // Selecting the seed from elsewhere lights its row too.
     await listSelects(otherID);
     await waitFor(() => pressed() === "false", 5_000);
