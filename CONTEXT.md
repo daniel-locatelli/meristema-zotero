@@ -114,7 +114,7 @@ _Avoid_: snapshot (a cached result), session, bookmark
 What the profile keeps of an open graph tab so it comes back after a
 restart: its place, whether it was selected, its saved graph if any, and its
 state. It goes when the reader closes the tab; the graph comes back with its
-fill stopped (ADR 0020).
+fill stopped (ADR 0021).
 _Avoid_: session, snapshot, restored graph
 
 **Default appearance**:

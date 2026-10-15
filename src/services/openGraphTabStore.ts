@@ -8,7 +8,7 @@ import type { SavedGraphConnection } from "./savedGraphService";
 
 /**
  * What the profile keeps of an open graph tab so it comes back after a
- * restart (F15, ADR 0020). Zotero's own session never carries a graph tab:
+ * restart (F15, ADR 0021). Zotero's own session never carries a graph tab:
  * the plugin keeps this list itself and reopens the tabs on startup.
  */
 export interface OpenGraphTabRecord {

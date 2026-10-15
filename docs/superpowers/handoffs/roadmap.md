@@ -21,7 +21,7 @@ Inputs (do not re-derive them):
 - Design: `docs/design_handoff_citation_chain_depth/README.md` (option 6a;
   open `#6a` in `Citation Chain Depth.dc.html`).
 - D8's evidence: `docs/superpowers/handoffs/2026-09-16-d8-evidence.md`.
-- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0018).
+- Settled decisions: `CONTEXT.md` and `docs/adr/` (0001 to 0021).
 - Ledger of finished plans: `.superpowers/sdd/progress.md`.
 
 ## Next

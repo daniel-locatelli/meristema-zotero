@@ -641,7 +641,7 @@ export function freezeOpenGraphTabs(): void {
 }
 
 /**
- * Reopens the graph tabs the last session left open (F15, ADR 0020), in
+ * Reopens the graph tabs the last session left open (F15, ADR 0021), in
  * their old places, the selected one selected. Each comes back stopped, and
  * a saved graph comes back as the document of its row.
  */
@@ -1366,7 +1366,7 @@ function reportGraphSelection(
 export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
   const manager = tabs(win);
   // Graph tabs stay out of Zotero's session file: the plugin keeps its own
-  // records of them and reopens them itself (ADR 0020). The restoreState
+  // records of them and reopens them itself (ADR 0021). The restoreState
   // hook below only drops a graph tab an older build let into the file.
   if (!manager[TAB_STATE_FILTER_MARKER]) {
     const originalGetState = manager.getState.bind(manager);
