@@ -92,8 +92,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
       "Every paper placed by year and citations, coloured by publication type, so the shape of the field shows before anything else does.",
     icon: "view-overview",
     // D22: one neutral grey wasted the colour channel. A new graph opens on
-    // this appearance too (`DEFAULT_GRAPH_LAYOUT`); Folder map stays uniform,
-    // since its regions carry the colour there.
+    // this appearance too (`DEFAULT_GRAPH_LAYOUT`).
     appearance: { ...BASE, nodeColorMetric: "publication-type" },
     regions: null,
     filters: null,
@@ -152,7 +151,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
     name: "Folder map",
     // The question it answers, in the user's words (D19, 2026-10-11).
     summary:
-      "Free layout, folder regions. Do your folders match how the papers cite each other?",
+      "Free layout, folder regions, colour citations. Do your folders match how the papers cite each other?",
     paragraph:
       "Do your folders match how the papers cite each other? Papers settle where their citations pull them, and each ticked folder becomes a region.",
     icon: "view-folder-map",
@@ -161,6 +160,9 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
       xMetric: "free",
       yMetric: "free",
       nodeSizeMetric: "references",
+      // D24: the regions carry the folders, so the fill is free; one grey
+      // wasted it.
+      nodeColorMetric: "citations",
     },
     regions: "ticked",
     filters: null,

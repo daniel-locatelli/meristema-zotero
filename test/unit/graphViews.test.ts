@@ -179,6 +179,13 @@ describe("the shipped views", function () {
     expect(view.paragraph).to.contain(question);
   });
 
+  it("colour Folder map's papers by citations, not one grey (D24)", function () {
+    // The regions carry the folders; the fill is free to say which papers
+    // the field leans on.
+    expect(folderMap.appearance.nodeColorMetric).to.equal("citations");
+    expect(folderMap.summary).to.contain("colour citations");
+  });
+
   it("describe themselves in short paragraphs of a like length", function () {
     const words = SHIPPED_GRAPH_VIEWS.map(
       (v) => v.paragraph.trim().split(/\s+/).length,
@@ -574,7 +581,7 @@ describe("tutorialChips", function () {
       "x free",
       "y free",
       "size references",
-      "colour uniform",
+      "colour citations",
       "labels author-year",
       "regions 2 folders",
     ]);

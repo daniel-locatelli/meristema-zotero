@@ -159,7 +159,6 @@ Fixes (no decision needed):
 
 - [ ] B96 the View dropdown's descriptions leave one word on the last line
       (Overview's "are.", Reading plan's "next."): widen the dropdown a little
-- [ ] D24 Folder map colours by citation count, not one grey (user)
 - [ ] D25 the toast is too shy: make it read like a shadcn toast (a card
       with border, shadow and weight). "Copy JSON" sits in the Save view panel
 - [ ] B97 a growing hop row reads `n papers · from N O`: the spinner reads as
@@ -240,6 +239,8 @@ any failure into a new entry above.
 - [ ] D11: fill a References graph on an ACM paper: Unknown labels
       resolve into author-year while the fill is still running, not only
       after it stops.
+- [ ] D24: apply Folder map: papers fill by citation count, the card
+      reads "colour citations", and the regions still show the folders.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
