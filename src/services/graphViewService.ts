@@ -3985,6 +3985,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           ? seedRowLabel({
               authors: node.authors,
               firstAuthorIsInstitution: node.firstAuthorIsInstitution,
+              shortTitle: node.shortTitle,
               year: node.year,
               title: node.title,
             })

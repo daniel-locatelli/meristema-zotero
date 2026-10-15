@@ -1,5 +1,6 @@
 import type { RelatedWorkMetadata } from "../domain/citationTypes";
 import type { GraphNodeLabelMode } from "../domain/graphTypes";
+import { authorYearLabel } from "../domain/authorLabel";
 import { mergeRelatedWorkMetadata } from "../domain/relatedWorkMetadata";
 import { publicationYearOrNull } from "../domain/valueNormalization";
 import { resolveRelatedWorksMetadata } from "../providers/relatedWorkResolutionService";
@@ -276,9 +277,13 @@ export function getExternalWorkNodeLabel(
     return String(work?.title ?? fallbackTitle).trim() || fallbackTitle;
   }
   const firstAuthor = work?.authors[0] ?? fallbackAuthors[0];
-  const name = firstAuthor?.trim().split(/\s+/).at(-1) ?? "Unknown";
-  const year = work?.year ?? fallbackYear;
-  return `${name}${year ? ` (${year})` : ""}`;
+  // A hop paper has no Short Title: with no author it names itself by the
+  // start of its title (F3).
+  return authorYearLabel({
+    authors: firstAuthor ? [firstAuthor] : [],
+    title: String(work?.title ?? fallbackTitle),
+    year: work?.year ?? fallbackYear,
+  });
 }
 
 export async function ensureExternalWorkMetrics(key: string): Promise<void> {

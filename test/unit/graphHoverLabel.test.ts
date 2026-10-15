@@ -97,7 +97,7 @@ describe("CitationGraphRenderer hovered label", function () {
     const lines = texts.filter((text) => LONG.includes(text));
     expect(lines.join(" ")).to.equal(LONG);
     expect(texts, "the other paper keeps its short label").to.include(
-      "Unknown",
+      `${LONG.slice(0, 39)}…`,
     );
   });
 

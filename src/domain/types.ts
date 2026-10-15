@@ -8,6 +8,8 @@ export interface ZoteroPaper {
   authors: string[];
   /** The first author is a single-field (institutional) Zotero creator (F3). */
   firstAuthorIsInstitution?: boolean;
+  /** Zotero's Short Title; it names a paper with no creators (F3). */
+  shortTitle?: string | null;
   year: number | null;
   publicationDate: string | null;
   doi: string | null;

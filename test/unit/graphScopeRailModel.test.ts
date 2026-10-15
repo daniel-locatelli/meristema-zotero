@@ -278,6 +278,17 @@ describe("buildScopeRailModel", function () {
     ).to.equal("ISO/TC 59 (2017)");
   });
 
+  it("names a seed with no creators by its Short Title (F3)", function () {
+    expect(
+      seedRowLabel({
+        authors: [],
+        shortTitle: "ISO 19650-1",
+        year: 2018,
+        title: "Organization and digitization of information about buildings",
+      }),
+    ).to.equal("ISO 19650-1 (2018)");
+  });
+
   it("passes the seeds through in order with their heading", function () {
     const model = buildScopeRailModel({
       floor: 0,

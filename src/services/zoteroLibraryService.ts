@@ -170,6 +170,7 @@ function toPaper(item: any): ZoteroPaper {
     title: title(item),
     authors: creators.map((creator) => creator.name),
     firstAuthorIsInstitution: creators[0]?.institution ?? false,
+    shortTitle: String(item.getField?.("shortTitle") ?? "").trim() || null,
     year: extractYear(item.getField?.("date")),
     publicationDate: publicationDate(item.getField?.("date")),
     doi: normalizeDOI(item.getField?.("DOI")),

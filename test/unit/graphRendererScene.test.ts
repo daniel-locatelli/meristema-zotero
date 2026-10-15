@@ -63,4 +63,37 @@ describe("shortLabel author-year (F3)", function () {
       ),
     ).to.equal("ISO/TC 59 (2017)");
   });
+
+  it("labels a paper with no creators by its Short Title", function () {
+    expect(
+      shortLabel(
+        node("a", {
+          authors: [],
+          shortTitle: "ISO 19650-1",
+          title: "Organization and digitization of information about buildings",
+          year: 2018,
+        }),
+        "author-year",
+      ),
+    ).to.equal("ISO 19650-1 (2018)");
+  });
+
+  it("falls back to the start of the title, keeping the year", function () {
+    const label = shortLabel(
+      node("a", {
+        authors: [],
+        title: "Organization and digitization of information about buildings",
+        year: 2018,
+      }),
+      "author-year",
+    );
+    expect(label).to.equal("Organization and digitization of… (2018)");
+    expect(label.length).to.be.at.most(42);
+  });
+
+  it("reads Unknown only with no title either", function () {
+    expect(
+      shortLabel(node("a", { authors: [], title: "" }), "author-year"),
+    ).to.equal("Unknown");
+  });
 });

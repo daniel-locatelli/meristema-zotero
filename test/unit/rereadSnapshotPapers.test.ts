@@ -28,6 +28,7 @@ function paperWithoutYear(id: number): ZoteroPaper {
     title: "A paper",
     authors: [],
     firstAuthorIsInstitution: false,
+    shortTitle: null,
     year: null,
     publicationDate: null,
     doi: null,

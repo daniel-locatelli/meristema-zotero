@@ -7,7 +7,7 @@
  * module whose header says it never filters would reverse that decision by
  * accident.
  */
-import { firstAuthorLabelName } from "../domain/authorLabel";
+import { authorYearLabel } from "../domain/authorLabel";
 import type { LibraryCollectionFilter } from "../domain/types";
 import {
   collectionTickState,
@@ -277,15 +277,18 @@ export function scopeSquare(row: ScopeRow): ScopeSquare {
 
 const COUNT_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: true });
 
-/** The label a Seeds row carries: `Author (year)`, ellipsised by the rail. */
+/**
+ * The label a Seeds row carries: `Author (year)`, ellipsised by the rail. A
+ * seed with no creators names itself as the plot does (F3).
+ */
 export function seedRowLabel(paper: {
   authors: readonly string[];
   firstAuthorIsInstitution?: boolean;
+  shortTitle?: string | null;
   year: number | null;
   title: string;
 }): string {
-  const name = firstAuthorLabelName(paper) || paper.title.trim() || "Untitled";
-  return paper.year === null ? name : `${name} (${paper.year})`;
+  return authorYearLabel(paper);
 }
 
 /**

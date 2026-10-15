@@ -134,16 +134,7 @@ opacity grade).
 
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
-- [ ] F3 standards without a main author. Fixed: an institutional (single-field)
-      first creator labels by its whole name, not its last word. Not a
-      defect: enrichment re-asks a creator-less item only when the planner's
-      cache-age gate already re-plans it. Open, for the user: what labels a
-      paper with no creators at all (publisher, report number, short title),
-      and whether matching may use title+year alone. 2026-10-15 walk: an ISO
-      standard reads Unknown and sits in the No data corner (no year, no
-      count); the user suggests labelling it by its code, from Short Title.
-      Decided 2026-10-15: a paper with no creators labels by its Short Title,
-      else the start of its title; the No data band stays its place
+- [ ] F3 open, for the user: whether matching may use title+year alone
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
@@ -244,6 +235,10 @@ any failure into a new entry above.
 - [ ] D29: raise the floor on a graph with uncounted papers: a
       `Papers with no count (n)` switch row sits under the floor's, styled
       like Unfiled; off drops the count line by n, on brings them back.
+- [ ] F3: a creator-less ISO standard with Short Title `ISO 19650-1` reads
+      `ISO 19650-1 (2018)` on the plot and its Seeds row; with no Short
+      Title, the start of its title and the year. A hop paper with no author
+      reads the start of its title.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

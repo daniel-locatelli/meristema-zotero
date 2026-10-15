@@ -5,7 +5,7 @@ import type {
   GraphLayoutOptions,
   GraphScaleType,
 } from "../domain/graphTypes";
-import { firstAuthorLabelName } from "../domain/authorLabel";
+import { authorYearLabel, cutLabel } from "../domain/authorLabel";
 import { publicationYearOrNull } from "../domain/valueNormalization";
 import {
   getExternalWorkMetadata,
@@ -621,11 +621,7 @@ export function shortLabel(
   node: CitationGraphNode,
   mode: GraphLayoutOptions["nodeLabelMode"],
 ): string {
-  const label =
-    mode === "author-year"
-      ? `${firstAuthorLabelName(node) ?? "Unknown"}${node.year ? ` (${node.year})` : ""}`
-      : node.title;
-  return label.length > 42 ? `${label.slice(0, 39)}…` : label;
+  return cutLabel(mode === "author-year" ? authorYearLabel(node) : node.title);
 }
 
 /**
@@ -1152,7 +1148,7 @@ export function drawRendererGhost(
     preview.year,
   );
   if (label) {
-    const shortened = label.length > 42 ? `${label.slice(0, 39)}…` : label;
+    const shortened = cutLabel(label);
     context.fillStyle = renderer.getTheme().inks.primary;
     context.font = `${11 * ratio * renderer.fontScale}px ${renderer.fontStack}`;
     context.textAlign = "center";
