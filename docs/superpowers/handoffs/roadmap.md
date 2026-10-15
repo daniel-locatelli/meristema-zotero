@@ -157,7 +157,6 @@ opacity grade).
 
 Fixes (no decision needed):
 
-- [ ] B99 a selected node's edges cast a black shadow in light mode
 - [ ] B101 a hovered paper's full-title label draws a leader line to its node
       when it is placed away; drop the line. The native `title` tooltip still
       shows on hover sometimes; drop it on the plot
@@ -242,6 +241,8 @@ any failure into a new entry above.
       section; the Citation hops rows carry the swatches.
 - [ ] B98: pan so a seed sits near an edge, then click its Seeds row: the view
       pans to centre it at the same zoom.
+- [ ] B99: in light mode select a node with references and citations: its lit
+      edges cast no dark shadow; in dark mode they still glow.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

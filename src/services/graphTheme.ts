@@ -52,6 +52,13 @@ export interface GraphEdgeTokens {
   incoming: string;
   /** Everything else while a selection is lit. */
   dimmed: string;
+  /**
+   * The halo behind a lit edge, or null to glow in the edge's own colour.
+   * The glow suits the dark paper; on the light one a dark edge's glow read
+   * as a black drop shadow (B99), so light mode haloes in the paper instead,
+   * a casing that only shows where the edge crosses other ink.
+   */
+  litHalo: string | null;
 }
 
 export interface GraphStateTokens {
@@ -126,11 +133,13 @@ export function hopOpacity(hop: number | null | undefined): number {
  */
 export const GRAPH_ASSIGNED_CATEGORY_LIMIT = 5;
 
+const LIGHT_PAPER = "#fdfdfc";
+
 const LIGHT_THEME: GraphTheme = {
   scheme: "light",
   surfaces: {
     panel: "#f7f7f5",
-    paper: "#fdfdfc",
+    paper: LIGHT_PAPER,
     hairline: "#d9dad4",
     grid: "#ecece6",
     noDataBand: "#f0f0ec",
@@ -165,6 +174,7 @@ const LIGHT_THEME: GraphTheme = {
     outgoing: "#0066af",
     incoming: "#a44c00",
     dimmed: "rgba(99, 102, 93, .07)",
+    litHalo: LIGHT_PAPER,
   },
   states: {
     selected: "#1b1d19",
@@ -217,6 +227,7 @@ const DARK_THEME: GraphTheme = {
     outgoing: "#006bb8",
     incoming: "#a44c00",
     dimmed: "rgba(154, 156, 147, .07)",
+    litHalo: null,
   },
   states: {
     selected: "#e8e9e3",
@@ -229,6 +240,11 @@ const DARK_THEME: GraphTheme = {
     floorBand: "rgba(0, 0, 0, .28)",
   },
 };
+
+/** The shadow colour a lit edge drawn in `edgeColor` casts (B99). */
+export function litEdgeHalo(theme: GraphTheme, edgeColor: string): string {
+  return theme.edges.litHalo ?? edgeColor;
+}
 
 export function graphThemeFor(scheme: GraphColorScheme): GraphTheme {
   return scheme === "dark" ? DARK_THEME : LIGHT_THEME;

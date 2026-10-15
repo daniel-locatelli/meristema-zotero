@@ -8,6 +8,7 @@ import {
   HOP_OPACITY,
   hopOpacity,
   inLibraryRingColor,
+  litEdgeHalo,
   resolveGraphScheme,
   seedColorAt,
 } from "../../src/services/graphTheme";
@@ -58,6 +59,22 @@ describe("the in-library ring", function () {
     for (const scheme of ["light", "dark"] as const) {
       const theme = graphThemeFor(scheme);
       expect(theme.ramp, scheme).to.not.include(theme.states.inLibraryRing);
+    }
+  });
+});
+
+describe("the halo behind a lit edge (B99)", function () {
+  it("is the paper in light mode, never a dark shadow", function () {
+    const theme = graphThemeFor("light");
+    for (const edge of [theme.edges.outgoing, theme.edges.incoming]) {
+      expect(litEdgeHalo(theme, edge), edge).to.equal(theme.surfaces.paper);
+    }
+  });
+
+  it("glows in the edge's own colour in dark mode", function () {
+    const theme = graphThemeFor("dark");
+    for (const edge of [theme.edges.outgoing, theme.edges.incoming]) {
+      expect(litEdgeHalo(theme, edge), edge).to.equal(edge);
     }
   });
 });

@@ -47,6 +47,7 @@ import {
   graphThemeFor,
   hopOpacity,
   inLibraryRingColor,
+  litEdgeHalo,
   observeGraphScheme,
   resolveGraphScheme,
   type GraphTheme,
@@ -1319,7 +1320,7 @@ export class CitationGraphRenderer {
       (connection ? 2.15 : linked ? SEED_LINK_EDGE_WIDTH_CSS : 1) * ratio;
     context.setLineDash(ghosted ? [6 * ratio, 5 * ratio] : []);
     if (connection) {
-      context.shadowColor = connected;
+      context.shadowColor = litEdgeHalo(this.theme, connected);
       context.shadowBlur = 3 * ratio;
     }
     context.stroke();
