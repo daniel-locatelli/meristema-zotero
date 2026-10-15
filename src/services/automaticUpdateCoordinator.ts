@@ -1,5 +1,5 @@
 import { positiveInteger } from "../domain/valueNormalization";
-import { getSelectedCitationUpdateLibraryIDs } from "./citationLibraryService";
+import { getCitationUpdateLibraryIDs } from "./citationLibraryService";
 import { registerUpdateCancellationHandler } from "./updateProgressService";
 import {
   getAutomaticUpdatesEnabled,
@@ -94,8 +94,8 @@ async function updateLibraryGroups(groups: Zotero.Item[][]): Promise<void> {
   }
 }
 
-async function updateSelectedLibrariesAtStartup(): Promise<void> {
-  for (const libraryID of getSelectedCitationUpdateLibraryIDs()) {
+async function updateLibrariesAtStartup(): Promise<void> {
+  for (const libraryID of getCitationUpdateLibraryIDs()) {
     if (shuttingDown) break;
     const items = regularItems(
       (await Zotero.Items.getAll(libraryID)) as Zotero.Item[],
@@ -114,10 +114,10 @@ function schedulePendingItems(): void {
     if (shuttingDown) return;
     const ids = [...pendingItemIDs];
     pendingItemIDs.clear();
-    const selectedLibraryIDs = new Set(getSelectedCitationUpdateLibraryIDs());
-    if (!selectedLibraryIDs.size) return;
+    const libraryIDs = new Set(getCitationUpdateLibraryIDs());
+    if (!libraryIDs.size) return;
     const items = regularItems(ids.map((id) => Zotero.Items.get(id))).filter(
-      (item) => selectedLibraryIDs.has(Number(item.libraryID)),
+      (item) => libraryIDs.has(Number(item.libraryID)),
     );
     if (!items.length) return;
     const groups = groupItemsByLibrary(items);
@@ -130,9 +130,9 @@ function schedulePendingItems(): void {
 /**
  * Register automatic updates without any silent execution path. Zotero item
  * notifications are coalesced and then processed one library at a time. All
- * automatic work is limited to the libraries selected in Meristema
- * settings. Each library is processed separately through the normal cancellable
- * progress window.
+ * automatic work covers every library that holds bibliographic items (feeds and
+ * My Publications excluded). Each library is processed separately through the
+ * normal cancellable progress window.
  */
 export function registerAutomaticCitationUpdates(): void {
   shuttingDown = false;
@@ -173,7 +173,7 @@ export function registerAutomaticCitationUpdates(): void {
     startupTimer = setTimeout(() => {
       startupTimer = null;
       startVisibleUpdate("startup stale-item refresh", () =>
-        updateSelectedLibrariesAtStartup(),
+        updateLibrariesAtStartup(),
       );
     }, 30000);
   }

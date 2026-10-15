@@ -20,7 +20,6 @@ declare namespace _ZoteroTypes {
       "updateNewItems": boolean;
       "updateModifiedItems": boolean;
       "checkStaleOnStartup": boolean;
-      "updateLibraryIDs": string;
       "cacheDays": number;
       "exactTitleFallback": boolean;
       "debugLogging": boolean;

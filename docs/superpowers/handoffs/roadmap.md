@@ -164,9 +164,6 @@ opacity grade).
       through hops as outlined rings, under every colouring
 - [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
       coloured by hop. Decided 2026-10-15: Citers only, depth 2, needs a seed
-- [ ] D30 Settings › Libraries to update: its help is hard to read for a new
-      user; keep the choice, or always update every library? Decided
-      2026-10-15: remove the setting; every library is always updated
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -242,6 +239,8 @@ any failure into a new entry above.
 - [ ] D28: apply Overview and open the gear: it reads `From view: Overview`,
       then `Edited from view: Overview` after a change; the buttons read
       Use for new blank graphs and Restore built-in blank graph.
+- [ ] D30: Settings shows no "Libraries to update" box; the button reads
+      "Update all libraries now" and also refreshes a group library's items.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

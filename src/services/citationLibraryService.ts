@@ -1,5 +1,4 @@
 import { positiveInteger } from "../domain/valueNormalization";
-import { getUpdateLibraryIDs } from "./citationPreferences";
 
 export interface CitationLibraryOption {
   libraryID: number;
@@ -86,10 +85,12 @@ export function getAvailableCitationLibraries(
   });
 }
 
-/** Return configured update libraries that are still available in Zotero. */
-export function getSelectedCitationUpdateLibraryIDs(): number[] {
-  const available = new Set(
-    getAvailableCitationLibraries().map((library) => library.libraryID),
-  );
-  return getUpdateLibraryIDs().filter((libraryID) => available.has(libraryID));
+/**
+ * Return every library Meristema updates: automatic updates, startup stale
+ * checks and the settings-page bulk update all cover each library that can
+ * hold bibliographic items. An `updateLibraryIDs` preference stored by an
+ * older version, which once narrowed this set, is ignored.
+ */
+export function getCitationUpdateLibraryIDs(): number[] {
+  return getAvailableCitationLibraries().map((library) => library.libraryID);
 }

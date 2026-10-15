@@ -5,7 +5,6 @@ import {
   type CitationProviderPreference,
 } from "../domain/citationTypes";
 import type { GraphLayoutOptions } from "../domain/graphTypes";
-import { uniquePositiveIntegers } from "../domain/valueNormalization";
 import { citationDataSourceLabel } from "./providerPresentation";
 
 const key = (name: string): string => `${config.prefsPrefix}.${name}`;
@@ -30,19 +29,6 @@ function boolPref(name: string, fallback: boolean): boolean {
 
 function setBoolPref(name: string, value: boolean): void {
   Zotero.Prefs.set(key(name), value, true);
-}
-
-function positiveLibraryIDs(values: unknown[]): number[] {
-  return uniquePositiveIntegers(values).sort((left, right) => left - right);
-}
-
-function parseLibraryIDs(value: unknown): number[] | null {
-  try {
-    const parsed = JSON.parse(String(value ?? "")) as unknown;
-    return Array.isArray(parsed) ? positiveLibraryIDs(parsed) : null;
-  } catch {
-    return null;
-  }
 }
 
 export function getProviderAutomaticEnabled(): boolean {
@@ -82,7 +68,6 @@ export function getEnabledProviders(): CitationProviderID[] {
 
 export function normalizeCitationPreferences(): void {
   getEnabledProviders();
-  getUpdateLibraryIDs();
 }
 
 export function isProviderEnabled(provider: CitationProviderID): boolean {
@@ -130,24 +115,6 @@ export function getCheckStaleOnStartupEnabled(): boolean {
   return (
     getAutomaticUpdateModeEnabled() || boolPref("checkStaleOnStartup", true)
   );
-}
-
-export function getUpdateLibraryIDs(): number[] {
-  const parsed = parseLibraryIDs(
-    Zotero.Prefs.get(key("updateLibraryIDs"), true),
-  );
-  if (parsed) return parsed;
-
-  const userLibraryID = Number(Zotero.Libraries.userLibraryID);
-  const fallback =
-    Number.isInteger(userLibraryID) && userLibraryID > 0 ? [userLibraryID] : [];
-  setUpdateLibraryIDs(fallback);
-  return fallback;
-}
-
-export function setUpdateLibraryIDs(libraryIDs: number[]): void {
-  const normalized = positiveLibraryIDs(libraryIDs);
-  Zotero.Prefs.set(key("updateLibraryIDs"), JSON.stringify(normalized), true);
 }
 
 export function getCacheDays(): number {

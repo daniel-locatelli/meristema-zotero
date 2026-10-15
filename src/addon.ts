@@ -1,5 +1,4 @@
 import { config } from "../package.json";
-import type { CitationLibraryOption } from "./services/citationLibraryService";
 import hooks from "./hooks";
 
 export interface GraphCacheStatus {
@@ -15,9 +14,6 @@ export interface MeristemaAPI {
   providerSelectionChanged(): void;
   openOpenAlexAccount(): void;
   cacheStatus(): GraphCacheStatus;
-  updateLibraries(): CitationLibraryOption[];
-  updateLibraryIDs(): number[];
-  setUpdateLibraryIDs(libraryIDs: unknown): void;
 }
 
 function unavailableAPI(): MeristemaAPI {
@@ -30,9 +26,6 @@ function unavailableAPI(): MeristemaAPI {
     providerSelectionChanged: unavailable,
     openOpenAlexAccount: unavailable,
     cacheStatus: unavailable,
-    updateLibraries: unavailable,
-    updateLibraryIDs: unavailable,
-    setUpdateLibraryIDs: unavailable,
   });
 }
 

@@ -11,7 +11,6 @@ pref("__prefsPrefix__.automaticUpdates", true);
 pref("__prefsPrefix__.updateNewItems", true);
 pref("__prefsPrefix__.updateModifiedItems", true);
 pref("__prefsPrefix__.checkStaleOnStartup", true);
-pref("__prefsPrefix__.updateLibraryIDs", "");
 pref("__prefsPrefix__.cacheDays", 30);
 pref("__prefsPrefix__.exactTitleFallback", true);
 pref("__prefsPrefix__.debugLogging", false);

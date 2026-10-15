@@ -1,5 +1,4 @@
 import { config } from "../../package.json";
-import { uniquePositiveIntegers } from "../domain/valueNormalization";
 import { clearOpenAlexProviderCache } from "../providers/openAlexProvider";
 import { resetCitationProviderSessionState } from "../providers/registry";
 import {
@@ -8,14 +7,9 @@ import {
 } from "./citationMetricsStore";
 import {
   getShowMetricTooltipsEnabled,
-  getUpdateLibraryIDs,
   normalizeCitationPreferences,
-  setUpdateLibraryIDs,
 } from "./citationPreferences";
-import {
-  getAvailableCitationLibraries,
-  getSelectedCitationUpdateLibraryIDs,
-} from "./citationLibraryService";
+import { getCitationUpdateLibraryIDs } from "./citationLibraryService";
 import { clearExternalWorkCache } from "./externalWorkCacheService";
 import {
   installCitationColumnTooltips,
@@ -77,7 +71,7 @@ async function runRefreshAllLoop(): Promise<void> {
     }
 
     refreshAllHandledGeneration = requestedGeneration;
-    for (const libraryID of getSelectedCitationUpdateLibraryIDs()) {
+    for (const libraryID of getCitationUpdateLibraryIDs()) {
       if (requestedGeneration !== refreshAllRequestedGeneration) {
         break;
       }
@@ -94,7 +88,7 @@ async function runRefreshAllLoop(): Promise<void> {
 function ensureRefreshAllLoop(): void {
   if (refreshAllLoop) return;
   const running = runPreferenceAction(
-    "updating fields for selected libraries",
+    "updating fields for all libraries",
     runRefreshAllLoop,
   );
   refreshAllLoop = running.finally(() => {
@@ -136,11 +130,6 @@ function syncMetricTooltipPreference(): void {
   refreshCitationColumns();
 }
 
-function normalizedLibraryIDs(value: unknown): number[] {
-  if (!Array.isArray(value)) return [];
-  return uniquePositiveIntegers(value);
-}
-
 function exposePreferenceActions(): void {
   addon.setAPI({
     refreshAll: restartWholeLibraryUpdate,
@@ -151,12 +140,6 @@ function exposePreferenceActions(): void {
     openOpenAlexAccount: (): void => Zotero.launchURL("https://openalex.org/"),
     cacheStatus: (): ReturnType<typeof getCitationCacheStatus> =>
       getCitationCacheStatus(),
-    updateLibraries: (): ReturnType<typeof getAvailableCitationLibraries> =>
-      getAvailableCitationLibraries(),
-    updateLibraryIDs: (): number[] => getUpdateLibraryIDs(),
-    setUpdateLibraryIDs: (libraryIDs: unknown): void => {
-      setUpdateLibraryIDs(normalizedLibraryIDs(libraryIDs));
-    },
   });
 }
 

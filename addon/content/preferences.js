@@ -17,18 +17,6 @@
     Array.from(document.querySelectorAll("input[data-update-pref]"));
   const updateChildren = () =>
     document.querySelector(".meristema-pref-children");
-  const libraryList = () =>
-    byID("zotero-prefpane-meristema-update-library-list");
-  const libraryStatus = () =>
-    byID("zotero-prefpane-meristema-update-library-status");
-  const librarySelectAll = () =>
-    byID("zotero-prefpane-meristema-update-select-all");
-  const libraryClearAll = () =>
-    byID("zotero-prefpane-meristema-update-clear-all");
-  const libraryInputs = () =>
-    Array.from(document.querySelectorAll("input[data-update-library-id]"));
-  const refreshSelectedButton = () =>
-    byID("zotero-prefpane-meristema-refresh-selected");
 
   function prefKey(name) {
     return PREF_PREFIX + name;
@@ -132,71 +120,6 @@
     notifyProviderChange();
   }
 
-  function selectedUpdateLibraryIDs() {
-    return libraryInputs()
-      .filter((input) => input.checked)
-      .map((input) => Number(input.getAttribute("data-update-library-id")))
-      .filter((libraryID) => Number.isInteger(libraryID) && libraryID > 0);
-  }
-
-  function updateLibraryStatus() {
-    const status = libraryStatus();
-    if (!status) return;
-    const inputs = libraryInputs();
-    const selected = inputs.filter((input) => input.checked).length;
-    if (!inputs.length) {
-      status.textContent = "No compatible Zotero libraries are available.";
-    } else if (!selected) {
-      status.textContent = "No libraries selected.";
-    } else {
-      status.textContent = `${selected} of ${inputs.length} libraries selected.`;
-    }
-    const refresh = refreshSelectedButton();
-    if (refresh) refresh.disabled = selected === 0;
-  }
-
-  function saveUpdateLibrarySelection() {
-    Zotero.__addonInstance__.api.setUpdateLibraryIDs(
-      selectedUpdateLibraryIDs(),
-    );
-    updateLibraryStatus();
-  }
-
-  function renderUpdateLibraries() {
-    const list = libraryList();
-    if (!list) return;
-    const libraries = Zotero.__addonInstance__.api.updateLibraries();
-    const selected = new Set(Zotero.__addonInstance__.api.updateLibraryIDs());
-    list.replaceChildren();
-
-    for (const library of libraries) {
-      const label = document.createElement("label");
-      label.className = "meristema-update-library-option";
-
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = selected.has(Number(library.libraryID));
-      input.setAttribute("data-update-library-id", String(library.libraryID));
-      input.addEventListener("change", saveUpdateLibrarySelection);
-
-      const name = document.createElement("span");
-      name.textContent = String(library.name || `Library ${library.libraryID}`);
-
-      const kind = document.createElement("small");
-      kind.textContent = library.isUserLibrary ? "My Library" : "Group library";
-
-      label.append(input, name, kind);
-      list.appendChild(label);
-    }
-
-    updateLibraryStatus();
-  }
-
-  function setAllUpdateLibraries(checked) {
-    for (const input of libraryInputs()) input.checked = checked;
-    saveUpdateLibrarySelection();
-  }
-
   function renderUpdateMode() {
     const parent = updateParent();
     const inputs = updateInputs();
@@ -245,22 +168,7 @@
     const providers = providerInputs();
     const updateMode = updateParent();
     const updates = updateInputs();
-    const list = libraryList();
-    const selectAll = librarySelectAll();
-    const clearAll = libraryClearAll();
-    const api = Zotero.__addonInstance__?.api;
-    if (
-      !parent ||
-      !providers.length ||
-      !updateMode ||
-      !updates.length ||
-      !list ||
-      !selectAll ||
-      !clearAll ||
-      typeof api?.updateLibraries !== "function" ||
-      typeof api?.updateLibraryIDs !== "function" ||
-      typeof api?.setUpdateLibraryIDs !== "function"
-    ) {
+    if (!parent || !providers.length || !updateMode || !updates.length) {
       return false;
     }
 
@@ -274,11 +182,7 @@
       input.addEventListener("change", () => handleUpdateChildChange(input));
     }
 
-    selectAll.addEventListener("click", () => setAllUpdateLibraries(true));
-    clearAll.addEventListener("click", () => setAllUpdateLibraries(false));
-
     renderProviderMode();
-    renderUpdateLibraries();
     renderUpdateMode();
     return true;
   }

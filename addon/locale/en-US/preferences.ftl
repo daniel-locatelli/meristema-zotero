@@ -16,19 +16,15 @@ pref-update-modified-items =
     .label = Update modified entries
 pref-check-stale-startup =
     .label = Check for stale entries when Zotero starts
-pref-update-libraries-heading = Libraries to update
-pref-update-libraries-select-all = Select all
-pref-update-libraries-clear-all = Clear all
-pref-update-libraries-help = The selected libraries receive automatic updates, startup stale-data checks, and settings-page bulk updates. Tools → Update Library still updates the library currently open in Zotero.
 
 pref-refresh-interval-heading = Refresh Interval
 pref-cache-days = Refresh citation data after this many days
 pref-cache-days-help = Entries older than this interval are considered stale and can be refreshed automatically.
 
 
-pref-update-all-heading = Update selected libraries now
-pref-update-all-help = Refreshes every regular item in the selected libraries. Libraries are processed separately, and the update remains visible and cancellable.
-pref-refresh-all = Update selected libraries now
+pref-update-all-heading = Update all libraries now
+pref-update-all-help = Refreshes every regular item in My Library and each group library. Libraries are processed one at a time, and the update remains visible and cancellable.
+pref-refresh-all = Update all libraries now
 
 pref-clear-cache-heading = Clear cached citation data
 pref-clear-cache-help = Removes stored provider metrics, relationship snapshots, and externally retrieved metadata. Zotero items and manually created relationships are not deleted.
