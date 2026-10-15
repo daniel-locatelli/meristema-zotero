@@ -884,15 +884,17 @@ describe("Graph views (D4)", function () {
       null,
     );
     openedTabID = await openSavedGraphFromFileMenu(NEWER_GRAPH_NAME);
+    const rendered = (): HTMLElement | null =>
+      (tabContent(openedTabID)?.querySelector(".meristema-root") ??
+        null) as HTMLElement | null;
     const root = (): HTMLElement => {
-      const found = tabContent(openedTabID)?.querySelector(
-        ".meristema-root",
-      ) as HTMLElement | null;
+      const found = rendered();
       expect(found, "the read-only graph is rendered").to.exist;
       return found as HTMLElement;
     };
+    // Polled before the graph mounts, so it reads "" rather than asserting.
     const notice = (): string => {
-      const status = root().querySelector(
+      const status = rendered()?.querySelector(
         ".cm-toolbar-status",
       ) as HTMLElement | null;
       return status && !status.hidden ? normalize(status.textContent) : "";
