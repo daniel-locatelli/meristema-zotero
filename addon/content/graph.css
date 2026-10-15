@@ -650,11 +650,17 @@
  * D4, views. The chip and its menu are the File menu's siblings and take its
  * popup; the rows are two-line so a name and its one-liner read together.
  */
+/*
+ * B96: the popup hangs from the chip's narrow wrapper, so it shrank to its
+ * min-width, 320px, and Overview's and Reading plan's one-liners each left
+ * their last word alone on a second line. Measured in Segoe UI at 11px, a
+ * shipped description's last line holds two words or more from about 380px
+ * to 411px; 396px sits mid-band, so a pixel of font drift tips none of them.
+ */
 .cm-view-menu {
   right: auto;
   left: 0;
-  min-width: 320px;
-  max-width: 380px;
+  width: 396px;
 }
 .cm-view-chip-name {
   font-weight: 600;

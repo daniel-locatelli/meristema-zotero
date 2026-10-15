@@ -1,6 +1,9 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
-import { createViewGallery } from "../../src/services/graphViewsMenu";
+import {
+  createGraphViewsMenu,
+  createViewGallery,
+} from "../../src/services/graphViewsMenu";
 import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
 import { createKeyRail } from "../../src/services/graphKeyRail";
 import type { ScopeRailModel } from "../../src/services/graphScopeRailModel";
@@ -151,6 +154,66 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
     expect(
       failures.length,
       `every row is as tall as its text:${NEWLINE}  ` +
+        `${failures.join(`${NEWLINE}  `)}${NEWLINE}`,
+    ).to.equal(0);
+  });
+
+  /**
+   * B96: the dropdown hangs from the chip's wrapper, so its width is the
+   * stylesheet's alone. At 320px Overview's "are." and Reading plan's "next."
+   * each sat alone on a last line. Read each description's last two words
+   * where they painted: the last one never starts a line of its own.
+   */
+  it("leaves no View description's last word alone on its line", function () {
+    const NEWLINE = String.fromCharCode(10);
+    const failures = inMainWindow(
+      (document) => {
+        // A flex bar like the toolbar, so the wrapper is as narrow as its chip.
+        const bar = document.createElementNS(HTML_NS, "div") as HTMLElement;
+        bar.style.display = "flex";
+        const views = createGraphViewsMenu({
+          document,
+          shipped: SHIPPED_GRAPH_VIEWS,
+          listSaved: () => [],
+          onChoose: () => undefined,
+          onEdit: () => undefined,
+          onSaveCurrent: () => undefined,
+          onImport: () => undefined,
+          onOpenGallery: () => undefined,
+        });
+        bar.append(views.wrap);
+        views.open();
+        return bar;
+      },
+      (mount) => {
+        const summaries = Array.from(
+          mount.querySelectorAll(".cm-view-row-summary"),
+        ) as Element[];
+        expect(summaries.length, "the dropdown drew its rows").to.equal(
+          SHIPPED_GRAPH_VIEWS.length,
+        );
+        const lone: string[] = [];
+        for (const summary of summaries) {
+          const node = summary.firstChild as Text;
+          const content = node.data;
+          const last = content.lastIndexOf(" ");
+          const before = content.lastIndexOf(" ", last - 1);
+          const range = (start: number, end: number): DOMRect => {
+            const r = mount.ownerDocument.createRange();
+            r.setStart(node, start);
+            r.setEnd(node, end);
+            return r.getBoundingClientRect();
+          };
+          const lastTop = range(last + 1, content.length).top;
+          const beforeTop = range(before + 1, last).top;
+          if (lastTop > beforeTop + 1) lone.push(content);
+        }
+        return lone;
+      },
+    );
+    expect(
+      failures.length,
+      `a description's last word sits alone on its line:${NEWLINE}  ` +
         `${failures.join(`${NEWLINE}  `)}${NEWLINE}`,
     ).to.equal(0);
   });

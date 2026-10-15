@@ -157,8 +157,6 @@ opacity grade).
 
 Fixes (no decision needed):
 
-- [ ] B96 the View dropdown's descriptions leave one word on the last line
-      (Overview's "are.", Reading plan's "next."): widen the dropdown a little
 - [ ] B97 a growing hop row reads `n papers · from N O`: the spinner reads as
       a cropped letter. Drop the `·` and make the spinner read as one
 - [ ] D26 under Citation hop the Key drops its Color section; the Citation
@@ -242,6 +240,8 @@ any failure into a new entry above.
       (rule, shadow, medium text) 16px in from the plot's bottom right, slides
       up, stays about 3s and fades; with a larger Zotero font it grows too.
 - [ ] B102: Tools › Meristema lists Load (not Open) for saved graphs.
+- [ ] B96: open the View dropdown: no description ends on a line holding
+      one word (Overview, Reading plan included).
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
