@@ -157,16 +157,20 @@ opacity grade).
 
 - [ ] F14 a graph started from papers ticks no folders, so nothing says which
       hop papers are already in Zotero (hovering a folder row dims the rest,
-      but only per folder). Show "in Zotero" on the plot
+      but only per folder). Show "in Zotero" on the plot. Decided 2026-10-15:
+      papers in the Zotero library draw as filled discs, papers known only
+      through hops as outlined rings, under every colouring
 - [ ] D28 "Make this the default" sets Start blank's default only, but the
       reader applies a view (Overview) first and reads it as overriding that
-      view. Say what the default governs, or scope it
+      view. Decided 2026-10-15: rename it "Use for new blank graphs" and have
+      the gear say which view, if any, the graph came from; views stay fixed
 - [ ] D29 the floor's `n with no count kept` note looks lost in the rail
 - [ ] F15 open graph tabs come back after a Zotero restart, as reader tabs do
 - [ ] F16 an Impact view beside Cornerstones: a seed's citers to two hops,
-      coloured by hop
+      coloured by hop. Decided 2026-10-15: Citers only, depth 2, needs a seed
 - [ ] D30 Settings › Libraries to update: its help is hard to read for a new
-      user; keep the choice, or always update every library?
+      user; keep the choice, or always update every library? Decided
+      2026-10-15: remove the setting; every library is always updated
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
