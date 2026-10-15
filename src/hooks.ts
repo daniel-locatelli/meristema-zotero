@@ -61,8 +61,10 @@ import {
   closeGraphForWindow,
   closeGraphWindow,
   flushSavedGraphWrites,
+  freezeOpenGraphTabs,
   installGraphTabHooks,
   refreshOpenGraphViews,
+  restoreOpenGraphTabs,
   retitleFolderGraphs,
 } from "./services/windowService";
 import {
@@ -76,6 +78,21 @@ const TEARDOWN_MARKER = `__${config.addonRef}RuntimeTeardownListener`;
 let teardownStarted = false;
 let unsubscribeUpdateListener: (() => void) | null = null;
 let librarySnapshotNotifierID: string | null = null;
+/**
+ * Records the open graph tabs the moment a quit is granted, while they are
+ * still open: Zotero closes every tab as its window goes, and a tab closed
+ * then must not count as one the reader closed (F15).
+ */
+const quitObserver = {
+  observe: (): void => {
+    try {
+      freezeOpenGraphTabs();
+    } catch (error) {
+      Zotero.debug(`Meristema: recording open graphs failed: ${String(error)}`);
+    }
+  },
+};
+let quitObserverInstalled = false;
 const VIEW_REFRESH_DEADLINE_MS = 5000;
 
 function installStyles(win: _ZoteroTypes.MainWindow): void {
@@ -275,6 +292,12 @@ function beginTeardown(closeGraphTab = true): void {
   if (teardownStarted) return;
   teardownStarted = true;
   addon.data.alive = false;
+  // Before any graph is torn down: the records read the live views.
+  quitObserver.observe();
+  if (quitObserverInstalled) {
+    Services.obs.removeObserver(quitObserver, "quit-application-granted");
+    quitObserverInstalled = false;
+  }
   unsubscribeUpdateListener?.();
   unsubscribeUpdateListener = null;
   stopProviderResponseCache();
@@ -324,8 +347,29 @@ async function onStartup(): Promise<void> {
   await registerPreferencePane();
   registerMenus();
   registerAutomaticCitationUpdates();
+  if (!quitObserverInstalled) {
+    Services.obs.addObserver(quitObserver, "quit-application-granted");
+    quitObserverInstalled = true;
+  }
   addon.data.initialized = true;
   Zotero.debug("Meristema: startup completed");
+  const [firstWindow] = Zotero.getMainWindows();
+  if (firstWindow) {
+    void onRestoreGraphTabs(firstWindow).catch((error: unknown) =>
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      ),
+    );
+  }
+}
+
+/**
+ * Reopens the graph tabs the last session left open (F15). Startup calls it
+ * once, for the first main window; the Zotero suite calls it to stand in for
+ * a restart.
+ */
+function onRestoreGraphTabs(win: _ZoteroTypes.MainWindow): Promise<void> {
+  return restoreOpenGraphTabs(win);
 }
 
 async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
@@ -397,4 +441,5 @@ export default {
   onShutdown,
   onMainWindowLoad,
   onMainWindowUnload,
+  onRestoreGraphTabs,
 };

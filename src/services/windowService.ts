@@ -29,6 +29,15 @@ import {
   renameSavedGraph,
   updateSavedGraph,
 } from "./savedGraphService";
+import {
+  listOpenGraphTabs,
+  planOpenGraphTabRestore,
+  putOpenGraphTabs,
+  restoredGraphState,
+  syncOpenGraphTabs,
+  type OpenGraphTabRecord,
+  type OpenGraphTabRestoreStep,
+} from "./openGraphTabStore";
 import { createFrameOrTimer } from "./frameOrTimer";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import {
@@ -62,6 +71,21 @@ export const SAVED_GRAPH_READ_ONLY_STATUS =
   "This graph was saved by a newer version of Meristema, so it is read-only here; Save as… keeps changes.";
 /** Writes in flight, so shutdown can wait for them before the database closes. */
 const savedGraphWrites = new Set<Promise<void>>();
+/** How long a change waits before the open-tab records are written. */
+const OPEN_TAB_RECORD_DELAY_MS = 1000;
+/**
+ * Set once Zotero is quitting or the plugin is going down (F15). Tabs that
+ * close from then on were not closed by the reader, so their records stay
+ * for the next start, and nothing more is written.
+ */
+let openGraphTabsFrozen = false;
+/**
+ * Whether startup has read the records the last session left. Until it has,
+ * a write never drops a record, or a graph opened early would wipe them.
+ */
+let openGraphTabsRead = false;
+/** The pending open-tab record write, per window. */
+const openGraphTabRecordTimers = new Map<_ZoteroTypes.MainWindow, number>();
 /** One selection binding per main window, alive while any graph is open in it. */
 const selectionBindingByWindow = new Map<
   _ZoteroTypes.MainWindow,
@@ -151,9 +175,13 @@ function createGraphInstance(
   win: _ZoteroTypes.MainWindow,
   libraryID: number | null = null,
   titleBase?: string,
+  restoredInstanceID?: string,
 ): GraphInstanceState {
   graphInstanceSequence += 1;
-  const instanceID = `meristema-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
+  // A restored tab keeps the id it had, which keys its open-tab record.
+  const instanceID =
+    restoredInstanceID ??
+    `meristema-${Date.now().toString(36)}-${graphInstanceSequence.toString(36)}`;
   const state = graphState(win);
   const created: GraphInstanceState = {
     instanceID,
@@ -500,6 +528,178 @@ export async function flushSavedGraphWrites(): Promise<void> {
   await Promise.allSettled([...savedGraphWrites]);
 }
 
+/**
+ * The state an open-tab record keeps: the live view's, camera included, or
+ * the instance's when no view is mounted. None while the instance is about
+ * to drop its state for another library.
+ */
+function openTabRecordState(
+  win: _ZoteroTypes.MainWindow,
+  instance: GraphInstanceState,
+): GraphViewState | null {
+  if (instance.discardViewState) return null;
+  const mount = instanceMount(win, instance);
+  const state =
+    (mount ? getGraphViewController(mount)?.getState() : null) ??
+    instance.viewState;
+  return state ? { ...state, title: instanceTitle(instance) } : null;
+}
+
+/** A record for every graph open in any main window, tab or detached. */
+function openGraphTabRecords(): OpenGraphTabRecord[] {
+  const records: OpenGraphTabRecord[] = [];
+  for (const [win, state] of graphStateByWindow) {
+    if ((win as unknown as Window).closed) continue;
+    let manager: any;
+    try {
+      manager = tabs(win);
+    } catch {
+      continue;
+    }
+    const tabList: any[] = manager._tabs ?? [];
+    for (const instance of state.instances.values()) {
+      const index = instance.tabID
+        ? tabList.findIndex((tab) => tab?.id === instance.tabID)
+        : -1;
+      const detached = Boolean(
+        instance.detachedWindow && !instance.detachedWindow.closed,
+      );
+      if (index < 1 && !detached) continue;
+      if (instance.libraryID === null) continue;
+      const viewState = openTabRecordState(win, instance);
+      if (!viewState) continue;
+      records.push({
+        key: instance.instanceID,
+        libraryID: instance.libraryID,
+        position: index >= 1 ? index : null,
+        selected: index >= 1 && manager.selectedID === instance.tabID,
+        savedGraphID: instance.savedGraphID,
+        title: instance.title,
+        customTitle: instance.customTitle,
+        titleCollectionIDs: instance.titleCollectionIDs
+          ? [...instance.titleCollectionIDs]
+          : null,
+        state: viewState,
+      });
+    }
+  }
+  return records;
+}
+
+function trackOpenGraphTabWrite(write: Promise<void>): void {
+  const tracked = write.catch((error: unknown) =>
+    reportAsyncError("Meristema: recording the open graph tabs failed", error),
+  );
+  savedGraphWrites.add(tracked);
+  void tracked.finally(() => savedGraphWrites.delete(tracked));
+}
+
+/**
+ * Records the open graphs a moment after a change, once per moment however
+ * many changes it holds: a running fill reports often, and a timer pushed
+ * back on every report would never fire. The timer belongs to the window,
+ * so a window that closes takes a pending write with it rather than dropping
+ * the records of tabs it closed on its way out.
+ */
+function scheduleOpenGraphTabRecords(win: _ZoteroTypes.MainWindow): void {
+  if (openGraphTabsFrozen || openGraphTabRecordTimers.has(win)) return;
+  openGraphTabRecordTimers.set(
+    win,
+    win.setTimeout(() => {
+      openGraphTabRecordTimers.delete(win);
+      if (openGraphTabsFrozen) return;
+      const records = openGraphTabRecords();
+      trackOpenGraphTabWrite(
+        openGraphTabsRead
+          ? syncOpenGraphTabs(records)
+          : putOpenGraphTabs(records),
+      );
+    }, OPEN_TAB_RECORD_DELAY_MS),
+  );
+}
+
+/**
+ * Zotero is quitting, or the plugin is going down, while the graphs are
+ * still open: record them as they are now, camera and place included, and
+ * keep every record from here on, since the tabs about to close were not
+ * closed by the reader. Only writes; a record is never dropped here, as the
+ * tabs may already be gone by the time a late caller gets here.
+ */
+export function freezeOpenGraphTabs(): void {
+  if (openGraphTabsFrozen) return;
+  const records = openGraphTabRecords();
+  openGraphTabsFrozen = true;
+  for (const [win, timer] of openGraphTabRecordTimers) {
+    try {
+      win.clearTimeout(timer);
+    } catch {
+      // The window may already be gone.
+    }
+  }
+  openGraphTabRecordTimers.clear();
+  if (records.length) trackOpenGraphTabWrite(putOpenGraphTabs(records));
+}
+
+/**
+ * Reopens the graph tabs the last session left open (F15, ADR 0020), in
+ * their old places, the selected one selected. Each comes back stopped, and
+ * a saved graph comes back as the document of its row.
+ */
+export async function restoreOpenGraphTabs(
+  win: _ZoteroTypes.MainWindow,
+): Promise<void> {
+  openGraphTabsFrozen = false;
+  const records = await listOpenGraphTabs();
+  openGraphTabsRead = true;
+  if (!records.length) return;
+  installGraphTabHooks(win);
+  const manager = tabs(win);
+  const plan = planOpenGraphTabRestore(records, (manager._tabs ?? []).length);
+  for (const step of plan.steps) {
+    try {
+      await restoreOpenGraphTab(win, step);
+    } catch (error) {
+      reportAsyncError("Meristema: restoring a graph tab failed", error);
+    }
+  }
+  const selected = plan.selectKey
+    ? graphState(win).instances.get(plan.selectKey)
+    : null;
+  if (selected?.tabID) manager.select(selected.tabID);
+  // Records that did not come back are dropped now that the rest are open.
+  scheduleOpenGraphTabRecords(win);
+}
+
+async function restoreOpenGraphTab(
+  win: _ZoteroTypes.MainWindow,
+  { record, index }: OpenGraphTabRestoreStep,
+): Promise<void> {
+  if (!Zotero.Libraries.exists(record.libraryID)) return;
+  // Already open: a second restore in the same session reopens nothing.
+  if (graphState(win).instances.has(record.key)) return;
+  const saved =
+    record.savedGraphID !== null
+      ? await loadSavedGraph(record.savedGraphID)
+      : null;
+  // A row this build cannot read is not bound to (B42); a deleted row
+  // leaves the tab its own state, as scratch.
+  const row = saved && !saved.readOnly ? saved : null;
+  const state = restoredGraphState(record.state, row?.state ?? null);
+  if (!state) return;
+  await openGraphWindow(win, record.libraryID, {
+    newInstance: true,
+    restoredTab: {
+      instanceID: record.key,
+      index,
+      title: row ? row.summary.name : record.title,
+      customTitle: row ? true : record.customTitle,
+      titleCollectionIDs: record.titleCollectionIDs,
+      state,
+      savedGraph: row ? { id: row.summary.id, state: row.state } : null,
+    },
+  });
+}
+
 /** Makes the instance the document of a saved graph row and names it after it. */
 function adoptSavedGraph(
   win: _ZoteroTypes.MainWindow,
@@ -561,6 +761,7 @@ function releaseSavedGraph(
   clearAutosave(win, instance);
   instance.savedGraphID = null;
   instance.savedGraphSerialized = null;
+  scheduleOpenGraphTabRecords(win);
 }
 
 const DIALOG_TITLE = "Meristema";
@@ -711,6 +912,7 @@ function viewStateOptions(
       // is current, and it is the one the saved row should carry.
       instance.viewState = { ...state, title: instanceTitle(instance) };
       scheduleAutosave(win, instance);
+      scheduleOpenGraphTabRecords(win);
     },
     onExternalWorkImported: (identityKey, itemKey) => {
       // The view that ran the import may be gone by now: the new item's
@@ -903,6 +1105,7 @@ async function openDetachedGraphWindow(
           .get(hostWindow)
           ?.instances.delete(instance.instanceID);
       }
+      scheduleOpenGraphTabRecords(hostWindow);
     },
     { once: true },
   );
@@ -952,6 +1155,7 @@ function syncInstanceTitle(
   if (instance.detachedWindow && !instance.detachedWindow.closed) {
     instance.detachedWindow.document.title = instance.title;
   }
+  scheduleOpenGraphTabRecords(win);
 }
 
 function instanceForTab(
@@ -1161,6 +1365,9 @@ function reportGraphSelection(
  */
 export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
   const manager = tabs(win);
+  // Graph tabs stay out of Zotero's session file: the plugin keeps its own
+  // records of them and reopens them itself (ADR 0020). The restoreState
+  // hook below only drops a graph tab an older build let into the file.
   if (!manager[TAB_STATE_FILTER_MARKER]) {
     const originalGetState = manager.getState.bind(manager);
     manager.getState = (): any[] =>
@@ -1199,6 +1406,7 @@ export function installGraphTabHooks(win: _ZoteroTypes.MainWindow): void {
       await openDetachedGraphWindow(win, instance, snapshot, request);
       instance.tabID = null;
       manager.close(tab.id);
+      scheduleOpenGraphTabRecords(win);
     } catch (error) {
       reportAsyncError(
         "Meristema: moving the tab to a new window failed",
@@ -1251,6 +1459,8 @@ function prepareContainer(
         (event as CustomEvent<{ selected?: boolean }>).detail?.selected,
       );
       getGraphViewController(container)?.setActive(selected);
+      // Which graph is selected comes back after a restart.
+      scheduleOpenGraphTabRecords(win);
       if (selected) {
         instance.lastActivatedAt = Date.now();
         hideGlobalContextPane(win, container);
@@ -1432,6 +1642,23 @@ interface OpenGraphOptions {
     /** The row's state did not parse; open it as scratch and say so (B42). */
     readOnly?: boolean;
   };
+  /**
+   * Reopens a tab the last session left open (F15) into the new instance:
+   * under its old id, at its old place, in the background. Only meaningful
+   * with `newInstance`.
+   */
+  restoredTab?: RestoredGraphTab;
+}
+
+interface RestoredGraphTab {
+  instanceID: string;
+  index: number;
+  title: string;
+  customTitle: boolean;
+  titleCollectionIDs: number[] | null;
+  state: GraphViewState;
+  /** The saved graph the tab shows, with the recipe its row holds now. */
+  savedGraph: { id: number; state: GraphViewState } | null;
 }
 
 function requestedInstance(
@@ -1496,10 +1723,36 @@ export async function openGraphWindow(
 
   let instance = requestedInstance(win, options);
   if (!instance) {
-    instance = createGraphInstance(win, targetLibraryID, options.titleBase);
+    instance = createGraphInstance(
+      win,
+      targetLibraryID,
+      options.titleBase,
+      options.restoredTab?.instanceID,
+    );
     instance.titleCollectionIDs = options.titleCollectionIDs
       ? [...options.titleCollectionIDs]
       : null;
+  }
+  const restored = options.newInstance ? options.restoredTab : undefined;
+  if (restored) {
+    instance.title = restored.title;
+    instance.customTitle = restored.customTitle;
+    instance.titleCollectionIDs = restored.titleCollectionIDs
+      ? [...restored.titleCollectionIDs]
+      : null;
+    instance.viewState = {
+      ...restored.state,
+      title: instanceTitle(instance),
+    };
+    if (restored.savedGraph) {
+      instance.savedGraphID = restored.savedGraph.id;
+      // The row as it stands, not the tab's state: what the tab knew and the
+      // row did not is written back by the first autosave.
+      instance.savedGraphSerialized = comparableState({
+        ...restored.savedGraph.state,
+        title: instance.title,
+      });
+    }
   }
   if (options.savedGraph && options.newInstance) {
     const { id, name, state, readOnly } = options.savedGraph;
@@ -1574,7 +1827,10 @@ export async function openGraphWindow(
       graphTitle: instance.title,
       icon: NETWORK_ICON_TYPE,
     },
-    select: true,
+    // A restored tab goes back to its old place without taking the focus;
+    // the restore selects the one that was selected once all are back.
+    index: restored?.index,
+    select: !restored,
     onClose: () => {
       destroyGraphView(result.container);
       if (instance.tabID === result.id) instance.tabID = null;
@@ -1590,6 +1846,9 @@ export async function openGraphWindow(
         instance.viewState = null;
         graphStateByWindow.get(win)?.instances.delete(instance.instanceID);
       }
+      // The reader closed it, so its record goes; a window or Zotero closing
+      // has frozen the records first, and this writes nothing.
+      scheduleOpenGraphTabRecords(win);
     },
   });
   if (result.id === "zotero-pane" || result.container?.id === "zotero-pane") {
@@ -1601,6 +1860,8 @@ export async function openGraphWindow(
   instance.libraryID = snapshot.libraryID;
   instance.lastActivatedAt = Date.now();
   renderTab(win, instance, result.container, snapshot);
+  scheduleOpenGraphTabRecords(win);
+  if (restored) return;
   // The tab is selected, but the command may have come from a detached graph
   // window that sits in front of this one (B20), as an existing tab's
   // activation already brings the window forward. Not every host the menus
@@ -1726,8 +1987,8 @@ export function renameGraphView(
     return;
   }
   // Naming a scratch view is how it gets kept: the name becomes a saved
-  // graph, as if Save as… had been given it. A tab is not restored across a
-  // restart, so a name without a row would be lost with the tab.
+  // graph, as if Save as… had been given it. An open tab comes back after a
+  // restart (F15), but a closed one does not, and the name would go with it.
   captureViewState(instance, instanceMount(win, instance));
   const state: GraphViewState = {
     ...(instance.viewState ?? emptyGraphViewState()),

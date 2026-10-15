@@ -239,6 +239,11 @@ any failure into a new entry above.
       `ISO 19650-1 (2018)` on the plot and its Seeds row; with no Short
       Title, the start of its title and the year. A hop paper with no author
       reads the start of its title.
+- [ ] F15: open a saved graph, an unsaved seeded one and a reader tab between,
+      select the unsaved graph, start a fill, quit and restart: all three come
+      back in that order, the unsaved one selected, its fill at `… left · Resume`.
+- [ ] F15: close a graph tab and detach another, restart: the closed one
+      stays closed, the detached one is back as the last tab.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

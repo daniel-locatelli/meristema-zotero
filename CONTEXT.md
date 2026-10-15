@@ -110,6 +110,13 @@ A graph kept by name in the reader's profile as a recipe (seeds, ticks,
 settings, appearance, camera) that reopens the same graph later.
 _Avoid_: snapshot (a cached result), session, bookmark
 
+**Open-tab record**:
+What the profile keeps of an open graph tab so it comes back after a
+restart: its place, whether it was selected, its saved graph if any, and its
+state. It goes when the reader closes the tab; the graph comes back with its
+fill stopped (ADR 0020).
+_Avoid_: session, snapshot, restored graph
+
 **Default appearance**:
 What a new blank graph opens with: built in, or made by the reader from the
 gear ("Use for new blank graphs"), one for a library graph and one for a
