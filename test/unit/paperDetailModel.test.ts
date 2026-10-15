@@ -335,34 +335,22 @@ describe("paperAbstract", () => {
 });
 
 describe("createDetailFoldMemory", () => {
-  it("starts with Abstract closed and Advanced open", () => {
-    const folds = createDetailFoldMemory();
-    expect(folds.isOpen("abstract")).to.equal(false);
-    expect(folds.isOpen("advanced")).to.equal(true);
+  it("starts with Advanced open", () => {
+    expect(createDetailFoldMemory().isOpen()).to.equal(true);
   });
 
-  it("keeps a fold the reader opened open for the next paper", () => {
+  it("keeps Advanced closed for the next paper once the reader closes it", () => {
     const folds = createDetailFoldMemory();
-    folds.remember("abstract", true);
-    expect(folds.isOpen("abstract")).to.equal(true);
-    expect(folds.isOpen("advanced"), "the other fold is untouched").to.equal(
-      true,
-    );
-  });
-
-  it("keeps a fold the reader closed closed", () => {
-    const folds = createDetailFoldMemory();
-    folds.remember("abstract", true);
-    folds.remember("abstract", false);
-    folds.remember("advanced", false);
-    expect(folds.isOpen("abstract")).to.equal(false);
-    expect(folds.isOpen("advanced")).to.equal(false);
+    folds.remember(false);
+    expect(folds.isOpen()).to.equal(false);
+    folds.remember(true);
+    expect(folds.isOpen(), "and open again once reopened").to.equal(true);
   });
 
   it("remembers per memory, so two graph views do not share one", () => {
     const first = createDetailFoldMemory();
     const second = createDetailFoldMemory();
-    first.remember("abstract", true);
-    expect(second.isOpen("abstract")).to.equal(false);
+    first.remember(false);
+    expect(second.isOpen()).to.equal(true);
   });
 });

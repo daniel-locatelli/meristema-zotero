@@ -78,27 +78,23 @@ export function paperAbstract(node: CitationGraphNode): string | null {
   return null;
 }
 
-/** The two folds Paper details draws: the abstract and Advanced. */
-export type DetailFold = "abstract" | "advanced";
-
 /**
- * Which folds the reader left open, so selecting another paper redraws them
- * as they were rather than as they start. Abstract starts closed (an abstract
- * runs to a dozen lines and would push the metrics out of a short pane),
- * Advanced open (B22). One per graph view, in memory: a fresh view starts
- * from the defaults again.
+ * Whether the reader left Advanced open, so selecting another paper redraws
+ * it as it was rather than as it starts. It starts open (B22). One per graph
+ * view, in memory: a fresh view starts open again. The abstract above it is
+ * no fold (D27), so there is nothing else to remember.
  */
 export interface DetailFoldMemory {
-  isOpen(fold: DetailFold): boolean;
-  remember(fold: DetailFold, open: boolean): void;
+  isOpen(): boolean;
+  remember(open: boolean): void;
 }
 
 export function createDetailFoldMemory(): DetailFoldMemory {
-  const open: Record<DetailFold, boolean> = { abstract: false, advanced: true };
+  let open = true;
   return {
-    isOpen: (fold) => open[fold],
-    remember: (fold, value) => {
-      open[fold] = value;
+    isOpen: () => open,
+    remember: (value) => {
+      open = value;
     },
   };
 }

@@ -578,7 +578,7 @@ export function renderGraphView(
   /** What the last `applyFilters` decided, for the rail to print. */
   let lastScope: GraphScopeResult | null = null;
   let selectedNode: CitationGraphNode | null = null;
-  // The Abstract and Advanced folds as the reader last left them (F4).
+  // The Advanced fold as the reader last left it (F4).
   const detailFolds = createDetailFoldMemory();
   let detailTabs: ReturnType<typeof createDetailTabs> | null = null;
 
@@ -3619,7 +3619,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
 
     appendPaperHeader(node, "overview");
-    const abstract = createAbstractSection(document, node, detailFolds);
+    const abstract = createAbstractSection(document, node);
     if (abstract) detailBody.appendChild(abstract);
     detailBody.appendChild(createOverviewMetrics(document, node, detailFolds));
 

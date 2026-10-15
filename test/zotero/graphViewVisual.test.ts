@@ -1116,10 +1116,8 @@ describe("Graph view, as the product builds it", function () {
         "values share a row and labels share the row under it",
       ).to.be.lessThan(1.5);
     }
-    // The abstract's fold wears Advanced's head too (F4), so name Advanced
-    // by what it is not.
     const advanced = active.root.querySelector(
-      ".cm-advanced-details:not(.cm-paper-abstract) > summary",
+      ".cm-advanced-details > summary",
     ) as HTMLElement | null;
     expect(
       advanced,
@@ -1610,65 +1608,75 @@ describe("Graph view, as the product builds it", function () {
   });
 
   /**
-   * F4 follow-up: the Abstract fold, once opened, stays open as the selection
-   * moves from paper to paper, and once closed stays closed; Advanced keeps
-   * whatever the reader did to it the same way. Both live in the view's
-   * memory, so a toggle is read back off the next paper's pane.
+   * D27: the abstract is a plain section, a heading and the full text, shown
+   * on every paper that has one, with no fold to open. Advanced stays a fold,
+   * and once closed stays closed as the selection moves from paper to paper,
+   * and once reopened stays open: the view's memory holds it, so a toggle is
+   * read back off the next paper's pane.
    */
-  it("view 16 — Abstract and Advanced stay as the reader left them across selections", async function () {
+  it("view 16 — the abstract is always shown; Advanced stays as the reader left it across selections", async function () {
     this.timeout(60_000);
     const corpus = makeCorpus({ nodes: 30 });
     const local = corpus.nodes.filter((node) => node.kind !== "external");
-    expect(local.length).to.be.greaterThan(1);
-    const [a, b] = local;
+    expect(local.length).to.be.greaterThan(2);
+    const [a, b, c] = local;
     a!.abstract = "The first paper's abstract.";
     b!.abstract = "The second paper's abstract.";
+    c!.abstract = null;
     stage = await openViewStage(corpus);
     const view = stage;
     await settle(view.window, 6);
     const controller = getGraphViewController(view.mount)!;
-    const fold = (selector: string): HTMLDetailsElement =>
-      view.root.querySelector(selector) as HTMLDetailsElement;
-    const abstractFold = (): HTMLDetailsElement =>
-      fold(".cm-detail-body details.cm-paper-abstract");
+    const abstractSection = (): HTMLElement | null =>
+      view.root.querySelector(".cm-detail-body .cm-paper-abstract");
     const advancedFold = (): HTMLDetailsElement =>
-      fold(
-        ".cm-detail-body details.cm-advanced-details:not(.cm-paper-abstract)",
-      );
+      view.root.querySelector(
+        ".cm-detail-body details.cm-advanced-details",
+      ) as HTMLDetailsElement;
 
     controller.applyLibrarySelection([a!.itemID]);
     await settle(view.window, 4);
+    const section = abstractSection();
+    expect(section, "a paper with an abstract shows it").to.not.equal(null);
+    expect(section!.tagName.toLowerCase(), "as a section, not a fold").to.equal(
+      "section",
+    );
     expect(
-      abstractFold(),
-      "a paper with an abstract shows the fold",
-    ).to.not.equal(null);
-    expect(abstractFold().open, "closed on a fresh view").to.equal(false);
+      section!.querySelector("details, summary"),
+      "with nothing in it to fold",
+    ).to.equal(null);
+    expect(
+      (section!.querySelector("h3")?.textContent ?? "").trim(),
+      "under its own heading",
+    ).to.equal("Abstract");
+    const paragraph = section!.querySelector("p") as HTMLElement;
+    expect(paragraph.textContent).to.equal("The first paper's abstract.");
+    expect(
+      paragraph.getBoundingClientRect().height,
+      "and the text is drawn, not hidden",
+    ).to.be.greaterThan(0);
     expect(advancedFold().open, "Advanced open on a fresh view").to.equal(true);
 
-    abstractFold().open = true;
     advancedFold().open = false;
     await settle(view.window, 4);
     controller.applyLibrarySelection([b!.itemID]);
     await settle(view.window, 4);
     expect(
-      view.root.querySelector(".cm-paper-abstract p")?.textContent,
-      "the pane now shows the second paper",
+      abstractSection()?.querySelector("p")?.textContent,
+      "the next paper shows its own abstract straight away",
     ).to.equal("The second paper's abstract.");
-    expect(abstractFold().open, "the opened abstract stays open").to.equal(
-      true,
-    );
     expect(advancedFold().open, "the closed Advanced stays closed").to.equal(
       false,
     );
 
-    abstractFold().open = false;
     advancedFold().open = true;
     await settle(view.window, 4);
-    controller.applyLibrarySelection([a!.itemID]);
+    controller.applyLibrarySelection([c!.itemID]);
     await settle(view.window, 4);
-    expect(abstractFold().open, "and a closed abstract stays closed").to.equal(
-      false,
-    );
+    expect(
+      abstractSection(),
+      "a paper with no abstract shows no section",
+    ).to.equal(null);
     expect(advancedFold().open, "a reopened Advanced stays open").to.equal(
       true,
     );

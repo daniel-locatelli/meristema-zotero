@@ -357,7 +357,12 @@
 .cm-advanced-details {
   margin: 0;
 }
-.cm-advanced-details > summary {
+/*
+ * The abstract's heading (D27) is set in the same head but is no control: the
+ * text under it is always shown, so it takes neither twisty nor pointer.
+ */
+.cm-advanced-details > summary,
+.cm-section-head {
   /* Any display but `list-item` drops Gecko's own marker; ours is below. */
   display: flex;
   align-items: center;
@@ -370,6 +375,8 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.cm-advanced-details > summary {
   cursor: pointer;
 }
 .cm-advanced-details > summary:hover {
@@ -394,8 +401,8 @@
     transition: none;
   }
 }
-/* The abstract (F4) folds under the same head; its text is set like the
- * relation rows' abstracts, keeping the provider's paragraph breaks. */
+/* The abstract's text (F4) is set like the relation rows' abstracts, keeping
+ * the provider's paragraph breaks. */
 .cm-paper-abstract > p {
   margin: 6px 0 0;
   line-height: 1.45;

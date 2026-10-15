@@ -50,7 +50,6 @@ import {
   mergeRelationEntries,
   paperAbstract,
   relationshipTabLabel,
-  type DetailFold,
   type DetailFoldMemory,
   type DetailTab,
   type DetailTabLabel,
@@ -289,21 +288,6 @@ export function createBadges(
 
 /* ------------------------------------------------------------- metrics */
 
-/**
- * Opens `details` as `folds` last saw it, or as `fallback` says without one,
- * and has `folds` remember whatever the reader does to it next.
- */
-function rememberFold(
-  details: HTMLDetailsElement,
-  fold: DetailFold,
-  folds: DetailFoldMemory | undefined,
-  fallback: boolean,
-): void {
-  details.open = folds ? folds.isOpen(fold) : fallback;
-  if (!folds) return;
-  details.addEventListener("toggle", () => folds.remember(fold, details.open));
-}
-
 function advancedMetrics(
   document: Document,
   node: CitationGraphNode,
@@ -315,7 +299,9 @@ function advancedMetrics(
   // plugin knows. Every row stays, dashes included: a dash says the plugin
   // looked and found nothing (F8), and F9 is what fills it. A reader who
   // closes it keeps it closed for the next paper, when `folds` is given.
-  rememberFold(details, "advanced", folds, true);
+  details.open = folds ? folds.isOpen() : true;
+  if (folds)
+    details.addEventListener("toggle", () => folds.remember(details.open));
   details.appendChild(text(document, "summary", "Advanced"));
   const rows = element(document, "dl", "cm-metric-list");
   const append = (label: string, value: string, description: string): void => {
@@ -401,31 +387,24 @@ export function createOverviewMetrics(
 }
 
 /**
- * The paper's abstract as a folded section under the header (F4), or null
+ * The paper's abstract as a plain section under the header (F4, D27): a
+ * heading set like Advanced's head, then the full text, always shown. Null
  * when `paperAbstract` finds none, so a paper without one shows nothing
- * rather than an empty fold. Closed by default: an abstract runs to a dozen
- * lines and would push the metrics out of a short pane. With `folds`, it opens
- * as the reader last left it, so an abstract opened once stays open from
- * paper to paper. The head is the one Advanced draws.
+ * rather than an empty section.
  */
 export function createAbstractSection(
   document: Document,
   node: CitationGraphNode,
-  folds?: DetailFoldMemory,
 ): HTMLElement | null {
   const abstract = paperAbstract(node);
   if (!abstract) return null;
-  const details = element(
+  const section = detailSection(
     document,
-    "details",
-    "cm-advanced-details cm-paper-abstract",
-  );
-  details.append(
-    text(document, "summary", "Abstract"),
+    text(document, "h3", "Abstract", "cm-section-head"),
     text(document, "p", abstract),
   );
-  rememberFold(details, "abstract", folds, false);
-  return detailSection(document, details);
+  section.classList.add("cm-paper-abstract");
+  return section;
 }
 
 /* -------------------------------------------------------------- import */

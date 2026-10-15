@@ -171,8 +171,6 @@ Fixes (no decision needed):
 - [ ] B101 a hovered paper's full-title label draws a leader line to its node
       when it is placed away; drop the line. The native `title` tooltip still
       shows on hover sometimes; drop it on the plot
-- [ ] D27 the Abstract is a plain, always open section in Paper details, not a
-      fold
 - [ ] B102 Tools › Meristema › Open (saved graphs) reads Load
 - [ ] D15 (bug half) the user could not raise a sticky notice to walk it:
       cover the sticky-notice-returns-after-toast path with a suite case
@@ -242,6 +240,9 @@ any failure into a new entry above.
 - [ ] B100: + Add seed, search a query with enough rows to scroll: no `+`
       on any row, a click anywhere adds it, and the scrollbar keeps a clear
       gap from a hovered row's fill, in light and dark.
+- [ ] D27: select a paper with an abstract: Paper details shows an ABSTRACT
+      heading (no twisty) and the full text; a paper without one shows none.
+      Close Advanced, select another paper: it stays closed.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
