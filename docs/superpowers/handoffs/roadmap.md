@@ -148,8 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] B106 the citers edge colour (`incoming`, `#a44c00`) is too dark in
-      light mode; pick a lighter warm orange.
 - [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
       all grey rings. Draw them as the plot does: Seed a disc in a ring of the
       seeds' colours, Selected a disc in a heavy ring, Not in Zotero a hollow
@@ -224,6 +222,9 @@ any failure into a new entry above.
 - [ ] B104: in a filled seeded graph, each hop row reads only its count
       (`1,485 papers`, no `from N`); hovering Hop 1 shows
       `Found through 2 of 3 seeds`, Hop 2 `Found through n of m Hop 1 papers`.
+- [ ] B106: in light mode, select a paper with citers: the citer edges and
+      the Key's Cited by arrow are a lighter orange (`#d9730d`), still clear
+      on the paper; dark mode is unchanged.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

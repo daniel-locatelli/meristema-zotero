@@ -165,7 +165,7 @@ const LIGHT_THEME: GraphTheme = {
   edges: {
     base: "rgba(99, 102, 93, .32)",
     outgoing: "#0066af",
-    incoming: "#a44c00",
+    incoming: "#d9730d",
     dimmed: "rgba(99, 102, 93, .07)",
     litHalo: LIGHT_PAPER,
   },
