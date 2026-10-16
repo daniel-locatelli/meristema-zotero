@@ -735,6 +735,7 @@ export function renderGraphView(
    * assigned once everything they close over exists.
    */
   let applyGraphView: (chosen: GraphViewDefinition) => void = () => undefined;
+  let copyCurrentJSON: () => void = () => {};
   let openSavePanel: (existing: GraphViewDefinition | null) => void = () =>
     undefined;
   let importView: () => Promise<void> = () => Promise.resolve();
@@ -994,6 +995,7 @@ export function renderGraphView(
     onChoose: (chosen) => applyGraphView(chosen),
     onEdit: (chosen) => openSavePanel(chosen),
     onSaveCurrent: () => openSavePanel(null),
+    onCopyCurrent: () => copyCurrentJSON(),
     onImport: () => void importView(),
     onOpenGallery: () => showGallery(),
     // Another tab may have renamed or deleted the view this chip is on.
@@ -2368,11 +2370,42 @@ export function renderGraphView(
     const { collectionIDs: _c, relation: _r, ...rest } = filters;
     return rest;
   };
+  /** The graph's settings as they are now, which a view captures. */
+  const currentSettings = () => ({
+    layout: appearance.getLayout(),
+    regions: [...regions],
+    filters: graphFilter.state(),
+    folders: viewFolders(),
+  });
+  /** One path from settings to a view, for Copy and for Save. */
+  const captureCurrent = (
+    r: { name: string; paragraph: string },
+    settings: ReturnType<typeof currentSettings>,
+  ): GraphViewDefinition =>
+    captureGraphView({
+      name: r.name,
+      paragraph: r.paragraph,
+      ...settings,
+      hops: liveHops(),
+    });
+  // Named after the view the graph came from, with its explanation (D31).
+  copyCurrentJSON = (): void => {
+    const active = activeView();
+    copyText(
+      encodeGraphView(
+        captureCurrent(
+          {
+            name: active?.name ?? "Untitled view",
+            paragraph: active?.paragraph ?? "",
+          },
+          currentSettings(),
+        ),
+      ),
+    );
+  };
   openSavePanel = (existing: GraphViewDefinition | null): void => {
-    const layout = appearance.getLayout();
-    const filters = graphFilter.state();
-    const folders = viewFolders();
-    const regionsAtOpen = [...regions];
+    const atOpen = currentSettings();
+    const { layout, filters, folders, regions: regionsAtOpen } = atOpen;
     // The spec's "pre-filled" panel renames and re-words a saved view; it
     // never silently overwrites that view's settings with the current graph's.
     const capture = (r: {
@@ -2386,15 +2419,7 @@ export function renderGraphView(
           paragraph: r.paragraph.trim(),
         };
       }
-      return captureGraphView({
-        name: r.name,
-        paragraph: r.paragraph,
-        layout,
-        regions: regionsAtOpen,
-        filters,
-        folders,
-        hops: liveHops(),
-      });
+      return captureCurrent(r, atOpen);
     };
     const capturedRegionCount = existing
       ? existing.regions === null

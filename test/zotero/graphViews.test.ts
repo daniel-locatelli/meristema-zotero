@@ -667,6 +667,11 @@ describe("Graph views (D4)", function () {
     expect(panel, "the save panel opened from the dropdown's action").to.exist;
     panel = panel as HTMLElement;
     expect(panel.hidden, "the save panel is open").to.equal(false);
+    // Saving the current state copies from the dropdown instead (D31).
+    expect(
+      buttonReading(panel, "Copy JSON").hidden,
+      "the save panel's Copy JSON, saving the current state",
+    ).to.equal(true);
     const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
     name.value = SAVED_VIEW_NAME;
     fire(name, "input");
@@ -690,31 +695,8 @@ describe("Graph views (D4)", function () {
 
   it("says Copied in a toast in the plot's corner that passes (D15)", async function () {
     this.timeout(30_000);
-    let panel: HTMLElement | null = null;
-    for (let attempt = 0; attempt < 5 && !panel; attempt += 1) {
-      await openChipMenu();
-      const action = (
-        Array.from(
-          graphRoot().querySelectorAll(".cm-view-action"),
-        ) as HTMLButtonElement[]
-      ).find(
-        (candidate) =>
-          normalize(candidate.textContent) === "Save current as view…",
-      );
-      expect(action, "the Save current as view… action").to.exist;
-      action!.click();
-      panel = await waitFor(() => {
-        const live = graphRoot().querySelector(
-          ".cm-view-save",
-        ) as HTMLElement | null;
-        return live && !live.hidden ? live : null;
-      }, 2_000);
-    }
-    expect(panel, "the save panel opened from the dropdown's action").to.exist;
-    panel = panel as HTMLElement;
-    const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
-    name.value = "D15 copied view";
-    fire(name, "input");
+    // The previous case left the graph on its saved view; the copy wears it.
+    const viewName = chipName().replace(/ \(edited\)$/, "") || "Untitled view";
     // The clipboard is the test profile's, but the case has no need of it.
     const internal = Zotero.Utilities.Internal as unknown as {
       copyTextToClipboard: (text: string) => void;
@@ -725,11 +707,37 @@ describe("Graph views (D4)", function () {
       copied.push(text);
     };
     try {
-      buttonReading(panel, "Copy JSON").click();
+      // D31: the dropdown's own row, not the save panel's button.
+      for (let attempt = 0; attempt < 5 && !copied.length; attempt += 1) {
+        await openChipMenu();
+        const action = (
+          Array.from(
+            graphRoot().querySelectorAll(".cm-view-action"),
+          ) as HTMLButtonElement[]
+        ).find(
+          (candidate) =>
+            normalize(candidate.textContent) === "Copy current as JSON",
+        );
+        expect(action, "the Copy current as JSON action").to.exist;
+        action!.click();
+        await waitFor(() => copied.length > 0, 2_000);
+      }
     } finally {
       internal.copyTextToClipboard = copy;
     }
-    expect(copied.length, "Copy JSON reached the clipboard").to.equal(1);
+    expect(
+      copied.length,
+      "Copy current as JSON reached the clipboard",
+    ).to.equal(1);
+    expect(
+      JSON.parse(copied[0]!).name,
+      "the copy is named after the graph's view",
+    ).to.equal(viewName);
+    expect(
+      (graphRoot().querySelector(".cm-view-save") as HTMLElement | null)
+        ?.hidden ?? true,
+      "the row copies without opening the save panel",
+    ).to.equal(true);
     const toastText = (): string =>
       normalize(
         graphRoot().querySelector(".cm-status-toast-region .cm-status-toast")
@@ -763,7 +771,6 @@ describe("Graph views (D4)", function () {
     expect(gone, `after five seconds the toast read "${toastText()}"`).to.equal(
       true,
     );
-    buttonReading(panel, "Cancel").click();
   });
 
   it("reopens a version 3 graph with the gallery", async function () {
@@ -921,50 +928,42 @@ describe("Graph views (D4)", function () {
       await waitFor(() => greeting.hidden, 5_000);
     }
 
-    // A toast, raised the way a reader raises one: Copy JSON in Save view.
-    let panel: HTMLElement | null = null;
-    for (let attempt = 0; attempt < 5 && !panel; attempt += 1) {
-      const menu = await waitFor(() => {
-        const live = root().querySelector(
-          ".cm-view-menu",
-        ) as HTMLElement | null;
-        if (live && !live.hidden) return live;
-        (root().querySelector(".cm-view-chip") as HTMLButtonElement).click();
-        return null;
-      }, 10_000);
-      expect(menu, "the read-only graph's View dropdown").to.exist;
-      const action = (
-        Array.from(
-          root().querySelectorAll(".cm-view-action"),
-        ) as HTMLButtonElement[]
-      ).find(
-        (candidate) =>
-          normalize(candidate.textContent) === "Save current as view…",
-      );
-      expect(action, "the Save current as view… action").to.exist;
-      action!.click();
-      panel = await waitFor(() => {
-        const live = root().querySelector(
-          ".cm-view-save",
-        ) as HTMLElement | null;
-        return live && !live.hidden ? live : null;
-      }, 2_000);
-    }
-    expect(panel, "the save panel opened on the read-only graph").to.exist;
-    panel = panel as HTMLElement;
-    const name = panel.querySelector(".cm-view-save-input") as HTMLInputElement;
-    name.value = "D15 sticky view";
-    fire(name, "input");
+    // A toast, raised the way a reader raises one: Copy current as JSON.
     const internal = Zotero.Utilities.Internal as unknown as {
       copyTextToClipboard: (text: string) => void;
     };
     const copy = internal.copyTextToClipboard;
-    internal.copyTextToClipboard = () => {};
+    let copies = 0;
+    internal.copyTextToClipboard = () => {
+      copies += 1;
+    };
     try {
-      buttonReading(panel, "Copy JSON").click();
+      for (let attempt = 0; attempt < 5 && !copies; attempt += 1) {
+        const menu = await waitFor(() => {
+          const live = root().querySelector(
+            ".cm-view-menu",
+          ) as HTMLElement | null;
+          if (live && !live.hidden) return live;
+          (root().querySelector(".cm-view-chip") as HTMLButtonElement).click();
+          return null;
+        }, 10_000);
+        expect(menu, "the read-only graph's View dropdown").to.exist;
+        const action = (
+          Array.from(
+            root().querySelectorAll(".cm-view-action"),
+          ) as HTMLButtonElement[]
+        ).find(
+          (candidate) =>
+            normalize(candidate.textContent) === "Copy current as JSON",
+        );
+        expect(action, "the Copy current as JSON action").to.exist;
+        action!.click();
+        await waitFor(() => copies > 0, 2_000);
+      }
     } finally {
       internal.copyTextToClipboard = copy;
     }
+    expect(copies, "the read-only graph copied its view").to.equal(1);
     const toast = (): HTMLElement | null =>
       root().querySelector(
         ".cm-status-toast-region .cm-status-toast",
@@ -993,7 +992,6 @@ describe("Graph views (D4)", function () {
       SAVED_GRAPH_READ_ONLY_STATUS,
     );
 
-    buttonReading(panel, "Cancel").click();
     win.Zotero_Tabs.close(openedTabID);
     openedTabID = null;
     await delay(300);

@@ -151,10 +151,6 @@ opacity grade).
 - [ ] B104 a hop row's `1,485 papers from 103` reads as nonsense. The row
       says only the count; its tooltip says
       `Found through 103 of 240 Hop 1 papers` (the denominator is the visible papers one hop up).
-- [ ] D31 Copy JSON is hidden in the Save panel. Add `Copy current as JSON`
-      to the View dropdown under `Save current as view…`, named after the
-      active view (else `Untitled view`); the panel keeps its button only
-      when editing a saved view.
 - [ ] B106 the citers edge colour (`incoming`, `#a44c00`) is too dark in
       light mode; pick a lighter warm orange.
 - [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
@@ -224,6 +220,10 @@ any failure into a new entry above.
 - [ ] B105: click a Seeds row with the seed off to one side: the plot glides
       to centre it in about 300ms, slowing as it lands; a drag or wheel mid-glide takes
       over. With Windows' animation effects off, it jumps.
+- [ ] D31: on a graph from a view, View › `Copy current as JSON` says
+      Copied and pastes as JSON named after that view; on a blank graph it
+      reads `Untitled view`. Save current as view has no Copy JSON; edit
+      on a saved view does.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

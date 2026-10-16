@@ -178,6 +178,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           onChoose: () => undefined,
           onEdit: () => undefined,
           onSaveCurrent: () => undefined,
+          onCopyCurrent: () => undefined,
           onImport: () => undefined,
           onOpenGallery: () => undefined,
         });

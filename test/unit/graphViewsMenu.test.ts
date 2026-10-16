@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
 import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
-import { createGraphViewsMenu } from "../../src/services/graphViewsMenu";
+import {
+  createGraphViewsMenu,
+  createSavePanel,
+} from "../../src/services/graphViewsMenu";
 
 /*
  * Just enough DOM for the View dropdown to build its rows: elements that hold
@@ -13,6 +16,9 @@ class FakeElement {
   type = "";
   title = "";
   id = "";
+  value = "";
+  disabled = false;
+  checked = false;
   dataset: Record<string, string> = {};
   style: Record<string, string> = {};
   children: FakeElement[] = [];
@@ -51,7 +57,17 @@ class FakeElement {
   replaceChildren(...nodes: FakeElement[]): void {
     this.children = [...nodes];
   }
-  addEventListener(): void {}
+  private listeners = new Map<string, Array<(event: unknown) => void>>();
+  addEventListener(type: string, listener: (event: unknown) => void): void {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+  click(): void {
+    for (const listener of this.listeners.get("click") ?? []) {
+      listener({ stopPropagation: () => {} });
+    }
+  }
+  focus(): void {}
+  select(): void {}
   all(className: string): FakeElement[] {
     return this.children.flatMap((child) => [
       ...(child.classList.contains(className) ? [child] : []),
@@ -69,7 +85,10 @@ const fakeDocument = {
   createElementNS: () => new FakeElement(),
 } as unknown as Document;
 
-function openMenu(activeID: string | null): FakeElement {
+function openMenu(
+  activeID: string | null,
+  onCopyCurrent: () => void = () => {},
+): FakeElement {
   const menu = createGraphViewsMenu({
     document: fakeDocument,
     shipped: SHIPPED_GRAPH_VIEWS,
@@ -77,6 +96,7 @@ function openMenu(activeID: string | null): FakeElement {
     onChoose: () => {},
     onEdit: () => {},
     onSaveCurrent: () => {},
+    onCopyCurrent,
     onImport: () => {},
     onOpenGallery: () => {},
   });
@@ -126,5 +146,60 @@ describe("the View dropdown's rows (D18)", function () {
     expect(head.children.map((c) => c.className)).to.deep.equal([
       "cm-view-row-name",
     ]);
+  });
+});
+
+describe("the View dropdown's actions (D31)", function () {
+  it("puts Copy current as JSON directly under Save current as view…", function () {
+    const labels = openMenu(null)
+      .all("cm-view-action")
+      .map((action) => action.textContent);
+    expect(labels).to.deep.equal([
+      "Save current as view…",
+      "Copy current as JSON",
+      "Import view JSON…",
+      "Choose a view…",
+    ]);
+  });
+
+  it("copies from the row without opening the save panel", function () {
+    let copies = 0;
+    const menu = openMenu(null, () => {
+      copies += 1;
+    });
+    const action = menu
+      .all("cm-view-action")
+      .find((a) => a.textContent === "Copy current as JSON");
+    action?.click();
+    expect(copies).to.equal(1);
+  });
+});
+
+describe("the save panel's Copy JSON (D31)", function () {
+  const openPanel = (existing: boolean): FakeElement => {
+    const panel = createSavePanel(fakeDocument);
+    panel.open({
+      name: "A view",
+      paragraph: "",
+      captures: { regions: 0, filters: true, explore: null },
+      existing: existing ? (SHIPPED_GRAPH_VIEWS[0] ?? null) : null,
+      nameTaken: () => false,
+      onCopyJSON: () => {},
+      onSave: () => {},
+      onDelete: null,
+    });
+    return panel.root as unknown as FakeElement;
+  };
+  const copyButton = (root: FakeElement): FakeElement | undefined =>
+    root
+      .all("cm-secondary-button")
+      .find((button) => button.textContent === "Copy JSON");
+
+  it("hides it while saving the current state", function () {
+    expect(copyButton(openPanel(false))?.hidden).to.equal(true);
+  });
+
+  it("shows it while editing a saved view", function () {
+    expect(copyButton(openPanel(true))?.hidden).to.equal(false);
   });
 });

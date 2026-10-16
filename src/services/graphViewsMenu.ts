@@ -20,6 +20,8 @@ export interface GraphViewsMenuOptions {
   onChoose: (view: GraphViewDefinition) => void;
   onEdit: (view: GraphViewDefinition) => void;
   onSaveCurrent: () => void;
+  /** The current settings as view JSON, straight to the clipboard (D31). */
+  onCopyCurrent: () => void;
   onImport: () => void;
   onOpenGallery: () => void;
   /**
@@ -162,6 +164,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
     );
     for (const [labelText, handler] of [
       ["Save current as view…", o.onSaveCurrent],
+      ["Copy current as JSON", o.onCopyCurrent],
       ["Import view JSON…", o.onImport],
       ["Choose a view…", o.onOpenGallery],
     ] as const) {
@@ -541,6 +544,9 @@ export function createSavePanel(document: Document): SavePanel {
         ),
         captureRow("Scope (seeds, collections) — never saved", false, true),
       );
+      // Saving the current state copies from the dropdown's own row (D31);
+      // the panel's button is for a saved view's JSON.
+      copyButton.hidden = !o.existing;
       deleteButton.hidden = !o.onDelete;
       root.hidden = false;
       validate();
