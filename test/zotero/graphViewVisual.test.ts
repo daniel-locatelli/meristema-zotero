@@ -1683,6 +1683,105 @@ describe("Graph view, as the product builds it", function () {
   });
 
   /**
+   * F17: a paper selected without an abstract asks Semantic Scholar for one,
+   * once. Nothing shows until the answer; the answer lands in the pane of the
+   * paper still selected, and selecting it again shows it with no second
+   * request. A paper no provider has one for is not asked again either. The
+   * DOIs are new each run: the response cache keeps what it was answered.
+   */
+  it("fetches a missing abstract once and shows it in place", async function () {
+    this.timeout(60_000);
+    const run = Date.now().toString(36);
+    const withAbstract = `10.5555/f17.${run}.found`;
+    const withNone = `10.5555/f17.${run}.none`;
+    const corpus = makeCorpus({ nodes: 30 });
+    const local = corpus.nodes.filter((node) => node.kind !== "external");
+    const [a, b, c] = local;
+    a!.doi = withAbstract;
+    b!.doi = withNone;
+    for (const node of [a!, b!, c!]) node.abstract = null;
+    const asked: string[] = [];
+    const live = Zotero.HTTP.request;
+    (Zotero.HTTP as any).request = async (
+      method: string,
+      url: string,
+      options?: any,
+    ) => {
+      if (/^https:\/\/api\.openalex\.org\//.test(url)) {
+        return {
+          status: 200,
+          responseText: '{"results":[]}',
+          getResponseHeader: () => null,
+        };
+      }
+      if (
+        !/^https:\/\/api\.semanticscholar\.org\/graph\/v1\/paper\/batch/.test(
+          url,
+        )
+      ) {
+        return live.call(Zotero.HTTP, method, url, options);
+      }
+      const ids = JSON.parse(String(options?.body ?? "{}")).ids as string[];
+      asked.push(...ids);
+      await delay(300);
+      return {
+        status: 200,
+        responseText: JSON.stringify(
+          ids.map((id) =>
+            id.toLowerCase() === `doi:${withAbstract}`
+              ? {
+                  paperId: `f17${run}`,
+                  title: "F17",
+                  abstract: "Fetched once.",
+                }
+              : null,
+          ),
+        ),
+        getResponseHeader: () => null,
+      };
+    };
+    try {
+      stage = await openViewStage(corpus);
+      const view = stage;
+      await settle(view.window, 6);
+      const controller = getGraphViewController(view.mount)!;
+      const abstractText = (): string | null =>
+        view.root.querySelector(".cm-detail-body .cm-paper-abstract p")
+          ?.textContent ?? null;
+      const askedFor = (doi: string): number =>
+        asked.filter((id) => id.toLowerCase() === `doi:${doi}`).length;
+
+      controller.applyLibrarySelection([a!.itemID]);
+      await settle(view.window, 2);
+      expect(abstractText(), "nothing shows before the answer").to.equal(null);
+      for (let tries = 0; tries < 40 && !abstractText(); tries += 1) {
+        await delay(100);
+      }
+      expect(abstractText(), "the answer lands in place").to.equal(
+        "Fetched once.",
+      );
+      expect(askedFor(withAbstract), "asked once").to.equal(1);
+
+      controller.applyLibrarySelection([b!.itemID]);
+      await delay(1_000);
+      expect(abstractText(), "a paper with none shows none").to.equal(null);
+      expect(askedFor(withNone), `asked: ${asked.join(", ")}`).to.equal(1);
+
+      controller.applyLibrarySelection([a!.itemID]);
+      await settle(view.window, 2);
+      expect(abstractText(), "shown again straight away").to.equal(
+        "Fetched once.",
+      );
+      controller.applyLibrarySelection([b!.itemID]);
+      await delay(600);
+      expect(askedFor(withAbstract), "not asked again").to.equal(1);
+      expect(askedFor(withNone), "nor the paper with none").to.equal(1);
+    } finally {
+      (Zotero.HTTP as any).request = live;
+    }
+  });
+
+  /**
    * B82: source metrics that land after the colouring changed reach the Key.
    * The gear's change rebuilds the Key (B52) and only then copies the stored
    * journal metrics into the papers that lacked them, and that redraw left

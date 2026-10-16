@@ -68,7 +68,8 @@ export function relationshipTabLabel(
  * The abstract Paper details shows for a node, or null when there is none to
  * show. A library paper's node carries its Zotero `abstractNote`; a paper
  * outside the library carries whatever its provider summary already held,
- * which the node copies and `externalWork` keeps. Nothing here fetches.
+ * which the node copies and `externalWork` keeps. Nothing here fetches;
+ * `paperAbstractLookup.ts` asks for one when this finds none (F17).
  */
 export function paperAbstract(node: CitationGraphNode): string | null {
   for (const candidate of [node.abstract, node.externalWork?.abstract]) {

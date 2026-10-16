@@ -31,6 +31,7 @@ import {
   resolveLibrarySelection,
   type LibrarySelectionResolution,
 } from "./librarySelection";
+import { paperAbstractLookup } from "./paperAbstractService";
 import {
   hopFillPagingProviders,
   hydrateExternalWorksMetadata,
@@ -3625,6 +3626,36 @@ ${error instanceof Error ? error.message : String(error)}`,
     return toggle;
   };
 
+  /**
+   * A paper selected without an abstract asks the providers for one, once a
+   * session (F17). Nothing shows until the answer, and the answer lands
+   * above the metrics only while this paper's overview is still the one
+   * drawn: `metricsHead` leaves the body when anything redraws it.
+   */
+  const showFetchedAbstract = (
+    node: CitationGraphNode,
+    metricsHead: ChildNode | null,
+  ): void => {
+    paperAbstractLookup
+      .request(node)
+      ?.then((found) => {
+        if (!found || cleaned) return;
+        if (node.externalWork && !node.externalWork.abstract) {
+          // An import of this paper carries the abstract into its new item.
+          node.externalWork.abstract = found;
+        }
+        if (selectedNode?.key !== node.key) return;
+        if (!metricsHead || metricsHead.parentNode !== detailBody) return;
+        const section = createAbstractSection(document, node, found);
+        if (section) detailBody.insertBefore(section, metricsHead);
+      })
+      .catch((error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      });
+  };
+
   function renderOverview(node: CitationGraphNode | null): void {
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
@@ -3654,9 +3685,16 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
 
     appendPaperHeader(node, "overview");
-    const abstract = createAbstractSection(document, node);
+    const abstract = createAbstractSection(
+      document,
+      node,
+      paperAbstractLookup.found(node),
+    );
     if (abstract) detailBody.appendChild(abstract);
-    detailBody.appendChild(createOverviewMetrics(document, node, detailFolds));
+    const metrics = createOverviewMetrics(document, node, detailFolds);
+    const metricsHead = metrics.firstChild;
+    detailBody.appendChild(metrics);
+    if (!abstract) showFetchedAbstract(node, metricsHead);
 
     if (node.kind === "external" && node.externalWork) {
       const work = node.externalWork as ExternalWork;

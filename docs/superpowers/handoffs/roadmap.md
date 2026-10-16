@@ -148,11 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] F17 few papers show an abstract (F4). Semantic Scholar's relationship
-      pages (`RELATIONSHIP_FIELDS`) do not ask for `abstract`, and the
-      hydration queue drops it (`projectRelatedWorkSummary`). Fetch it when a
-      paper without one is selected, and keep it in `abstract_text`.
-
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
@@ -223,6 +218,11 @@ any failure into a new entry above.
 - [ ] B108: restart Zotero with two graph tabs and a PDF tab open: every
       graph tab is up in its place with the PDF tab, the selected graph
       draws shortly after, and another graph draws when first selected.
+- [ ] F17: in a filled graph, select a hop paper with no abstract: after a
+      moment an Abstract section appears above the metrics, with no
+      placeholder before it. Select another paper and back: it shows at
+      once. A library paper with an empty Abstract field gets one too, and
+      its Zotero Abstract field stays empty.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

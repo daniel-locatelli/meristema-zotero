@@ -390,13 +390,15 @@ export function createOverviewMetrics(
  * The paper's abstract as a plain section under the header (F4, D27): a
  * heading set like Advanced's head, then the full text, always shown. Null
  * when `paperAbstract` finds none, so a paper without one shows nothing
- * rather than an empty section.
+ * rather than an empty section. `fetched` is the abstract a provider gave
+ * for a paper that carried none (F17).
  */
 export function createAbstractSection(
   document: Document,
   node: CitationGraphNode,
+  fetched: string | null = null,
 ): HTMLElement | null {
-  const abstract = paperAbstract(node);
+  const abstract = paperAbstract(node) ?? fetched;
   if (!abstract) return null;
   const section = detailSection(
     document,
