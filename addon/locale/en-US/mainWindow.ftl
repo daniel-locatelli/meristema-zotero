@@ -40,10 +40,6 @@ provider-opencitations-command =
 provider-inspire-command =
     .label = { $marker }INSPIRE-HEP
 
-refresh-command =
-    .label = Refresh
-
-
 # $count is how many items were selected. The new graph seeds from them and
 # fetches their references and citing papers, so the label says "seeds"
 # rather than "items" (B35).
@@ -73,9 +69,6 @@ collection-new-graph-command =
 
 rename-view-command =
     .label = Rename View…
-
-refresh-library-command =
-    .label = Refresh Library
 
 load-saved-graph-submenu =
     .label = Load

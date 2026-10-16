@@ -61,7 +61,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   Open several Graph tabs at once. Rename views and use `New Graph from item` or `Add to ›` to create a new view or add papers to an existing one. Each view keeps its own scope, seeds, filters, selection, and camera, and survives a refresh. Save a graph from the toolbar's File menu to come back to it later; a saved graph autosaves and reopens from the File menu or from Tools › Meristema › Load. Selection follows you both ways: selecting items in Zotero's list selects or emphasises their nodes in every open graph, and clicking a node selects that row in Zotero without leaving the graph.
 
 - **Control providers and updates**
-  Choose which scholarly-data providers to use, whether entries update automatically, and when cached data become stale. Updates cover My Library and every group library. Refresh data manually when needed; long updates show progress and can be cancelled.
+  Choose which scholarly-data providers to use, whether entries update automatically, and when cached data become stale. Updates cover My Library and every group library. Update every library at once from Settings when needed; long updates show progress and can be cancelled.
   ![settings](docs/assets/Settings.png)
 
 ## Data sources

@@ -1,7 +1,6 @@
 import { config } from "../../package.json";
 import { positiveInteger } from "../domain/valueNormalization";
 import { paneSelectedLibraryID } from "./paneLibrary";
-import { updateCitationDataForItems } from "./citationUpdateService";
 import { multiCollectionGraphTitle } from "./graphInstancePolicy";
 import { contextCollectionIDs, contextRegularItems } from "./menuContext";
 import {
@@ -82,15 +81,6 @@ function activeLibraryID(context?: any): number {
   return fromItem ?? Zotero.Libraries.userLibraryID;
 }
 
-async function activeLibraryRegularItems(
-  context?: any,
-): Promise<Zotero.Item[]> {
-  const items = (await Zotero.Items.getAll(
-    activeLibraryID(context),
-  )) as Zotero.Item[];
-  return items.filter((item) => item?.isRegularItem?.() && !item.deleted);
-}
-
 function itemIDs(items: readonly Zotero.Item[]): number[] {
   return items
     .map((item) => positiveInteger(item.id))
@@ -110,14 +100,6 @@ function openSettings(): void {
     `${config.addonRef}-preferences`,
   );
   preferenceWindow?.focus?.();
-}
-
-function refreshItems(items: readonly Zotero.Item[]): void {
-  if (!items.length) return;
-  void updateCitationDataForItems([...items], {
-    force: false,
-    silent: false,
-  }).catch(report);
 }
 
 async function openInNewFocusView(
@@ -450,16 +432,6 @@ function toolsSubmenu(): MenuData {
       graphStateCommand(`${config.addonRef}-save-as-command`, (view, win) =>
         saveGraphViewAs(view.instanceID, win),
       ),
-      { menuType: "separator" },
-      commandItem(
-        `${config.addonRef}-refresh-library-command`,
-        async (context) => {
-          refreshItems(await activeLibraryRegularItems(context));
-        },
-      ),
-      commandItem(`${config.addonRef}-refresh-command`, (context) => {
-        refreshItems(contextRegularItems(context));
-      }),
       { menuType: "separator" },
       commandItem(`${config.addonRef}-settings-command`, () => {
         openSettings();

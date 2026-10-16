@@ -64,8 +64,6 @@ export type FluentMessageId =
   | 'provider-opencitations-command'
   | 'provider-semantic-scholar-command'
   | 'provider-submenu'
-  | 'refresh-command'
-  | 'refresh-library-command'
   | 'rename-view-command'
   | 'save-as-command'
   | 'save-command'

@@ -109,4 +109,41 @@ describe("Tools › Meristema › Load", function () {
     expect(empty, "the empty entry").to.exist;
     expect(empty!.hidden, "the empty entry is hidden").to.equal(true);
   });
+
+  // D33: Refresh and Refresh Library are gone; libraries update on their own
+  // and Settings has Update all libraries now. One rule parts Save from
+  // Settings.
+  it("lists New Graph, Load, Save, Save as…, a rule and Settings", async function () {
+    this.timeout(20_000);
+
+    const closing = hidden(toolsPopup);
+    (toolsPopup as any).hidePopup?.();
+    await closing;
+
+    let showing = shown(toolsPopup);
+    (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
+    await showing;
+
+    const tools = customMenu(toolsPopup, `${config.addonRef}-tools-submenu`);
+    showing = shown(tools.menupopup);
+    tools.openMenu(true);
+    await showing;
+
+    const entries = Array.from(tools.menupopup.children as HTMLCollection)
+      .map((child) =>
+        child.localName === "menuseparator"
+          ? "rule"
+          : ((child as HTMLElement).dataset?.l10nId ?? ""),
+      )
+      .filter(Boolean)
+      .map((id) => id.replace(`${config.addonRef}-`, ""));
+    expect(entries).to.deep.equal([
+      "new-graph-view-command",
+      "load-saved-graph-submenu",
+      "save-command",
+      "save-as-command",
+      "rule",
+      "settings-command",
+    ]);
+  });
 });

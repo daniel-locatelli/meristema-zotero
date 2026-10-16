@@ -166,8 +166,6 @@ opacity grade).
 - [ ] D32 the gear's three buttons wrap in a confusing order. Two labelled
       lines: `This graph` with Reset; `New blank graphs` with `Use these` and
       `Restore built-in` (the latter only while a default is stored).
-- [ ] D33 remove Tools › Meristema › Refresh and Refresh Library: libraries
-      update on their own, and Settings has Update all libraries now.
 - [ ] B108 restored graph tabs (F15) appear 5 to 6 s after the PDF tabs.
       `restoreOpenGraphTabs` runs only at the end of `onStartup` (after the
       columns, the preference pane and the menus) and mounts each tab in
@@ -223,6 +221,8 @@ any failure into a new entry above.
 - [ ] D11: fill a References graph on an ACM paper: Unknown labels
       resolve into author-year while the fill is still running, not only
       after it stops.
+- [ ] D33: Tools › Meristema reads New Graph, Load, Save, Save as…, one
+      rule, Settings; no Refresh or Refresh Library.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
