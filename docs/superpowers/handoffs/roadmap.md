@@ -233,11 +233,11 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-15 at `96d3963` (121/2: the D15
-notice case wanted a 1px rule that computes to 0.8px at 125%, and its failing
-midway left a tab open that failed the D17 case after it; the file alone then
-ran 13/0), so count with the commits since `96d3963`. A clean run is 123
-cases as of 2026-10-15. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-10-16 at `192ccd7` (124/1: B15's case found the
+seed panel open, because B105's glide landed after the F11 case and its
+redraw replaced the + Add seed button the case before had clicked to close;
+both cases fixed, the file then ran 6/0 twice), so count with the commits
+since `192ccd7`. A clean run is 125 cases as of 2026-10-16. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
@@ -496,3 +496,5 @@ entries are in git history.
   from the walk: B96 to B103, D24 to D27, D15's notice case; built from the
   user's calls: F14 (ADR 0020), F15 (ADR 0021), F16, D28, D29, D30, F3's
   labels. Full run at `96d3963` 121/2, both in the test, fixed. Not pushed.
+- 2026-10-16: the user walked the 2026-10-15 build. Fixed from the walk: B104
+  to B108, D31 to D33, F17. Full run at `192ccd7` 124/1, in the test, fixed.

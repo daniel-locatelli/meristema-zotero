@@ -413,6 +413,9 @@ describe("The graph's Scope rail", function () {
     expect(centre.menu, "the node at the centre is the seed").to.include(
       "Remove seed",
     );
+    // The probe can pass just before the glide lands; landing schedules a
+    // fill that redraws the rail, so let it land inside this case.
+    await delay(400);
 
     // Selecting the seed from elsewhere lights its row too.
     await listSelects(otherID);
@@ -476,9 +479,13 @@ describe("The graph's Scope rail", function () {
       ".cm-focus-seed-popover",
     ) as HTMLElement;
     expect(popover.hidden).to.equal(false);
-    // Leave it closed for the case that follows.
-    add.click();
+    // Leave it closed for the case that follows, through the rail's current
+    // button: a redraw since the first click replaces it.
+    (
+      graphRoot().querySelector(".cm-scope-add-seed") as HTMLButtonElement
+    ).click();
     await delay(50);
+    expect(popover.hidden, "the panel closes again").to.equal(true);
   });
 
   it("adds a seed with one click on its search row (B15)", async function () {
