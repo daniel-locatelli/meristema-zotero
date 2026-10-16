@@ -4,6 +4,7 @@ import { CitationGraphRenderer } from "../../src/services/citationGraphRenderer"
 import { buildKeyModel } from "../../src/services/graphKeyModel";
 import { createKeyRail } from "../../src/services/graphKeyRail";
 import { applyGraphThemeToDocument } from "../../src/services/graphTheme";
+import { centredTransform } from "../../src/services/graphViewport";
 import type {
   CitationGraphModel,
   CitationGraphNode,
@@ -191,8 +192,25 @@ describe("Graph view, looked at", function () {
     const target = model.nodes[42]!;
 
     await zoomTo(instance, 8);
+    const centred = centredTransform(
+      instance.positionOf(target.key)!,
+      instance.getViewTransform(),
+      stage.canvas.width,
+      stage.canvas.height,
+    );
     expect(instance.selectNode(target.key, true), "centred").to.equal(true);
-    await settle(stage.window, 3);
+    // The centring glides (B105), and a press mid-glide would stop it short:
+    // the click waits for the camera to land.
+    const deadline = Date.now() + 5_000;
+    const landed = (): boolean => {
+      const now = instance.getViewTransform();
+      return now.x === centred.x && now.y === centred.y;
+    };
+    while (!landed() && Date.now() < deadline) await delay(25);
+    expect(
+      instance.getViewTransform(),
+      "the glide lands on the centred view",
+    ).to.deep.equal(centred);
     instance.clearSelection();
     await settle(stage.window, 3);
     expect(selection, "cleared").to.equal(null);

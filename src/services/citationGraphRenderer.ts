@@ -70,6 +70,7 @@ import {
   boxMissesRect,
   devicePixelScale,
   centredTransform,
+  easedTransform,
   offscreenPanDelta,
   projectToScreen,
   projectToWorld,
@@ -193,6 +194,8 @@ const PLOT_BOTTOM = 675;
  */
 const EMPHASIS_ALPHA = 0.25;
 const EMPHASIS_EASE_MS = 120;
+/** How long a seed picked from the rail takes to glide to the centre (B105). */
+const CENTRE_PAN_MS = 300;
 
 const MIN_NODE_RADIUS = 4;
 const MAX_NODE_RADIUS = 18;
@@ -356,6 +359,8 @@ export class CitationGraphRenderer {
   /** How far into the emphasis the ease has travelled: 0 none, 1 full. */
   private emphasisAmount = 0;
   private emphasisFrame: number | null = null;
+  /** The next step of a glide to a centred seed, or null when none runs. */
+  private centringFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeFrame: number | null = null;
   private disposeSchemeObserver: (() => void) | null = null;
@@ -620,6 +625,8 @@ export class CitationGraphRenderer {
   }
 
   private markViewAdjusted(): void {
+    // Every camera move of the user's, or a newer centring, wins over a glide.
+    this.cancelCentring();
     this.initialFitComplete = true;
     this.onViewChange();
     if (this.initialFitFrame !== null) {
@@ -2510,16 +2517,59 @@ export class CitationGraphRenderer {
       if (position) {
         // A pending initial fit would otherwise take the centring back.
         this.markViewAdjusted();
-        this.transform = centredTransform(
-          position,
-          this.transform,
-          this.canvas.width,
-          this.canvas.height,
+        this.glideTo(
+          centredTransform(
+            position,
+            this.transform,
+            this.canvas.width,
+            this.canvas.height,
+          ),
         );
       }
     }
     this.draw();
     return true;
+  }
+
+  /**
+   * Ease the camera to `target` over `CENTRE_PAN_MS`, drawing each step, or
+   * jump when the reader asked for reduced motion (B105). Steps come on the
+   * renderer's frame-or-timer: a covered window gets no frame, and its
+   * fallback timer lands the glide on the target rather than stalling it.
+   */
+  private glideTo(target: GraphViewTransform): void {
+    this.cancelCentring();
+    const view = this.canvas.ownerDocument.defaultView;
+    // A fresh query every time, as for the emphasis: a cached one goes stale.
+    const reduced = Boolean(
+      view?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches,
+    );
+    if (reduced) {
+      this.transform = { ...target };
+      return;
+    }
+    const from = { ...this.transform };
+    const start = Date.now();
+    const step = (): void => {
+      this.centringFrame = null;
+      if (this.destroyed) return;
+      const elapsed = Date.now() - start;
+      this.transform = easedTransform(from, target, elapsed, CENTRE_PAN_MS);
+      this.draw();
+      if (elapsed < CENTRE_PAN_MS) {
+        this.centringFrame = this.frames.request(step);
+      } else {
+        // The camera now rests somewhere new: the fill orders by it.
+        this.onViewChange();
+      }
+    };
+    this.centringFrame = this.frames.request(step);
+  }
+
+  private cancelCentring(): void {
+    if (this.centringFrame === null) return;
+    this.frames.cancel(this.centringFrame);
+    this.centringFrame = null;
   }
 
   /**
@@ -2778,6 +2828,7 @@ export class CitationGraphRenderer {
     if (this.destroyed) return;
     this.destroyed = true;
     this.cancelSceneFrame();
+    this.cancelCentring();
     if (this.initialFitFrame !== null) {
       this.frames.cancel(this.initialFitFrame);
       this.initialFitFrame = null;

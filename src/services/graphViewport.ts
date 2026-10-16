@@ -84,6 +84,33 @@ export function centredTransform(
   };
 }
 
+/** Cubic ease-out: quick away from the start, settling into the end. Clamped to [0, 1]. */
+export function easeOutCubic(progress: number): number {
+  const t = Math.min(1, Math.max(0, progress));
+  return 1 - (1 - t) ** 3;
+}
+
+/**
+ * The view `elapsed` milliseconds into an eased pan from one transform to
+ * another (B105). At or past `duration` it is the target itself, not a value
+ * near it, so a frame that comes late — a covered window's fallback timer —
+ * lands the pan exactly where an instant one would have.
+ */
+export function easedTransform(
+  from: ViewportTransform,
+  to: ViewportTransform,
+  elapsed: number,
+  duration: number,
+): ViewportTransform {
+  if (!(elapsed < duration)) return { ...to };
+  const share = easeOutCubic(elapsed / duration);
+  return {
+    x: from.x + (to.x - from.x) * share,
+    y: from.y + (to.y - from.y) * share,
+    scale: from.scale + (to.scale - from.scale) * share,
+  };
+}
+
 /**
  * How far to shift the view so a screen point sits inside the canvas with
  * `margin` to spare, or zero on an axis where it already does. Used to bring

@@ -4,6 +4,8 @@ import {
   boxMissesRect,
   centredTransform,
   devicePixelScale,
+  easeOutCubic,
+  easedTransform,
   segmentMissesRect,
   offscreenPanDelta,
   projectToScreen,
@@ -73,6 +75,41 @@ describe("Centring on a point", function () {
         expect(screen.y).to.be.closeTo(300, 1e-9);
       }
     }
+  });
+});
+
+describe("Easing a pan (B105)", function () {
+  const from = { x: -412.5, y: 96.25, scale: 2 };
+  const to = { x: 1024, y: -768, scale: 2 };
+
+  it("eases out: quick from the start, settling into the end", function () {
+    expect(easeOutCubic(0)).to.equal(0);
+    expect(easeOutCubic(1)).to.equal(1);
+    expect(easeOutCubic(0.5)).to.equal(0.875);
+    // Out of range clamps, so a late frame never overshoots.
+    expect(easeOutCubic(-0.5)).to.equal(0);
+    expect(easeOutCubic(1.5)).to.equal(1);
+    let previous = 0;
+    for (let step = 1; step <= 10; step += 1) {
+      const value = easeOutCubic(step / 10);
+      expect(value).to.be.greaterThan(previous);
+      previous = value;
+    }
+  });
+
+  it("starts on the current view and lands exactly on the target", function () {
+    expect(easedTransform(from, to, 0, 300)).to.deep.equal(from);
+    expect(easedTransform(from, to, 300, 300)).to.deep.equal(to);
+    // A frame that comes late, as a starved window's timer does, lands.
+    expect(easedTransform(from, to, 750, 300)).to.deep.equal(to);
+    expect(easedTransform(from, to, 0, 0)).to.deep.equal(to);
+  });
+
+  it("is the eased share of the way in every term", function () {
+    const half = easedTransform(from, { ...to, scale: 4 }, 150, 300);
+    expect(half.x).to.be.closeTo(from.x + (to.x - from.x) * 0.875, 1e-9);
+    expect(half.y).to.be.closeTo(from.y + (to.y - from.y) * 0.875, 1e-9);
+    expect(half.scale).to.be.closeTo(2 + 2 * 0.875, 1e-9);
   });
 });
 

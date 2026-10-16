@@ -383,26 +383,34 @@ describe("The graph's Scope rail", function () {
     // The row centres the seed, even one already on screen (B98): a
     // right-click at the canvas centre lands on a node, and its menu is a
     // seed's. The renderer prevents the default only when its hit test found
-    // a node.
-    await delay(300);
+    // a node. The centring glides (B105), so the probe repeats until the
+    // camera has brought the seed there; a right-click does not stop it.
     const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
-    const box = canvas.getBoundingClientRect();
-    const atCentre = new win.MouseEvent("contextmenu", {
-      bubbles: true,
-      cancelable: true,
-      clientX: Math.round(box.left + box.width / 2),
-      clientY: Math.round(box.top + box.height / 2),
-    });
-    canvas.dispatchEvent(atCentre);
-    const centreMenu = nodeMenuItems()
-      .map((button) => button.textContent?.trim())
-      .join(", ");
-    closeNodeMenu();
+    const probeCentre = (): { prevented: boolean; menu: string } => {
+      const box = canvas.getBoundingClientRect();
+      const atCentre = new win.MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: Math.round(box.left + box.width / 2),
+        clientY: Math.round(box.top + box.height / 2),
+      });
+      canvas.dispatchEvent(atCentre);
+      const menu = nodeMenuItems()
+        .map((button) => button.textContent?.trim())
+        .join(", ");
+      closeNodeMenu();
+      return { prevented: atCentre.defaultPrevented, menu };
+    };
+    let centre = probeCentre();
+    await waitFor(() => {
+      centre = probeCentre();
+      return centre.prevented && centre.menu.includes("Remove seed");
+    }, 5_000);
     expect(
-      atCentre.defaultPrevented,
-      `a node sits at the canvas centre; menu [${centreMenu}]`,
+      centre.prevented,
+      `a node sits at the canvas centre; menu [${centre.menu}]`,
     ).to.equal(true);
-    expect(centreMenu, "the node at the centre is the seed").to.include(
+    expect(centre.menu, "the node at the centre is the seed").to.include(
       "Remove seed",
     );
 

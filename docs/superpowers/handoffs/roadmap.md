@@ -155,8 +155,6 @@ opacity grade).
       to the View dropdown under `Save current as view…`, named after the
       active view (else `Untitled view`); the panel keeps its button only
       when editing a saved view.
-- [ ] B105 a Seeds row click (B98) jumps; it should pan in about 300ms,
-      eased, and jump under `prefers-reduced-motion`.
 - [ ] B106 the citers edge colour (`incoming`, `#a44c00`) is too dark in
       light mode; pick a lighter warm orange.
 - [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
@@ -223,6 +221,9 @@ any failure into a new entry above.
       after it stops.
 - [ ] D33: Tools › Meristema reads New Graph, Load, Save, Save as…, one
       rule, Settings; no Refresh or Refresh Library.
+- [ ] B105: click a Seeds row with the seed off to one side: the plot glides
+      to centre it in about 300ms, slowing as it lands; a drag or wheel mid-glide takes
+      over. With Windows' animation effects off, it jumps.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
