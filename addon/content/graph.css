@@ -1941,16 +1941,6 @@
 .cm-scope-no-count-body {
   cursor: default;
 }
-.cm-scope-hop-from {
-  flex: 0 0 auto;
-  /* `182 papers from 40` is one phrase: pull the body's 6px gap in to one
-     11px space (B91). No `·` between them, which read as part of the
-     spinner's glyph (B97). */
-  margin-inline-start: -3px;
-  color: var(--cm-muted);
-  font-size: calc(11 * var(--cm-font-unit));
-  font-variant-numeric: tabular-nums;
-}
 .meristema-root button.cm-scope-hop-fetch {
   padding: 1px 7px;
   border: 1px solid var(--cm-border);

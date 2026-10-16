@@ -148,9 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] B104 a hop row's `1,485 papers from 103` reads as nonsense. The row
-      says only the count; its tooltip says
-      `Found through 103 of 240 Hop 1 papers` (the denominator is the visible papers one hop up).
 - [ ] B106 the citers edge colour (`incoming`, `#a44c00`) is too dark in
       light mode; pick a lighter warm orange.
 - [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
@@ -224,6 +221,9 @@ any failure into a new entry above.
 - [ ] D32: the gear's foot reads `This graph` with Reset over
       `New blank graphs` with Use these, the buttons in one column;
       Restore built-in joins the second line once Use these was pressed.
+- [ ] B104: in a filled seeded graph, each hop row reads only its count
+      (`1,485 papers`, no `from N`); hovering Hop 1 shows
+      `Found through 2 of 3 seeds`, Hop 2 `Found through n of m Hop 1 papers`.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -120,8 +120,13 @@ export interface ScopeHopRow {
   label: string;
   /** `{shown} papers`, the seed count, `not fetched`, `none yet` or `none found`. */
   count: string;
-  /** `from {n}` while some parents one hop up are expanded, else null. */
-  from: string | null;
+  /**
+   * The row's tooltip, `Found through {n} of {m} Hop 1 papers` (or `of {m}
+   * seeds` at Hop 1), while some parents one hop up are expanded, else null.
+   * `m` is the hop above's shown count. The row's text says only the count:
+   * `1,485 papers from 103` read as nonsense (B104).
+   */
+  fromTitle: string | null;
   /** The hop still grows: its parents are in a running plan. */
   spinning: boolean;
   /** Shown and stored at the hop: the row's data attributes, not its text. */
@@ -144,7 +149,7 @@ export interface ScopeHopsProgress {
   afterHop: number;
   /** Expanding; cooling down on a refusal; or at rest with something missing. */
   kind: "running" | "refusing" | "rest";
-  /** Empty while running: the spinners and `from N` say it. */
+  /** Empty while running: the spinners and the rows' tooltips say it. */
   text: string;
   /** At rest only: `{n} without details`, on its own line. */
   details: string | null;
@@ -360,6 +365,18 @@ export function cutLineText(
   return `${mostCited} for ${COUNT_FORMAT.format(cut.mostCited)} of ${COUNT_FORMAT.format(total)}`;
 }
 
+/** A hop row's tooltip: how many of the visible papers one hop up it came from. */
+function foundThrough(hop: number, parents: number, above: number): string {
+  const one = above === 1;
+  const noun =
+    hop === 1
+      ? one
+        ? "seed"
+        : "seeds"
+      : `Hop ${hop - 1} ${one ? "paper" : "papers"}`;
+  return `Found through ${COUNT_FORMAT.format(parents)} of ${COUNT_FORMAT.format(above)} ${noun}`;
+}
+
 export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
   const rows: ScopeHopRow[] = [];
   // The open hops, and one Fetch row while the deepest holds a paper: hops
@@ -396,9 +413,13 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
             : available === 0 && drainedAbove
               ? emptyWord
               : papers(shown),
-      from:
+      fromTitle:
         opened && hop > 0 && (input.expandedByHop[hop] ?? 0) > 0
-          ? `from ${COUNT_FORMAT.format(input.expandedByHop[hop] ?? 0)}`
+          ? foundThrough(
+              hop,
+              input.expandedByHop[hop] ?? 0,
+              input.shownByHop[hop - 1] ?? 0,
+            )
           : null,
       spinning:
         opened && hop > 0 && running && input.growingByHop[hop] === true,

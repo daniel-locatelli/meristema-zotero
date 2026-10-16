@@ -749,6 +749,8 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     wrapper.dataset.shown = String(row.shown);
     wrapper.dataset.available = String(row.available);
     if (row.spinning) wrapper.setAttribute("aria-busy", "true");
+    // Where the hop came from is the row's tooltip, not its text (B104).
+    if (row.fromTitle) wrapper.title = row.fromTitle;
     if (row.dimmed) wrapper.classList.add("cm-scope-hop-row-dimmed");
     if (row.checkbox) {
       const boxLabel = element(document, "label", "cm-scope-check-label");
@@ -797,9 +799,6 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       body.appendChild(fetch);
     } else {
       body.appendChild(text(document, "span", row.count, "cm-scope-row-count"));
-      if (row.from) {
-        body.appendChild(text(document, "span", row.from, "cm-scope-hop-from"));
-      }
       if (row.spinning) {
         const spinner = element(document, "span", "cm-scope-hop-spinner");
         spinner.setAttribute("aria-hidden", "true");

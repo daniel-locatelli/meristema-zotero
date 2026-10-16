@@ -604,10 +604,10 @@ describe("Citation hops (Stage 3)", function () {
     };
   }
 
-  /** The row's `from {n}` text, or null while it has none. */
-  function hopFromText(hop: number): string | null {
-    const text = hopRow(hop)?.querySelector(".cm-scope-hop-from")?.textContent;
-    return text ? normalize(text) : null;
+  /** The row's `Found through {n} of {m} …` tooltip, or null while it has none (B104). */
+  function hopFromTitle(hop: number): string | null {
+    const title = hopRow(hop)?.title;
+    return title ? normalize(title) : null;
   }
 
   /**
@@ -1534,10 +1534,10 @@ describe("Citation hops (Stage 3)", function () {
         `the row never recorded the stop; depth ${saved?.state.hops.depth}`,
       ).to.equal(true);
       // Read after the autosave confirms the stop: a request in flight at Stop
-      // can still land and raise `from N` before then.
-      const fromBefore = hopFromText(2);
-      expect(fromBefore, `hop 2 carries no from; ladder ${ladder()}`).to.match(
-        /^from \d+$/,
+      // can still land and raise the row's `Found through N` before then.
+      const fromBefore = hopFromTitle(2);
+      expect(fromBefore, `hop 2 carries no title; ladder ${ladder()}`).to.match(
+        /^Found through \d+ of \d+ Hop 1 papers?$/,
       );
 
       win.Zotero_Tabs.close(reopenedTabID!);
@@ -1579,7 +1579,7 @@ describe("Citation hops (Stage 3)", function () {
           `${ladder()}; asked ${asked.join(" , ") || "nothing"}`,
       ).to.exist;
       expect(
-        hopFromText(2),
+        hopFromTitle(2),
         `the reopened hop 2 read "${hopRowText(2)}"`,
       ).to.equal(fromBefore);
       expect(

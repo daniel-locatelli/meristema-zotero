@@ -563,7 +563,7 @@ describe("the Citation hops block", function () {
     });
     expect(block.rows[1]).to.include({
       count: `${count(4)} papers`,
-      from: `from ${count(1)}`,
+      fromTitle: "Found through 1 of 1 seed",
       shown: 4,
       available: 5,
       spinning: false,
@@ -571,15 +571,34 @@ describe("the Citation hops block", function () {
     });
     expect(block.rows[2]).to.include({
       count: `${count(9)} papers`,
-      from: `from ${count(3)}`,
+      fromTitle: "Found through 3 of 4 Hop 1 papers",
     });
     expect(block.rows[3]).to.include({
       count: "not fetched",
-      from: null,
+      fromTitle: null,
       fetchButton: true,
       dimmed: true,
       enabled: true,
     });
+  });
+
+  it("titles a hop row with its parents out of the visible papers one hop up (B104)", function () {
+    const block = railWithHops(
+      hopsInput({
+        shownByHop: [3, 240, 1485],
+        availableByHop: [3, 240, 1485],
+        expandedByHop: [0, 2, 103],
+      }),
+    )!.hops!;
+    expect(block.rows[1]).to.include({
+      count: `${count(240)} papers`,
+      fromTitle: "Found through 2 of 3 seeds",
+    });
+    expect(block.rows[2]).to.include({
+      count: `${count(1485)} papers`,
+      fromTitle: `Found through ${count(103)} of ${count(240)} Hop 1 papers`,
+    });
+    expect(block.rows[0].fromTitle).to.equal(null);
   });
 
   it("offers no Fetch row while the deepest open hop is empty", function () {
@@ -597,7 +616,7 @@ describe("the Citation hops block", function () {
       "Hop 2",
     ]);
     expect(block.rows[2]).to.include({ count: "0 papers", fetchButton: false });
-    expect(block.rows[2].from).to.equal(null);
+    expect(block.rows[2].fromTitle).to.equal(null);
   });
 
   it("reads none yet once the hop above is drained, and none found under References", function () {

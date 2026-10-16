@@ -275,7 +275,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           hop: 1,
           label: "Hop 1",
           count: "73 papers",
-          from: "from 12",
+          fromTitle: "Found through 12 of 40 seeds",
           spinning: false,
           shown: 73,
           available: 173,
@@ -366,12 +366,11 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
   });
 
   /**
-   * B91: the count and where it came from read as one phrase, `182 papers
-   * from 40`, with one space between them. The source span sat in the body's
-   * 6px flex gap and added a 4px margin of its own, so the row read two
-   * spaces wide.
+   * B104: `1,485 papers from 103` read as nonsense, so the row says only its
+   * count and where it came from is the row's tooltip. B91's one-space rule
+   * between the two went with the second span.
    */
-  it("keeps one space between a hop row's count and where it came from", async function () {
+  it("says only a hop row's count and titles it with where it came from", async function () {
     const measured = await inMainWindowStyled(
       (document) => {
         const rail = createKeyRail({
@@ -398,46 +397,35 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           ...HOP_ROW_MODEL,
           hops: {
             ...hops,
-            rows: [{ ...hops.rows[0], count: "182 papers", from: "from 40" }],
+            rows: [
+              {
+                ...hops.rows[0],
+                count: "182 papers",
+                fromTitle: "Found through 2 of 3 seeds",
+              },
+            ],
           },
         });
         return rail.root;
       },
-      (mount, host) => {
-        const count = mount.querySelector(
-          ".cm-scope-hop-body .cm-scope-row-count",
-        ) as HTMLElement;
-        const from = mount.querySelector(".cm-scope-hop-from") as HTMLElement;
-        expect(count, "the hop row carries a count").to.exist;
-        expect(from, "the hop row carries where it came from").to.exist;
-        // One space in the source's own font, measured rather than
-        // assumed, so the bound follows the rail's type size.
-        const probe = host.document.createElementNS(
-          HTML_NS,
-          "span",
-        ) as HTMLElement;
-        probe.className = "cm-scope-hop-from";
-        probe.style.cssText = "position:absolute; margin:0; white-space:pre;";
-        probe.textContent = "x x";
-        mount.append(probe);
-        const spaced = probe.getBoundingClientRect().width;
-        probe.textContent = "xx";
-        const space = spaced - probe.getBoundingClientRect().width;
-        probe.remove();
-        const countBox = count.getBoundingClientRect();
-        expect(countBox.width, "the count was laid out").to.be.greaterThan(0);
-        expect(space, "a space was measured").to.be.greaterThan(0);
+      (mount) => {
+        const row = mount.querySelector(".cm-scope-hop-row") as HTMLElement;
+        const body = mount.querySelector(".cm-scope-hop-body") as HTMLElement;
         return {
-          gap: from.getBoundingClientRect().left - countBox.right,
-          space,
+          spans: Array.from(body?.children ?? []).map((child) =>
+            (child.textContent ?? "").trim(),
+          ),
+          title: row?.title ?? null,
         };
       },
     );
     expect(
-      Math.abs(measured.gap - measured.space),
-      `the count and its source sit one space (${measured.space.toFixed(1)}px) ` +
-        `apart, but the gap is ${measured.gap.toFixed(1)}px`,
-    ).to.be.lessThan(1);
+      measured.spans,
+      "the row says its label and count only",
+    ).to.deep.equal(["Hop 1", "182 papers"]);
+    expect(measured.title, "the row's tooltip").to.equal(
+      "Found through 2 of 3 seeds",
+    );
   });
 
   /**
@@ -477,11 +465,14 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       },
       (mount, host) => {
         const row = mount.querySelector(".cm-scope-hop-row") as HTMLElement;
-        const from = mount.querySelector(".cm-scope-hop-from") as HTMLElement;
+        // Since B104 the count is the row's last word.
+        const count = mount.querySelector(
+          ".cm-scope-hop-body .cm-scope-row-count",
+        ) as HTMLElement;
         const spinner = mount.querySelector(
           ".cm-scope-hop-spinner",
         ) as HTMLElement;
-        expect(from, "the hop row carries where it came from").to.exist;
+        expect(count, "the hop row carries a count").to.exist;
         expect(spinner, "a growing hop row carries a spinner").to.exist;
         // Still, so the box is the ring's own and not a rotated bound.
         spinner.style.animation = "none";
@@ -489,8 +480,8 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
         const box = spinner.getBoundingClientRect();
         const rowBox = row.getBoundingClientRect();
         return {
-          text: (from.textContent ?? "").trim(),
-          gap: box.left - from.getBoundingClientRect().right,
+          text: (count.textContent ?? "").trim(),
+          gap: box.left - count.getBoundingClientRect().right,
           width: box.width,
           height: box.height,
           clipped:
@@ -501,8 +492,8 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
         };
       },
     );
-    expect(measured.text, "no separator before the source").to.match(
-      /^from \d+$/,
+    expect(measured.text, "no separator after the count").to.match(
+      /^\d+ papers$/,
     );
     expect(measured.width, "the ring was laid out").to.be.greaterThan(4);
     expect(
