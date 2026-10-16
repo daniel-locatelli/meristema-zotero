@@ -195,6 +195,29 @@ describe("Graph tabs after a restart (F15)", function () {
       "the saved graph takes its row's name",
     ).to.equal(SAVED_NAME);
 
+    // Every tab is up before the last one mounts: the selected graph mounts
+    // straight after, the other when it is first selected (B108).
+    const mounted = (tabID: string): boolean =>
+      Boolean(
+        (
+          win.Zotero_Tabs.getTabContent(tabID) as HTMLElement | null
+        )?.querySelector(".cm-search"),
+      );
+    expect(
+      await waitFor(() => mounted(SAVED_KEY), 20_000),
+      "the selected graph mounts",
+    ).to.equal(true);
+    expect(
+      mounted(SCRATCH_KEY),
+      "the scratch graph waits to be selected",
+    ).to.equal(false);
+    win.Zotero_Tabs.select(SCRATCH_KEY);
+    expect(
+      await waitFor(() => mounted(SCRATCH_KEY), 20_000),
+      "the scratch graph mounts once selected",
+    ).to.equal(true);
+    win.Zotero_Tabs.select(SAVED_KEY);
+
     // Both views report a stopped fill, and the saved one stays its row's.
     const settled = await waitFor(async () => {
       const scratch = await record(SCRATCH_KEY);

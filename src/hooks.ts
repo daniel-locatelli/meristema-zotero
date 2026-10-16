@@ -342,17 +342,14 @@ async function onStartup(): Promise<void> {
   registerLibrarySnapshotInvalidation();
   await Zotero.uiReadyPromise;
   for (const win of Zotero.getMainWindows()) await onMainWindowLoad(win);
-  await registerCitationColumns();
-  registerCitationItemPane();
-  await registerPreferencePane();
-  registerMenus();
-  registerAutomaticCitationUpdates();
+  // A quit while the graph tabs come back must still keep their records.
   if (!quitObserverInstalled) {
     Services.obs.addObserver(quitObserver, "quit-application-granted");
     quitObserverInstalled = true;
   }
-  addon.data.initialized = true;
-  Zotero.debug("Meristema: startup completed");
+  // The graph tabs come back with Zotero's own (B108): a graph needs the
+  // stores, the window's tab hooks, styles and strings, all in place by
+  // now, and nothing the registrations below add.
   const [firstWindow] = Zotero.getMainWindows();
   if (firstWindow) {
     void onRestoreGraphTabs(firstWindow).catch((error: unknown) =>
@@ -361,6 +358,13 @@ async function onStartup(): Promise<void> {
       ),
     );
   }
+  await registerCitationColumns();
+  registerCitationItemPane();
+  await registerPreferencePane();
+  registerMenus();
+  registerAutomaticCitationUpdates();
+  addon.data.initialized = true;
+  Zotero.debug("Meristema: startup completed");
 }
 
 /**

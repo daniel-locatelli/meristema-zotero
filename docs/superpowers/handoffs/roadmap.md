@@ -148,11 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] B108 restored graph tabs (F15) appear 5 to 6 s after the PDF tabs.
-      `restoreOpenGraphTabs` runs only at the end of `onStartup` (after the
-      columns, the preference pane and the menus) and mounts each tab in
-      turn. Put the tabs up right after `uiReadyPromise`, mount the selected
-      one first.
 - [ ] F17 few papers show an abstract (F4). Semantic Scholar's relationship
       pages (`RELATIONSHIP_FIELDS`) do not ask for `abstract`, and the
       hydration queue drops it (`projectRelatedWorkSummary`). Fetch it when a
@@ -225,6 +220,9 @@ any failure into a new entry above.
       Key's States shows Seed as a grey disc in a ring split into the three
       seed colours, Selected as a disc in a heavier dark ring, Search match a
       disc in a ring, and Not in Zotero still a hollow ring; in both themes.
+- [ ] B108: restart Zotero with two graph tabs and a PDF tab open: every
+      graph tab is up in its place with the PDF tab, the selected graph
+      draws shortly after, and another graph draws when first selected.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
