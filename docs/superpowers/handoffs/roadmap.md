@@ -148,10 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
-      all grey rings. Draw them as the plot does: Seed a disc in a ring of the
-      seeds' colours, Selected a disc in a heavy ring, Not in Zotero a hollow
-      ring.
 - [ ] B108 restored graph tabs (F15) appear 5 to 6 s after the PDF tabs.
       `restoreOpenGraphTabs` runs only at the end of `onStartup` (after the
       columns, the preference pane and the menus) and mounts each tab in
@@ -225,6 +221,10 @@ any failure into a new entry above.
 - [ ] B106: in light mode, select a paper with citers: the citer edges and
       the Key's Cited by arrow are a lighter orange (`#d9730d`), still clear
       on the paper; dark mode is unchanged.
+- [ ] B107: in a seeded graph with three seeds and a paper selected, the
+      Key's States shows Seed as a grey disc in a ring split into the three
+      seed colours, Selected as a disc in a heavier dark ring, Search match a
+      disc in a ring, and Not in Zotero still a hollow ring; in both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -124,6 +124,43 @@ function markElement(document: Document, mark: KeyMark): SVGElement {
     return root;
   }
 
+  if (mark.kind === "halo") {
+    // As the plot marks a seed or the selection: a disc, a gap, then a ring,
+    // split into one arc per colour from twelve o'clock (B107).
+    const disc = svg(document, "circle");
+    disc.setAttribute("cx", "10");
+    disc.setAttribute("cy", "10");
+    disc.setAttribute("r", "4.5");
+    disc.setAttribute("fill", primary);
+    root.appendChild(disc);
+    const rings = mark.colors.slice(1);
+    const radius = 7.75;
+    const width = mark.heavy ? "2.6" : "1.8";
+    const point = (turn: number): string => {
+      const angle = turn * Math.PI * 2 - Math.PI / 2;
+      return `${(10 + radius * Math.cos(angle)).toFixed(3)} ${(10 + radius * Math.sin(angle)).toFixed(3)}`;
+    };
+    rings.forEach((color, index) => {
+      const arc = svg(document, rings.length === 1 ? "circle" : "path");
+      if (rings.length === 1) {
+        arc.setAttribute("cx", "10");
+        arc.setAttribute("cy", "10");
+        arc.setAttribute("r", String(radius));
+      } else {
+        // Two or more arcs: none spans more than half the ring.
+        arc.setAttribute(
+          "d",
+          `M${point(index / rings.length)}A${radius} ${radius} 0 0 1 ${point((index + 1) / rings.length)}`,
+        );
+      }
+      arc.setAttribute("fill", "none");
+      arc.setAttribute("stroke", color);
+      arc.setAttribute("stroke-width", width);
+      root.appendChild(arc);
+    });
+    return root;
+  }
+
   const circle = svg(document, "circle");
   circle.setAttribute("cx", "10");
   circle.setAttribute("cy", "10");

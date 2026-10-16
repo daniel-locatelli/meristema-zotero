@@ -312,6 +312,71 @@ describe("Graph key model", () => {
     );
   });
 
+  it("draws Seed, Selected and Search match as a disc inside a ring, as the plot does (B107)", () => {
+    const nodes = [node(1), node(2), node(3), node(4, { kind: "external" })];
+    const states = section(
+      build(
+        nodes,
+        {},
+        {
+          selectedKey: "k1",
+          seedKeys: new Set(["k2", "k3"]),
+          seedColors: new Map([
+            ["k2", theme.seeds[0]!],
+            ["k3", theme.seeds[1]!],
+          ]),
+          searchMatches: new Set(["k1"]),
+        },
+      ),
+      "states",
+    )!;
+    const mark = (id: string) =>
+      states.entries.find((entry) => entry.id === id)!.mark;
+    expect(mark("not-in-zotero")).to.deep.include({
+      kind: "ring",
+      colors: [theme.inks.muted],
+    });
+    // The disc first, then the ring: one arc per seed colour.
+    expect(mark("seed")).to.deep.include({
+      kind: "halo",
+      colors: [theme.inks.muted, theme.seeds[0], theme.seeds[1]],
+    });
+    expect(mark("seed").heavy ?? false).to.equal(false);
+    expect(mark("selected")).to.deep.include({
+      kind: "halo",
+      colors: [theme.inks.muted, theme.states.selected],
+      heavy: true,
+    });
+    expect(mark("search-match")).to.deep.include({
+      kind: "halo",
+      colors: [theme.inks.muted, theme.states.searchMatch],
+    });
+  });
+
+  it("rings the Seed mark in each seed colour once, at most as many as the palette holds", () => {
+    const keys = Array.from({ length: theme.seeds.length + 3 }, (_, i) => i);
+    const nodes = keys.map((i) => node(i));
+    const seedColors = new Map(
+      keys.map((i) => [`k${i}`, theme.seeds[i % theme.seeds.length]!]),
+    );
+    const seed = section(
+      build(nodes, {}, { seedKeys: new Set(seedColors.keys()), seedColors }),
+      "states",
+    )!.entries.find((entry) => entry.id === "seed")!;
+    expect(seed.mark.colors.slice(1)).to.deep.equal([...theme.seeds]);
+  });
+
+  it("rings the Seed mark in the neutral seed tone when no colours are known", () => {
+    const seed = section(
+      build([node(1)], {}, { seedKeys: new Set(["k1"]) }),
+      "states",
+    )!.entries.find((entry) => entry.id === "seed")!;
+    expect(seed.mark).to.deep.include({
+      kind: "halo",
+      colors: [theme.inks.muted, theme.states.seed],
+    });
+  });
+
   it("names neither when every paper is in Zotero, or none is", () => {
     expect(section(build([node(1), node(2)]), "states")).to.equal(undefined);
     expect(

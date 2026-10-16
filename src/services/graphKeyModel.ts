@@ -50,14 +50,21 @@ export function isCategoricalColorMetric(
 
 export type KeySectionKind = "color" | "size" | "links" | "states";
 
-export type KeyMarkKind = "swatch" | "ramp" | "circles" | "arrow" | "ring";
+export type KeyMarkKind =
+  "swatch" | "ramp" | "circles" | "arrow" | "ring" | "halo";
 
 export interface KeyMark {
   kind: KeyMarkKind;
-  /** The colours the mark paints, in the order it paints them. */
+  /**
+   * The colours the mark paints, in the order it paints them. A `halo` is a
+   * disc inside a ring with a gap, as the plot marks a seed or the selection:
+   * the disc's colour first, then the ring's, one arc each (B107).
+   */
   colors: string[];
   /** Drawn as an outline rather than a fill — the ghosted and no-data marks. */
   dashed?: boolean;
+  /** A `halo` whose ring is the plot's heavier selection ring. */
+  heavy?: boolean;
 }
 
 export interface KeyEntry {
@@ -99,6 +106,8 @@ export interface KeyStates {
   seedKeys: ReadonlySet<string>;
   searchMatches: ReadonlySet<string> | null;
   visibleKeys: ReadonlySet<string> | null;
+  /** Each seed's own colour, which rings it on the plot; absent rings in `states.seed`. */
+  seedColors?: ReadonlyMap<string, string>;
 }
 
 export interface KeyModelInput {
@@ -391,6 +400,14 @@ function stateSection(input: KeyModelInput): KeySection | null {
     colors: [color],
     dashed,
   });
+  // Seed, Selected and Search match are drawn on the plot as a ring set off
+  // the node by a gap; a bare ring beside Not in Zotero's read as the same
+  // grey mark three times (B107).
+  const halo = (rings: string[], heavy = false): KeyMark => ({
+    kind: "halo",
+    colors: [theme.inks.muted, ...rings],
+    ...(heavy ? { heavy } : {}),
+  });
 
   // A paper in Zotero fills; one known only through a hop is a ring (F14).
   // Named only when the plot shows both, since one kind alone tells nothing.
@@ -425,19 +442,29 @@ function stateSection(input: KeyModelInput): KeySection | null {
       label: "Selected",
       count: 1,
       detail: null,
-      mark: ring(theme.states.selected),
+      mark: halo([theme.states.selected], true),
       matches: (node) => node.key === selectedKey,
     });
   }
 
   const seeds = nodes.filter((node) => states.seedKeys.has(node.key));
   if (seeds.length) {
+    // One arc per distinct seed colour on screen, no more than the palette
+    // holds: past it the colours repeat.
+    const seedColors = [
+      ...new Set(
+        seeds.flatMap((seed) => {
+          const color = states.seedColors?.get(seed.key);
+          return color ? [color] : [];
+        }),
+      ),
+    ].slice(0, theme.seeds.length);
     entries.push({
       id: "seed",
       label: "Seed",
       count: seeds.length,
       detail: null,
-      mark: ring(theme.states.seed),
+      mark: halo(seedColors.length ? seedColors : [theme.states.seed]),
       matches: (node) => states.seedKeys.has(node.key),
     });
   }
@@ -451,7 +478,7 @@ function stateSection(input: KeyModelInput): KeySection | null {
         label: "Search match",
         count: matched.length,
         detail: null,
-        mark: ring(theme.states.searchMatch),
+        mark: halo([theme.states.searchMatch]),
         matches: (node) => searchMatches.has(node.key),
       });
     }

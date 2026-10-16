@@ -4420,6 +4420,8 @@ ${error instanceof Error ? error.message : String(error)}`,
         states: {
           selectedKey: selectedNode?.key ?? null,
           seedKeys: new Set(seedKeysOf()),
+          // The plot's own seed colours, so the Key's Seed ring agrees (B107).
+          seedColors: hopModel ? seedColorsFor(hopModel) : undefined,
           searchMatches: searchMatchKeys,
           visibleKeys:
             visibleKeys.size === model.nodes.length ? null : visibleKeys,
