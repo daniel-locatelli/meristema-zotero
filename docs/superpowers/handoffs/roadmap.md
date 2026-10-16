@@ -148,6 +148,16 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
+- [ ] B109 restored graph tabs the reader has not selected are drawn only on
+      first selection (B108); the user wants them drawn in the background,
+      one after another, once the selected one is up. Hidden tabs skip
+      rendering by rule (`graphInstanceShouldRender`), so check a hidden
+      mount fits once shown.
+- [ ] B110 the user asks to come back on the tab they were on at quit. F15
+      selects a graph tab recorded as selected; find what the real quit and
+      Zotero's own session restore do to that (a reader or library tab
+      selected at quit, Zotero selecting after the graph restore).
+
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
