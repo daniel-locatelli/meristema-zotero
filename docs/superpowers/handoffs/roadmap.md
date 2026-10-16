@@ -217,7 +217,7 @@ any failure into a new entry above.
       disc in a ring, and Not in Zotero still a hollow ring; in both themes.
 - [ ] B108: restart Zotero with two graph tabs and a PDF tab open: every
       graph tab is up in its place with the PDF tab, the selected graph
-      draws shortly after, and another graph draws when first selected.
+      draws shortly after.
 - [ ] F17: in a filled graph, select a hop paper with no abstract: after a
       moment an Abstract section appears above the metrics, with no
       placeholder before it. Select another paper and back: it shows at
@@ -226,8 +226,7 @@ any failure into a new entry above.
 - [ ] B109: restart Zotero with three graph tabs open: once the selected
       one draws, the other two draw one after another without being
       selected, and Zotero stays responsive; switching to each shows a
-      fitted, hoverable plot at once (supersedes B108's "draws when first
-      selected").
+      fitted, hoverable plot at once.
 - [ ] B110: quit with a graph tab selected, then a PDF tab, then the
       library tab (one restart each, with graph tabs open): each restart
       comes back on the tab selected at quit.
