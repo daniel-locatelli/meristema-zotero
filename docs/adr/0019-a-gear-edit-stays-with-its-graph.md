@@ -1,8 +1,8 @@
 # A gear edit stays with its graph
 
 A new graph opens on a fixed default appearance: the built-in one, Overview's
-(D22), or one the reader made with the gear's "Use for new blank graphs", and
-"Restore built-in blank graph" forgets it. The gear's other edits, and an
+(D22), or one the reader made with the gear's "Use these" (on its New blank
+graphs line), and "Restore built-in" forgets it. The gear's other edits, and an
 applied view, stay with the graph they were made on: the graph state carries
 its appearance since version 10, so a rebuild, a restored tab and a saved
 graph reopen on it. Until D17 every gear edit rewrote the stored default, so
@@ -18,3 +18,8 @@ to built-in default" until a reader applied Overview, pressed the first, and
 took Overview to be overridden; they now name the blank graph, and the gear
 says which view its settings came from ("From view: Overview", or "Edited
 from view: Overview" once a gear field moves from it).
+
+Amended for D32: the gear's actions sit on two labelled lines, "This graph"
+with Reset, and "New blank graphs" with "Use these" and "Restore built-in";
+until then the buttons read "Use for new blank graphs" and "Restore built-in
+blank graph" in one row that wrapped out of order.

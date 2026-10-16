@@ -619,7 +619,7 @@ export function createAxesAppearance(
     createMetricHelp(document, colorMetric, "Choose node colour."),
   );
 
-  // D28: "Use for new blank graphs" reads as overwriting the view the graph
+  // D28: "Use these" for new blank graphs reads as overwriting the view the graph
   // came from unless the gear says which view that was.
   const sourceLine = text(document, "p", "", "cm-appearance-source");
   const setSource = (source: AppearanceSource | null): void => {
@@ -631,27 +631,46 @@ export function createAxesAppearance(
   };
   setSource(null);
   panel.append(sourceLine, tabs, xPane, yPane, nodesPane);
+  // D32: what each button moves, as a labelled line: this graph, or the
+  // graphs opened blank from now on. One flex row wrapped them out of order.
   const actions = element(document, "div", "cm-appearance-actions");
-  const actionButton = (label: string, title: string): HTMLButtonElement => {
+  const actionLine = (label: string): HTMLElement => {
+    const line = element(document, "div", "cm-appearance-action-line");
+    const buttons = element(document, "div", "cm-appearance-action-buttons");
+    line.append(text(document, "span", label, "cm-appearance-action-label"));
+    line.appendChild(buttons);
+    actions.appendChild(line);
+    return buttons;
+  };
+  const actionButton = (
+    line: HTMLElement,
+    label: string,
+    title: string,
+  ): HTMLButtonElement => {
     const action = element(document, "button", "cm-secondary-button");
     action.type = "button";
     action.textContent = label;
     action.title = title;
-    actions.appendChild(action);
+    line.appendChild(action);
     return action;
   };
+  const thisGraph = actionLine("This graph");
+  const newBlank = actionLine("New blank graphs");
   const reset = actionButton(
+    thisGraph,
     "Reset",
     "Put this graph back on the settings a new blank graph opens with.",
   );
   // D28: the stored default is what Start blank and a plain new graph open
-  // with; a view keeps its own settings, so the label says which it moves.
+  // with; a view keeps its own settings, so the line says which it moves.
   const makeDefault = actionButton(
-    "Use for new blank graphs",
-    "Open every new blank graph of this kind with these settings. Views keep their own.",
+    newBlank,
+    "Use these",
+    "Open every new blank graph of this kind with this graph's settings. Views keep their own.",
   );
   const forgetDefault = actionButton(
-    "Restore built-in blank graph",
+    newBlank,
+    "Restore built-in",
     "Forget the settings you chose and open new blank graphs on the built-in ones.",
   );
   /** The way back is offered only while there is a made default to forget. */
@@ -691,7 +710,7 @@ export function createAxesAppearance(
   };
   let last = JSON.stringify(read());
   // A change stays with this graph (D17): the stored default moves only
-  // through "Use for new blank graphs" and "Restore built-in blank graph".
+  // through "Use these" and "Restore built-in" (New blank graphs).
   const commit = (layout: GraphLayoutOptions, force = false): void => {
     const signature = JSON.stringify(layout);
     if (!force && signature === last) return;
@@ -762,7 +781,7 @@ export function createAxesAppearance(
   // What the selects landed on is what this graph can show, not a choice the
   // reader made: a graph without years or counts opens on Free axes, and
   // saving that as the default made every later graph open on Free axes too
-  // (da2b54d). Opening stores nothing; only "Use for new blank graphs" does.
+  // (da2b54d). Opening stores nothing; only "Use these" does.
   last = JSON.stringify(read());
   return {
     root,

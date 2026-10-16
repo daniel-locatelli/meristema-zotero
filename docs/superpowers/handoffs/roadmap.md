@@ -157,9 +157,6 @@ opacity grade).
       all grey rings. Draw them as the plot does: Seed a disc in a ring of the
       seeds' colours, Selected a disc in a heavy ring, Not in Zotero a hollow
       ring.
-- [ ] D32 the gear's three buttons wrap in a confusing order. Two labelled
-      lines: `This graph` with Reset; `New blank graphs` with `Use these` and
-      `Restore built-in` (the latter only while a default is stored).
 - [ ] B108 restored graph tabs (F15) appear 5 to 6 s after the PDF tabs.
       `restoreOpenGraphTabs` runs only at the end of `onStartup` (after the
       columns, the preference pane and the menus) and mounts each tab in
@@ -224,6 +221,9 @@ any failure into a new entry above.
       Copied and pastes as JSON named after that view; on a blank graph it
       reads `Untitled view`. Save current as view has no Copy JSON; edit
       on a saved view does.
+- [ ] D32: the gear's foot reads `This graph` with Reset over
+      `New blank graphs` with Use these, the buttons in one column;
+      Restore built-in joins the second line once Use these was pressed.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -1123,12 +1123,12 @@ describe("Graph views (D4)", function () {
 
   /**
    * D17: a gear edit stays with its graph, and a new graph opens on the
-   * default until the reader presses "Use for new blank graphs". "Restore
-   * built-in blank graph" is offered only while a made default exists, and
+   * default until the reader presses New blank graphs' "Use these".
+   * "Restore built-in" is offered only while a made default exists, and
    * forgets it. The suite's graph is a library graph, so the library
    * default is the one in play; the profile's records are handed back.
    */
-  it("keeps a gear edit with its graph until Use for new blank graphs (D17)", async function () {
+  it("keeps a gear edit with its graph until Use these (D17)", async function () {
     this.timeout(90_000);
     const names = [
       "graphAppearance",
@@ -1165,8 +1165,29 @@ describe("Graph views (D4)", function () {
       }, 5_000);
       expect(panel, "the gear's panel opened").to.exist;
       const back = (): HTMLButtonElement =>
-        buttonReading(panel!, "Restore built-in blank graph");
+        buttonReading(panel!, "Restore built-in");
       expect(back().hidden, "no made default, no way back").to.equal(true);
+      // D32: two labelled lines, their buttons in one column.
+      const left = (label: string): number =>
+        Math.round(buttonReading(panel!, label).getBoundingClientRect().left);
+      const labelsLeft = (
+        Array.from(
+          panel!.querySelectorAll(".cm-appearance-action-label"),
+        ) as HTMLElement[]
+      ).map((label) => [
+        normalize(label.textContent),
+        Math.round(label.getBoundingClientRect().right) <= left("Reset"),
+      ]);
+      expect(
+        labelsLeft,
+        "the lines' labels, left of the buttons",
+      ).to.deep.equal([
+        ["This graph", true],
+        ["New blank graphs", true],
+      ]);
+      expect(left("Use these"), "Use these lines up under Reset").to.equal(
+        left("Reset"),
+      );
 
       const labels = labelSelect();
       labels.value = labels.value === "title" ? "none" : "title";
@@ -1184,7 +1205,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      buttonReading(panel!, "Use for new blank graphs").click();
+      buttonReading(panel!, "Use these").click();
       expect(
         JSON.parse(stored()).nodeLabelMode,
         `the made default; stored ${stored()}`,

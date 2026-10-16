@@ -456,12 +456,26 @@
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
 }
+/* D32: a muted label, then its buttons; the grid lines the buttons of both
+ * lines up under each other. */
 .cm-appearance-actions {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+.cm-appearance-action-line {
+  display: contents;
+}
+.cm-appearance-action-label {
+  color: var(--cm-muted);
+  font-size: calc(11 * var(--cm-font-unit));
+}
+.cm-appearance-action-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  justify-content: flex-end;
-  margin-top: 10px;
 }
 .cm-detail-shell {
   position: relative;

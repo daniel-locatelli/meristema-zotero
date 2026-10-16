@@ -119,7 +119,7 @@ _Avoid_: session, snapshot, restored graph
 
 **Default appearance**:
 What a new blank graph opens with: built in, or made by the reader from the
-gear ("Use for new blank graphs"), one for a library graph and one for a
+gear ("Use these" on its New blank graphs line), one for a library graph and one for a
 seeded graph. A gear edit changes only its own graph, and never a view
 (ADR 0019).
 _Avoid_: preferences, remembered appearance
