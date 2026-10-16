@@ -16,6 +16,8 @@ import { delay } from "./visualHarness";
 const SCRATCH_KEY = "meristema-f15-scratch";
 const SAVED_KEY = "meristema-f15-saved";
 const SAVED_NAME = "F15 saved graph";
+const KEPT_KEY = "meristema-b110-kept";
+const UNSELECTED_KEY = "meristema-b110-unselected";
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -80,7 +82,13 @@ describe("Graph tabs after a restart (F15)", function () {
 
   after(async function () {
     this.timeout(20_000);
-    for (const id of [openedTabID, SCRATCH_KEY, SAVED_KEY]) {
+    for (const id of [
+      openedTabID,
+      SCRATCH_KEY,
+      SAVED_KEY,
+      KEPT_KEY,
+      UNSELECTED_KEY,
+    ]) {
       try {
         if (id && win.Zotero_Tabs.getTabInfo(id)) win.Zotero_Tabs.close(id);
       } catch {
@@ -89,11 +97,12 @@ describe("Graph tabs after a restart (F15)", function () {
     }
     if (savedGraphID !== null) await deleteSavedGraph(savedGraphID);
     // The plugin drops the closed tabs' records a moment later.
-    await waitFor(
-      async () =>
-        !(await record(SCRATCH_KEY)) && !(await record(SAVED_KEY)) && true,
-      5_000,
-    );
+    await waitFor(async () => {
+      for (const key of [SCRATCH_KEY, SAVED_KEY, KEPT_KEY, UNSELECTED_KEY]) {
+        if (await record(key)) return false;
+      }
+      return true;
+    }, 5_000);
   });
 
   it("keeps a record of an open graph tab and drops it when the tab is closed", async function () {
@@ -174,6 +183,9 @@ describe("Graph tabs after a restart (F15)", function () {
       },
     ]);
 
+    // A graph was selected at quit, so Zotero's own restore left the
+    // library tab selected (B110).
+    win.Zotero_Tabs.select("zotero-pane");
     await (Zotero as any)[config.addonInstance].hooks.onRestoreGraphTabs(win);
 
     const order = (win.Zotero_Tabs._tabs as any[]).map((tab) => tab.id);
@@ -196,25 +208,73 @@ describe("Graph tabs after a restart (F15)", function () {
     ).to.equal(SAVED_NAME);
 
     // Every tab is up before the last one mounts: the selected graph mounts
-    // straight after, the other when it is first selected (B108).
+    // straight after (B108), and the other is drawn in the background
+    // without being selected (B109).
+    const canvasOf = (tabID: string): HTMLCanvasElement | null =>
+      (
+        win.Zotero_Tabs.getTabContent(tabID) as HTMLElement | null
+      )?.querySelector("canvas") ?? null;
     const mounted = (tabID: string): boolean =>
       Boolean(
         (
           win.Zotero_Tabs.getTabContent(tabID) as HTMLElement | null
         )?.querySelector(".cm-search"),
-      );
+      ) && Boolean(canvasOf(tabID));
     expect(
       await waitFor(() => mounted(SAVED_KEY), 20_000),
       "the selected graph mounts",
     ).to.equal(true);
     expect(
-      mounted(SCRATCH_KEY),
-      "the scratch graph waits to be selected",
-    ).to.equal(false);
-    win.Zotero_Tabs.select(SCRATCH_KEY);
-    expect(
       await waitFor(() => mounted(SCRATCH_KEY), 20_000),
-      "the scratch graph mounts once selected",
+      "the scratch graph is drawn in the background",
+    ).to.equal(true);
+    expect(win.Zotero_Tabs.selectedID, "drawn without being selected").to.equal(
+      SAVED_KEY,
+    );
+    // The deck only hides a tab, so the hidden plot is laid out at the size
+    // of the shown one.
+    const hidden = canvasOf(SCRATCH_KEY)!.getBoundingClientRect();
+    const shownRect = canvasOf(SAVED_KEY)!.getBoundingClientRect();
+    expect(
+      [Math.round(hidden.width), Math.round(hidden.height)],
+      "the hidden plot's size",
+    ).to.deep.equal([
+      Math.round(shownRect.width),
+      Math.round(shownRect.height),
+    ]);
+
+    win.Zotero_Tabs.select(SCRATCH_KEY);
+    const ratio = win.devicePixelRatio ?? 1;
+    const fitted = await waitFor(() => {
+      const canvas = canvasOf(SCRATCH_KEY);
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      return rect.width >= 240 &&
+        rect.height >= 180 &&
+        Math.abs(canvas.width - Math.round(rect.width * ratio)) <= 1 &&
+        Math.abs(canvas.height - Math.round(rect.height * ratio)) <= 1
+        ? rect
+        : null;
+    }, 10_000);
+    const canvas = canvasOf(SCRATCH_KEY)!;
+    expect(
+      fitted,
+      `canvas ${canvas.width}x${canvas.height} in ${JSON.stringify(
+        canvas.getBoundingClientRect(),
+      )} at ratio ${ratio}`,
+    ).to.exist;
+    // The camera the tab's record keeps once it is shown is a fit's.
+    const camera = await waitFor(async () => {
+      if (win.Zotero_Tabs.selectedID !== SCRATCH_KEY) return null;
+      return (await record(SCRATCH_KEY))?.state?.camera ?? null;
+    }, 10_000);
+    expect(camera, "the shown scratch graph's camera").to.exist;
+    expect(
+      Number.isFinite(camera!.x) &&
+        Number.isFinite(camera!.y) &&
+        camera!.scale >= 0.15 &&
+        camera!.scale <= 8,
+      `camera ${JSON.stringify(camera)}`,
     ).to.equal(true);
     win.Zotero_Tabs.select(SAVED_KEY);
 
@@ -234,5 +294,58 @@ describe("Graph tabs after a restart (F15)", function () {
       )}`,
     ).to.exist;
     expect(settled!.saved.savedGraphID).to.equal(summary.id);
+  });
+
+  it("leaves a tab chosen before the restore lands selected (B110)", async function () {
+    this.timeout(30_000);
+    const libraryID = Zotero.Libraries.userLibraryID;
+    const stopped = { ...emptyGraphViewState(), fillStopped: true };
+    // The reader chose a tab while Zotero was still starting: the graph
+    // selected at quit must not take the selection from it.
+    win.Zotero_Tabs.select(SCRATCH_KEY);
+    await putOpenGraphTabs([
+      {
+        key: KEPT_KEY,
+        libraryID,
+        position: 1,
+        selected: true,
+        savedGraphID: null,
+        title: "B110 kept",
+        customTitle: true,
+        titleCollectionIDs: null,
+        state: { ...stopped, title: "B110 kept" },
+      },
+    ]);
+    await (Zotero as any)[config.addonInstance].hooks.onRestoreGraphTabs(win);
+    expect(win.Zotero_Tabs.getTabInfo(KEPT_KEY), "the graph is back").to.exist;
+    expect(win.Zotero_Tabs.selectedID, "the tab the reader chose").to.equal(
+      SCRATCH_KEY,
+    );
+  });
+
+  it("leaves the library tab selected when it was selected at quit (B110)", async function () {
+    this.timeout(30_000);
+    const libraryID = Zotero.Libraries.userLibraryID;
+    const stopped = { ...emptyGraphViewState(), fillStopped: true };
+    win.Zotero_Tabs.select("zotero-pane");
+    await putOpenGraphTabs([
+      {
+        key: UNSELECTED_KEY,
+        libraryID,
+        position: 1,
+        selected: false,
+        savedGraphID: null,
+        title: "B110 unselected",
+        customTitle: true,
+        titleCollectionIDs: null,
+        state: { ...stopped, title: "B110 unselected" },
+      },
+    ]);
+    await (Zotero as any)[config.addonInstance].hooks.onRestoreGraphTabs(win);
+    expect(win.Zotero_Tabs.getTabInfo(UNSELECTED_KEY), "the graph is back").to
+      .exist;
+    expect(win.Zotero_Tabs.selectedID, "the library tab").to.equal(
+      "zotero-pane",
+    );
   });
 });

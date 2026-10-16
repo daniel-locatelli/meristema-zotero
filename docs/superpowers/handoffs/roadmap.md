@@ -148,16 +148,6 @@ opacity grade).
 
 ## From the 2026-10-16 walk
 
-- [ ] B109 restored graph tabs the reader has not selected are drawn only on
-      first selection (B108); the user wants them drawn in the background,
-      one after another, once the selected one is up. Hidden tabs skip
-      rendering by rule (`graphInstanceShouldRender`), so check a hidden
-      mount fits once shown.
-- [ ] B110 the user asks to come back on the tab they were on at quit. F15
-      selects a graph tab recorded as selected; find what the real quit and
-      Zotero's own session restore do to that (a reader or library tab
-      selected at quit, Zotero selecting after the graph restore).
-
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
@@ -233,6 +223,14 @@ any failure into a new entry above.
       placeholder before it. Select another paper and back: it shows at
       once. A library paper with an empty Abstract field gets one too, and
       its Zotero Abstract field stays empty.
+- [ ] B109: restart Zotero with three graph tabs open: once the selected
+      one draws, the other two draw one after another without being
+      selected, and Zotero stays responsive; switching to each shows a
+      fitted, hoverable plot at once (supersedes B108's "draws when first
+      selected").
+- [ ] B110: quit with a graph tab selected, then a PDF tab, then the
+      library tab (one restart each, with graph tabs open): each restart
+      comes back on the tab selected at quit.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

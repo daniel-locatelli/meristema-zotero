@@ -31,9 +31,11 @@ import {
 } from "./savedGraphService";
 import {
   listOpenGraphTabs,
+  planBackgroundMounts,
   planOpenGraphTabRestore,
   putOpenGraphTabs,
   restoredGraphState,
+  restoredGraphToSelect,
   syncOpenGraphTabs,
   type OpenGraphTabRecord,
 } from "./openGraphTabStore";
@@ -641,11 +643,12 @@ export function freezeOpenGraphTabs(): void {
 
 /**
  * Reopens the graph tabs the last session left open (F15, ADR 0021), in
- * their old places, the selected one selected. Every tab goes up at once,
- * as Zotero's own do; the selected one mounts straight after, and each other
- * when it is first selected, the way Zotero leaves a restored reader tab
- * unloaded (B108). Each comes back stopped, and a saved graph comes back as
- * the document of its row.
+ * their old places, the selected one selected unless the reader has chosen
+ * a tab since (B110). Every tab goes up at once, as Zotero's own do; the
+ * selected one mounts straight after, and the others are drawn in the
+ * background one after another, or at once when the reader selects one
+ * first (B108, B109). Each comes back stopped, and a saved graph comes back
+ * as the document of its row.
  */
 export async function restoreOpenGraphTabs(
   win: _ZoteroTypes.MainWindow,
@@ -681,16 +684,70 @@ export async function restoreOpenGraphTabs(
   // Until now a write kept every record; from here the tabs are all up, and
   // records that did not come back are dropped.
   openGraphTabsRead = true;
-  const selected = plan.selectKey
-    ? graphState(win).instances.get(plan.selectKey)
-    : null;
-  if (selected?.tabID) manager.select(selected.tabID);
+  const selectKey = restoredGraphToSelect(
+    plan.selectKey,
+    manager.selectedID ?? null,
+  );
+  const selected = selectKey ? graphState(win).instances.get(selectKey) : null;
   scheduleOpenGraphTabRecords(win);
-  // Selecting the tab mounts it from its own listener; in case Zotero did
-  // not tell the tab, it mounts here.
-  if (selected?.tabID && selected.dirty) {
-    selected.dirty = false;
-    await refreshGraphInstance(win, selected);
+  const restoredKeys = plan.steps.map((step) => step.record.key);
+  // The selected tab mounts here rather than from its selection listener,
+  // so the others wait for it.
+  try {
+    if (selected?.tabID) {
+      selected.dirty = false;
+      manager.select(selected.tabID);
+      await refreshGraphInstance(win, selected);
+    }
+  } finally {
+    void drawRestoredTabsInBackground(
+      win,
+      restoredKeys,
+      selected?.instanceID ?? null,
+    ).catch((error: unknown) =>
+      reportAsyncError(
+        "Meristema: drawing the restored graph tabs failed",
+        error,
+      ),
+    );
+  }
+}
+
+/** The pause between two restored tabs drawn in the background. */
+const BACKGROUND_MOUNT_GAP_MS = 200;
+
+/**
+ * Draws the restored tabs nobody has selected yet, one after another in tab
+ * order, with a pause between them so Zotero stays responsive (B109). A tab
+ * the reader selects first mounts at once from its own listener and is
+ * skipped here, as is a tab closed meanwhile. A hidden tab lays out at the
+ * size of the shown one, as Zotero's deck only hides it, so its plot fits
+ * as it would shown; the view resizes its canvas again when the tab is
+ * shown, and its resize observer follows a reader's context pane folding
+ * away then.
+ */
+async function drawRestoredTabsInBackground(
+  win: _ZoteroTypes.MainWindow,
+  restoredKeys: readonly string[],
+  drawnKey: string | null,
+): Promise<void> {
+  const tabIDs = ((tabs(win)._tabs ?? []) as any[]).map((tab) =>
+    String(tab?.id),
+  );
+  for (const key of planBackgroundMounts(tabIDs, restoredKeys, drawnKey)) {
+    // A turn for Zotero, and for the graph drawn last to paint.
+    await new Promise<void>((resolve) =>
+      win.setTimeout(resolve, BACKGROUND_MOUNT_GAP_MS),
+    );
+    if (win.closed || openGraphTabsFrozen) return;
+    const instance = graphStateByWindow.get(win)?.instances.get(key);
+    if (!instance?.tabID || !instance.dirty) continue;
+    instance.dirty = false;
+    try {
+      await refreshGraphInstance(win, instance);
+    } catch (error) {
+      reportAsyncError("Meristema: drawing a restored graph tab failed", error);
+    }
   }
 }
 
@@ -742,7 +799,7 @@ async function prepareRestoredTab(
 /**
  * Puts a restored tab back at its old place, under its old id, without
  * taking the focus. Nothing is mounted: the tab is marked for a render, which
- * its first selection runs, as a hidden tab a refresh passed over is.
+ * the background queue or its first selection runs, whichever comes first.
  */
 function placeRestoredTab(
   win: _ZoteroTypes.MainWindow,

@@ -19,10 +19,15 @@ are still open; from then on tabs closing are not the reader's doing and
 drop nothing. A tab the reader closes drops its record. On startup the
 plugin reopens the records into the first main window, each at its old
 place once Zotero has restored its own tabs, as soon as Zotero's UI is ready
-and before the plugin's other registrations. Every tab goes up at once; only
-the selected one mounts, and each other when it is first selected, as Zotero
-leaves a restored reader tab unloaded, since a mount waits on the library's
-snapshot and a hidden graph need not be drawn at all. A saved graph reopens
+and before the plugin's other registrations. Every tab goes up at once; the
+selected one mounts first, and the others are drawn in the background one
+after another, in tab order with a pause between them, or at once when the
+reader selects one first. A hidden tab lays out at the shown one's size,
+since Zotero's deck only hides it, so it draws as it would shown. The
+selected graph is selected again only while the library tab still is:
+Zotero's session holds no selected tab when a graph was, and its restore,
+which selects the tab its file marks, has run by the time the UI is ready,
+so any other selected tab is one the reader chose since. A saved graph reopens
 as the document of its row, on the tab's state, so edits the row had not
 caught up with survive; an unsaved graph reopens from its state alone. A graph in a
 detached window comes back as a tab at the end, since a window's place and

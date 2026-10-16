@@ -235,6 +235,35 @@ export function planOpenGraphTabRestore(
   return { steps, selectKey: selected?.record.key ?? null };
 }
 
+/**
+ * The graph to select once the tabs are back: the one selected at quit, but
+ * only while the library tab still is (B110). Zotero's session holds no
+ * selected tab when a graph was, so its restore leaves the library tab
+ * selected; any other selected tab is one the reader chose since.
+ */
+export function restoredGraphToSelect(
+  selectKey: string | null,
+  selectedTabID: string | null,
+): string | null {
+  return selectKey !== null && selectedTabID === "zotero-pane"
+    ? selectKey
+    : null;
+}
+
+/**
+ * The restored tabs to draw in the background once the selected one is up
+ * (B109): every one still in the tab bar but the one drawn already, in the
+ * bar's order. The caller skips a tab closed or drawn by then.
+ */
+export function planBackgroundMounts(
+  tabIDs: readonly string[],
+  restoredKeys: readonly string[],
+  drawnKey: string | null,
+): string[] {
+  const restored = new Set(restoredKeys);
+  return tabIDs.filter((id) => restored.has(id) && id !== drawnKey);
+}
+
 // The store bound to the plugin database, opened lazily like the saved
 // graphs' store and rebuilt when that connection has since been closed.
 let boundStore: Promise<OpenGraphTabStore> | null = null;

@@ -4,7 +4,9 @@ import { expect } from "chai";
 import { emptyGraphViewState } from "../../src/services/graphViewState";
 import {
   createOpenGraphTabStore,
+  planBackgroundMounts,
   planOpenGraphTabRestore,
+  restoredGraphToSelect,
   restoredGraphState,
   type OpenGraphTabRecord,
   type OpenGraphTabStore,
@@ -259,5 +261,46 @@ describe("planOpenGraphTabRestore", function () {
       1,
     );
     expect(plan.steps.map((step) => step.record.key)).to.deep.equal(["a", "c"]);
+  });
+});
+
+describe("planBackgroundMounts", function () {
+  it("draws the restored tabs in tab order, all but the one drawn already (B109)", function () {
+    expect(
+      planBackgroundMounts(
+        ["zotero-pane", "c", "reader-1", "a", "b"],
+        ["a", "b", "c"],
+        "a",
+      ),
+    ).to.deep.equal(["c", "b"]);
+  });
+
+  it("draws every restored tab when none was drawn first", function () {
+    expect(
+      planBackgroundMounts(["zotero-pane", "b", "a"], ["a", "b"], null),
+    ).to.deep.equal(["b", "a"]);
+  });
+
+  it("leaves out a restored tab no longer in the tab bar", function () {
+    expect(
+      planBackgroundMounts(["zotero-pane", "a"], ["a", "b"], null),
+    ).to.deep.equal(["a"]);
+  });
+});
+
+describe("restoredGraphToSelect", function () {
+  it("selects the graph selected at quit while the library tab still is (B110)", function () {
+    // Zotero's session holds no selected tab when a graph was, so its
+    // restore leaves the library tab selected.
+    expect(restoredGraphToSelect("a", "zotero-pane")).to.equal("a");
+  });
+
+  it("leaves a tab the reader chose since alone", function () {
+    expect(restoredGraphToSelect("a", "reader-1")).to.equal(null);
+  });
+
+  it("selects nothing when a Zotero tab was selected at quit", function () {
+    expect(restoredGraphToSelect(null, "zotero-pane")).to.equal(null);
+    expect(restoredGraphToSelect(null, "reader-1")).to.equal(null);
   });
 });
