@@ -146,7 +146,37 @@ opacity grade).
       4's spec. Left from the same pass: M6 and M13 (behaviour, need a
       brainstorm), M12 (a service-path coverage gap), N2 (suite dependency)
 
-## From the 2026-10-15 walk
+## From the 2026-10-16 walk
+
+- [ ] B104 a hop row's `1,485 papers from 103` reads as nonsense. The row
+      says only the count; its tooltip says
+      `Found through 103 of 240 Hop 1 papers` (the denominator is the visible papers one hop up).
+- [ ] D31 Copy JSON is hidden in the Save panel. Add `Copy current as JSON`
+      to the View dropdown under `Save current as view…`, named after the
+      active view (else `Untitled view`); the panel keeps its button only
+      when editing a saved view.
+- [ ] B105 a Seeds row click (B98) jumps; it should pan in about 300ms,
+      eased, and jump under `prefers-reduced-motion`.
+- [ ] B106 the citers edge colour (`incoming`, `#a44c00`) is too dark in
+      light mode; pick a lighter warm orange.
+- [ ] B107 the Key's States marks for Not in Zotero, Selected and Seed are
+      all grey rings. Draw them as the plot does: Seed a disc in a ring of the
+      seeds' colours, Selected a disc in a heavy ring, Not in Zotero a hollow
+      ring.
+- [ ] D32 the gear's three buttons wrap in a confusing order. Two labelled
+      lines: `This graph` with Reset; `New blank graphs` with `Use these` and
+      `Restore built-in` (the latter only while a default is stored).
+- [ ] D33 remove Tools › Meristema › Refresh and Refresh Library: libraries
+      update on their own, and Settings has Update all libraries now.
+- [ ] B108 restored graph tabs (F15) appear 5 to 6 s after the PDF tabs.
+      `restoreOpenGraphTabs` runs only at the end of `onStartup` (after the
+      columns, the preference pane and the menus) and mounts each tab in
+      turn. Put the tabs up right after `uiReadyPromise`, mount the selected
+      one first.
+- [ ] F17 few papers show an abstract (F4). Semantic Scholar's relationship
+      pages (`RELATIONSHIP_FIELDS`) do not ask for `abstract`, and the
+      hydration queue drops it (`projectRelatedWorkSummary`). Fetch it when a
+      paper without one is selected, and keep it in `abstract_text`.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -193,57 +223,6 @@ any failure into a new entry above.
 - [ ] D11: fill a References graph on an ACM paper: Unknown labels
       resolve into author-year while the fill is still running, not only
       after it stops.
-- [ ] D24: apply Folder map: papers fill by citation count, the card
-      reads "colour citations", and the regions still show the folders.
-- [ ] B100: + Add seed, search a query with enough rows to scroll: no `+`
-      on any row, a click anywhere adds it, and the scrollbar keeps a clear
-      gap from a hovered row's fill, in light and dark.
-- [ ] D27: select a paper with an abstract: Paper details shows an ABSTRACT
-      heading (no twisty) and the full text; a paper without one shows none.
-      Close Advanced, select another paper: it stays closed.
-- [ ] D25: Copy JSON in Save view, in light and dark: the toast is a card
-      (rule, shadow, medium text) 16px in from the plot's bottom right, slides
-      up, stays about 3s and fades; with a larger Zotero font it grows too.
-- [ ] B102: Tools › Meristema lists Load (not Open) for saved graphs.
-- [ ] B96: open the View dropdown: no description ends on a line holding
-      one word (Overview, Reading plan included).
-- [ ] B97: while a hop grows, its row reads `n papers from N` then a ring
-      (faint track, blue arc turning), clear of the text and not a letter.
-- [ ] D26: colour a seeded graph by Citation hop: the Key shows no Color
-      section; the Citation hops rows carry the swatches.
-- [ ] B98: pan so a seed sits near an edge, then click its Seeds row: the view
-      pans to centre it at the same zoom.
-- [ ] B99: in light mode select a node with references and citations: its lit
-      edges cast no dark shadow; in dark mode they still glow.
-- [ ] B101: hover a paper whose title has no room on its right: the label
-      sits elsewhere with no line to the node, and no native tooltip appears.
-- [ ] B103: in Title labels, zoom out until labels crowd: no pushed-aside
-      label draws a line to its node, hovered or not.
-- [ ] D28: apply Overview and open the gear: it reads `From view: Overview`,
-      then `Edited from view: Overview` after a change; the buttons read
-      Use for new blank graphs and Restore built-in blank graph.
-- [ ] D30: Settings shows no "Libraries to update" box; the button reads
-      "Update all libraries now" and also refreshes a group library's items.
-- [ ] F16: on a seeded graph choose Impact (gallery or View dropdown, after
-      Cornerstones): Citers, 2 hops, coloured by Citation hop; the dropdown's
-      Impact line ends on two words or more, and its icon reads at 16px.
-- [ ] F14: grow a seed with hop 1: hop papers in Zotero are filled discs,
-      the rest rings in their colour, under Uniform, a category and a ramp, in
-      both themes; a ring hovers and selects across its whole disc.
-- [ ] F14: the Key's States lists In Zotero and Not in Zotero with counts;
-      hovering each dims the other kind. A library-only graph shows neither.
-- [ ] D29: raise the floor on a graph with uncounted papers: a
-      `Papers with no count (n)` switch row sits under the floor's, styled
-      like Unfiled; off drops the count line by n, on brings them back.
-- [ ] F3: a creator-less ISO standard with Short Title `ISO 19650-1` reads
-      `ISO 19650-1 (2018)` on the plot and its Seeds row; with no Short
-      Title, the start of its title and the year. A hop paper with no author
-      reads the start of its title.
-- [ ] F15: open a saved graph, an unsaved seeded one and a reader tab between,
-      select the unsaved graph, start a fill, quit and restart: all three come
-      back in that order, the unsaved one selected, its fill at `… left · Resume`.
-- [ ] F15: close a graph tab and detach another, restart: the closed one
-      stays closed, the detached one is back as the last tab.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
