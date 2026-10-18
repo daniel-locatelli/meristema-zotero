@@ -15,6 +15,12 @@ import {
   waitForCitationUpdates as waitForCoreCitationUpdates,
 } from "./citationUpdateService";
 
+/**
+ * `notifierData` key on a save the plugin makes itself, so the automatic
+ * update leaves that modify alone.
+ */
+export const SELF_WRITE_MARK = "meristemaSelfWrite";
+
 const CORE_IDLE_POLL_MS = 1000;
 
 let notifierID: string | null = null;
@@ -153,12 +159,23 @@ export function registerAutomaticCitationUpdates(): void {
       event: string,
       type: string,
       ids: Array<number | string>,
+      extraData?: Record<string, Record<string, unknown> | undefined>,
     ): Promise<void> => {
       if (type !== "item" || !getAutomaticUpdatesEnabled()) return;
       if (event === "add" && !getUpdateNewItemsEnabled()) return;
       if (event === "modify" && !getUpdateModifiedItemsEnabled()) return;
       if (event !== "add" && event !== "modify") return;
-      for (const id of ids) pendingItemIDs.add(Number(id));
+      let added = false;
+      for (const id of ids) {
+        // The plugin's own write (an abstract filled from Paper details)
+        // changes nothing a citation update reads; updating would refresh
+        // every open graph for it.
+        if (event === "modify" && extraData?.[String(id)]?.[SELF_WRITE_MARK])
+          continue;
+        pendingItemIDs.add(Number(id));
+        added = true;
+      }
+      if (!added) return;
       schedulePendingItems();
     },
   };

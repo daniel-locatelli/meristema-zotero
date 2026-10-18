@@ -221,8 +221,9 @@ any failure into a new entry above.
 - [ ] F17: in a filled graph, select a hop paper with no abstract: after a
       moment an Abstract section appears above the metrics, with no
       placeholder before it. Select another paper and back: it shows at
-      once. A library paper with an empty Abstract field gets one too, and
-      its Zotero Abstract field stays empty.
+      once. A library paper with an empty Abstract field gets one too, written
+      into that Zotero field (Info pane shows it); one with an abstract of
+      its own is never touched.
 - [ ] B109: restart Zotero with three graph tabs open: once the selected
       one draws, the other two draw one after another without being
       selected, and Zotero stays responsive; switching to each shows a

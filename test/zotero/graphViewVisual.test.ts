@@ -1700,7 +1700,16 @@ describe("Graph view, as the product builds it", function () {
     a!.doi = withAbstract;
     b!.doi = withNone;
     for (const node of [a!, b!, c!]) node.abstract = null;
+    // A is a real item with an empty Abstract field: the answer fills it.
+    const item = new Zotero.Item("journalArticle");
+    item.libraryID = Zotero.Libraries.userLibraryID;
+    item.setField("title", "F17 abstract fixture");
+    item.setField("DOI", withAbstract);
+    a!.itemID = await item.saveTx();
+    a!.itemKey = item.key;
     const asked: string[] = [];
+    const askedFor = (doi: string): number =>
+      asked.filter((id) => id.toLowerCase() === `doi:${doi}`).length;
     const live = Zotero.HTTP.request;
     (Zotero.HTTP as any).request = async (
       method: string,
@@ -1741,6 +1750,14 @@ describe("Graph view, as the product builds it", function () {
       };
     };
     try {
+      // The fixture's add starts a citation update 1.2s later, through this
+      // stub; let it ask before counting, so a later ask can only be the
+      // lookup's, or an update the filled field wrongly started.
+      for (let tries = 0; tries < 50 && !askedFor(withAbstract); tries += 1) {
+        await delay(100);
+      }
+      await delay(1_000);
+      asked.length = 0;
       stage = await openViewStage(corpus);
       const view = stage;
       await settle(view.window, 6);
@@ -1748,8 +1765,6 @@ describe("Graph view, as the product builds it", function () {
       const abstractText = (): string | null =>
         view.root.querySelector(".cm-detail-body .cm-paper-abstract p")
           ?.textContent ?? null;
-      const askedFor = (doi: string): number =>
-        asked.filter((id) => id.toLowerCase() === `doi:${doi}`).length;
 
       controller.applyLibrarySelection([a!.itemID]);
       await settle(view.window, 2);
@@ -1761,6 +1776,17 @@ describe("Graph view, as the product builds it", function () {
         "Fetched once.",
       );
       expect(askedFor(withAbstract), "asked once").to.equal(1);
+      for (
+        let tries = 0;
+        tries < 20 && !item.getField("abstractNote");
+        tries += 1
+      ) {
+        await delay(100);
+      }
+      expect(
+        item.getField("abstractNote"),
+        "the empty Abstract field is filled",
+      ).to.equal("Fetched once.");
 
       controller.applyLibrarySelection([b!.itemID]);
       await delay(1_000);
@@ -1778,6 +1804,7 @@ describe("Graph view, as the product builds it", function () {
       expect(askedFor(withNone), "nor the paper with none").to.equal(1);
     } finally {
       (Zotero.HTTP as any).request = live;
+      await item.eraseTx();
     }
   });
 

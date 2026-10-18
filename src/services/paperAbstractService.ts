@@ -3,9 +3,10 @@
  * providers and the stores. Semantic Scholar's paper batch asks for
  * `abstract` and OpenAlex's work batch returns `abstract_inverted_index`;
  * both go through `requestJSON`, so the provider queue, keys and refusals
- * apply, and the response cache keeps the full record. A found abstract is
- * stored in a library paper's metrics record (`abstract_text`, never
- * Zotero's `abstractNote`) or in the external-work cache for a hop paper.
+ * apply, and the response cache keeps the full record. A found abstract
+ * fills a library paper's own Abstract field (`abstractNote`) while it is
+ * empty and the library is editable; a hop paper has no item, so its
+ * abstract goes to the external-work cache.
  */
 import { stableWorkAliases } from "../domain/workIdentity";
 import { fetchOpenAlexWorksBatch } from "../providers/openAlexProvider";
@@ -15,10 +16,7 @@ import {
 } from "../providers/providerIdentifiers";
 import { fetchSemanticScholarPapersBatch } from "../providers/semanticScholarProvider";
 import { getOpenAlexAPIKey, isProviderEnabled } from "./citationPreferences";
-import {
-  getCitationMetricRecord,
-  saveCitationMetricRecord,
-} from "./citationMetricsStore";
+import { SELF_WRITE_MARK } from "./automaticUpdateCoordinator";
 import {
   cachedExternalWorkMetadata,
   saveExternalWorkCacheSuccesses,
@@ -28,22 +26,23 @@ import {
   type AbstractLookupTarget,
 } from "./paperAbstractLookup";
 
-function libraryRecord(target: AbstractLookupTarget) {
-  const item = target.libraryItem;
-  if (!item) return null;
-  let libraryID = Zotero.Libraries.userLibraryID;
+function libraryItem(target: AbstractLookupTarget): Zotero.Item | null {
+  if (!target.libraryItem) return null;
   try {
-    const found = Zotero.Items.get(item.itemID) as Zotero.Item | null;
-    if (found) libraryID = found.libraryID;
+    return (Zotero.Items.get(target.libraryItem.itemID) as Zotero.Item) ?? null;
   } catch {
-    // A node the snapshot built without a live item reads the user library.
+    return null;
   }
-  return getCitationMetricRecord(libraryID, item.itemKey);
 }
 
 function storedAbstract(target: AbstractLookupTarget): string | null {
-  const recorded = libraryRecord(target)?.abstract?.trim();
-  if (recorded) return recorded;
+  if (target.libraryItem) {
+    // The node was built from a snapshot; the item may have gained one since.
+    const own = String(
+      libraryItem(target)?.getField?.("abstractNote") ?? "",
+    ).trim();
+    return own || null;
+  }
   for (const alias of stableWorkAliases(target.work)) {
     const cached = cachedExternalWorkMetadata(alias)?.abstract?.trim();
     if (cached) return cached;
@@ -57,9 +56,15 @@ async function store(
 ): Promise<void> {
   try {
     if (target.libraryItem) {
-      const record = libraryRecord(target);
-      if (record && !record.abstract?.trim()) {
-        await saveCitationMetricRecord({ ...record, abstract });
+      const item = libraryItem(target);
+      // Read again just before writing: the reader may have typed one meanwhile.
+      if (
+        item &&
+        item.library?.editable !== false &&
+        !String(item.getField("abstractNote") ?? "").trim()
+      ) {
+        item.setField("abstractNote", abstract);
+        await item.saveTx({ notifierData: { [SELF_WRITE_MARK]: true } });
       }
       return;
     }
