@@ -371,7 +371,8 @@ describe("Graph views (D4)", function () {
     const style = win.getComputedStyle(panel!);
     // Early in a run graph.css may not have applied yet (B86).
     await waitFor(() => parseFloat(style.paddingBottom) > 0, 10_000);
-    const grid = panel!.querySelector(".cm-view-gallery-grid") as HTMLElement;
+    // The panel's last block: the cards' grid, or the line below it.
+    const last = panel!.lastElementChild as HTMLElement;
     const area = graphRoot().querySelector(".cm-graph-area") as HTMLElement;
     const trailing =
       parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth);
@@ -390,7 +391,7 @@ describe("Graph views (D4)", function () {
       return (
         `gaps t${g.top.toFixed(1)} b${g.bottom.toFixed(1)} ` +
         `l${g.left.toFixed(1)} r${g.right.toFixed(1)}, panel bottom less grid ` +
-        `${(panel!.getBoundingClientRect().bottom - grid.getBoundingClientRect().bottom).toFixed(1)}, ` +
+        `${(panel!.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom).toFixed(1)}, ` +
         `padding+border ${trailing.toFixed(1)}, scroll ${panel!.scrollHeight}/${panel!.clientHeight}`
       );
     };
@@ -438,7 +439,7 @@ describe("Graph views (D4)", function () {
       ).to.be.at.least(tall - 1);
       expect(
         panel!.getBoundingClientRect().bottom -
-          grid.getBoundingClientRect().bottom,
+          last.getBoundingClientRect().bottom,
         `the panel ends at its cards: ${report()}`,
       ).to.be.at.most(trailing + 2);
       const g = gaps();
@@ -469,6 +470,47 @@ describe("Graph views (D4)", function () {
     } finally {
       area.style.maxHeight = "";
     }
+  });
+
+  it("lays the six views in two full rows, with Start blank and Import as a line below them", async function () {
+    this.timeout(30_000);
+    await waitFor(() => galleryShown(), 20_000);
+    const panel = gallery()!.querySelector(
+      ".cm-view-gallery-panel",
+    ) as HTMLElement;
+    const grid = panel.querySelector(".cm-view-gallery-grid") as HTMLElement;
+    const cards = Array.from(grid.children) as HTMLElement[];
+    expect(
+      cards.map((card) => card.dataset.viewId ?? card.className),
+      "the grid holds the views alone",
+    ).to.deep.equal([
+      "overview",
+      "cornerstones",
+      "impact",
+      "reading-plan",
+      "who-cites-whom",
+      "folder-map",
+    ]);
+    const rows = new Map<number, number>();
+    for (const card of cards) {
+      const top = Math.round(card.getBoundingClientRect().top);
+      rows.set(top, (rows.get(top) ?? 0) + 1);
+    }
+    expect([...rows.values()], "two rows of three").to.deep.equal([3, 3]);
+    const footer = panel.lastElementChild as HTMLElement;
+    expect(
+      footer.classList.contains("cm-view-gallery-footer"),
+      `the panel ends on the footer: ${panel.innerHTML}`,
+    ).to.equal(true);
+    expect(
+      Array.from(footer.querySelectorAll("button")).map((button) =>
+        normalize(button?.textContent ?? ""),
+      ),
+    ).to.deep.equal(["Start blank", "Import view JSON…"]);
+    expect(
+      footer.getBoundingClientRect().top,
+      "the footer sits below the cards",
+    ).to.be.at.least(grid.getBoundingClientRect().bottom);
   });
 
   it("shows the gallery for a graph that never chose, and hides it on Start blank", async function () {

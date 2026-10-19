@@ -332,11 +332,9 @@ export function createViewGallery(
     });
     grid.append(card);
   }
-  const last = element(
-    document,
-    "div",
-    "cm-view-gallery-card cm-view-gallery-last",
-  );
+  // Start blank and Import sit on a line below the cards, so the six views
+  // fill two even rows.
+  const footer = element(document, "div", "cm-view-gallery-footer");
   const blank = element(document, "button", "cm-secondary-button");
   blank.type = "button";
   blank.textContent = "Start blank";
@@ -345,11 +343,10 @@ export function createViewGallery(
   importButton.type = "button";
   importButton.textContent = "Import view JSON…";
   importButton.addEventListener("click", o.onImport);
-  last.append(blank, importButton);
-  grid.append(last);
+  footer.append(blank, importButton);
   // The root masks the graph; the panel holds the cards, centred on it.
   const panel = element(document, "div", "cm-view-gallery-panel");
-  panel.append(heading, sub, grid);
+  panel.append(heading, sub, grid, footer);
   root.append(panel);
   return {
     root,

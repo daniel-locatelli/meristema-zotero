@@ -236,6 +236,9 @@ any failure into a new entry above.
 - [ ] B110: quit with a graph tab selected, then a PDF tab, then the
       library tab (one restart each, with graph tabs open): each restart
       comes back on the tab selected at quit.
+- [ ] D34: open a graph that never chose a view: the gallery shows the six
+      views in two full rows of three, with Start blank and Import view
+      JSON… on a centred line below them, not in a card.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -260,6 +263,9 @@ selected, so it does not test what its name says.
   (the field stayed at 5 the whole drag), and again in the 2026-10-09 full
   run with B54/B55, same signature, after passing four isolated runs of its
   file that day. A fourth on 2026-10-18 took the D29 case down with it: B111.
+- One-off on 2026-10-19: `graphViews.test.ts` D17 case read the label
+  select as the edit just after Restore built-in (no wait between the click
+  and the read); its file then ran 14/0.
 - One-offs on 2026-10-08, each gone on rerun: `graphVisual.test.ts` check 11
   (`selection` undefined right after `selectNode`), and one Citation hops
   block run where the save case threw with no message (the runner prints a
