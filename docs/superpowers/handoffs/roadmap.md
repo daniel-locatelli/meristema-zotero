@@ -137,11 +137,6 @@ opacity grade).
 - [ ] F3 open, for the user: whether matching may use title+year alone
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
-- [ ] B111 the floor drag case fails in full runs only (four times since
-      2026-10-06, never alone): the drag from the tag to the canvas bottom
-      leaves the field at 5 at every step, and the D29 case after it then
-      finds the field still at 5. Suspect state left by an earlier block
-      (focus, pointer capture, a covered window); starve frames first
 - [ ] B38 the region border grows a tip toward a neighbour just before two
       regions merge. Deferred by the user on 2026-09-11 after three
       renderings; not to be reopened unless they do
@@ -244,6 +239,11 @@ any failure into a new entry above.
       tag at its foot, the tags of a row level: "Needs a seed" and "Needs 2
       seeds" outlined, "Arrives with reading state" filled grey, in both
       themes.
+- [ ] B111: narrow the Zotero window until the graph's plot toolbar no
+      longer fits (the search box is cut at the right), then switch to
+      another tab and back, or to another app and back. The plot stays where
+      it was: the Y axis is not cut off under the rail, and no blank strip
+      opens at the plot's right.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -259,14 +259,13 @@ runs alone under a temporary `describe.only`. Last full run: 2026-10-19 at `3104
 cases as of 2026-10-19. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
-- The floor drag case ("hides under the floor…", the drag leaving the field at
-  its floor) and B50's countdown case ("the line was rebuilt while counting
-  down") each failed once on 2026-10-06 and passed on rerun. The floor case
-  failed one of two runs of its file: treat a single failure as a flake and
-  rerun before debugging. It failed once more in a full run on 2026-10-08
-  (the field stayed at 5 the whole drag), and again in the 2026-10-09 full
-  run with B54/B55, same signature, after passing four isolated runs of its
-  file that day. A fourth on 2026-10-18 took the D29 case down with it: B111.
+- The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
+  B111: Zotero's tab hooks focus `.cm-search`, and in the 1000px test window
+  the plot pane is narrower than its toolbar, so the focus scrolled the pane
+  104px and the floor's tag sat under the rail, hoverable by the case's
+  synthetic walk but not pressable by `sendMouseEvent`. The plot's
+  containers now use `overflow: clip`; `graphPlotPaneNeverScrolls.test.ts`
+  holds it.
 - One-off on 2026-10-19: `graphViews.test.ts` D17 case read the label
   select as the edit just after Restore built-in (no wait between the click
   and the read); its file then ran 14/0.
@@ -520,3 +519,6 @@ entries are in git history.
   labels. Full run at `96d3963` 121/2, both in the test, fixed. Not pushed.
 - 2026-10-16: the user walked the 2026-10-15 build. Fixed from the walk: B104
   to B108, D31 to D33, F17. Full run at `192ccd7` 124/1, in the test, fixed.
+- 2026-10-19: B111 found and fixed (the plot pane scrolled when Zotero's tab
+  hooks focused the search box in a narrow pane; `overflow: clip`). Full run
+  129/0. Not pushed.

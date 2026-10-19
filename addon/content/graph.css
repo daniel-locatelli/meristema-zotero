@@ -162,7 +162,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: clip;
 }
 /*
  * The rail's toolbar holds the identity, and the collapse toggle at its far
@@ -338,6 +338,12 @@
 .cm-filter-select {
   min-width: 145px;
 }
+/*
+ * `clip`, not `hidden`, here and on the plot pane and graph area: a `hidden`
+ * box is still a scroll container, and focusing the toolbar's search box in a
+ * pane narrower than the toolbar (Zotero's tab hooks do it on every select and
+ * refocus) scrolled the plot sideways under the rail (B111).
+ */
 .cm-main {
   display: flex;
   flex: 1 1 0;
@@ -346,14 +352,14 @@
   min-width: 0;
   min-height: 0;
   align-items: stretch;
-  overflow: hidden;
+  overflow: clip;
 }
 .cm-graph-area {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: clip;
   /* The plot paints its own paper tone; the area behind it stays quiet. */
   background: var(--cm-surface-panel, Canvas);
 }
