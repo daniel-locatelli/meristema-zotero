@@ -879,9 +879,12 @@
   padding: 24px;
   background: color-mix(in srgb, Canvas 95%, transparent);
 }
+/* Cards stop at 240px wide: three of them, two 12px gaps, the 20px padding
+   and the 1px border cap the panel on a wide screen. */
 .cm-view-gallery-panel {
   box-sizing: border-box;
   width: 100%;
+  max-width: 786px;
   max-height: 100%;
   overflow: auto;
   padding: 18px 20px;

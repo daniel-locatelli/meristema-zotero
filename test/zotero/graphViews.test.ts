@@ -478,6 +478,9 @@ describe("Graph views (D4)", function () {
     const panel = gallery()!.querySelector(
       ".cm-view-gallery-panel",
     ) as HTMLElement;
+    // Early in a run graph.css may not have applied yet (B86).
+    const style = win.getComputedStyle(panel);
+    await waitFor(() => parseFloat(style.paddingBottom) > 0, 10_000);
     const grid = panel.querySelector(".cm-view-gallery-grid") as HTMLElement;
     const cards = Array.from(grid.children) as HTMLElement[];
     expect(
@@ -503,14 +506,44 @@ describe("Graph views (D4)", function () {
       `the panel ends on the footer: ${panel.innerHTML}`,
     ).to.equal(true);
     expect(
-      Array.from(footer.querySelectorAll("button")).map((button) =>
-        normalize(button?.textContent ?? ""),
+      (Array.from(footer.querySelectorAll("button")) as HTMLElement[]).map(
+        (button) => [
+          normalize(button.textContent ?? ""),
+          button.classList.contains("cm-secondary-button"),
+        ],
       ),
-    ).to.deep.equal(["Start blank", "Import view JSON…"]);
+      "two buttons alike",
+    ).to.deep.equal([
+      ["Start blank", true],
+      ["Import view JSON…", true],
+    ]);
     expect(
       footer.getBoundingClientRect().top,
       "the footer sits below the cards",
     ).to.be.at.least(grid.getBoundingClientRect().bottom);
+
+    // A wide screen: the cards keep their width and the panel stays centred.
+    const area = graphRoot().querySelector(".cm-graph-area") as HTMLElement;
+    area.style.minWidth = "1600px";
+    try {
+      await delay(150);
+      const widths = cards.map((card) =>
+        Math.round(card.getBoundingClientRect().width),
+      );
+      expect(
+        Math.max(...widths),
+        `card widths ${widths.join(", ")} on a plot ` +
+          `${Math.round(area.getBoundingClientRect().width)}px wide`,
+      ).to.be.at.most(240);
+      const box = panel.getBoundingClientRect();
+      const plot = area.getBoundingClientRect();
+      expect(
+        Math.abs(box.left - plot.left - (plot.right - box.right)),
+        "centred on the wide plot",
+      ).to.be.at.most(2);
+    } finally {
+      area.style.minWidth = "";
+    }
   });
 
   it("shows the gallery for a graph that never chose, and hides it on Start blank", async function () {

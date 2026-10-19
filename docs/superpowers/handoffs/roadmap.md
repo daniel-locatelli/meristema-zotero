@@ -238,7 +238,9 @@ any failure into a new entry above.
       comes back on the tab selected at quit.
 - [ ] D34: open a graph that never chose a view: the gallery shows the six
       views in two full rows of three, with Start blank and Import view
-      JSON… on a centred line below them, not in a card.
+      JSON… as two alike buttons on a centred line below them, not in a
+      card. On a wide window the cards stop at 240px and the panel stays
+      centred.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

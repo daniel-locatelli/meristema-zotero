@@ -339,7 +339,7 @@ export function createViewGallery(
   blank.type = "button";
   blank.textContent = "Start blank";
   blank.addEventListener("click", o.onBlank);
-  const importButton = element(document, "button", "cm-link-button");
+  const importButton = element(document, "button", "cm-secondary-button");
   importButton.type = "button";
   importButton.textContent = "Import view JSON…";
   importButton.addEventListener("click", o.onImport);
