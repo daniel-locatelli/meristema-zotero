@@ -305,12 +305,6 @@ export function createViewGallery(
   root.setAttribute("role", "region");
   root.setAttribute("aria-label", "Choose a view");
   const heading = text(document, "h2", "", "cm-view-gallery-heading");
-  const sub = text(
-    document,
-    "p",
-    "Scope stays as it is.",
-    "cm-view-gallery-sub",
-  );
   const grid = element(document, "div", "cm-view-gallery-grid");
   for (const view of o.shipped) {
     const card = element(document, "button", "cm-view-gallery-card");
@@ -346,7 +340,7 @@ export function createViewGallery(
   footer.append(blank, importButton);
   // The root masks the graph; the panel holds the cards, centred on it.
   const panel = element(document, "div", "cm-view-gallery-panel");
-  panel.append(heading, sub, grid, footer);
+  panel.append(heading, grid, footer);
   root.append(panel);
   return {
     root,

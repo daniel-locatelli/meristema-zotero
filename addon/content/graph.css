@@ -898,14 +898,9 @@
   display: none;
 }
 .cm-view-gallery-heading {
-  margin: 0;
+  margin: 0 0 14px;
   font-size: calc(20 * var(--cm-font-unit));
   font-weight: 600;
-}
-.cm-view-gallery-sub {
-  margin: 4px 0 14px;
-  color: var(--cm-muted);
-  font-size: calc(13 * var(--cm-font-unit));
 }
 .cm-view-gallery-grid {
   display: grid;
