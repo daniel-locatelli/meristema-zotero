@@ -254,10 +254,9 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-18 at
-`26c2423` (125/2: the floor block's two cases, B111; the block then ran 2/0
-twice alone), so count with the commits since `26c2423`. A clean run is 127
-cases as of 2026-10-18. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-10-19 at `310466c`
+(128/0), so count with the commits since `310466c`. A clean run is 128
+cases as of 2026-10-19. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The floor drag case ("hides under the floor…", the drag leaving the field at
