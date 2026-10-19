@@ -930,11 +930,20 @@
 .cm-view-gallery-name {
   font-weight: 600;
 }
-.cm-view-gallery-para,
-.cm-view-gallery-note {
+.cm-view-gallery-para {
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
   line-height: 1.4;
+}
+/* The note is the view card's tag, pinned to the card's foot so the tags of a
+   row line up: outlined for a seed to add, filled for a view not yet here. */
+.cm-view-gallery-note {
+  margin-top: auto;
+  font-weight: 500;
+}
+.cm-view-gallery-note--status {
+  border-color: transparent;
+  background: color-mix(in srgb, CanvasText 10%, transparent);
 }
 .cm-view-gallery-footer {
   display: flex;

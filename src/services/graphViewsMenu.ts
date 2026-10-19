@@ -318,9 +318,20 @@ export function createViewGallery(
     card.append(createIcon(document, view.icon, 28));
     card.append(text(document, "span", view.name, "cm-view-gallery-name"));
     card.append(text(document, "span", view.paragraph, "cm-view-gallery-para"));
-    const note =
-      graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
-    if (note) card.append(text(document, "span", note, "cm-view-gallery-note"));
+    // The note is a tag, so it never reads as more of the paragraph: outlined
+    // for a seed the reader can add, filled for a view that has not arrived.
+    const status = graphViewAvailabilityLine(view);
+    const note = status ?? graphViewRequirementLine(view);
+    if (note) {
+      const tag = text(
+        document,
+        "span",
+        note.charAt(0).toUpperCase() + note.slice(1),
+        "cm-view-chip-tag cm-view-gallery-note",
+      );
+      if (status) tag.classList.add("cm-view-gallery-note--status");
+      card.append(tag);
+    }
     card.addEventListener("click", () => {
       if (available) o.onChoose(view);
     });

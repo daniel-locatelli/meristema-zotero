@@ -4,6 +4,7 @@ import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
 import {
   createGraphViewsMenu,
   createSavePanel,
+  createViewGallery,
 } from "../../src/services/graphViewsMenu";
 
 /*
@@ -172,6 +173,52 @@ describe("the View dropdown's actions (D31)", function () {
       .find((a) => a.textContent === "Copy current as JSON");
     action?.click();
     expect(copies).to.equal(1);
+  });
+});
+
+describe("the gallery's card notes (D34)", function () {
+  const gallery = (): FakeElement =>
+    createViewGallery(fakeDocument, {
+      shipped: SHIPPED_GRAPH_VIEWS,
+      onChoose: () => {},
+      onBlank: () => {},
+      onImport: () => {},
+    }).root as unknown as FakeElement;
+  const cardFor = (id: string): FakeElement => {
+    const card = gallery()
+      .all("cm-view-gallery-card")
+      .find((c) => c.dataset.viewId === id);
+    expect(card, `a card for ${id}`).to.exist;
+    return card as FakeElement;
+  };
+  const note = (id: string): FakeElement => {
+    const card = cardFor(id);
+    const last = card.children[card.children.length - 1];
+    expect(last?.classList.contains("cm-view-gallery-note")).to.equal(true);
+    return last as FakeElement;
+  };
+
+  it("sets a requirement as an outlined tag, not a line of text", function () {
+    const tag = note("cornerstones");
+    expect(tag.classList.contains("cm-view-chip-tag")).to.equal(true);
+    expect(tag.classList.contains("cm-view-gallery-note--status")).to.equal(
+      false,
+    );
+    expect(tag.textContent).to.equal("Needs a seed");
+    expect(note("who-cites-whom").textContent).to.equal("Needs 2 seeds");
+  });
+
+  it("fills the tag of a view that has not arrived", function () {
+    const tag = note("reading-plan");
+    expect(tag.classList.contains("cm-view-chip-tag")).to.equal(true);
+    expect(tag.classList.contains("cm-view-gallery-note--status")).to.equal(
+      true,
+    );
+    expect(tag.textContent).to.equal("Arrives with reading state");
+  });
+
+  it("gives a view that needs nothing no tag", function () {
+    expect(cardFor("overview").all("cm-view-gallery-note")).to.have.length(0);
   });
 });
 
