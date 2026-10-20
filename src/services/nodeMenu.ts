@@ -80,3 +80,60 @@ function paperURL(
   const url = itemURL?.trim();
   return url ? url : null;
 }
+
+/** The node menu's entries (F5). "separator" is the rule above the seed entries. */
+export type NodeMenuEntryId =
+  | "open"
+  | "show"
+  | "add"
+  | "similar"
+  | "update"
+  | "separator"
+  | "seed"
+  | "remove";
+
+export interface NodeMenuInput {
+  kind: "library" | "external";
+  /** External papers only: a local Zotero item was found for the paper. */
+  inLibrary: boolean;
+  isSeed: boolean;
+  /** This paper's connections update is running. */
+  updating: boolean;
+}
+
+export interface NodeMenuEntry {
+  id: NodeMenuEntryId;
+  /** True only for "update" while the paper's update runs. */
+  disabled: boolean;
+}
+
+export const UPDATE_CONNECTIONS_LABEL = "Update this paper's connections";
+export const UPDATE_CONNECTIONS_TITLE =
+  "Fetch this paper's references and citing papers again.";
+export const FIND_SIMILAR_TITLE =
+  "Find papers similar to this one using scholarly-data providers. Results are shown for review and are not added to Zotero automatically.";
+
+/**
+ * What the node menu shows, in order: what Paper details offers for the
+ * paper, a rule, then the seed toggle and, for a paper that is not a seed,
+ * Remove from graph. "open" is always listed; the view hides it while the
+ * paper has nothing to open, because its entry can arrive after the menu
+ * opens (`openPaperEntry` relabels it once Zotero answers). The menu never
+ * imports: an external paper outside the library gets "add", which hands the
+ * reader to the pane's collection picker.
+ */
+export function nodeMenuEntries(input: NodeMenuInput): NodeMenuEntry[] {
+  const external = input.kind === "external";
+  const ids: NodeMenuEntryId[] = [
+    "open",
+    external && !input.inLibrary ? "add" : "show",
+    "similar",
+  ];
+  if (external) ids.push("update");
+  ids.push("separator", "seed");
+  if (!input.isSeed) ids.push("remove");
+  return ids.map((id) => ({
+    id,
+    disabled: id === "update" && input.updating,
+  }));
+}

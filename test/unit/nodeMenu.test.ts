@@ -3,7 +3,9 @@ import { expect } from "chai";
 import {
   clampMenuPosition,
   isContextMenuKey,
+  nodeMenuEntries,
   openPaperEntry,
+  type NodeMenuInput,
 } from "../../src/services/nodeMenu";
 
 describe("clampMenuPosition", function () {
@@ -125,5 +127,95 @@ describe("openPaperEntry", function () {
   it("offers nothing when the paper has no address", function () {
     expect(openPaperEntry(local, "none", null)).to.equal(null);
     expect(openPaperEntry(local, null, null)).to.equal(null);
+  });
+});
+
+describe("nodeMenuEntries", function () {
+  const ids = (
+    input: Partial<NodeMenuInput> & Pick<NodeMenuInput, "kind">,
+  ): string[] =>
+    nodeMenuEntries({
+      inLibrary: false,
+      isSeed: false,
+      updating: false,
+      ...input,
+    }).map((entry) => entry.id);
+
+  it("gives a library paper the pane's actions, a rule, then the seed entries", function () {
+    expect(ids({ kind: "library" })).to.deep.equal([
+      "open",
+      "show",
+      "similar",
+      "separator",
+      "seed",
+      "remove",
+    ]);
+  });
+
+  it("leaves Remove from graph out for a seed", function () {
+    expect(ids({ kind: "library", isSeed: true })).to.deep.equal([
+      "open",
+      "show",
+      "similar",
+      "separator",
+      "seed",
+    ]);
+  });
+
+  it("shows an external paper that is in the library, and offers its update", function () {
+    expect(ids({ kind: "external", inLibrary: true })).to.deep.equal([
+      "open",
+      "show",
+      "similar",
+      "update",
+      "separator",
+      "seed",
+      "remove",
+    ]);
+  });
+
+  it("offers to add an external paper that is not in the library", function () {
+    expect(ids({ kind: "external", inLibrary: false })).to.deep.equal([
+      "open",
+      "add",
+      "similar",
+      "update",
+      "separator",
+      "seed",
+      "remove",
+    ]);
+  });
+
+  it("disables only the update entry while that paper's update runs", function () {
+    const entries = nodeMenuEntries({
+      kind: "external",
+      inLibrary: false,
+      isSeed: false,
+      updating: true,
+    });
+    expect(
+      entries.filter((entry) => entry.disabled).map((entry) => entry.id),
+    ).to.deep.equal(["update"]);
+  });
+
+  it("disables nothing when no update runs", function () {
+    const entries = nodeMenuEntries({
+      kind: "external",
+      inLibrary: true,
+      isSeed: true,
+      updating: false,
+    });
+    expect(entries.some((entry) => entry.disabled)).to.equal(false);
+  });
+
+  it("gives a library paper no update entry, running or not", function () {
+    const entries = nodeMenuEntries({
+      kind: "library",
+      inLibrary: false,
+      isSeed: false,
+      updating: true,
+    });
+    expect(entries.map((entry) => entry.id)).to.not.include("update");
+    expect(entries.some((entry) => entry.disabled)).to.equal(false);
   });
 });
