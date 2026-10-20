@@ -263,9 +263,9 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-19 at `350cfab`
-(129/0), so count with the commits since `350cfab`. A clean run is 129
-cases as of 2026-10-19. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-10-21 at `918630e`
+(130/0), so count with the commits since `918630e`. A clean run is 130
+cases as of 2026-10-21. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
@@ -275,6 +275,11 @@ selected, so it does not test what its name says.
   synthetic walk but not pressable by `sendMouseEvent`. The plot's
   containers now use `overflow: clip`; `graphPlotPaneNeverScrolls.test.ts`
   holds it.
+- A library change (a fixture saved or erased) refreshes an open graph tab,
+  and the refresh remounts its view. A case that holds the view's root across
+  an await can read a detached copy; look the root up again (F5's case).
+- One-off on 2026-10-21: `graphTabRestore.test.ts` "keeps a record of an open
+  graph tab" found no record within 10 s; the next two full runs passed it.
 - One-off on 2026-10-19: `graphViews.test.ts` D17 case read the label
   select as the edit just after Restore built-in (no wait between the click
   and the read); its file then ran 14/0.
