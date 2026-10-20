@@ -242,6 +242,17 @@ any failure into a new entry above.
       line is absent. With the gallery up, rename or delete that view from
       the View dropdown: its chip follows at once. A long name ends in an
       ellipsis inside the chip. In both themes.
+- [ ] F5: right-click a library paper: Open PDF (when it has one), Show in
+      Zotero, Find similar papers, a rule, the seed toggle, Remove from graph
+      (not for a seed). Right-click an external paper: Open online, Add to
+      Zotero… (or Show in Zotero once it is in the library), Find similar
+      papers, Update this paper's connections, a rule, the seed toggle.
+      Add to Zotero… lands on the pane's Add to Zotero button and adds
+      nothing by itself. While an update runs, the pane's button and the
+      menu entry are both disabled. The toolbar reads "Refresh visible"
+      with no seeds and "Refresh seeds" with seeds. Narrow the window until
+      the graph is about 320px wide and note where the toolbar starts to
+      squeeze (for D23). In both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
