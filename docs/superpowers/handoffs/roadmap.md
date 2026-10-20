@@ -241,7 +241,9 @@ any failure into a new entry above.
       a "My views" line lists it as a chip (icon and name), its tooltip the
       paragraph you gave it, or its summary when you gave none. Clicking the
       chip applies the view and closes the gallery. With no saved views the
-      line is absent. In both themes.
+      line is absent. With the gallery up, rename or delete that view from
+      the View dropdown: its chip follows at once. A long name ends in an
+      ellipsis inside the chip. In both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

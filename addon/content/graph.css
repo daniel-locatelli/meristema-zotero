@@ -984,6 +984,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--cm-border-soft);
@@ -991,6 +992,12 @@
   background: var(--cm-surface-raised);
   font: inherit;
   cursor: pointer;
+}
+.meristema-root .cm-view-gallery-saved-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .meristema-root .cm-view-gallery-saved-chip:hover {
   border-color: var(--cm-accent);

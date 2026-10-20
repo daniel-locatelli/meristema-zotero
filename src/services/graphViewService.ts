@@ -2458,6 +2458,7 @@ export function renderGraphView(
         invalidateActiveView();
         if (!becomesActive) {
           refreshViewChip();
+          maybeShowGallery();
           return;
         }
         activeViewRef = { id: saved.id };
@@ -2498,6 +2499,7 @@ export function renderGraphView(
             // The card explains a view that is gone; it goes with it.
             tutorialCard.hide();
             refreshViewChip();
+            maybeShowGallery();
           }
         : null,
     });
