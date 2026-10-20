@@ -104,13 +104,6 @@ opacity grade).
       2026-10-07 walk: a seed with many citers piles the nodes up into a mess
       that says nothing; the nodes need the same answer as the edges (B89)
 
-## Views, gallery and menus
-
-- [ ] D16 the gallery offers only the shipped views, never the reader's saved
-      ones, which live in the View dropdown alone. Decide between cards, a row
-      beneath the columns, or a line on the last card. Until then the
-      `view-user` icon has no 28px rendering to walk
-
 ## Seeds, selection and the detail surfaces
 
 - [ ] F6 seed a paper that is not in Zotero into a new graph
@@ -244,6 +237,11 @@ any failure into a new entry above.
       another tab and back, or to another app and back. The plot stays where
       it was: the Y axis is not cut off under the rail, and no blank strip
       opens at the plot's right.
+- [ ] D16: save a view, then open View → Choose a view…: under the six cards
+      a "My views" line lists it as a chip (icon and name), its tooltip the
+      paragraph you gave it, or its summary when you gave none. Clicking the
+      chip applies the view and closes the gallery. With no saved views the
+      line is absent. In both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
