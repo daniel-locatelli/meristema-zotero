@@ -8,7 +8,8 @@ in the View dropdown alone. Decided 2026-10-20: a row of chips.
 A "My views" heading (the dropdown's word) and a wrapping row of chips sit
 between the six cards and the footer (Start blank, Import view JSON…). With no
 saved views, neither the heading nor the row is drawn, and the gallery is as
-before.
+before. The row is `role="group"`, labelled by the heading
+(`aria-labelledby`).
 
 ## A chip
 
@@ -28,10 +29,12 @@ so the panel grows by at most that.
 ## Freshness
 
 `createViewGallery` takes `listSaved: () => GraphViewDefinition[]`, the
-callback the dropdown already uses. Each hidden-to-shown transition redraws
-the chips from it, so a save, rename or delete (in any tab) shows the next
-time the gallery opens. A `show` on a gallery already up with an unchanged
-heading stays a no-op (its blurred layer must not re-invalidate).
+synchronous callback the dropdown already uses. Every `show` reads it and
+compares a signature of the list (each view's id, name and title) with the
+one last drawn; the chips are redrawn only when it differs. So a save, rename
+or delete, in any tab, shows on the next `show`, including one while the
+gallery is already up, and a `show` with an unchanged heading and list stays
+a no-op (the blurred layer must not re-invalidate).
 
 ## Tests
 
@@ -40,7 +43,8 @@ Unit tests on `FakeElement` in `test/unit/graphViewsMenu.test.ts`:
 - no saved views: no heading and no row;
 - each chip's name and title, including the summary fallback;
 - a click calls `onChoose` with that view;
-- a re-show after a new save draws the new chip.
+- a `show` after a new save draws the new chip, and an unchanged `show`
+  leaves the row's nodes untouched.
 
 No new Zotero suite case. One manual check joins the roadmap: save a view,
 open Choose a view…, see its chip and tooltip, click it and see it applied.
