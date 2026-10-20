@@ -82,7 +82,6 @@ export type NodeMenuEntryId =
 
 export interface NodeMenuInput {
   kind: "library" | "external";
-  hasOpenEntry: boolean;
   /** External papers only: a local Zotero item was found. */
   inLibrary: boolean;
   isSeed: boolean;
@@ -101,7 +100,9 @@ The view builds every button once. `openNodeMenu` builds the input, which
 reads `updating` from the shared in-flight set described below, and shows
 exactly the entries the function returns, in its order (re-appending them
 in that order), applying each `disabled`. So reopening the menu on a paper
-whose update is still running shows the entry disabled. Each
+whose update is still running shows the entry disabled. "open" is always
+listed; its visibility stays with `showOpenEntry`, because Zotero can
+answer the attachment question after the menu opens. Each
 entry's label is fixed except open (from `openPaperEntry`) and seed ("Add as
 seed" / "Remove seed").
 
@@ -114,7 +115,9 @@ click handler does today:
 - both directions in turn, `references` then `cited-by`, with the same
   `refreshExternalRelationships` options and the same count updates;
 - then `invalidateHopFragment`, `rebuildCurrentFocus()` when the hop model
-  has the node, and `renderOverview(node)` unless the view is cleaned up.
+  has the node, and `renderOverview(node)` unless the view is cleaned up
+  or the pane no longer shows this paper's overview (an update started
+  from the menu must not pull the pane back from another paper).
 
 It keeps a `Set` of node keys being updated. A call for a key already in
 the set returns the running promise, so it never starts a second fetch.
@@ -148,7 +151,7 @@ squeeze at a 320px graph width so D23 has a number.
 
 - **Unit** (the existing `test/unit/nodeMenu.test.ts`), for
   `nodeMenuEntries`:
-  - a library paper, with and without an open entry, seed and not;
+  - a library paper, seed and not;
   - an external paper in the library: show, no add;
   - an external paper not in the library: add, no show, and update present;
   - a seed: no remove;
