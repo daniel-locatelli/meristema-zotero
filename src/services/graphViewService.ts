@@ -3757,8 +3757,8 @@ ${error instanceof Error ? error.message : String(error)}`,
           scheduleFocusTask(resolve, 0);
         });
       }
-    })().then(
-      () => {
+    })()
+      .then(() => {
         // Out of the map first, so the re-rendered pane button is enabled.
         connectionUpdates.delete(node.key);
         invalidateHopFragment(snapshot.libraryID, node.key);
@@ -3766,8 +3766,9 @@ ${error instanceof Error ? error.message : String(error)}`,
         // Only when the pane still shows this paper's overview: an update
         // started from the menu must not pull the pane back from another one.
         if (!cleaned && paneShowsUpdateFor(node)) renderOverview(node);
-      },
-      (error: unknown) => {
+      })
+      // A failed fetch or a failed redraw: either way the update has ended.
+      .catch((error: unknown) => {
         connectionUpdates.delete(node.key);
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
@@ -3775,8 +3776,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         if (paneShowsUpdateFor(node)) {
           overviewUpdateButton!.button.disabled = false;
         }
-      },
-    );
+      });
     connectionUpdates.set(node.key, run);
     return run;
   }

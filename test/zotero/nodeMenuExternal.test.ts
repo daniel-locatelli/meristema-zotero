@@ -12,6 +12,13 @@ const ROW_ATTR = "data-meristema-saved-graph";
 const GRAPH_NAME = "F5 external menu";
 const TITLE = "F5 external menu fixture";
 const UPDATE = "Update this paper's connections";
+/**
+ * Every provider host. The case answers them all with a 404 at once, so
+ * nothing reaches the network and the update ends in a few seconds. The
+ * disabled checks need no latency: they run in the click's own turn.
+ */
+const PROVIDER_HOST =
+  /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -58,10 +65,23 @@ describe("The node menu on an external paper (F5)", function () {
   let tabID: string | null = null;
   let graphID: number | null = null;
   let fixtureID: number | null = null;
+  let liveRequest: any = null;
 
   before(async function () {
     this.timeout(30_000);
     win = Zotero.getMainWindows()[0];
+    liveRequest = Zotero.HTTP.request;
+    (Zotero.HTTP as any).request = async (
+      method: string,
+      url: string,
+      options?: unknown,
+    ) => {
+      if (!PROVIDER_HOST.test(url)) {
+        return liveRequest.call(Zotero.HTTP, method, url, options);
+      }
+      await delay(0);
+      return { status: 404, responseText: "", getResponseHeader: () => null };
+    };
     // A graph opens on a library; give it a paper to stand on.
     const fixture = new Zotero.Item("journalArticle");
     fixture.setField("title", "F5 library fixture");
@@ -93,6 +113,7 @@ describe("The node menu on an external paper (F5)", function () {
     await delay(300);
     if (graphID !== null) await deleteSavedGraph(graphID);
     if (fixtureID !== null) await Zotero.Items.erase(fixtureID);
+    if (liveRequest) (Zotero.HTTP as any).request = liveRequest;
   });
 
   it("offers the pane's actions, hands Add to Zotero… to the pane, and shares the update", async function () {
@@ -240,12 +261,19 @@ describe("The node menu on an external paper (F5)", function () {
       new win.KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
     );
 
-    // Whether the providers answer or fail, the update ends and the pane's
-    // button comes back.
+    // The update ends and the pane's button comes back. A library change
+    // can remount the view while it runs (the refresh after a fixture is
+    // saved or erased), so this reads the live view, not the one held above.
     const freed = await waitFor(() => {
-      const live = paneButton(UPDATE);
+      const live = (
+        Array.from(
+          doc.querySelectorAll(
+            ".meristema-root .cm-detail-body .cm-detail-actions button",
+          ),
+        ) as HTMLButtonElement[]
+      ).find((button) => button.textContent?.trim() === UPDATE);
       return live && !live.disabled ? live : null;
-    }, 90_000);
+    }, 30_000);
     expect(freed, "the pane's button is enabled once the update ends").to.exist;
   });
 });
