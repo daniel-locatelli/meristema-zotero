@@ -49,7 +49,8 @@ back to the canvas, except Add to Zotero…, which hands focus to the pane.
   Add to Zotero button, where the reader picks a collection. The overview
   keeps a reference to that button when it renders. If the button is not
   connected (the pane moved on), the entry calls `renderOverview(node)`
-  first.
+  first. `renderOverview` is synchronous, so the button exists when the
+  focus call runs, and no other selection can land in between.
 - **Find similar papers:** `loadInlineSimilarResults([node])`, the pane's
   call. Errors go to `Zotero.logError`.
 - **Update this paper's connections:** runs the shared routine below.
@@ -65,8 +66,8 @@ The stale comment above the menu is rewritten to describe the entries.
 
 ### Entry list as a pure function
 
-`nodeMenu.ts` gains `nodeMenuEntries(input)`, which returns the ordered
-entry ids the menu shows:
+`nodeMenu.ts` gains `nodeMenuEntries(input): NodeMenuEntry[]`, which
+returns the entries the menu shows, in order, each with its disabled state:
 
 ```ts
 export type NodeMenuEntryId =
@@ -85,11 +86,22 @@ export interface NodeMenuInput {
   /** External papers only: a local Zotero item was found. */
   inLibrary: boolean;
   isSeed: boolean;
+  /** This paper's connections update is running. */
+  updating: boolean;
+}
+
+export interface NodeMenuEntry {
+  id: NodeMenuEntryId;
+  /** True only for "update" while `updating`. */
+  disabled: boolean;
 }
 ```
 
-The view builds every button once, and `openNodeMenu` shows exactly those
-the function returns, in its order (re-appending them in that order). Each
+The view builds every button once. `openNodeMenu` builds the input, which
+reads `updating` from the shared in-flight set described below, and shows
+exactly the entries the function returns, in its order (re-appending them
+in that order), applying each `disabled`. So reopening the menu on a paper
+whose update is still running shows the entry disabled. Each
 entry's label is fixed except open (from `openPaperEntry`) and seed ("Add as
 seed" / "Remove seed").
 
@@ -127,8 +139,10 @@ today.
 - **Menu entry:** the same label and tooltip.
 
 Risk: the toolbar labels are up to 8 characters longer, so the narrow-window
-toolbar squeeze (B111's context) starts a little sooner. The manual check
-covers it.
+toolbar squeeze (B111's context) starts a little sooner. The toolbar has no
+narrow-width fallback today. Adding one (ellipsis, or icon-only buttons) is
+D23's job, the narrow layout, not F5's. The manual check measures the
+squeeze at a 320px graph width so D23 has a number.
 
 ## Tests
 
@@ -138,6 +152,8 @@ covers it.
   - an external paper in the library: show, no add;
   - an external paper not in the library: add, no show, and update present;
   - a seed: no remove;
+  - `updating`: the update entry is disabled, and every other entry is
+    enabled;
   - the separator is always between the actions and the seed toggle.
 - **Zotero suite:**
   - Existing assertions that name the menu's entries or the toolbar's
@@ -146,11 +162,12 @@ covers it.
     finder in `graphCitationHops.test.ts`.
   - One new case: right-click an external paper and read the menu's entries;
     choose Update this paper's connections; while it runs, the pane's
-    Update this paper's connections button is disabled. The case drives the
+    Update this paper's connections button is disabled, and reopening the
+    menu on the same paper shows the entry disabled. The case drives the
     plugin's own menu, per memory.
 - **Manual check** (roadmap): the menu for a library paper and an external
   paper, Add to Zotero… landing on the pane's picker, the two toolbar
-  labels, and the toolbar at a narrow window width.
+  labels, and the toolbar at a 320px graph width.
 
 ## Out of scope
 
