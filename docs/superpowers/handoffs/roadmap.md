@@ -112,8 +112,10 @@ opacity grade).
       multi-row opacity are two visual languages for one idea
 - [ ] F12 selecting a folder in Zotero activates its region in the graph
       (brainstorm: add or replace, tick or not, which window, the cap)
-- [ ] F5 the node's context menu should offer what the detail pane offers, and
-      Refresh vs Update connections should say which scope each acts on
+- [ ] B112 a library change remounts the graph view while a paper's
+      connections update runs: the new view shows Update this paper's
+      connections enabled, so a second click fetches again. Fix with running
+      updates kept per library and node key outside the view (F5 review)
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
