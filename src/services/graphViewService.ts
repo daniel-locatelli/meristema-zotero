@@ -192,10 +192,12 @@ import {
 import {
   clampMenuPosition,
   FIND_SIMILAR_TITLE,
+  nodeMenuEntries,
   openPaperEntry,
   UPDATE_CONNECTIONS_LABEL,
   UPDATE_CONNECTIONS_TITLE,
   type BestAttachmentType,
+  type NodeMenuEntryId,
   type OpenPaperEntry,
 } from "./nodeMenu";
 import { popoverShouldAnchorEnd } from "./popoverPlacement";
@@ -1167,24 +1169,52 @@ export function renderGraphView(
   statusToastRegion.setAttribute("aria-live", "polite");
   graphArea.appendChild(statusToastRegion);
 
-  // The node's right-click menu. Two items: the seed toggle and Explore-from.
+  // The node's right-click menu (F5): what Paper details offers for the
+  // paper, a rule, then the seed toggle and Remove from graph. Every entry is
+  // built once; `nodeMenuEntries` says which show, in what order.
   // It lives in the graph area so it is clamped to the plot, not the window.
   const nodeMenu = element(document, "div", "cm-node-menu");
   nodeMenu.hidden = true;
   nodeMenu.setAttribute("role", "menu");
   nodeMenu.setAttribute("aria-label", "Paper actions");
-  const nodeMenuOpen = element(document, "button", "cm-node-menu-item");
-  nodeMenuOpen.type = "button";
-  nodeMenuOpen.setAttribute("role", "menuitem");
+  const nodeMenuButton = (label: string, title?: string): HTMLButtonElement => {
+    const item = element(document, "button", "cm-node-menu-item");
+    item.type = "button";
+    item.setAttribute("role", "menuitem");
+    item.textContent = label;
+    if (title) item.title = title;
+    return item;
+  };
+  const nodeMenuOpen = nodeMenuButton("");
   nodeMenuOpen.hidden = true;
-  const nodeMenuSeed = element(document, "button", "cm-node-menu-item");
-  nodeMenuSeed.type = "button";
-  nodeMenuSeed.setAttribute("role", "menuitem");
-  const nodeMenuRemove = element(document, "button", "cm-node-menu-item");
-  nodeMenuRemove.type = "button";
-  nodeMenuRemove.setAttribute("role", "menuitem");
-  nodeMenuRemove.textContent = "Remove from graph";
-  nodeMenu.append(nodeMenuOpen, nodeMenuSeed, nodeMenuRemove);
+  const nodeMenuShow = nodeMenuButton("Show in Zotero");
+  const nodeMenuAdd = nodeMenuButton(
+    "Add to Zotero…",
+    "Choose a collection in Paper details, then add this paper to Zotero.",
+  );
+  const nodeMenuSimilar = nodeMenuButton(
+    "Find similar papers",
+    FIND_SIMILAR_TITLE,
+  );
+  const nodeMenuUpdate = nodeMenuButton(
+    UPDATE_CONNECTIONS_LABEL,
+    UPDATE_CONNECTIONS_TITLE,
+  );
+  const nodeMenuSeparator = element(document, "div", "cm-node-menu-separator");
+  nodeMenuSeparator.setAttribute("role", "separator");
+  const nodeMenuSeed = nodeMenuButton("");
+  const nodeMenuRemove = nodeMenuButton("Remove from graph");
+  const nodeMenuElements: Record<NodeMenuEntryId, HTMLElement> = {
+    open: nodeMenuOpen,
+    show: nodeMenuShow,
+    add: nodeMenuAdd,
+    similar: nodeMenuSimilar,
+    update: nodeMenuUpdate,
+    separator: nodeMenuSeparator,
+    seed: nodeMenuSeed,
+    remove: nodeMenuRemove,
+  };
+  nodeMenu.append(...Object.values(nodeMenuElements));
   graphArea.appendChild(nodeMenu);
   let nodeMenuTarget: CitationGraphNode | null = null;
   let nodeMenuOpenEntry: OpenPaperEntry | null = null;
@@ -3689,6 +3719,9 @@ ${error instanceof Error ? error.message : String(error)}`,
   /** The overview's Update button, while the overview shows one. */
   let overviewUpdateButton: { key: string; button: HTMLButtonElement } | null =
     null;
+  /** The overview's Add to Zotero button, while the overview shows one. */
+  let overviewAddButton: { key: string; button: HTMLButtonElement } | null =
+    null;
   const paneShowsUpdateFor = (node: CitationGraphNode): boolean =>
     overviewUpdateButton?.key === node.key &&
     overviewUpdateButton.button.isConnected;
@@ -3750,6 +3783,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   function renderOverview(node: CitationGraphNode | null): void {
     overviewUpdateButton = null;
+    overviewAddButton = null;
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
     activeRelationshipList?.destroy();
@@ -3820,6 +3854,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           },
         );
         actions.appendChild(importArea.addButton);
+        overviewAddButton = { key: node.key, button: importArea.addButton };
         detailBody.appendChild(importArea.root);
       }
 
@@ -3944,7 +3979,11 @@ ${error instanceof Error ? error.message : String(error)}`,
       .catch(() => undefined);
   };
   const nodeMenuItems = (): HTMLButtonElement[] =>
-    [nodeMenuOpen, nodeMenuSeed, nodeMenuRemove].filter((item) => !item.hidden);
+    (
+      Array.from(
+        nodeMenu.querySelectorAll(".cm-node-menu-item"),
+      ) as HTMLButtonElement[]
+    ).filter((item) => !item.hidden && !item.disabled);
   const openNodeMenu = (
     node: CitationGraphNode,
     clientX: number,
@@ -3954,7 +3993,25 @@ ${error instanceof Error ? error.message : String(error)}`,
     nodeMenuTarget = node;
     const isSeed = Boolean(hopModel?.seedKeys.has(node.key));
     nodeMenuSeed.textContent = isSeed ? "Remove seed" : "Add as seed";
-    nodeMenuRemove.hidden = isSeed;
+    const entries = nodeMenuEntries({
+      kind: node.kind === "external" ? "external" : "library",
+      inLibrary: localItemFor(node) !== null,
+      isSeed,
+      updating: connectionUpdates.has(node.key),
+    });
+    const listed = new Set<NodeMenuEntryId>();
+    for (const entry of entries) {
+      const item = nodeMenuElements[entry.id];
+      nodeMenu.appendChild(item);
+      if (item !== nodeMenuSeparator) {
+        (item as HTMLButtonElement).disabled = entry.disabled;
+      }
+      listed.add(entry.id);
+    }
+    for (const [id, item] of Object.entries(nodeMenuElements)) {
+      // The open entry's visibility is `showOpenEntry`'s: it can arrive late.
+      if (id !== "open") item.hidden = !listed.has(id as NodeMenuEntryId);
+    }
     applyOpenEntry(node);
     nodeMenu.hidden = false;
     // Measured after it is shown, so offsetWidth is the laid-out width.
@@ -3998,6 +4055,46 @@ ${error instanceof Error ? error.message : String(error)}`,
     const node = nodeMenuTarget;
     closeNodeMenu(true);
     if (node) hideFromGraph(node.key);
+  });
+  nodeMenuShow.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    closeNodeMenu(true);
+    if (!node) return;
+    const itemID =
+      node.kind === "external" ? localItemFor(node)?.id : node.itemID;
+    if (itemID !== undefined) void selectPaper(itemID);
+  });
+  nodeMenuAdd.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    // Focus goes to the pane, not back to the canvas: the reader picks the
+    // collection there. `renderOverview` is synchronous, so the button exists
+    // by the time it is focused.
+    closeNodeMenu();
+    if (!node) return;
+    if (
+      overviewAddButton?.key !== node.key ||
+      !overviewAddButton.button.isConnected
+    ) {
+      renderOverview(node);
+    }
+    overviewAddButton?.button.focus();
+  });
+  nodeMenuSimilar.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    closeNodeMenu(true);
+    if (!node) return;
+    void Promise.resolve(loadInlineSimilarResults([node])).catch(
+      (error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      },
+    );
+  });
+  nodeMenuUpdate.addEventListener("click", () => {
+    const node = nodeMenuTarget;
+    closeNodeMenu(true);
+    if (node) void updatePaperConnections(node);
   });
   nodeMenu.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

@@ -326,6 +326,7 @@
 .cm-export-menu[hidden],
 .cm-node-menu[hidden],
 .cm-node-menu-item[hidden],
+.cm-node-menu-separator[hidden],
 .cm-appearance-panel[hidden] {
   display: none;
 }
@@ -1216,6 +1217,15 @@
 .cm-node-menu-item:hover,
 .cm-node-menu-item:focus-visible {
   background: color-mix(in srgb, var(--cm-accent) 10%, Canvas) !important;
+}
+.cm-node-menu-item:disabled {
+  opacity: 0.5;
+}
+/* The rule between the paper's actions and the seed entries (F5). */
+.cm-node-menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--cm-border);
 }
 /*
  * A narrow window drops the counts before it lets anything wrap. Each toolbar

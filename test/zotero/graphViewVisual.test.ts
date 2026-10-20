@@ -1297,10 +1297,15 @@ describe("Graph view, as the product builds it", function () {
     // The node the menu opened on is a seed, so the toggle removes it and
     // Remove from graph stays out: no rule can hide a seed. The first paper
     // has nothing to open, so that entry stays out of the menu too, rather
-    // than sitting there dead. A non-seed node's menu — Add as seed and
+    // than sitting there dead. Show in Zotero and Find similar papers are
+    // the pane's actions (F5). A non-seed node's menu — Add as seed and
     // Remove from graph — is walked in `graphScopeRail.test.ts`, on a graph
     // whose nodes are real Zotero items.
-    expect(shown()).to.deep.equal(["Remove seed"]);
+    expect(shown()).to.deep.equal([
+      "Show in Zotero",
+      "Find similar papers",
+      "Remove seed",
+    ]);
     const escape = new view.KeyboardEvent("keydown", {
       bubbles: true,
       key: "Escape",
@@ -1319,7 +1324,12 @@ describe("Graph view, as the product builds it", function () {
       }),
     );
     expect(menu.hidden, "the second node opens it").to.equal(false);
-    expect(shown()).to.deep.equal(["Open online", "Remove seed"]);
+    expect(shown()).to.deep.equal([
+      "Open online",
+      "Show in Zotero",
+      "Find similar papers",
+      "Remove seed",
+    ]);
     expect(
       view.document.activeElement?.textContent,
       "focus starts on the open entry",
@@ -1333,7 +1343,7 @@ describe("Graph view, as the product builds it", function () {
     );
     expect(
       view.document.activeElement?.textContent,
-      "the arrows wrap around both",
+      "the arrows wrap around",
     ).to.equal("Remove seed");
     menu.dispatchEvent(escape);
   });
