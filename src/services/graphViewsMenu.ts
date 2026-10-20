@@ -295,6 +295,8 @@ export function createViewGallery(
   document: Document,
   o: {
     shipped: readonly GraphViewDefinition[];
+    /** The reader's saved views, read at every `show` (D16). */
+    listSaved: () => GraphViewDefinition[];
     onChoose: (view: GraphViewDefinition) => void;
     onBlank: () => void;
     onImport: () => void;
@@ -337,6 +339,49 @@ export function createViewGallery(
     });
     grid.append(card);
   }
+  // The reader's saved views are a row of chips between the cards and the
+  // footer (D16), drawn only when there are some. The row is redrawn only
+  // when the list's signature changes, so an unchanged show stays a no-op.
+  const savedHeading = text(
+    document,
+    "div",
+    "My views",
+    "cm-view-gallery-saved-heading",
+  );
+  const savedRow = element(document, "div", "cm-view-gallery-saved");
+  savedRow.setAttribute("role", "group");
+  savedRow.setAttribute("aria-label", "My views");
+  savedHeading.hidden = true;
+  savedRow.hidden = true;
+  let savedSignature: string | null = null;
+  const drawSaved = (): boolean => {
+    const titled = o.listSaved().map((view) => ({
+      view,
+      title: view.paragraph || view.summary,
+    }));
+    const signature = JSON.stringify(
+      titled.map(({ view, title }) => [view.id, view.name, title]),
+    );
+    if (signature === savedSignature) return false;
+    savedSignature = signature;
+    savedRow.replaceChildren(
+      ...titled.map(({ view, title }) => {
+        const chip = element(document, "button", "cm-view-gallery-saved-chip");
+        chip.type = "button";
+        chip.dataset.viewId = view.id;
+        chip.title = title;
+        chip.append(
+          createIcon(document, view.icon, 16),
+          text(document, "span", view.name, "cm-view-gallery-saved-name"),
+        );
+        chip.addEventListener("click", () => o.onChoose(view));
+        return chip;
+      }),
+    );
+    savedHeading.hidden = titled.length === 0;
+    savedRow.hidden = titled.length === 0;
+    return true;
+  };
   // Start blank and Import sit on a line below the cards, so the six views
   // fill two even rows.
   const footer = element(document, "div", "cm-view-gallery-footer");
@@ -351,17 +396,20 @@ export function createViewGallery(
   footer.append(blank, importButton);
   // The root masks the graph; the panel holds the cards, centred on it.
   const panel = element(document, "div", "cm-view-gallery-panel");
-  panel.append(heading, grid, footer);
+  panel.append(heading, grid, savedHeading, savedRow, footer);
   root.append(panel);
   return {
     root,
     show(count) {
       const line = `How do you want to look at these ${count.toLocaleString()} papers?`;
+      const savedChanged = drawSaved();
       // `maybeShowGallery` runs at the end of every filter pass. Writing the
       // same heading into a gallery that is already up would re-invalidate
       // its blurred compositing layer each time, so an unchanged show is a
       // no-op.
-      if (!root.hidden && heading.textContent === line) return;
+      if (!root.hidden && heading.textContent === line && !savedChanged) {
+        return;
+      }
       heading.textContent = line;
       root.hidden = false;
     },

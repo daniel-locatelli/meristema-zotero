@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import { expect } from "chai";
-import { SHIPPED_GRAPH_VIEWS } from "../../src/services/graphViews";
+import {
+  SHIPPED_GRAPH_VIEWS,
+  type GraphViewDefinition,
+} from "../../src/services/graphViews";
 import {
   createGraphViewsMenu,
   createSavePanel,
@@ -180,6 +183,7 @@ describe("the gallery's card notes (D34)", function () {
   const gallery = (): FakeElement =>
     createViewGallery(fakeDocument, {
       shipped: SHIPPED_GRAPH_VIEWS,
+      listSaved: () => [],
       onChoose: () => {},
       onBlank: () => {},
       onImport: () => {},
@@ -219,6 +223,101 @@ describe("the gallery's card notes (D34)", function () {
 
   it("gives a view that needs nothing no tag", function () {
     expect(cardFor("overview").all("cm-view-gallery-note")).to.have.length(0);
+  });
+});
+
+describe("the gallery's saved views (D16)", function () {
+  const saved = (
+    id: string,
+    name: string,
+    paragraph: string,
+  ): GraphViewDefinition => ({
+    ...(SHIPPED_GRAPH_VIEWS[0] as GraphViewDefinition),
+    id,
+    name,
+    paragraph,
+    summary: `${name} summary.`,
+    icon: "view-user",
+    requires: "none",
+    availability: "ready",
+  });
+  const build = (
+    listSaved: () => GraphViewDefinition[],
+    onChoose: (view: GraphViewDefinition) => void = () => {},
+  ) => {
+    const gallery = createViewGallery(fakeDocument, {
+      shipped: SHIPPED_GRAPH_VIEWS,
+      listSaved,
+      onChoose,
+      onBlank: () => {},
+      onImport: () => {},
+    });
+    return { gallery, root: gallery.root as unknown as FakeElement };
+  };
+  const chips = (root: FakeElement): FakeElement[] =>
+    root.all("cm-view-gallery-saved-chip");
+
+  it("draws no heading and no row without saved views", function () {
+    const { gallery, root } = build(() => []);
+    gallery.show(10);
+    expect(root.one("cm-view-gallery-saved-heading").hidden).to.equal(true);
+    expect(root.one("cm-view-gallery-saved").hidden).to.equal(true);
+    expect(chips(root)).to.have.length(0);
+  });
+
+  it("gives each saved view a chip, titled by its paragraph or else its summary", function () {
+    const { gallery, root } = build(() => [
+      saved("u1", "Thesis core", "My core set."),
+      saved("u2", "Review set", ""),
+    ]);
+    gallery.show(10);
+    const heading = root.one("cm-view-gallery-saved-heading");
+    const row = root.one("cm-view-gallery-saved");
+    expect(heading.hidden).to.equal(false);
+    expect(heading.textContent).to.equal("My views");
+    expect(row.hidden).to.equal(false);
+    expect(row.getAttribute("role")).to.equal("group");
+    expect(row.getAttribute("aria-label")).to.equal("My views");
+    expect(
+      chips(root).map((c) => c.one("cm-view-gallery-saved-name").textContent),
+    ).to.deep.equal(["Thesis core", "Review set"]);
+    expect(chips(root).map((c) => c.title)).to.deep.equal([
+      "My core set.",
+      "Review set summary.",
+    ]);
+    expect(chips(root).map((c) => c.dataset.viewId)).to.deep.equal([
+      "u1",
+      "u2",
+    ]);
+  });
+
+  it("applies a saved view when its chip is clicked", function () {
+    const chosen: string[] = [];
+    const { gallery, root } = build(
+      () => [saved("u1", "Thesis core", ""), saved("u2", "Review set", "")],
+      (view) => chosen.push(view.id),
+    );
+    gallery.show(10);
+    chips(root)[1]?.click();
+    expect(chosen).to.deep.equal(["u2"]);
+  });
+
+  it("draws a view saved since the last show, and leaves an unchanged row alone", function () {
+    let list = [saved("u1", "Thesis core", "")];
+    const { gallery, root } = build(() => list);
+    gallery.show(10);
+    expect(chips(root)).to.have.length(1);
+    list = [...list, saved("u2", "Review set", "")];
+    gallery.show(10);
+    expect(chips(root).map((c) => c.dataset.viewId)).to.deep.equal([
+      "u1",
+      "u2",
+    ]);
+    const row = root.one("cm-view-gallery-saved");
+    const before = row.children;
+    list = [...list];
+    gallery.show(10);
+    expect(row.children, "the same nodes, not a redraw").to.equal(before);
   });
 });
 

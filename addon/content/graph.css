@@ -958,6 +958,43 @@
   gap: 10px;
   margin-top: 14px;
 }
+/* The reader's saved views (D16): a heading, then chips that wrap and, past
+   two lines, scroll in their own box so the panel grows by at most that. */
+.cm-view-gallery-saved-heading {
+  margin: 14px 0 6px;
+  font-size: calc(11 * var(--cm-font-unit));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.cm-view-gallery-saved {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: calc(2 * 28px + 6px);
+  overflow: auto;
+}
+.cm-view-gallery-saved-heading[hidden],
+.cm-view-gallery-saved[hidden] {
+  display: none;
+}
+.meristema-root .cm-view-gallery-saved-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--cm-border-soft);
+  border-radius: 14px;
+  background: var(--cm-surface-raised);
+  font: inherit;
+  cursor: pointer;
+}
+.meristema-root .cm-view-gallery-saved-chip:hover {
+  border-color: var(--cm-accent);
+}
 /* The save panel: an in-page dialog centred over the plot. */
 .cm-view-save {
   position: absolute;

@@ -87,6 +87,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
       (document) => {
         const gallery = createViewGallery(document, {
           shipped: SHIPPED_GRAPH_VIEWS,
+          listSaved: () => [],
           onChoose: () => undefined,
           onBlank: () => undefined,
           onImport: () => undefined,

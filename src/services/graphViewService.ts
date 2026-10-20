@@ -1010,6 +1010,7 @@ export function renderGraphView(
   );
   const viewGallery = createViewGallery(document, {
     shipped: SHIPPED_GRAPH_VIEWS,
+    listSaved: listSavedGraphViews,
     onChoose: (chosen) => applyGraphView(chosen),
     onBlank: () => {
       activeViewRef = "blank";
