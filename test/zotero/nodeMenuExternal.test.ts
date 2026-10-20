@@ -264,6 +264,7 @@ describe("The node menu on an external paper (F5)", function () {
     // The update ends and the pane's button comes back. A library change
     // can remount the view while it runs (the refresh after a fixture is
     // saved or erased), so this reads the live view, not the one held above.
+    const replaced = !root!.isConnected;
     const freed = await waitFor(() => {
       const live = (
         Array.from(
@@ -274,6 +275,9 @@ describe("The node menu on an external paper (F5)", function () {
       ).find((button) => button.textContent?.trim() === UPDATE);
       return live && !live.disabled ? live : null;
     }, 30_000);
-    expect(freed, "the pane's button is enabled once the update ends").to.exist;
+    expect(
+      freed,
+      `the pane's button is enabled once the update ends${replaced ? " (the view was remounted mid-update, so this is vacuous)" : ""}`,
+    ).to.exist;
   });
 });

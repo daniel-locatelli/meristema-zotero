@@ -1214,8 +1214,8 @@
   background: transparent !important;
   text-align: left;
 }
-.cm-node-menu-item:hover,
-.cm-node-menu-item:focus-visible {
+.cm-node-menu-item:hover:not(:disabled),
+.cm-node-menu-item:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--cm-accent) 10%, Canvas) !important;
 }
 .cm-node-menu-item:disabled {

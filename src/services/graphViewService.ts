@@ -3469,6 +3469,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): Promise<void> => {
     const generation = ++similarRequestGeneration;
     similarSection = null;
+    overviewNodeKey = null;
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
     activeRelationshipList?.destroy();
@@ -3568,6 +3569,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     direction: "references" | "cited-by",
   ): void {
     activeRelationshipView = { itemKey: node.itemKey, direction };
+    overviewNodeKey = null;
     refreshActiveRelationshipView = null;
     renderer?.setGhostPreview(null);
     similarRequestGeneration += 1;
@@ -3722,6 +3724,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   /** The overview's Add to Zotero button, while the overview shows one. */
   let overviewAddButton: { key: string; button: HTMLButtonElement } | null =
     null;
+  /** The paper the pane's overview shows; null under a list or graph-wide results. */
+  let overviewNodeKey: string | null = null;
   const paneShowsUpdateFor = (node: CitationGraphNode): boolean =>
     overviewUpdateButton?.key === node.key &&
     overviewUpdateButton.button.isConnected;
@@ -3762,7 +3766,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         // Out of the map first, so the re-rendered pane button is enabled.
         connectionUpdates.delete(node.key);
         invalidateHopFragment(snapshot.libraryID, node.key);
-        if (hopModel?.entries.has(node.key)) rebuildCurrentFocus();
+        if (!cleaned && hopModel?.entries.has(node.key)) rebuildCurrentFocus();
         // Only when the pane still shows this paper's overview: an update
         // started from the menu must not pull the pane back from another one.
         if (!cleaned && paneShowsUpdateFor(node)) renderOverview(node);
@@ -3784,6 +3788,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   function renderOverview(node: CitationGraphNode | null): void {
     overviewUpdateButton = null;
     overviewAddButton = null;
+    overviewNodeKey = node?.key ?? null;
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
     activeRelationshipList?.destroy();
@@ -4071,25 +4076,20 @@ ${error instanceof Error ? error.message : String(error)}`,
     // by the time it is focused.
     closeNodeMenu();
     if (!node) return;
-    if (
-      overviewAddButton?.key !== node.key ||
-      !overviewAddButton.button.isConnected
-    ) {
-      renderOverview(node);
-    }
+    if (overviewNodeKey !== node.key) renderOverview(node);
     overviewAddButton?.button.focus();
   });
   nodeMenuSimilar.addEventListener("click", () => {
     const node = nodeMenuTarget;
     closeNodeMenu(true);
     if (!node) return;
-    void Promise.resolve(loadInlineSimilarResults([node])).catch(
-      (error: unknown) => {
-        Zotero.logError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      },
-    );
+    // The keyboard path does not re-render the overview the way a click does.
+    if (overviewNodeKey !== node.key) renderOverview(node);
+    void loadInlineSimilarResults([node]).catch((error: unknown) => {
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    });
   });
   nodeMenuUpdate.addEventListener("click", () => {
     const node = nodeMenuTarget;
