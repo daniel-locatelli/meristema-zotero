@@ -319,6 +319,25 @@ describe("the gallery's saved views (D16)", function () {
     gallery.show(10);
     expect(row.children, "the same nodes, not a redraw").to.equal(before);
   });
+
+  it("applies the current definition when a view was re-saved under the same name", function () {
+    let list = [saved("u1", "Thesis core", "My core set.")];
+    const chosen: GraphViewDefinition[] = [];
+    const { gallery, root } = build(
+      () => list,
+      (view) => chosen.push(view),
+    );
+    gallery.show(10);
+    const resaved = {
+      ...saved("u1", "Thesis core", "My core set."),
+      summary: "Re-saved with other filters.",
+    };
+    list = [resaved];
+    gallery.show(10);
+    chips(root)[0]?.click();
+    expect(chosen).to.have.length(1);
+    expect(chosen[0]).to.equal(resaved);
+  });
 });
 
 describe("the save panel's Copy JSON (D31)", function () {

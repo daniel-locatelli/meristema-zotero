@@ -374,7 +374,12 @@ export function createViewGallery(
           createIcon(document, view.icon, 16),
           text(document, "span", view.name, "cm-view-gallery-saved-name"),
         );
-        chip.addEventListener("click", () => o.onChoose(view));
+        // A re-save keeps id, name and title, so the row is not redrawn and
+        // this closure's view can be stale; look the definition up now.
+        chip.addEventListener("click", () => {
+          const current = o.listSaved().find((v) => v.id === view.id);
+          if (current) o.onChoose(current);
+        });
         return chip;
       }),
     );
