@@ -8,8 +8,9 @@ in the View dropdown alone. Decided 2026-10-20: a row of chips.
 A "My views" heading (the dropdown's word) and a wrapping row of chips sit
 between the six cards and the footer (Start blank, Import view JSON…). With no
 saved views, neither the heading nor the row is drawn, and the gallery is as
-before. The row is `role="group"`, labelled by the heading
-(`aria-labelledby`).
+before. The row is `role="group"` with `aria-label="My views"` (not
+`aria-labelledby`: graph tabs share the main window's document, so a fixed id
+would repeat).
 
 ## A chip
 
