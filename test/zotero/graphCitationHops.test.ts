@@ -697,7 +697,9 @@ describe("Citation hops (Stage 3)", function () {
       Array.from(
         graphRoot().querySelectorAll(".cm-toolbar-button"),
       ) as HTMLButtonElement[]
-    ).find((candidate) => normalize(candidate.textContent) === "Refresh");
+    ).find((candidate) =>
+      /^Refresh (visible|seeds)$/.test(normalize(candidate.textContent)),
+    );
     expect(button, "the toolbar's Refresh button").to.exist;
     return button as HTMLButtonElement;
   }

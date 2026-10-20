@@ -191,7 +191,10 @@ import {
 } from "./graphViewControls";
 import {
   clampMenuPosition,
+  FIND_SIMILAR_TITLE,
   openPaperEntry,
+  UPDATE_CONNECTIONS_LABEL,
+  UPDATE_CONNECTIONS_TITLE,
   type BestAttachmentType,
   type OpenPaperEntry,
 } from "./nodeMenu";
@@ -1032,7 +1035,10 @@ export function renderGraphView(
   toolbarStatus.hidden = true;
   const refreshButton = element(document, "button", "cm-toolbar-button");
   refreshButton.type = "button";
-  refreshButton.append(iconButtonContent(document, "refresh", "Refresh"));
+  // The label names the scope (F5): the visible papers, or the seeds once
+  // there are any. `setSeeded` switches it with the tooltip.
+  const refreshLabel = text(document, "span", "Refresh visible");
+  refreshButton.append(icon(document, "refresh"), refreshLabel);
   refreshButton.title =
     "Refresh metadata and citation counts for the currently visible papers.";
   const searchWrap = element(document, "label", "cm-search-wrap");
@@ -1098,6 +1104,7 @@ export function renderGraphView(
     refreshButton.title = seeded
       ? "Refresh references and citing papers for the current Explore seeds."
       : "Refresh metadata and citation counts for the currently visible papers.";
+    refreshLabel.textContent = seeded ? "Refresh seeds" : "Refresh visible";
     if (!seeded) {
       refreshButton.removeAttribute("aria-busy");
       refreshButton.disabled = false;
@@ -3659,7 +3666,90 @@ ${error instanceof Error ? error.message : String(error)}`,
       });
   };
 
+  /** The Zotero item an external paper resolves to; null for a library paper or one not in Zotero. */
+  function localItemFor(node: CitationGraphNode): Zotero.Item | null {
+    if (node.kind !== "external" || !node.externalWork) return null;
+    const work = node.externalWork as ExternalWork;
+    const localKey = work.inLibraryItemKey ?? work.zoteroItemKey ?? null;
+    if (!localKey) return null;
+    return (
+      ((Zotero.Items as any).getByLibraryAndKey?.(
+        snapshot.libraryID,
+        localKey,
+      ) as Zotero.Item | false | null) || null
+    );
+  }
+
+  /**
+   * Running connection updates, by node key (F5). The pane's button and the
+   * node menu's entry both start updates here and both read it, so the two
+   * share one disabled state and a second request starts no second fetch.
+   */
+  const connectionUpdates = new Map<string, Promise<void>>();
+  /** The overview's Update button, while the overview shows one. */
+  let overviewUpdateButton: { key: string; button: HTMLButtonElement } | null =
+    null;
+  const paneShowsUpdateFor = (node: CitationGraphNode): boolean =>
+    overviewUpdateButton?.key === node.key &&
+    overviewUpdateButton.button.isConnected;
+
+  /** Fetch both directions of one paper's connections again, then redraw what depends on them. */
+  function updatePaperConnections(node: CitationGraphNode): Promise<void> {
+    const running = connectionUpdates.get(node.key);
+    if (running) return running;
+    if (paneShowsUpdateFor(node)) overviewUpdateButton!.button.disabled = true;
+    const run = (async () => {
+      for (const direction of ["references", "cited-by"] as const) {
+        await refreshExternalRelationships(
+          node,
+          libraryModel.nodes,
+          direction,
+          {
+            maximum: RELATIONSHIP_VIEW_LIMIT,
+            refreshMembership: true,
+            silent: true,
+            mode: "manual",
+            queueBackgroundHydration: true,
+            onMembershipResolved: (resolution) => {
+              if (resolution.reportedCount === null) return;
+              if (direction === "references") {
+                node.referenceCount = resolution.reportedCount;
+              } else {
+                node.citationCount = resolution.reportedCount;
+              }
+            },
+          },
+        );
+        await new Promise<void>((resolve) => {
+          scheduleFocusTask(resolve, 0);
+        });
+      }
+    })().then(
+      () => {
+        // Out of the map first, so the re-rendered pane button is enabled.
+        connectionUpdates.delete(node.key);
+        invalidateHopFragment(snapshot.libraryID, node.key);
+        if (hopModel?.entries.has(node.key)) rebuildCurrentFocus();
+        // Only when the pane still shows this paper's overview: an update
+        // started from the menu must not pull the pane back from another one.
+        if (!cleaned && paneShowsUpdateFor(node)) renderOverview(node);
+      },
+      (error: unknown) => {
+        connectionUpdates.delete(node.key);
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        if (paneShowsUpdateFor(node)) {
+          overviewUpdateButton!.button.disabled = false;
+        }
+      },
+    );
+    connectionUpdates.set(node.key, run);
+    return run;
+  }
+
   function renderOverview(node: CitationGraphNode | null): void {
+    overviewUpdateButton = null;
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
     activeRelationshipList?.destroy();
@@ -3704,13 +3794,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       const actions = element(document, "div", "cm-detail-actions");
       actions.style.flexWrap = "wrap";
 
-      const localKey = work.inLibraryItemKey ?? work.zoteroItemKey ?? null;
-      const localItem = localKey
-        ? ((Zotero.Items as any).getByLibraryAndKey?.(
-            snapshot.libraryID,
-            localKey,
-          ) as Zotero.Item | null)
-        : null;
+      const localItem = localItemFor(node);
       if (localItem) {
         const show = element(document, "button", "cm-secondary-button");
         show.type = "button";
@@ -3763,51 +3847,13 @@ ${error instanceof Error ? error.message : String(error)}`,
 
       const update = element(document, "button", "cm-secondary-button");
       update.type = "button";
-      update.textContent = "Update connections";
+      update.textContent = UPDATE_CONNECTIONS_LABEL;
+      update.title = UPDATE_CONNECTIONS_TITLE;
+      update.disabled = connectionUpdates.has(node.key);
       update.addEventListener("click", () => {
-        if (update.disabled) return;
-        update.disabled = true;
-        void (async () => {
-          for (const direction of ["references", "cited-by"] as const) {
-            await refreshExternalRelationships(
-              node,
-              libraryModel.nodes,
-              direction,
-              {
-                maximum: RELATIONSHIP_VIEW_LIMIT,
-                refreshMembership: true,
-                silent: true,
-                mode: "manual",
-                queueBackgroundHydration: true,
-                onMembershipResolved: (resolution) => {
-                  if (resolution.reportedCount === null) return;
-                  if (direction === "references") {
-                    node.referenceCount = resolution.reportedCount;
-                  } else {
-                    node.citationCount = resolution.reportedCount;
-                  }
-                },
-              },
-            );
-            await new Promise<void>((resolve) => {
-              scheduleFocusTask(resolve, 0);
-            });
-          }
-        })()
-          .then(() => {
-            invalidateHopFragment(snapshot.libraryID, node.key);
-            if (hopModel?.entries.has(node.key)) rebuildCurrentFocus();
-            if (!cleaned) renderOverview(node);
-          })
-          .catch((error: unknown) => {
-            Zotero.logError(
-              error instanceof Error ? error : new Error(String(error)),
-            );
-          })
-          .finally(() => {
-            if (update.isConnected) update.disabled = false;
-          });
+        if (!update.disabled) void updatePaperConnections(node);
       });
+      overviewUpdateButton = { key: node.key, button: update };
       actions.appendChild(update);
       detailBody.appendChild(detailSection(document, actions));
     } else {
@@ -3829,8 +3875,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         icon(document, "similar"),
         document.createTextNode("Find similar papers"),
       );
-      similar.title =
-        "Find papers similar to this one using scholarly-data providers. Results are shown for review and are not added to Zotero automatically.";
+      similar.title = FIND_SIMILAR_TITLE;
       similar.addEventListener("click", () => {
         if (similar.disabled) return;
         similar.disabled = true;
