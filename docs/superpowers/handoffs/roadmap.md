@@ -114,8 +114,6 @@ opacity grade).
       (brainstorm: add or replace, tick or not, which window, the cap)
 - [ ] F5 the node's context menu should offer what the detail pane offers, and
       Refresh vs Update connections should say which scope each acts on
-- [ ] F8 nothing says why a paper has no metrics; the exact-title fallback
-      decides that for a paper with no DOI
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
