@@ -8,6 +8,7 @@ import {
   createGraphViewsMenu,
   createSavePanel,
   createViewGallery,
+  galleryHeading,
 } from "../../src/services/graphViewsMenu";
 
 /*
@@ -259,7 +260,7 @@ describe("the gallery's saved views (D16)", function () {
 
   it("draws no heading and no row without saved views", function () {
     const { gallery, root } = build(() => []);
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     expect(root.one("cm-view-gallery-saved-heading").hidden).to.equal(true);
     expect(root.one("cm-view-gallery-saved").hidden).to.equal(true);
     expect(chips(root)).to.have.length(0);
@@ -270,7 +271,7 @@ describe("the gallery's saved views (D16)", function () {
       saved("u1", "Thesis core", "My core set."),
       saved("u2", "Review set", ""),
     ]);
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     const heading = root.one("cm-view-gallery-saved-heading");
     const row = root.one("cm-view-gallery-saved");
     expect(heading.hidden).to.equal(false);
@@ -297,7 +298,7 @@ describe("the gallery's saved views (D16)", function () {
       () => [saved("u1", "Thesis core", ""), saved("u2", "Review set", "")],
       (view) => chosen.push(view.id),
     );
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     chips(root)[1]?.click();
     expect(chosen).to.deep.equal(["u2"]);
   });
@@ -305,10 +306,10 @@ describe("the gallery's saved views (D16)", function () {
   it("draws a view saved since the last show, and leaves an unchanged row alone", function () {
     let list = [saved("u1", "Thesis core", "")];
     const { gallery, root } = build(() => list);
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     expect(chips(root)).to.have.length(1);
     list = [...list, saved("u2", "Review set", "")];
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     expect(chips(root).map((c) => c.dataset.viewId)).to.deep.equal([
       "u1",
       "u2",
@@ -316,7 +317,7 @@ describe("the gallery's saved views (D16)", function () {
     const row = root.one("cm-view-gallery-saved");
     const before = row.children;
     list = [...list];
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     expect(row.children, "the same nodes, not a redraw").to.equal(before);
   });
 
@@ -327,13 +328,13 @@ describe("the gallery's saved views (D16)", function () {
       () => list,
       (view) => chosen.push(view),
     );
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     const resaved = {
       ...saved("u1", "Thesis core", "My core set."),
       summary: "Re-saved with other filters.",
     };
     list = [resaved];
-    gallery.show(10);
+    gallery.show({ shown: 10 });
     chips(root)[0]?.click();
     expect(chosen).to.have.length(1);
     expect(chosen[0]).to.equal(resaved);
@@ -366,5 +367,50 @@ describe("the save panel's Copy JSON (D31)", function () {
 
   it("shows it while editing a saved view", function () {
     expect(copyButton(openPanel(true))?.hidden).to.equal(false);
+  });
+});
+
+describe("The gallery's heading (B116)", function () {
+  const n = (value: number): string => value.toLocaleString();
+
+  it("counts the papers of a graph without seeds", function () {
+    expect(galleryHeading({ shown: 182 })).to.equal(
+      `How do you want to look at these ${n(182)} papers?`,
+    );
+  });
+
+  it("names one seed and its citers", function () {
+    expect(
+      galleryHeading({
+        shown: 182,
+        byHop: [1, 181],
+        direction: "cited-by",
+      }),
+    ).to.equal("How do you want to look at this paper and its 181 citers?");
+  });
+
+  it("says references under References", function () {
+    expect(
+      galleryHeading({ shown: 2, byHop: [1, 1], direction: "references" }),
+    ).to.equal("How do you want to look at this paper and its 1 reference?");
+  });
+
+  it("names the seed alone while hop 1 is still arriving", function () {
+    expect(
+      galleryHeading({ shown: 1, byHop: [1, 0], direction: "cited-by" }),
+    ).to.equal("How do you want to look at this paper?");
+  });
+
+  it("names several seeds, the hops past the first and other papers", function () {
+    expect(
+      galleryHeading({
+        shown: 2 + 240 + 1500 + 3,
+        byHop: [2, 240, 1500],
+        direction: "cited-by",
+      }),
+    ).to.equal(
+      `How do you want to look at these 2 seeds, their 240 citers, ` +
+        `${n(1500)} papers past them and 3 other papers?`,
+    );
   });
 });

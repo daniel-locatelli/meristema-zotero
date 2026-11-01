@@ -141,10 +141,6 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] B116 a new graph on one paper that an earlier graph had filled opens
-      the gallery on "How do you want to look at these 182 papers?", as if
-      the earlier graph's hop 1 were already in it
-      (`graphViewsMenu.ts:409`)
 - [ ] B117 on a small screen the Scope section scrolls inside the rail, so
       the rail shows two scroll bars. One scroll for the whole rail; Scope
       always at full height
@@ -206,6 +202,10 @@ any failure into a new entry above.
 - [ ] B114: right-click a paper that is not in the library, choose Add to
       Zotero…: Paper details opens its collection chooser, with the cursor in
       Search collections and the chooser in view.
+- [ ] B116: start a graph from one paper an earlier graph had filled: the
+      gallery asks "How do you want to look at this paper and its N citers?"
+      (N matching the rail's hop 1); switch the rail to References on a
+      fresh one and it reads "references".
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -520,3 +520,7 @@ entries are in git history.
   `prefers-reduced-motion: reduce` in Zotero on the user's machine (Windows'
   Animation effects off, `MinAnimate` 0), and the camera took the jump branch
   of `glideTo`. With animations on, the glide runs as B105 shipped it.
+- 2026-11-01, later: B116 shipped. The count was true (hop 1 is automatic,
+  and a stored list draws at once); the gallery's heading now names the seeds
+  and what the hops brought (`galleryHeading`), citers or references by the
+  direction.

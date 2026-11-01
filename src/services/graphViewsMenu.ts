@@ -4,6 +4,7 @@ import {
   graphViewRequirementLine,
   type GraphViewDefinition,
 } from "./graphViews";
+import type { HopDirection } from "./graphHopModel";
 import { createIcon } from "./uiIconService";
 import { element, text } from "./graphViewControls";
 
@@ -285,9 +286,51 @@ export function createTutorialCard(
 
 // ----------------------------------------------------------------- gallery
 
+/** What the gallery's heading counts: the Scope rail's shown papers. */
+export interface GalleryScope {
+  shown: number;
+  /** Shown papers at each hop, index 0 the seeds; absent without seeds. */
+  byHop?: readonly number[];
+  direction?: HopDirection;
+}
+
+/**
+ * The gallery's question (B116). A seeded graph's hop 1 is automatic, and
+ * from a stored list it is on the plot at once, so "these 182 papers" read as
+ * if the reader had picked them. The heading names the seeds and what the
+ * hops brought instead; a graph without seeds counts its papers.
+ */
+export function galleryHeading(scope: GalleryScope): string {
+  const n = (value: number): string => value.toLocaleString();
+  const seeds = scope.byHop?.[0] ?? 0;
+  if (!seeds) {
+    return `How do you want to look at these ${n(scope.shown)} papers?`;
+  }
+  const byHop = scope.byHop!;
+  const first = byHop[1] ?? 0;
+  const past = byHop.slice(2).reduce((sum, count) => sum + count, 0);
+  const other = Math.max(0, scope.shown - seeds - first - past);
+  const plural = (count: number, one: string, many: string): string =>
+    `${n(count)} ${count === 1 ? one : many}`;
+  const parts = [seeds === 1 ? "this paper" : `these ${n(seeds)} seeds`];
+  const their = seeds === 1 ? "its" : "their";
+  if (first) {
+    parts.push(
+      scope.direction === "references"
+        ? `${their} ${plural(first, "reference", "references")}`
+        : `${their} ${plural(first, "citer", "citers")}`,
+    );
+  }
+  if (past) parts.push(`${plural(past, "paper", "papers")} past them`);
+  if (other) parts.push(plural(other, "other paper", "other papers"));
+  const last = parts.pop()!;
+  const list = parts.length ? `${parts.join(", ")} and ${last}` : last;
+  return `How do you want to look at ${list}?`;
+}
+
 export interface ViewGallery {
   root: HTMLElement;
-  show(count: number): void;
+  show(scope: GalleryScope): void;
   hide(): void;
 }
 
@@ -405,8 +448,8 @@ export function createViewGallery(
   root.append(panel);
   return {
     root,
-    show(count) {
-      const line = `How do you want to look at these ${count.toLocaleString()} papers?`;
+    show(scope) {
+      const line = galleryHeading(scope);
       const savedChanged = drawSaved();
       // `maybeShowGallery` runs at the end of every filter pass. Writing the
       // same heading into a gallery that is already up would re-invalidate

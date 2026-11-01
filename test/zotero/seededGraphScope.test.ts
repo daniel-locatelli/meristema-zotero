@@ -173,5 +173,18 @@ describe("A graph started from selected papers", function () {
       `only the seed is shown, not its folder sibling or the unfiled paper; ` +
         `rail reads "${scopeLine()}"`,
     ).to.equal(1);
+
+    // The gallery names the seed, not a count of papers (B116).
+    const heading = graphRoot().querySelector(
+      ".cm-view-gallery-heading",
+    ) as HTMLElement | null;
+    expect(heading, "the gallery's heading").to.exist;
+    expect(
+      heading!.closest(".cm-view-gallery")?.hasAttribute("hidden"),
+      "the gallery is up",
+    ).to.equal(false);
+    expect(heading!.textContent).to.equal(
+      "How do you want to look at this paper?",
+    );
   });
 });

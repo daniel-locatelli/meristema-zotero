@@ -92,7 +92,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           onBlank: () => undefined,
           onImport: () => undefined,
         });
-        gallery.show(15);
+        gallery.show({ shown: 15 });
         return gallery.root;
       },
       (mount) => {

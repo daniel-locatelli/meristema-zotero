@@ -142,6 +142,7 @@ import {
   createSavePanel,
   createTutorialCard,
   createViewGallery,
+  type GalleryScope,
 } from "./graphViewsMenu";
 import type { GraphViewRef } from "./graphViewState";
 import {
@@ -2286,14 +2287,21 @@ export function renderGraphView(
     viewsMenu.setLabel(active.name, edited);
     viewsMenu.setActive(active.id);
   };
+  /** The rail's shown count, split by hop when the graph has seeds (B116). */
+  const galleryScope = (): GalleryScope => ({
+    shown: visibleNodeCount(),
+    ...(hopModel && lastScope
+      ? { byHop: lastScope.shownByHop, direction: hopDirection }
+      : {}),
+  });
   /** The gallery shows once, for a graph that has never chosen and has papers. */
   maybeShowGallery = (): void => {
     if (activeViewRef !== null) return viewGallery.hide();
-    const shown = visibleNodeCount();
-    if (shown > 0) viewGallery.show(shown);
+    const scope = galleryScope();
+    if (scope.shown > 0) viewGallery.show(scope);
     else viewGallery.hide();
   };
-  showGallery = (): void => viewGallery.show(visibleNodeCount());
+  showGallery = (): void => viewGallery.show(galleryScope());
 
   let queuedView: GraphViewDefinition | null = null;
   applyGraphView = (chosen: GraphViewDefinition): void => {
