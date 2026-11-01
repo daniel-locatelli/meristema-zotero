@@ -215,10 +215,6 @@ any failure into a new entry above.
 - [ ] D39: in a fresh graph tab, select a paper: Paper details shows the
       headline counts with Advanced collapsed. Open it and select another
       paper: it stays open.
-- [ ] B113: restart Zotero with a graph tab and a PDF tab open. The graph
-      tab is in the tab bar as soon as the PDF tab is; its graph draws about
-      a second later. Debug output's `Meristema: startup` lines time each
-      step.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -525,3 +521,4 @@ entries are in git history.
   measured on the user's profile (the stores take 1.45 s, and the graph tabs
   waited for them) and fixed: the tabs go up with Zotero's, and a graph's
   draw waits at a gate for the stores.
+- 2026-11-01, later: the user walked B113; it passed.
