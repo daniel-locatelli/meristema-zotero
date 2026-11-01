@@ -202,6 +202,11 @@ opacity grade).
       A (the shoot apex between two leaf primordia), B (a citation tree
       that sprouts), C (phyllotaxis dots), each at 96, 32 and 16px on both
       themes
+      A is built on branch `d5-apex-mark` (not merged) for the UI icons
+      (`network.svg`, `network-section.svg`: menus, tab, pane section,
+      settings). The installer PNGs wait for the pick; this machine has no
+      SVG rasteriser. Its check: the Tools menu, the graph tab and the item
+      pane section show the apex mark on both themes
 - [ ] F3 open, for the user: whether matching may use title+year alone
       Recommendation (2026-11-01): yes for display, never for writes. A
       title and year match may join a library paper to its node on the plot
