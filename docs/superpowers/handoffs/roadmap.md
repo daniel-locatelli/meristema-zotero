@@ -137,6 +137,10 @@ opacity grade).
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
       multi-row opacity are two visual languages for one idea
+      Proposal (2026-11-01): shift-click and a drag box add to a canvas
+      selection; a multi-selection selects the same rows in Zotero's list
+      (the one direction it lacks), and the plot marks every selected paper
+      with the one ring a single selection uses, dropping the opacity
 - [ ] F12 selecting a folder in Zotero activates its region in the graph
       (brainstorm: add or replace, tick or not, which window, the cap)
       Proposed defaults (2026-11-01): add, as a toggle, since a region
@@ -158,6 +162,10 @@ opacity grade).
 
 - [ ] D5 the logo: one mark on both themes that says meristem, replacing the
       blue installer icon and the white UI icon
+      Canvas (2026-11-01): https://claude.ai/artifact/VvZtSZNZCjRY3AUQtqn57w,
+      A (the shoot apex between two leaf primordia), B (a citation tree
+      that sprouts), C (phyllotaxis dots), each at 96, 32 and 16px on both
+      themes
 - [ ] F3 open, for the user: whether matching may use title+year alone
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
