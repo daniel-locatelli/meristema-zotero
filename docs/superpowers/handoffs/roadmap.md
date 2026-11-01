@@ -238,8 +238,8 @@ opacity grade).
       themes
       A is built on branch `d5-apex-mark` (not merged) for the UI icons
       (`network.svg`, `network-section.svg`: menus, tab, pane section,
-      settings). The installer PNGs wait for the pick; this machine has no
-      SVG rasteriser. Its check: the Tools menu, the graph tab and the item
+      settings) and, rendered with Zotero's own engine, the installer PNGs
+      (96 and 48 px, in the plot's greens). Its check: the Tools menu, the graph tab and the item
       pane section show the apex mark on both themes
 - [ ] F3 open, for the user: whether matching may use title+year alone
       Recommendation (2026-11-01): yes for display, never for writes. A
