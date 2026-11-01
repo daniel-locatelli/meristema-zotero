@@ -1686,6 +1686,17 @@ describe("Citation hops (Stage 3)", function () {
           `${JSON.stringify(saved?.state.failedKeys)}; asked ` +
           asked.join(" , "),
       ).to.deep.equal([]);
+
+      // D40: back online, the failure says nothing about the paper, so the
+      // fill asks it again without a press. (It fails again here: every
+      // list request still answers 500.)
+      win.dispatchEvent(new win.Event("online"));
+      expect(
+        await waitFor(() => asked.length > 0, 20_000),
+        `the reconnect asked nothing; line "${progressText()}", ` +
+          `ladder ${ladder()}`,
+      ).to.equal(true);
+      await untilQuiet(() => asked.length, 3_000, 20_000);
     } finally {
       undo();
     }
