@@ -680,6 +680,23 @@ describe("the fill's failures across a reopen (B94)", function () {
     });
   });
 
+  it("asks every failed paper again once the network is back (D40)", async function () {
+    const fake = fakeHost();
+    const runner = createHopFillRunner(fake.host);
+    runner.restoreFailures({ "cited-by": ["a"], references: ["b"] });
+    runner.retryAfterReconnect();
+    expect(runner.failures(), "every direction's failures go").to.deep.equal({
+      "cited-by": [],
+      references: [],
+    });
+    await fake.settle();
+    expect(fake.calls.expanded, "and the plan asks them").to.include("a");
+    expect(
+      fake.calls.savedStateChanged,
+      "the saved graph forgets them",
+    ).to.be.greaterThan(0);
+  });
+
   it("replaces what it held when restored", async function () {
     const fake = fakeHost();
     fake.failing.add("a");
