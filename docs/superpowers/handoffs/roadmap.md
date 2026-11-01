@@ -127,11 +127,22 @@ opacity grade).
 ## Seeds, selection and the detail surfaces
 
 - [ ] F6 seed a paper that is not in Zotero into a new graph
+      2026-11-01 reading: the seed search searches the library only
+      (`seedPopoverList` over `libraryState`), so a blank graph has no way to
+      a paper outside Zotero. Proposal: a query that parses as a DOI and
+      matches no library paper gets one row, "Look up 10.…", which resolves
+      it (OpenAlex, then Crossref) and adds it as an external seed; New
+      Graph › Start blank plus that row is F6, and F9 can share the parser.
+      Title search across providers stays out (request rates, ADR 0013)
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
       multi-row opacity are two visual languages for one idea
 - [ ] F12 selecting a folder in Zotero activates its region in the graph
       (brainstorm: add or replace, tick or not, which window, the cap)
+      Proposed defaults (2026-11-01): add, as a toggle, since a region
+      selection already holds several (F14); tick the folder in Scope so the
+      graph shows what is lit; only the graph tab in front, not detached
+      windows; no cap, as F14 chose
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
