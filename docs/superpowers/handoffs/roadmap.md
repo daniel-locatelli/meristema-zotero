@@ -87,6 +87,18 @@ opacity grade).
       (user, it changes provider request rates, ADR 0013 to 0015): let
       hydration interleave with fill membership, or keep the gaps. Measure
       first, after the manual check below.
+      2026-11-01, code reading after the failed check: a paper can stay
+      "Title unavailable" until the next Refresh, not just wait. One queue
+      run (`runRelationshipMetadataHydrationQueue`) shares a budget of 12
+      one-by-one lookups (`RELATIONSHIP_SUMMARY_BACKGROUND_FALLBACK_LIMIT`)
+      across every batch; past it, a paper the S2 and OpenAlex batches miss
+      is marked attempted and is not queued again this session (only a
+      membership refresh clears the mark). The OpenAlex batch runs only with
+      an API key (`applyOpenAlexBatches`), and an S2 batch's 429 turns off
+      S2's one-by-one lookups, so without a key, or under a 429, Crossref's
+      12 are all that is left for the run. Ask the user: is an OpenAlex key
+      set? Decide: lift the budget for a fill's queue run, or leave a missed
+      paper unmarked so a later run retries it (more requests, ADR 0013).
 
 ## The rail and the Key
 
