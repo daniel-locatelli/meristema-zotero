@@ -151,6 +151,11 @@ export interface ScopeHopsProgress {
   kind: "running" | "refusing" | "rest";
   /** Empty while running: the spinners and the rows' tooltips say it. */
   text: string;
+  /**
+   * At rest only: `{n} failed`, after `text`. Its own field so the rail can
+   * make it the control that shows which papers failed (D40).
+   */
+  failed: string | null;
   /** At rest only: `{n} without details`, on its own line. */
   details: string | null;
   action: "stop" | "resume" | "more" | null;
@@ -447,6 +452,7 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
         names.length === 1
           ? `${names[0]} refusing`
           : `${COUNT_FORMAT.format(names.length)} providers refusing`,
+      failed: null,
       details: null,
       action: "stop",
       actionLabel: "Stop",
@@ -459,6 +465,7 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
       afterHop: input.depth,
       kind: "running",
       text: "",
+      failed: null,
       details: null,
       action: "stop",
       actionLabel: "Stop",
@@ -476,8 +483,8 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
     const parts: string[] = [];
     if (notExpanded > 0)
       parts.push(`${COUNT_FORMAT.format(notExpanded)} not expanded`);
-    if (input.failed > 0)
-      parts.push(`${COUNT_FORMAT.format(input.failed)} failed`);
+    const failed =
+      input.failed > 0 ? `${COUNT_FORMAT.format(input.failed)} failed` : null;
     const details =
       input.lacksDetails > 0
         ? `${COUNT_FORMAT.format(input.lacksDetails)} without details`
@@ -489,11 +496,12 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
         : input.gaveUp > 0
           ? "resume"
           : null;
-    if (parts.length || details) {
+    if (parts.length || failed || details) {
       progress = {
         afterHop: input.depth,
         kind: "rest",
         text: parts.join(" · "),
+        failed,
         details,
         action,
         actionLabel:

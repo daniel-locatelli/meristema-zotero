@@ -2422,6 +2422,17 @@ describe("Citation hops (Stage 3)", function () {
             `hop 1 "${hopRowText(1)}", hop 2 "${hopRowText(2)}"; ` +
             `${drained ? "" : await frameProbe()}; timeline: ${timeline.join(" | ")}`,
         ).to.exist;
+        // D40: the "N failed" in that line is the control that lights the
+        // failed papers, and the line still reads the same.
+        if (drained !== "no progress line") {
+          const failedControl = graphRoot().querySelector(
+            ".cm-scope-hop-progress button.cm-scope-hop-failed",
+          );
+          expect(
+            normalize(failedControl?.textContent),
+            `the line's "failed" is its own control; the line reads "${progressText()}"`,
+          ).to.match(/^\d+ failed$/);
+        }
         // The scenario really ran: each hop-1 paper was asked for its own
         // citers, and none of them was looked up first. That skipped lookup
         // is the hint (externalDiscoveryService.ts:1288-1299) — the call-site

@@ -1541,6 +1541,9 @@ export function renderGraphView(
         : new Set<string>();
       return new Set([emphasis.seedKey, ...reached]);
     }
+    if (emphasis.kind === "failed") {
+      return new Set(hopFill.failures()[hopDirection]);
+    }
     const collectionID = emphasis.collectionID;
     return new Set(
       model.nodes

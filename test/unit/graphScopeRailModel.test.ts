@@ -750,6 +750,7 @@ describe("the Citation hops block", function () {
       afterHop: 2,
       kind: "running",
       text: "",
+      failed: null,
       details: null,
       action: "stop",
       actionLabel: "Stop",
@@ -767,6 +768,7 @@ describe("the Citation hops block", function () {
       afterHop: 2,
       kind: "rest",
       text: `${count(10)} not expanded`,
+      failed: null,
       details: null,
       action: "resume",
       actionLabel: "Resume",
@@ -800,7 +802,8 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(block.progress).to.include({
       kind: "rest",
-      text: `${count(4)} failed`,
+      text: "",
+      failed: `${count(4)} failed`,
       action: "resume",
       actionLabel: "Resume",
     });
@@ -820,7 +823,8 @@ describe("the Citation hops block", function () {
       hopsInput({ failed: 2, gaveUp: 0, fill: atRest }),
     )!.hops!;
     expect(session.progress).to.include({
-      text: `${count(2)} failed`,
+      text: "",
+      failed: `${count(2)} failed`,
       action: null,
     });
   });
@@ -835,7 +839,8 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(block.progress).to.include({
       kind: "rest",
-      text: `${count(180)} not expanded · ${count(12)} failed`,
+      text: `${count(180)} not expanded`,
+      failed: `${count(12)} failed`,
       details: `${count(40)} without details`,
       action: "resume",
     });
@@ -847,7 +852,8 @@ describe("the Citation hops block", function () {
     )!.hops!;
     expect(block.progress).to.include({
       kind: "rest",
-      text: `${count(2)} failed`,
+      text: "",
+      failed: `${count(2)} failed`,
       details: `${count(5)} without details`,
       action: null,
       actionLabel: null,
@@ -875,6 +881,7 @@ describe("the Citation hops block", function () {
       afterHop: 2,
       kind: "refusing",
       text: `${citationDataSourceLabel("semantic-scholar")} refusing`,
+      failed: null,
       details: null,
       action: "stop",
       actionLabel: "Stop",
