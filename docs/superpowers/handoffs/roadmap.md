@@ -110,6 +110,12 @@ opacity grade).
       batch. Unverified hypothesis: an OpenAlex ID merged into another work
       comes back under the new ID, which `byIdentity` keys and the candidate
       then misses; check a Title unavailable node's ID against OpenAlex
+      Only the attempted mark blocks a retry: a record missing its title
+      skips the failure cache's `nextRetryAt` (`basicMetadataMissing` in
+      `hydrateExternalWorksMetadata`). But a retry also needs the paper
+      queued again, which only `queueRelationshipMetadataHydration` does;
+      whether a fill or a view rebuild re-queues it is the measurement to
+      take on the user's profile before choosing the fix
 
 ## The rail and the Key
 
