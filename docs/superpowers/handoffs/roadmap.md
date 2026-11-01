@@ -160,6 +160,11 @@ opacity grade).
       windows; no cap, as F14 chose
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
+      Proposal (2026-11-01): a library paper with no DOI whose match carries
+      one shows "Add DOI 10.…" in Paper details; a confirmed match (DOI or
+      provider ID) writes it on one click, an unconfirmed one (title and
+      year) shows both titles side by side first and writes only on
+      confirm. A typed DOI goes through F6's parser
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
       Paper details keeps its side width, so a 650px window leaves the plot
       about 99px. Brainstorm: shrink Paper details towards Zotero's 320px
@@ -178,6 +183,10 @@ opacity grade).
       that sprouts), C (phyllotaxis dots), each at 96, 32 and 16px on both
       themes
 - [ ] F3 open, for the user: whether matching may use title+year alone
+      Recommendation (2026-11-01): yes for display, never for writes. A
+      title and year match may join a library paper to its node on the plot
+      (marked unconfirmed, as F9's case), but nothing is written to Zotero
+      from it without the reader's confirm
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
