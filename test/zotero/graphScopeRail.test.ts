@@ -597,4 +597,22 @@ describe("The graph's Scope rail", function () {
     );
     expect(graphRoot().querySelector(".cm-scope-hidden")).to.equal(null);
   });
+
+  it("scrolls the rail as one box, with Scope at full height (B117)", function () {
+    const body = graphRoot().querySelector(".cm-key-body") as HTMLElement;
+    expect(body, "the rail body").to.exist;
+    expect(body.querySelector(".cm-scope-rows"), "the Scope rows are drawn").to
+      .exist;
+    const view = body.ownerDocument.defaultView as any;
+    const scrollers = (
+      Array.from(body.querySelectorAll("*")) as HTMLElement[]
+    ).filter((el) =>
+      ["auto", "scroll"].includes(view.getComputedStyle(el).overflowY),
+    );
+    expect(
+      scrollers.map((el) => el.className),
+      "boxes that scroll inside the rail body",
+    ).to.deep.equal([]);
+    expect(view.getComputedStyle(body).overflowY).to.equal("auto");
+  });
 });

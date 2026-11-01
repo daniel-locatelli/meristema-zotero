@@ -1774,12 +1774,11 @@
   color: CanvasText;
   font-weight: 700;
 }
+/* The folder rows take their full height: the rail body is the one box that
+   scrolls, so a short window shows one scroll bar, not two (B117). */
 .cm-scope-rows {
   display: grid;
-  max-height: 40vh;
   margin-top: 8px;
-  overflow: auto;
-  overscroll-behavior: contain;
 }
 /*
  * A folder row is indented one step per level of depth, and a guide runs
