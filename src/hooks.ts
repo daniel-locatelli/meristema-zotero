@@ -8,6 +8,8 @@ import {
   initExternalWorkCache,
 } from "./services/externalWorkCacheService";
 import { closePluginDatabase } from "./services/pluginDatabase";
+import { markStartup } from "./services/startupTiming";
+import { setGraphStartupGate } from "./services/graphStartupGate";
 import {
   startProviderResponseCache,
   stopProviderResponseCache,
@@ -331,25 +333,33 @@ function beginTeardown(closeGraphTab = true): void {
 async function onStartup(): Promise<void> {
   teardownStarted = false;
   addon.data.alive = true;
+  markStartup("begins");
   await Promise.all([Zotero.initializationPromise, Zotero.unlockPromise]);
-  // Restored Meristema tabs can render during UI restoration. Initialize
-  // both persistent stores before waiting for uiReady so no restored tab can
-  // read from, or write to, an uninitialized external-work cache.
-  await Promise.all([initCitationMetricsStore(), initExternalWorkCache()]);
-  startExternalDiscoveryRuntime();
-  startProviderResponseCache();
-  installUpdateRefreshListener();
-  registerLibrarySnapshotInvalidation();
+  markStartup("Zotero initialized");
+  // The stores take over a second on a large cache (B113: 1.45 s for 47,793
+  // works), so the graph tabs do not wait for them: a graph's draw does,
+  // through the gate, and so does everything below that uses them.
+  const stores = (async () => {
+    await Promise.all([initCitationMetricsStore(), initExternalWorkCache()]);
+    markStartup("stores loaded");
+    startExternalDiscoveryRuntime();
+    startProviderResponseCache();
+    installUpdateRefreshListener();
+    registerLibrarySnapshotInvalidation();
+  })();
+  setGraphStartupGate(stores);
   await Zotero.uiReadyPromise;
+  markStartup("Zotero UI ready");
   for (const win of Zotero.getMainWindows()) await onMainWindowLoad(win);
+  markStartup("main window set up");
   // A quit while the graph tabs come back must still keep their records.
   if (!quitObserverInstalled) {
     Services.obs.addObserver(quitObserver, "quit-application-granted");
     quitObserverInstalled = true;
   }
-  // The graph tabs come back with Zotero's own (B108): a graph needs the
-  // stores, the window's tab hooks, styles and strings, all in place by
-  // now, and nothing the registrations below add.
+  // The graph tabs come back with Zotero's own (B108, B113): a tab needs
+  // the window's tab hooks, styles and strings, all in place by now, and
+  // its draw waits at the gate for the stores.
   const [firstWindow] = Zotero.getMainWindows();
   if (firstWindow) {
     void onRestoreGraphTabs(firstWindow).catch((error: unknown) =>
@@ -358,28 +368,33 @@ async function onStartup(): Promise<void> {
       ),
     );
   }
+  await stores;
   await registerCitationColumns();
   registerCitationItemPane();
   await registerPreferencePane();
   registerMenus();
   registerAutomaticCitationUpdates();
   addon.data.initialized = true;
-  Zotero.debug("Meristema: startup completed");
+  markStartup("completed");
 }
 
 /**
  * Reopens the graph tabs the last session left open (F15). Startup calls it
  * once, for the first main window; the Zotero suite calls it to stand in for
- * a restart.
+ * a restart, with `storesLoading` standing in for stores still loading
+ * (B113).
  */
-function onRestoreGraphTabs(win: _ZoteroTypes.MainWindow): Promise<void> {
+function onRestoreGraphTabs(
+  win: _ZoteroTypes.MainWindow,
+  storesLoading?: Promise<void>,
+): Promise<void> {
+  if (storesLoading) setGraphStartupGate(storesLoading);
   return restoreOpenGraphTabs(win);
 }
 
 async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
-  // This hook can race startup during session restoration. The initializers
-  // are idempotent and ensure the graph never observes an empty cache mirror.
-  await Promise.all([initCitationMetricsStore(), initExternalWorkCache()]);
+  // A graph drawn in this window waits for the stores at the gate, so the
+  // window's hooks go in without them (B113).
   // Install the custom tab hook immediately. Zotero may restore saved tabs
   // before the user has ever opened Meristema in this session.
   try {

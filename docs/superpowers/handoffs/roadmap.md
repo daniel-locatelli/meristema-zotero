@@ -141,8 +141,6 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] B113 on restart, PDF tabs show at once while graph tabs take a while
-      to come up (B109's draw order itself passed)
 - [ ] B114 the node menu's Add to Zotero… reads as doing nothing: the focus
       handoff to the pane's button is invisible. Make it open the pane's
       collection picker directly, or show where it went
@@ -217,6 +215,10 @@ any failure into a new entry above.
 - [ ] D39: in a fresh graph tab, select a paper: Paper details shows the
       headline counts with Advanced collapsed. Open it and select another
       paper: it stays open.
+- [ ] B113: restart Zotero with a graph tab and a PDF tab open. The graph
+      tab is in the tab bar as soon as the PDF tab is; its graph draws about
+      a second later. Debug output's `Meristema: startup` lines time each
+      step.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -227,8 +229,8 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-10-21 at `918630e`
-(130/0), so count with the commits since `918630e`. A clean run is 130
+runs alone under a temporary `describe.only`. Last full run: 2026-11-01 at `96578b4`
+(130/0), so count with the commits since `96578b4`. A clean run is 130
 cases as of 2026-10-21. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
@@ -519,3 +521,7 @@ entries are in git history.
   its id stays, since saved graphs reference it.
 - 2026-11-01, later: D39 shipped: Advanced starts collapsed, and stays as
   the reader leaves it across papers.
+- 2026-11-01, later: full suite 130/0 at `96578b4`; D39's cases pass. B113
+  measured on the user's profile (the stores take 1.45 s, and the graph tabs
+  waited for them) and fixed: the tabs go up with Zotero's, and a graph's
+  draw waits at a gate for the stores.

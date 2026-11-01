@@ -18,6 +18,7 @@ const SAVED_KEY = "meristema-f15-saved";
 const SAVED_NAME = "F15 saved graph";
 const KEPT_KEY = "meristema-b110-kept";
 const UNSELECTED_KEY = "meristema-b110-unselected";
+const GATED_KEY = "meristema-b113-gated";
 
 function shown(popup: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -88,6 +89,7 @@ describe("Graph tabs after a restart (F15)", function () {
       SAVED_KEY,
       KEPT_KEY,
       UNSELECTED_KEY,
+      GATED_KEY,
     ]) {
       try {
         if (id && win.Zotero_Tabs.getTabInfo(id)) win.Zotero_Tabs.close(id);
@@ -98,7 +100,13 @@ describe("Graph tabs after a restart (F15)", function () {
     if (savedGraphID !== null) await deleteSavedGraph(savedGraphID);
     // The plugin drops the closed tabs' records a moment later.
     await waitFor(async () => {
-      for (const key of [SCRATCH_KEY, SAVED_KEY, KEPT_KEY, UNSELECTED_KEY]) {
+      for (const key of [
+        SCRATCH_KEY,
+        SAVED_KEY,
+        KEPT_KEY,
+        UNSELECTED_KEY,
+        GATED_KEY,
+      ]) {
         if (await record(key)) return false;
       }
       return true;
@@ -347,5 +355,53 @@ describe("Graph tabs after a restart (F15)", function () {
     expect(win.Zotero_Tabs.selectedID, "the library tab").to.equal(
       "zotero-pane",
     );
+  });
+
+  it("puts a graph tab back before the stores load, and draws it after (B113)", async function () {
+    this.timeout(30_000);
+    const libraryID = Zotero.Libraries.userLibraryID;
+    const stopped = { ...emptyGraphViewState(), fillStopped: true };
+    win.Zotero_Tabs.select("zotero-pane");
+    await putOpenGraphTabs([
+      {
+        key: GATED_KEY,
+        libraryID,
+        position: 1,
+        selected: true,
+        savedGraphID: null,
+        title: "B113 gated",
+        customTitle: true,
+        titleCollectionIDs: null,
+        state: { ...stopped, title: "B113 gated" },
+      },
+    ]);
+    let storesLoaded!: () => void;
+    const storesLoading = new Promise<void>((resolve) => {
+      storesLoaded = resolve;
+    });
+    const mounted = (): boolean =>
+      Boolean(
+        (
+          win.Zotero_Tabs.getTabContent(GATED_KEY) as HTMLElement | null
+        )?.querySelector("canvas"),
+      );
+    const restoring = (Zotero as any)[
+      config.addonInstance
+    ].hooks.onRestoreGraphTabs(win, storesLoading) as Promise<void>;
+    try {
+      expect(
+        await waitFor(() => win.Zotero_Tabs.getTabInfo(GATED_KEY), 5_000),
+        "the tab is back while the stores still load",
+      ).to.exist;
+      await delay(1_000);
+      expect(mounted(), "and its graph waits for them").to.equal(false);
+    } finally {
+      storesLoaded();
+    }
+    await restoring;
+    expect(
+      await waitFor(() => mounted(), 20_000),
+      "the graph draws once the stores are in",
+    ).to.equal(true);
   });
 });

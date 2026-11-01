@@ -40,7 +40,8 @@ import {
   type OpenGraphTabRecord,
 } from "./openGraphTabStore";
 import { createFrameOrTimer } from "./frameOrTimer";
-import { loadWholeLibrary } from "./zoteroLibraryService";
+import { loadWholeLibrary as loadLibrarySnapshot } from "./zoteroLibraryService";
+import { whenGraphsCanDraw } from "./graphStartupGate";
 import {
   installDataSourceHoverTooltips,
   uninstallDataSourceHoverTooltips,
@@ -58,6 +59,7 @@ import {
 } from "./graphInstancePolicy";
 import { getAvailableCitationLibraries } from "./citationLibraryService";
 import { scaledFontSize } from "./zoteroFontSize";
+import { markStartup } from "./startupTiming";
 
 const TAB_TYPE = config.addonRef;
 const TAB_STATE_FILTER_MARKER = "__meristemaStateFilterInstalled";
@@ -654,7 +656,9 @@ export async function restoreOpenGraphTabs(
   win: _ZoteroTypes.MainWindow,
 ): Promise<void> {
   openGraphTabsFrozen = false;
+  markStartup("graph tab restore begins");
   const records = await listOpenGraphTabs();
+  markStartup(`graph tab records read (${records.length})`);
   if (!records.length) {
     openGraphTabsRead = true;
     return;
@@ -669,6 +673,7 @@ export async function restoreOpenGraphTabs(
   )) {
     if (tab) prepared.set(tab.instanceID, tab);
   }
+  markStartup("graph tabs prepared");
   const manager = tabs(win);
   const plan = planOpenGraphTabRestore(
     records.filter((record) => prepared.has(record.key)),
@@ -681,6 +686,7 @@ export async function restoreOpenGraphTabs(
       reportAsyncError("Meristema: restoring a graph tab failed", error);
     }
   }
+  markStartup("graph tabs placed");
   // Until now a write kept every record; from here the tabs are all up, and
   // records that did not come back are dropped.
   openGraphTabsRead = true;
@@ -698,6 +704,7 @@ export async function restoreOpenGraphTabs(
       selected.dirty = false;
       manager.select(selected.tabID);
       await refreshGraphInstance(win, selected);
+      markStartup("selected graph tab drawn");
     }
   } finally {
     void drawRestoredTabsInBackground(
@@ -711,6 +718,15 @@ export async function restoreOpenGraphTabs(
       ),
     );
   }
+}
+
+/**
+ * The library a graph draws, once the plugin's stores are in (B113): the
+ * graph tabs go up before they finish loading, and every draw passes here.
+ */
+async function loadWholeLibrary(libraryID: number): Promise<LibrarySnapshot> {
+  await whenGraphsCanDraw();
+  return loadLibrarySnapshot(libraryID);
 }
 
 /** The pause between two restored tabs drawn in the background. */
