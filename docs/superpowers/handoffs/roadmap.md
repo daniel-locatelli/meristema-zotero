@@ -119,6 +119,10 @@ opacity grade).
       rows (Link, Reference, Cited by) on a channel the reader cannot use
       2026-10-07 walk: a seed with many citers piles the nodes up into a mess
       that says nothing; the nodes need the same answer as the edges (B89)
+      Canvas (2026-11-01): https://claude.ai/artifact/Y5C4TfGMGbNh4ZP9YQ8o9U,
+      Now beside A (no edges past a density, focus edges only), B (every
+      edge at the dimmed strength, focus at full), C (the seeds' edges and
+      focus only)
 
 ## Seeds, selection and the detail surfaces
 
@@ -134,6 +138,10 @@ opacity grade).
       Paper details keeps its side width, so a 650px window leaves the plot
       about 99px. Brainstorm: shrink Paper details towards Zotero's 320px
       minimum, auto-collapse it, or stack it
+      Canvas (2026-11-01): https://claude.ai/artifact/Rrdd91oRmMdLewy1pJqsna,
+      a 650px tab: Now (plot 99), A (pane to 320, plot 130), B (pane folds
+      below a plot floor), C (pane stacked under the plot, as Zotero does),
+      D (pane as a drawer over the plot), E (the rail folds first)
 
 ## Other
 
@@ -148,7 +156,7 @@ opacity grade).
 - [ ] Architecture candidates 3 to 5 from the 2026-09-13 pass (state, then
       plot, then chrome; the rail's inputs from their owners; the focus
       vocabulary rename) wait for a decision; 3 is large and comes after Stage
-      4's spec. Left from the same pass: M13 (behaviour, needs a brainstorm), N2 (suite dependency)
+      4's spec. Left from the same pass: N2 (suite dependency, a note for triage)
 
 ## From the 2026-11-01 walk
 
@@ -567,3 +575,7 @@ entries are in git history.
   no literal 500 left to contradict.
 - 2026-11-01, later: full suites 133/0 (before D36) and 135/0 at `855e7fd`.
   D36's Seed ring has a canvas of three directions. Not pushed.
+- 2026-11-01, later: M13 closes as obsolete. D12 folded the per-hop cap line
+  into one block-wide line, which `ScopeHopsProgress.afterHop` documents as
+  following the deepest open hop. Canvases for D10, D13 and D23 linked from
+  their entries, and a proposal for D40.
