@@ -66,6 +66,8 @@ describe("The node menu on an external paper (F5)", function () {
   let graphID: number | null = null;
   let fixtureID: number | null = null;
   let liveRequest: any = null;
+  /** While set, provider requests wait on it, so an update stays running. */
+  let hold: Promise<void> | null = null;
 
   before(async function () {
     this.timeout(30_000);
@@ -80,6 +82,7 @@ describe("The node menu on an external paper (F5)", function () {
         return liveRequest.call(Zotero.HTTP, method, url, options);
       }
       await delay(0);
+      if (hold) await hold;
       return { status: 404, responseText: "", getResponseHeader: () => null };
     };
     // A graph opens on a library; give it a paper to stand on.
@@ -286,5 +289,58 @@ describe("The node menu on an external paper (F5)", function () {
       freed,
       `the pane's button is enabled once the update ends${replaced ? " (the view was remounted mid-update, so this is vacuous)" : ""}`,
     ).to.exist;
+  });
+
+  it("keeps the update disabled in a view remounted while it runs (B112)", async function () {
+    this.timeout(120_000);
+    const doc = win.document as Document;
+    const liveUpdate = (): HTMLButtonElement | null =>
+      (
+        Array.from(
+          doc.querySelectorAll(
+            ".meristema-root .cm-detail-body .cm-detail-actions button",
+          ),
+        ) as HTMLButtonElement[]
+      ).find((button) => button.textContent?.trim() === UPDATE) ?? null;
+    // An item to erase: a removal remounts every open graph view. Its save
+    // may redraw the pane, so the button is found after it settles.
+    const doomed = new Zotero.Item("journalArticle");
+    doomed.setField("title", "B112 removal fixture");
+    const doomedID = await doomed.saveTx();
+    await delay(1_000);
+    const before = await waitFor(() => {
+      const button = liveUpdate();
+      return button && !button.disabled ? button : null;
+    }, 30_000);
+    expect(before, "the previous case's update has ended").to.exist;
+    const oldRoot = before!.closest(".meristema-root")!;
+
+    let release!: () => void;
+    hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    try {
+      before!.click();
+      expect(before!.disabled, "the update runs").to.equal(true);
+      await Zotero.Items.erase(doomedID);
+      const remounted = await waitFor(() => {
+        const button = liveUpdate();
+        return !oldRoot.isConnected && button ? button : null;
+      }, 30_000);
+      expect(remounted, "the removal remounts the view, on the same paper").to
+        .exist;
+      expect(
+        remounted!.disabled,
+        "the remounted view shows the running update disabled",
+      ).to.equal(true);
+    } finally {
+      release();
+      hold = null;
+    }
+    const freed = await waitFor(() => {
+      const button = liveUpdate();
+      return button && !button.disabled ? button : null;
+    }, 30_000);
+    expect(freed, "and enables it once the update ends").to.exist;
   });
 });

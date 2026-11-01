@@ -124,10 +124,6 @@ opacity grade).
       multi-row opacity are two visual languages for one idea
 - [ ] F12 selecting a folder in Zotero activates its region in the graph
       (brainstorm: add or replace, tick or not, which window, the cap)
-- [ ] B112 a library change remounts the graph view while a paper's
-      connections update runs: the new view shows Update this paper's
-      connections enabled, so a second click fetches again. Fix with running
-      updates kept per library and node key outside the view (F5 review)
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
@@ -217,6 +213,9 @@ any failure into a new entry above.
       too once a default is stored). Graph display settings… opens the gear,
       also with the rail collapsed (the rail opens first); Reset this graph
       undoes a gear edit. The gear's own foot buttons still work.
+- [ ] B112: on an external paper, press Update this paper's connections, and
+      while it runs delete any item in the library: the graph redraws, and
+      the button stays disabled until the update ends.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -546,3 +545,6 @@ entries are in git history.
   (and the heavy ring it alone used); the Seed ring's redesign stays open.
 - 2026-11-01, later: D35 shipped. View gains a second group with the gear's
   actions (`GraphDisplayActions`); the gear keeps its foot buttons.
+- 2026-11-01, later: B112 shipped. Running connection updates live outside
+  the view (`connectionUpdates.ts`), by library and node key; a remounted
+  view reads them and redraws when the update ends.

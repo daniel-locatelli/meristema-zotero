@@ -305,6 +305,10 @@ import {
   type ZoteroPaneState,
 } from "./zoteroPaneSync";
 import { followZoteroFontSize } from "./zoteroFontSize";
+import {
+  runningConnectionUpdate,
+  startConnectionUpdate,
+} from "./connectionUpdates";
 
 export type GraphFocusResult = "selected" | "revealed" | "not-found";
 
@@ -3737,12 +3741,11 @@ ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
-  /**
-   * Running connection updates, by node key (F5). The pane's button and the
-   * node menu's entry both start updates here and both read it, so the two
-   * share one disabled state and a second request starts no second fetch.
-   */
-  const connectionUpdates = new Map<string, Promise<void>>();
+  /** Whether a connection update runs for this paper, in any view (B112). */
+  const updatingConnections = (node: CitationGraphNode): boolean =>
+    runningConnectionUpdate(snapshot.libraryID, node.key) !== undefined;
+  /** Papers whose running update this view already waits on. */
+  const followedConnectionUpdates = new Set<string>();
   /** The overview's Update button, while the overview shows one. */
   let overviewUpdateButton: { key: string; button: HTMLButtonElement } | null =
     null;
@@ -3754,12 +3757,42 @@ ${error instanceof Error ? error.message : String(error)}`,
     overviewUpdateButton?.key === node.key &&
     overviewUpdateButton.button.isConnected;
 
+  /**
+   * Redraws what depends on this paper's connections once its update ends.
+   * The view that started the update and one remounted while it runs both
+   * wait on it, each redrawing itself (B112).
+   */
+  function followConnectionUpdate(
+    node: CitationGraphNode,
+    run: Promise<boolean>,
+  ): void {
+    if (followedConnectionUpdates.has(node.key)) return;
+    followedConnectionUpdates.add(node.key);
+    void run
+      .then((succeeded) => {
+        followedConnectionUpdates.delete(node.key);
+        if (cleaned) return;
+        if (succeeded && hopModel?.entries.has(node.key)) {
+          rebuildCurrentFocus();
+        }
+        // Only when the pane still shows this paper's overview: an update
+        // started from the menu must not pull the pane back from another one.
+        if (paneShowsUpdateFor(node)) renderOverview(node);
+      })
+      .catch((error: unknown) => {
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      });
+  }
+
   /** Fetch both directions of one paper's connections again, then redraw what depends on them. */
-  function updatePaperConnections(node: CitationGraphNode): Promise<void> {
-    const running = connectionUpdates.get(node.key);
+  function updatePaperConnections(node: CitationGraphNode): Promise<boolean> {
+    const libraryID = snapshot.libraryID;
+    const running = runningConnectionUpdate(libraryID, node.key);
     if (running) return running;
     if (paneShowsUpdateFor(node)) overviewUpdateButton!.button.disabled = true;
-    const run = (async () => {
+    const run = startConnectionUpdate(libraryID, node.key, async () => {
       for (const direction of ["references", "cited-by"] as const) {
         await refreshExternalRelationships(
           node,
@@ -3785,27 +3818,10 @@ ${error instanceof Error ? error.message : String(error)}`,
           scheduleFocusTask(resolve, 0);
         });
       }
-    })()
-      .then(() => {
-        // Out of the map first, so the re-rendered pane button is enabled.
-        connectionUpdates.delete(node.key);
-        invalidateHopFragment(snapshot.libraryID, node.key);
-        if (!cleaned && hopModel?.entries.has(node.key)) rebuildCurrentFocus();
-        // Only when the pane still shows this paper's overview: an update
-        // started from the menu must not pull the pane back from another one.
-        if (!cleaned && paneShowsUpdateFor(node)) renderOverview(node);
-      })
-      // A failed fetch or a failed redraw: either way the update has ended.
-      .catch((error: unknown) => {
-        connectionUpdates.delete(node.key);
-        Zotero.logError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-        if (paneShowsUpdateFor(node)) {
-          overviewUpdateButton!.button.disabled = false;
-        }
-      });
-    connectionUpdates.set(node.key, run);
+      // The cache is shared, so a view remounted meanwhile reads it too.
+      invalidateHopFragment(libraryID, node.key);
+    });
+    followConnectionUpdate(node, run);
     return run;
   }
 
@@ -3913,7 +3929,10 @@ ${error instanceof Error ? error.message : String(error)}`,
       update.type = "button";
       update.textContent = UPDATE_CONNECTIONS_LABEL;
       update.title = UPDATE_CONNECTIONS_TITLE;
-      update.disabled = connectionUpdates.has(node.key);
+      const running = runningConnectionUpdate(snapshot.libraryID, node.key);
+      update.disabled = running !== undefined;
+      // Started by a view this one replaced: redraw when it ends (B112).
+      if (running) followConnectionUpdate(node, running);
       update.addEventListener("click", () => {
         if (!update.disabled) void updatePaperConnections(node);
       });
@@ -4026,7 +4045,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       kind: node.kind === "external" ? "external" : "library",
       inLibrary: localItemFor(node) !== null,
       isSeed,
-      updating: connectionUpdates.has(node.key),
+      updating: updatingConnections(node),
     });
     const listed = new Set<NodeMenuEntryId>();
     for (const entry of entries) {
