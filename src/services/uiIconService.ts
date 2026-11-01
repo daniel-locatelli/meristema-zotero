@@ -113,7 +113,7 @@ const ICON_PATHS: Record<IconName, string[]> = {
     "M4 19h16v1.5H4V19Z",
     "M6.5 15.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6-3a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm6-4a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
   ],
-  // Cornerstones: one large disc with two hops fanning out.
+  // References (id cornerstones): one large disc with two hops fanning out.
   "view-cornerstones": [
     "M6 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z",
     "M8 9.5l6-2 .5 1.4-6 2-.5-1.4Zm0 1l6 3-.6 1.3-6-3 .6-1.3Z",

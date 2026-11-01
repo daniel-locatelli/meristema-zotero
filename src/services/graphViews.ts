@@ -102,7 +102,8 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   },
   {
     id: "cornerstones",
-    name: "Cornerstones",
+    // The id predates the name; saved graphs reference it (D38).
+    name: "References",
     summary:
       "Seeds, 2 hops of references, floor 10, colour citations. What the field rests on.",
     paragraph:
@@ -118,7 +119,7 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "impact",
     name: "Impact",
-    // Cornerstones' other direction (F16, 2026-10-15). It carries floor 0 and
+    // References' other direction (F16, 2026-10-15). It carries floor 0 and
     // shared 1, so a floor or a shared rule left by another view cannot thin
     // out the citers, the youngest of which have few citations of their own.
     summary:

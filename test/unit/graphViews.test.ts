@@ -147,6 +147,8 @@ describe("the shipped views", function () {
     )!;
     expect(cornerstones.availability).to.equal("ready");
     expect(graphViewAvailabilityLine(cornerstones)).to.equal(null);
+    // D38: the id predates the name; saved graphs reference it.
+    expect(cornerstones.name).to.equal("References");
   });
 
   it("names what a greyed view waits on, and what a view needs", function () {

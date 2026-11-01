@@ -168,9 +168,6 @@ opacity grade).
       which needs no key
 - [ ] D37 the gallery cards' description and tags ("Needs a seed") are too
       small to read (D34)
-- [ ] D38 rename the Cornerstones view to References (`graphViews.ts:105`).
-      Mind F16's view for the other direction and the References direction
-      name
 - [ ] D39 Paper details' Advanced section starts collapsed
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
@@ -215,6 +212,9 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
+- [ ] D38: the Views gallery and menu name the references view References,
+      not Cornerstones. A graph saved under Cornerstones before the rename
+      opens on it, still marked as that view.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -513,3 +513,5 @@ entries are in git history.
   sources, read off the paper shown rather than matched by title. B81's
   question (where the count's source shows) is answered by it. Not pushed.
 - 2026-11-01, later: the user walked B118 and D41; both passed.
+- 2026-11-01, later: D38 shipped: the Cornerstones view is named References;
+  its id stays, since saved graphs reference it.
