@@ -130,6 +130,9 @@ opacity grade).
       Now beside A (no hop channel; the Citation hop colouring tells it), B
       (size by hop), C (fill, thick ring, thin ring; but a ring already
       means not in Zotero), D (a steeper ramp, 1, .55, .25)
+      A is built on branch `d10-no-ramp-under-hop-colouring` (not merged):
+      `hopOpacityUnder`, unit-tested; graphVisual 12/0. Its check: colour by
+      Citation hop on a filled graph, and every hop draws at full ink
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
