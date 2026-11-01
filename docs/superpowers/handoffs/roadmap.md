@@ -314,8 +314,11 @@ opacity grade).
   Full Zotero runs there: 129/11 (the known Stage 3 ladder flake, 23/0
   alone), then 139/1 twice, each a different case a remount breaks (F6's,
   since made to retry; D15's toast, 15/0 alone). Main's runs that night
-  were clean, so check whether the merged branches remount more before
-  merging them. Its XPI was built aside, not over main's.
+  were clean. No branch adds a remount trigger (only removals and library
+  refreshes remount); the extra cases shift when an earlier erase's
+  delayed refresh lands. D15's case now copies again on a remounted view,
+  on main, and the fourth run at `33ddf3e` read 140/0. Its XPI is built
+  aside, not over main's.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
