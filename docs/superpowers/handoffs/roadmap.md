@@ -99,6 +99,17 @@ opacity grade).
       12 are all that is left for the run. Ask the user: is an OpenAlex key
       set? Decide: lift the budget for a fill's queue run, or leave a missed
       paper unmarked so a later run retries it (more requests, ADR 0013).
+      2026-11-01, later: the user's profile has an OpenAlex key, so the
+      OpenAlex batch runs. Narrower than a miss: the queue marks every key it
+      takes as attempted before the fetch (`markRelationshipMetadataAttempted`
+      in the batch loop), and `applyOpenAlexBatches` drops a batch whose
+      response is not ok, so one 429 or failed batch (up to 50 papers) stays
+      Title unavailable until Refresh. Proposal: unmark only the works of a
+      batch that failed (no answer), not those a provider answered without;
+      that retries what was never asked, within ADR 0013's one request per
+      batch. Unverified hypothesis: an OpenAlex ID merged into another work
+      comes back under the new ID, which `byIdentity` keys and the candidate
+      then misses; check a Title unavailable node's ID against OpenAlex
 
 ## The rail and the Key
 
