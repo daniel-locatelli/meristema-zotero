@@ -141,9 +141,6 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] B115 a Seeds row click jumps to the seed with no glide (B105). Check
-      first whether Windows' animation effects are off on that machine
-      (`prefers-reduced-motion`), which jumps by design
 - [ ] B116 a new graph on one paper that an earlier graph had filled opens
       the gallery on "How do you want to look at these 182 papers?", as if
       the earlier graph's hop 1 were already in it
@@ -519,3 +516,7 @@ entries are in git history.
 - 2026-11-01, later: the user walked D38 and D39; both passed. B114 shipped:
   the node menu's Add to Zotero… opens the pane's collection chooser.
 - 2026-11-01, later: full suite 131/0 at `da42a98`; B114's case passes.
+- 2026-11-01, later: B115 closed, by design. A probe in the suite read
+  `prefers-reduced-motion: reduce` in Zotero on the user's machine (Windows'
+  Animation effects off, `MinAnimate` 0), and the camera took the jump branch
+  of `glideTo`. With animations on, the glide runs as B105 shipped it.
