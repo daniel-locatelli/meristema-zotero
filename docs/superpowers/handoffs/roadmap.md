@@ -172,6 +172,15 @@ opacity grade).
       selection; a multi-selection selects the same rows in Zotero's list
       (the one direction it lacks), and the plot marks every selected paper
       with the one ring a single selection uses, dropping the opacity
+      Built on branch `f10-multi-select-follows-zotero` (not merged): a
+      Shift-, Ctrl- or Cmd-click toggles a paper in the graph's
+      multi-selection (from the selected one), drawn with the existing
+      multi-row emphasis, and Zotero's list selects the set; a plain click
+      ends it. No drag box, and the ring-versus-opacity question stays open.
+      Selection suite 2/0 three times (one run lost the first, older case
+      to a pointer outside the window). Its check: with the library shown,
+      click a paper in the graph, Shift-click two more, and Zotero's list
+      holds all three
 - [ ] F12 selecting a folder in Zotero activates its region in the graph
       (brainstorm: add or replace, tick or not, which window, the cap)
       Proposed defaults (2026-11-01): add, as a toggle, since a region
