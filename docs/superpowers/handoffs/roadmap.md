@@ -143,6 +143,12 @@ opacity grade).
       Now beside A (no edges past a density, focus edges only), B (every
       edge at the dimmed strength, focus at full), C (the seeds' edges and
       focus only)
+      Found (2026-11-01): the mesh already fades with the count
+      (`edgeBaseOpacity`: full below 240 edges, a 0.3 floor above 3,200, on
+      a base ink at .32), so B is close to what ships. A is built on branch
+      `d13-hide-unlit-edges-when-dense` (not merged): past 3,200 edges only
+      the selection's and the seed links draw. Its check: on a graph that
+      big, the mesh is gone and clicking a paper draws its edges
 
 ## Seeds, selection and the detail surfaces
 
