@@ -624,6 +624,25 @@ describe("The graph's Scope rail", function () {
           getResponseHeader: () => null,
         };
       }
+      // Crossref answers the DOI too: a Semantic Scholar an earlier suite
+      // left sitting out is skipped, and the lookup falls back to Crossref.
+      if (
+        decodeURIComponent(url).toLowerCase() ===
+        `https://api.crossref.org/works/${doi}`
+      ) {
+        return {
+          status: 200,
+          responseText: JSON.stringify({
+            message: {
+              DOI: doi,
+              title: [title],
+              author: [{ family: "Lovelace", given: "Ada" }],
+              issued: { "date-parts": [[2001]] },
+            },
+          }),
+          getResponseHeader: () => null,
+        };
+      }
       return { status: 404, responseText: "", getResponseHeader: () => null };
     };
     // The stub answers the fixtures' own background updates too, and what
