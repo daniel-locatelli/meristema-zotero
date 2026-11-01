@@ -246,6 +246,12 @@ opacity grade).
       title and year match may join a library paper to its node on the plot
       (marked unconfirmed, as F9's case), but nothing is written to Zotero
       from it without the reader's confirm
+      Today (read 2026-11-01): the exact-title fallback is on by default
+      (`exactTitleFallback`, true in `addon/prefs.js`), its matches carry
+      `matchConfirmed: false` and the "Match needs confirmation" badge, and
+      nothing writes to Zotero from them; F9's branch keeps that, asking
+      for a confirm before it writes a title match's DOI. So the
+      recommendation is the shipped behaviour plus F9: a yes closes F3
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
 - [ ] B38 the region border grows a tip toward a neighbour just before two
