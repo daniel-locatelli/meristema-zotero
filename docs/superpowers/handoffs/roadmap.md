@@ -207,9 +207,9 @@ opacity grade).
       confirm. A typed DOI goes through F6's parser
       Built on branch `f9-add-matched-doi` (not merged): `doiOffer` (unit
       tests) and the Paper details section, written only on the reader's
-      press. No Zotero case: seeding a match record the plugin's own copy
-      reads needs a served citation update. Selection and visual suites
-      13/0. Its check: a library paper with an empty DOI field that the
+      press. Its Zotero case (`doiOffer.test.ts`) draws a real item with a
+      title match in the harness: evidence first, nothing written before
+      the press, the DOI written on Confirm. Its check: a library paper with an empty DOI field that the
       plugin matched shows "This item has no DOI"; Add (or Confirm and add)
       writes it, and Zotero's Info pane shows the DOI
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
@@ -299,8 +299,9 @@ opacity grade).
       The retry half is on branch `d40-retry-after-reconnect` (not merged):
       on the window's `online` event, unless the fill is stopped, every
       failed paper is asked again (`retryAfterReconnect`, unit-tested);
-      this reverses B94 for failures, so it is the user's call. Hops suite
-      23/0. Its check: fill offline, reconnect, and without pressing
+      this reverses B94 for failures, so it is the user's call. The B94
+      case fires `online` and sees the failure asked again (red with the
+      listener removed); hops suite 23/0. Its check: fill offline, reconnect, and without pressing
       anything the failed count falls as the papers fill
 - B81's check retires: Paper details no longer shows a Citations row, only
   the Cited by tab (`Cited by (n reported)`), so the count's source is shown
