@@ -76,6 +76,8 @@ export interface RendererSceneContext {
   labelRankFor(key: string): number;
   ghostPreview: GhostPreview | null;
   layoutNodes(): CitationGraphNode[];
+  /** The nodes the axes fit: the frame, else the whole model (B118). */
+  frameNodes(): CitationGraphNode[];
   visibleNodes(): CitationGraphNode[];
   isNodeGhosted(node: CitationGraphNode): boolean;
   axisScale(
@@ -658,10 +660,12 @@ export function projectRendererPositions(
 ): void {
   // Filters must not change the graph's coordinate system. Project every
   // local node so a selected paper keeps exactly the position it had before
-  // being filtered out.
+  // being filtered out. The axes fit the frame (B118): the folders and hops,
+  // which filters never narrow.
   const nodes = renderer.layoutNodes();
-  const xScale = renderer.axisScale(nodes, "x");
-  const yScale = renderer.axisScale(nodes, "y");
+  const frame = renderer.frameNodes();
+  const xScale = renderer.axisScale(frame, "x");
+  const yScale = renderer.axisScale(frame, "y");
   const anchors = new Map<string, Position>();
   const { xMetric, xScale: xType, yMetric, yScale: yType } = renderer.layout;
   const anchored = xMetric !== "free" && yMetric !== "free";
@@ -1058,8 +1062,8 @@ export function drawRendererGhost(
   const nodes = renderer.layoutNodes();
   const displayedRadius = ghostRadius(renderer, preview, nodes) * ratio;
   const displayedColor = ghostColor(renderer, preview, nodes);
-  const xScale = renderer.axisScale(nodes, "x");
-  const yScale = renderer.axisScale(nodes, "y");
+  const xScale = renderer.axisScale(renderer.frameNodes(), "x");
+  const yScale = renderer.axisScale(renderer.frameNodes(), "y");
   const xValue = ghostMetricNumber(preview, renderer.layout.xMetric);
   const yValue = ghostMetricNumber(preview, renderer.layout.yMetric);
   const missingX =

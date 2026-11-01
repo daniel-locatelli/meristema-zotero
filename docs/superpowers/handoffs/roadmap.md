@@ -215,10 +215,11 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B118: seed PH-CPF in Impact and let hop 2 land. Hover the BUGA Wood
-      Pavilion paper (Cited by 35) and High-Order Directional Fields (Cited
-      by 6): each sits within about 1% of the axis range of its count. Zoom
-      in on the crowd near the bottom: it goes about four times deeper than
+- [ ] B118: seed PH-CPF in Impact and let hop 2 land. The Y axis tops out
+      near the graph's own most cited paper, not at 5,249 ("Let's Verify
+      Step by Step", outside the graph). The BUGA Wood Pavilion paper sits at
+      35, High-Order Directional Fields at 6. Raise the floor: the axis does
+      not rescale. Zoom in on a crowd: it goes about four times deeper than
       before and the discs pull apart.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
@@ -509,3 +510,7 @@ entries are in git history.
 - 2026-11-01: B118 fixed: the overlap relaxation may move a node 1% of a
   count axis's range, not a quarter of a tick (125 citations on 0..1500),
   and the view zooms to 32x, not 8x. Not pushed.
+- 2026-11-01, later: B118's walk found the real cause: the axes fit the
+  whole model, and a seeded graph keeps the whole library in it, so a
+  5,249-citation paper the graph did not show set the Y axis. The axes now
+  fit the frame, what the folders and hops admit (`setFrameKeys`). Not pushed.

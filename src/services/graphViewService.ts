@@ -93,6 +93,7 @@ import {
   purgeHiddenKeys,
   regionMemberKeys,
   setCollectionTicks,
+  type GraphScopeInput,
   type GraphScopeResult,
   type GraphViewCollectionTicks,
   type ScopePaper,
@@ -4629,7 +4630,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   applyFilters = (): void => {
     const tokens = normalizeSearch(search.value).split(/\s+/).filter(Boolean);
-    const scope = computeGraphScope({
+    const scopeInput: GraphScopeInput = {
       papers: model.nodes.map((node): ScopePaper => ({
         key: node.key,
         collectionIDs: node.collectionIDs,
@@ -4659,8 +4660,20 @@ ${error instanceof Error ? error.message : String(error)}`,
       // floor's row can count what it keeps or hides (D21).
       keepNoCount: graphFilter.state().includeMissingCitations,
       shared,
-    });
+    };
+    const scope = computeGraphScope(scopeInput);
     lastScope = scope;
+    // What the axes fit (B118): the folders and hops alone. The floor, the
+    // facets, the shared rule and hiding narrow what is drawn, never the
+    // coordinate system, so a paper keeps its place while they change.
+    const frame = computeGraphScope({
+      ...scopeInput,
+      hiddenKeys: new Set<string>(),
+      facetAdmits: () => true,
+      floor: 0,
+      keepNoCount: true,
+      shared: 1,
+    });
     // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
     // Key, the colour assignment and the regions' hulls are built from it. `visibleKeys` narrows
     // it by the search box, which is a transient lens and must not reshuffle
@@ -4677,6 +4690,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         .map((node) => node.key),
     );
     renderer?.setScopeKeys(scopeKeys);
+    renderer?.setFrameKeys(frame.visibleKeys, false);
     renderer?.setFloor(floor, scope.belowFloorCount, false);
     renderer?.setVisibleKeys(visibleKeys, false);
     if (libraryEmphasisKeys) {

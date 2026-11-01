@@ -108,4 +108,27 @@ describe("CitationGraphRenderer placement", function () {
     renderer.setViewTransform({ x: 0, y: 0, scale: 100 });
     expect(renderer.getViewTransform().scale).to.equal(32);
   });
+
+  it("fits the axes to the frame, not to papers outside it", function () {
+    // B118: a seeded graph keeps the whole library in its model, so a
+    // 5,249-citation paper the graph does not show set the Y axis, and a
+    // 35-citation hop paper read as 0.
+    const hop = [
+      node("buga", { year: 2021, citationCount: 35 }),
+      node("hodf", { year: 2022, citationCount: 6 }),
+    ];
+    const renderer = placed([
+      node("unshown", { year: 2023, citationCount: 5249 }),
+      ...hop,
+    ]);
+    renderer.setFrameKeys(new Set(hop.map((paper) => paper.key)));
+    const domain = renderer.axisScale(hop, "y")!.domain;
+    expect(domain[1], `y domain ${domain.join("..")}`).to.be.below(100);
+    const y = renderer.positionOf("buga")!.y;
+    const read =
+      domain[0] +
+      ((WORLD_PLOT.bottom - y) / (WORLD_PLOT.bottom - WORLD_PLOT.top)) *
+        (domain[1] - domain[0]);
+    expect(read, `buga drawn at ${read.toFixed(1)}`).to.be.closeTo(35, 1);
+  });
 });

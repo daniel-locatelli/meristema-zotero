@@ -294,6 +294,13 @@ export class CitationGraphRenderer {
   private scopeKeys: Set<string>;
   /** Bumped whenever `scopeKeys` changes, so the assignment cache can notice. */
   private scopeRevision = 0;
+  /**
+   * The papers the axes fit (B118): what the rail's folders and hops admit,
+   * before the floor, the facets and the search. Null fits the whole model.
+   * A seeded graph keeps the whole library in its model, and a paper it does
+   * not show must not stretch the axis its hop papers are read on.
+   */
+  private frameKeys: Set<string> | null = null;
   private searchMatches: Set<string> | null = null;
   private readonly hiddenEdgeKeys = new Set<string>();
   private layout: GraphLayoutOptions;
@@ -674,6 +681,38 @@ export class CitationGraphRenderer {
 
   private layoutNodes(): CitationGraphNode[] {
     return this.model.nodes;
+  }
+
+  /** The nodes the axes fit; see `frameKeys`. */
+  private frameNodes(): CitationGraphNode[] {
+    const frame = this.frameKeys;
+    if (!frame) return this.model.nodes;
+    const nodes = this.model.nodes.filter((node) => frame.has(node.key));
+    return nodes.length ? nodes : this.model.nodes;
+  }
+
+  /**
+   * Fit the axes to these papers, or to the whole model on null, and place
+   * every node on the axes that gives.
+   */
+  public setFrameKeys(keys: ReadonlySet<string> | null, draw = true): void {
+    const next = keys ? new Set(keys) : null;
+    const current = this.frameKeys;
+    if (
+      next === current ||
+      (next &&
+        current &&
+        next.size === current.size &&
+        [...next].every((key) => current.has(key)))
+    ) {
+      return;
+    }
+    this.frameKeys = next;
+    this.projectPositionsToLayout(
+      this.layout.xMetric === "free",
+      this.layout.yMetric === "free",
+    );
+    if (draw) this.draw();
   }
 
   private renderedKeys(): Set<string> {
@@ -2166,8 +2205,9 @@ export class CitationGraphRenderer {
 
       const nodes = this.visibleNodes();
       const metricNodes = this.layoutNodes();
-      const xScale = axes.xFree ? null : this.axisScale(metricNodes, "x");
-      const yScale = axes.yFree ? null : this.axisScale(metricNodes, "y");
+      const frameNodes = this.frameNodes();
+      const xScale = axes.xFree ? null : this.axisScale(frameNodes, "x");
+      const yScale = axes.yFree ? null : this.axisScale(frameNodes, "y");
       if (framed) this.drawPlotBackdrop(plot, metricNodes, xScale, yScale);
       if (framed) this.drawFloor(plot, xScale, yScale);
       else {
