@@ -833,10 +833,34 @@ describe("Graph views (D4)", function () {
       normalize(status.textContent),
       "the toolbar keeps its own notices",
     ).to.not.equal("Copied");
-    // Three seconds up and a short fade; it is gone well inside five.
-    const rootBefore = graphRoot();
-    const toastBefore = rootBefore.querySelector(".cm-status-toast");
+    // Three seconds up and a short fade; it is gone well inside five. A
+    // fixture another suite erased can remount the view inside those two
+    // seconds, and the toast goes with it; then the copy is made again on
+    // the new view (the Zotero suite notes: hold no root across an await).
+    let rootBefore = graphRoot();
+    let toastBefore = rootBefore.querySelector(".cm-status-toast");
     await delay(2_000);
+    for (let retry = 0; retry < 2 && graphRoot() !== rootBefore; retry += 1) {
+      internal.copyTextToClipboard = () => undefined;
+      try {
+        await openChipMenu();
+        (
+          Array.from(
+            graphRoot().querySelectorAll(".cm-view-action"),
+          ) as HTMLButtonElement[]
+        )
+          .find(
+            (candidate) =>
+              normalize(candidate.textContent) === "Copy current as JSON",
+          )
+          ?.click();
+      } finally {
+        internal.copyTextToClipboard = copy;
+      }
+      rootBefore = graphRoot();
+      toastBefore = rootBefore.querySelector(".cm-status-toast");
+      await delay(2_000);
+    }
     expect(
       toastText(),
       `still up after two seconds (root replaced: ${graphRoot() !== rootBefore}, ` +
