@@ -21,7 +21,6 @@ import {
   scaleValue,
 } from "./graphMetricScale";
 import type { GraphTheme } from "./graphTheme";
-import { axisTicksForVisibleDomain } from "./graphAxisTickEnhancer";
 import {
   createLabelBudget,
   createRectangleIndex,
@@ -250,15 +249,18 @@ function worldDisplacementCeiling(metric: GraphAxisMetric): number {
 
 /** Half a year on a year axis: a node never reads as the next year. */
 const YEAR_DISPLACEMENT = 0.5;
-/** A quarter of a tick on any other axis, so the cap follows the scale. */
-const TICK_DISPLACEMENT = 0.25;
+/**
+ * A hundredth of the range on any other axis (B118). A quarter of a tick was
+ * 125 citations on a 0..1500 axis, enough to carry a 6 up to 150; a crowd
+ * this cap cannot spread is pulled apart by zooming in.
+ */
+const RANGE_DISPLACEMENT = 0.01;
 
 /**
  * The farthest the relaxation may carry a node from its anchor along one
  * axis, in world units: a displacement that means the same value whatever the
- * domain (B47). A year axis allows half a year; a count or log axis a quarter
- * of the spacing between its ticks at the unzoomed view, so the cap shrinks
- * with the scale instead of letting a node drift 8% of the axis.
+ * domain (B47). A year axis allows half a year; a count or log axis 1% of
+ * its range (B118).
  */
 function maximumDisplacement(
   metric: GraphAxisMetric,
@@ -274,12 +276,7 @@ function maximumDisplacement(
       (YEAR_DISPLACEMENT / (domain[1] - domain[0])) * span,
     );
   }
-  const ticks = axisTicksForVisibleDomain(domain, metric, scale, 6);
-  if (ticks.length < 2) return ceiling;
-  const first = scaleValue(ticks[0], domain[0], domain[1], scale);
-  const last = scaleValue(ticks.at(-1)!, domain[0], domain[1], scale);
-  const spacing = ((last - first) / (ticks.length - 1)) * span;
-  return spacing > 0 ? Math.min(ceiling, TICK_DISPLACEMENT * spacing) : ceiling;
+  return Math.min(ceiling, RANGE_DISPLACEMENT * span);
 }
 
 function anchorStrength(metric: GraphAxisMetric): number {

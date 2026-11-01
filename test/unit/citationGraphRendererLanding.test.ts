@@ -95,8 +95,10 @@ describe("CitationGraphRenderer landing", function () {
     const crowd = keys.filter((key) => key.startsWith("crowd"));
     const farMove = Math.max(...far.map((key) => moved.get(key)!));
     const crowdMove = Math.max(...crowd.map((key) => moved.get(key)!));
-    const crowdMoved = crowd.filter((key) => moved.get(key)! > 0.5).length;
-    const evidence = `far max ${farMove.toFixed(2)}, crowd max ${crowdMove.toFixed(2)}, crowd moved >0.5: ${crowdMoved}/40`;
+    // A world unit is a pixel at the fit. Since B118 holds the crowd within
+    // 1% of the range, it packs tighter and more of it shifts by less.
+    const crowdMoved = crowd.filter((key) => moved.get(key)! > 1).length;
+    const evidence = `far max ${farMove.toFixed(2)}, crowd max ${crowdMove.toFixed(2)}, crowd moved >1: ${crowdMoved}/40`;
     expect(farMove, evidence).to.equal(0);
     expect(crowdMove, evidence).to.be.below(20);
     expect(crowdMoved, evidence).to.be.below(20);
@@ -118,24 +120,30 @@ describe("CitationGraphRenderer landing", function () {
     );
   });
 
-  it("keeps a node within a fraction of a tick of its anchor on a count axis", function () {
+  it("keeps a node within 1% of the axis range of its anchor on a count axis", function () {
+    // B118: a quarter of a tick was 125 citations on a 0..1500 axis, so a
+    // crowded low band carried a 6-citation paper up to 150 and a 35 down
+    // to 0. The cap is a share of the range, which zooming in can resolve.
     const { renderer, nodes } = placed(crowdAndFar());
     const scale = renderer.axisScale(nodes, "y")!;
-    const span = WORLD_PLOT.bottom - WORLD_PLOT.top;
-    const perCitation = span / (scale.domain[1] - scale.domain[0]);
-    // 0..1200 runs in steps of 200, so a tick is 200 citations.
-    const tick = 200 * perCitation;
+    const range = scale.domain[1] - scale.domain[0];
+    const perCitation = (WORLD_PLOT.bottom - WORLD_PLOT.top) / range;
     const worst = Math.max(
       ...nodes.map((paper) => {
         const anchor =
           WORLD_PLOT.bottom -
           (paper.citationCount! - scale.domain[0]) * perCitation;
-        return Math.abs(renderer.positionOf(paper.key)!.y - anchor) / tick;
+        return (
+          Math.abs(renderer.positionOf(paper.key)!.y - anchor) /
+          perCitation /
+          range
+        );
       }),
     );
-    expect(worst, `worst displacement ${worst.toFixed(3)} ticks`).to.be.at.most(
-      0.25 + 1e-9,
-    );
+    expect(
+      worst,
+      `worst displacement ${(worst * 100).toFixed(2)}% of the range`,
+    ).to.be.at.most(0.01 + 1e-9);
   });
 
   it("holds the domain grow-only while a fill runs and settles it at rest", function () {

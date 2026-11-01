@@ -97,4 +97,15 @@ describe("CitationGraphRenderer placement", function () {
       `No data papers drawn inside the plot (y < ${WORLD_PLOT.bottom})`,
     ).to.deep.equal([]);
   });
+
+  it("zooms in to 32x, so a crowd held near its values can be pulled apart", function () {
+    // B118: with the vertical cap at 1% of the range, a crowd is spread by
+    // zooming, not by moving papers off their counts. Discs keep their screen
+    // size, so each step in pulls them further apart.
+    const renderer = placed([node("a", { year: 2020, citationCount: 3 })]);
+    for (let step = 0; step < 40; step += 1) renderer.zoomBy(1.22);
+    expect(renderer.getViewTransform().scale).to.equal(32);
+    renderer.setViewTransform({ x: 0, y: 0, scale: 100 });
+    expect(renderer.getViewTransform().scale).to.equal(32);
+  });
 });

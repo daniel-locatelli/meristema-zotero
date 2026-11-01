@@ -194,6 +194,14 @@ const PLOT_BOTTOM = 675;
  */
 const EMPHASIS_ALPHA = 0.25;
 const EMPHASIS_EASE_MS = 120;
+/** The farthest out the view zooms. */
+const MIN_VIEW_SCALE = 0.15;
+/**
+ * The farthest in (B118): 8 left a crowd the relaxation may only spread by 1%
+ * of the range still overlapping, and discs keep their screen size, so a
+ * deeper zoom is what pulls such a crowd apart.
+ */
+const MAX_VIEW_SCALE = 32;
 /** How long a seed picked from the rail takes to glide to the centre (B105). */
 const CENTRE_PAN_MS = 300;
 
@@ -986,7 +994,11 @@ export class CitationGraphRenderer {
     const screenX = (event.clientX - rect.left) * ratio;
     const screenY = (event.clientY - rect.top) * ratio;
     const factor = wheelZoomFactor(event.deltaY, event.deltaMode);
-    const nextScale = clamp(this.transform.scale * factor, 0.15, 8);
+    const nextScale = clamp(
+      this.transform.scale * factor,
+      MIN_VIEW_SCALE,
+      MAX_VIEW_SCALE,
+    );
     const worldX = (screenX - this.transform.x) / this.transform.scale;
     const worldY = (screenY - this.transform.y) / this.transform.scale;
     this.transform.scale = nextScale;
@@ -2699,7 +2711,11 @@ export class CitationGraphRenderer {
     this.markViewAdjusted();
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
-    const next = clamp(this.transform.scale * factor, 0.15, 8);
+    const next = clamp(
+      this.transform.scale * factor,
+      MIN_VIEW_SCALE,
+      MAX_VIEW_SCALE,
+    );
     const worldX = (centerX - this.transform.x) / this.transform.scale;
     const worldY = (centerY - this.transform.y) / this.transform.scale;
     this.transform.scale = next;
@@ -2735,7 +2751,7 @@ export class CitationGraphRenderer {
     this.transform = {
       x: transform.x,
       y: transform.y,
-      scale: clamp(transform.scale, 0.15, 8),
+      scale: clamp(transform.scale, MIN_VIEW_SCALE, MAX_VIEW_SCALE),
     };
     if (draw) this.draw();
   }

@@ -156,12 +156,6 @@ opacity grade).
 - [ ] B117 on a small screen the Scope section scrolls inside the rail, so
       the rail shows two scroll bars. One scroll for the whole rail; Scope
       always at full height
-- [ ] B118 the Impact view puts nodes at the wrong citation height. With
-      PH-CPF as seed, "Integrative structural design and engineering methods
-      for segmented timber shells - BUGA Wood Pavilion" sits at 0 while
-      Paper details says Cited by 35, and "High-Order Directional Field" sits
-      near 150 while it says Cited by 6. The floor still filters by the
-      right count, so the Y axis reads another value than the floor does
 - [ ] B119 Fetch hop N looks greyed out while it works. Grey is for
       disabled or inactive controls only
 - [ ] D35 view actions are spread out: the gear's foot holds Reset and the
@@ -221,6 +215,11 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
+- [ ] B118: seed PH-CPF in Impact and let hop 2 land. Hover the BUGA Wood
+      Pavilion paper (Cited by 35) and High-Order Directional Fields (Cited
+      by 6): each sits within about 1% of the axis range of its count. Zoom
+      in on the crowd near the bottom: it goes about four times deeper than
+      before and the discs pull apart.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -507,3 +506,6 @@ entries are in git history.
 - 2026-11-01: the user walked the 2026-10-21 build. Passed: B86, B104,
   B106, B108 to B111, D16, D31 to D34 as built, F5 but for Add to Zotero…,
   F17. Filed B113 to B119 and D35 to D40; B81's check retired, D11's failed.
+- 2026-11-01: B118 fixed: the overlap relaxation may move a node 1% of a
+  count axis's range, not a quarter of a tick (125 citations on 0..1500),
+  and the view zooms to 32x, not 8x. Not pushed.
