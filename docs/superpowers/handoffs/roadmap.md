@@ -144,8 +144,7 @@ opacity grade).
 - [ ] Architecture candidates 3 to 5 from the 2026-09-13 pass (state, then
       plot, then chrome; the rail's inputs from their owners; the focus
       vocabulary rename) wait for a decision; 3 is large and comes after Stage
-      4's spec. Left from the same pass: M6 and M13 (behaviour, need a
-      brainstorm), N2 (suite dependency)
+      4's spec. Left from the same pass: M13 (behaviour, needs a brainstorm), N2 (suite dependency)
 
 ## From the 2026-11-01 walk
 
@@ -552,3 +551,6 @@ entries are in git history.
   `RelationshipStoreSubject`, which has no `key`, only `itemKey` and the
   library, so a promoted candidate (`itemKey` rewritten, `key` kept) finds the
   resolved paper's list; no test can ask it by the candidate key.
+- 2026-11-01, later: M6 closes as obsolete. D12's at-rest line counts what
+  is `not expanded` and never prints the cap, so Fetch more's raised cap has
+  no literal 500 left to contradict.
