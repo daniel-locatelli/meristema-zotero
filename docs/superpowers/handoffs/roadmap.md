@@ -317,8 +317,10 @@ opacity grade).
   were clean. No branch adds a remount trigger (only removals and library
   refreshes remount); the extra cases shift when an earlier erase's
   delayed refresh lands. D15's case now copies again on a remounted view,
-  on main, and the fourth run at `33ddf3e` read 140/0. Its XPI is built
-  aside, not over main's.
+  on main, and the fourth run read 140/0. Later F9 and D40's retry gained
+  Zotero cases (D40's red with its listener removed) and F6's case learned
+  to take the DOI from Crossref; the run at `45e2580` read 141/0. Its XPI is
+  built aside, not over main's.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
