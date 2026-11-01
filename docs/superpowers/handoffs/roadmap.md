@@ -139,7 +139,55 @@ opacity grade).
       4's spec. Left from the same pass: M6 and M13 (behaviour, need a
       brainstorm), M12 (a service-path coverage gap), N2 (suite dependency)
 
-## From the 2026-10-16 walk
+## From the 2026-11-01 walk
+
+- [ ] B113 on restart, PDF tabs show at once while graph tabs take a while
+      to come up (B109's draw order itself passed)
+- [ ] B114 the node menu's Add to Zotero… reads as doing nothing: the focus
+      handoff to the pane's button is invisible. Make it open the pane's
+      collection picker directly, or show where it went
+- [ ] B115 a Seeds row click jumps to the seed with no glide (B105). Check
+      first whether Windows' animation effects are off on that machine
+      (`prefers-reduced-motion`), which jumps by design
+- [ ] B116 a new graph on one paper that an earlier graph had filled opens
+      the gallery on "How do you want to look at these 182 papers?", as if
+      the earlier graph's hop 1 were already in it
+      (`graphViewsMenu.ts:409`)
+- [ ] B117 on a small screen the Scope section scrolls inside the rail, so
+      the rail shows two scroll bars. One scroll for the whole rail; Scope
+      always at full height
+- [ ] B118 the Impact view puts nodes at the wrong citation height. With
+      PH-CPF as seed, "Integrative structural design and engineering methods
+      for segmented timber shells - BUGA Wood Pavilion" sits at 0 while
+      Paper details says Cited by 35, and "High-Order Directional Field" sits
+      near 150 while it says Cited by 6. The floor still filters by the
+      right count, so the Y axis reads another value than the floor does
+- [ ] B119 Fetch hop N looks greyed out while it works. Grey is for
+      disabled or inactive controls only
+- [ ] D35 view actions are spread out: the gear's foot holds Reset and the
+      blank-graph default (D32), the View menu holds the rest. The user wants
+      them under View (View › Reset, the blank-graph default), plus a
+      "Graph display settings" entry there that opens what the gear opens;
+      the gear stays. Brainstorm which View section each goes in
+- [ ] D36 the Key's States (B107): the Seed ring split into the seed colours
+      looks wrong with several seeds; redesign it. Drop the Selected row,
+      which needs no key
+- [ ] D37 the gallery cards' description and tags ("Needs a seed") are too
+      small to read (D34)
+- [ ] D38 rename the Cornerstones view to References (`graphViews.ts:105`).
+      Mind F16's view for the other direction and the References direction
+      name
+- [ ] D39 Paper details' Advanced section starts collapsed
+- [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
+      a fetch offline, reconnecting and Resume, the user could not tell which
+      papers had been tried or failed, and wants them retried once the
+      network is back. Brainstorm against ADR 0014 and B94, which chose not
+      to ask again
+- B81's check retires: Paper details no longer shows a Citations row, only
+  the Cited by tab (`Cited by (n reported)`), so the count's source is shown
+  nowhere there. Reopen only if the user wants the source on that tab.
+- D11's check failed on 2026-11-01: a References fill still leaves nodes as
+  "Title unavailable" beside the resolved ones. Measure under D11.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -148,113 +196,31 @@ user to verify right away. Install the XPI from `.scaffold/build/meristema.xpi`
 (built from the latest main), then walk the list; tick what passes, and turn
 any failure into a new entry above.
 
-- Refusals were not reached on 2026-10-07 (hop 3 ran without errors), so
-  B50, B72 and B64 wait for a session where Semantic Scholar refuses.
+- Refusals were not reached on 2026-10-07 or 2026-11-01, so B50, B72 and
+  B64 wait for a session where Semantic Scholar refuses.
 - [ ] B50: on your own profile (no Semantic Scholar key), fill a seeded graph
-      to hop 3 under Citers. While Semantic Scholar refuses, the hop counts
-      keep climbing and the line reads `expanding · {n} left`. If it reads
-      `… refusing · retry in …`, the countdown ticks without the rail
-      flickering, Stop keeps focus under the keyboard, and Resume starts
-      expanding at once. (The countdown half passed under the 2026-09-16
-      probe.)
-- [ ] B72: fill hop 3 on your own profile while
-      Semantic Scholar is refusing. The progress line ends rather than
-      alternating expanding and refusing — `n left` reaches zero. A 2026
+      to hop 3 under Citers. While it runs, the hop line shows only Stop and
+      the hop counts keep climbing. If it reads `… refusing · retry in …`,
+      the countdown ticks without the rail flickering, Stop keeps focus under
+      the keyboard, and Resume starts expanding at once. (The countdown half
+      passed under the 2026-09-16 probe.)
+- [ ] B72: fill hop 3 on your own profile while Semantic Scholar is refusing.
+      The hop line ends at rest (`n not expanded`, `n failed`, with Resume)
+      rather than switching between Stop and refusing for good. A 2026
       frontier paper reads as expanded with no citers, not re-asked; on
       2026-09-16 the same ~20 DOIs were fetched 10 to 16 times.
-- [ ] B64: with Semantic Scholar refusing, press Refresh on a seed. The
-      progress window closes in seconds, not after 15 s.
+- [ ] B64: with Semantic Scholar refusing, press Refresh seeds. The progress
+      window closes in seconds, not after 15 s.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
-      Under Seeds linked the citer reads `Cite all 2 seeds` and draws an edge
-      to each seed in its colour; `Shared by ≥ 2` keeps it. Repeat under
-      References. Close and reopen the graph: the grading is back with no
-      check request. Clear the key in Settings with the graph open: the
-      citer reads `Cite 1 seed` at once, no reopen; put it back and it reads
+      Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
+      `Cite all 2 seeds`, with an edge to each seed in its colour;
+      `Shared by ≥ 2` keeps it. Repeat under References, where the tier reads
+      `Cited by all 2 seeds`. Close and reopen the graph: the grading is back
+      with no check request. Clear the key in Settings with the graph open:
+      the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
+      is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B81 (the user could not reach it on 2026-10-15): on a seeded graph filled with OpenCitations on, select a citer
-      hop paper and hover its Citations count in Paper details: the tooltip
-      names the index that reported the count (Semantic Scholar or
-      OpenAlex), not OpenCitations.
-- [ ] B86: on the laptop (125%), the Scope rail's empty child checkboxes
-      show no line through them; the guide beside the children stays. On the
-      HDMI screen, say whether the guide shows at all now.
-- [ ] B94: in a saved seeded graph, fetch a hop while offline (or with a
-      provider failing) so a paper fails; reconnect, close and reopen: that
-      paper is not asked again (its hop stays short of drained), and Resume
-      does not bring it back.
-- [ ] D11: fill a References graph on an ACM paper: Unknown labels
-      resolve into author-year while the fill is still running, not only
-      after it stops.
-- [ ] D33: Tools › Meristema reads New Graph, Load, Save, Save as…, one
-      rule, Settings; no Refresh or Refresh Library.
-- [ ] B105: click a Seeds row with the seed off to one side: the plot glides
-      to centre it in about 300ms, slowing as it lands; a drag or wheel mid-glide takes
-      over. With Windows' animation effects off, it jumps.
-- [ ] D31: on a graph from a view, View › `Copy current as JSON` says
-      Copied and pastes as JSON named after that view; on a blank graph it
-      reads `Untitled view`. Save current as view has no Copy JSON; edit
-      on a saved view does.
-- [ ] D32: the gear's foot reads `This graph` with Reset over
-      `New blank graphs` with Use these, the buttons in one column;
-      Restore built-in joins the second line once Use these was pressed.
-- [ ] B104: in a filled seeded graph, each hop row reads only its count
-      (`1,485 papers`, no `from N`); hovering Hop 1 shows
-      `Found through 2 of 3 seeds`, Hop 2 `Found through n of m Hop 1 papers`.
-- [ ] B106: in light mode, select a paper with citers: the citer edges and
-      the Key's Cited by arrow are a lighter orange (`#d9730d`), still clear
-      on the paper; dark mode is unchanged.
-- [ ] B107: in a seeded graph with three seeds and a paper selected, the
-      Key's States shows Seed as a grey disc in a ring split into the three
-      seed colours, Selected as a disc in a heavier dark ring, Search match a
-      disc in a ring, and Not in Zotero still a hollow ring; in both themes.
-- [ ] B108: restart Zotero with two graph tabs and a PDF tab open: every
-      graph tab is up in its place with the PDF tab, the selected graph
-      draws shortly after.
-- [ ] F17: in a filled graph, select a hop paper with no abstract: after a
-      moment an Abstract section appears above the metrics, with no
-      placeholder before it. Select another paper and back: it shows at
-      once. A library paper with an empty Abstract field gets one too, written
-      into that Zotero field (Info pane shows it); one with an abstract of
-      its own is never touched.
-- [ ] B109: restart Zotero with three graph tabs open: once the selected
-      one draws, the other two draw one after another without being
-      selected, and Zotero stays responsive; switching to each shows a
-      fitted, hoverable plot at once.
-- [ ] B110: quit with a graph tab selected, then a PDF tab, then the
-      library tab (one restart each, with graph tabs open): each restart
-      comes back on the tab selected at quit.
-- [ ] D34: open a graph that never chose a view: the gallery shows the six
-      views in two full rows of three, with Start blank and Import view
-      JSON… as two alike buttons on a centred line below them, not in a
-      card. On a wide window the cards stop at 240px and the panel stays
-      centred. No "Scope stays as it is." line under the heading. A card's note is a
-      tag at its foot, the tags of a row level: "Needs a seed" and "Needs 2
-      seeds" outlined, "Arrives with reading state" filled grey, in both
-      themes.
-- [ ] B111: narrow the Zotero window until the graph's plot toolbar no
-      longer fits (the search box is cut at the right), then switch to
-      another tab and back, or to another app and back. The plot stays where
-      it was: the Y axis is not cut off under the rail, and no blank strip
-      opens at the plot's right.
-- [ ] D16: save a view, then open View → Choose a view…: under the six cards
-      a "My views" line lists it as a chip (icon and name), its tooltip the
-      paragraph you gave it, or its summary when you gave none. Clicking the
-      chip applies the view and closes the gallery. With no saved views the
-      line is absent. With the gallery up, rename or delete that view from
-      the View dropdown: its chip follows at once. A long name ends in an
-      ellipsis inside the chip. In both themes.
-- [ ] F5: right-click a library paper: Open PDF (when it has one), Show in
-      Zotero, Find similar papers, a rule, the seed toggle, Remove from graph
-      (not for a seed). Right-click an external paper: Open online, Add to
-      Zotero… (or Show in Zotero once it is in the library), Find similar
-      papers, Update this paper's connections, a rule, the seed toggle.
-      Add to Zotero… lands on the pane's Add to Zotero button and adds
-      nothing by itself. While an update runs, the pane's button and the
-      menu entry are both disabled. The toolbar reads "Refresh visible"
-      with no seeds and "Refresh seeds" with seeds. Narrow the window until
-      the graph is about 320px wide and note where the toolbar starts to
-      squeeze (for D23). In both themes.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -538,3 +504,6 @@ entries are in git history.
 - 2026-10-19: B111 found and fixed (the plot pane scrolled when Zotero's tab
   hooks focused the search box in a narrow pane; `overflow: clip`). Full run
   129/0. Not pushed.
+- 2026-11-01: the user walked the 2026-10-21 build. Passed: B86, B104,
+  B106, B108 to B111, D16, D31 to D34 as built, F5 but for Add to Zotero…,
+  F17. Filed B113 to B119 and D35 to D40; B81's check retired, D11's failed.
