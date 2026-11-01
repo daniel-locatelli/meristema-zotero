@@ -159,8 +159,8 @@ opacity grade).
       "Graph display settings" entry there that opens what the gear opens;
       the gear stays. Brainstorm which View section each goes in
 - [ ] D36 the Key's States (B107): the Seed ring split into the seed colours
-      looks wrong with several seeds; redesign it. Drop the Selected row,
-      which needs no key
+      looks wrong with several seeds; redesign it (a design question: the
+      user picks on a canvas). The Selected row is gone (2026-11-01)
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
       papers had been tried or failed, and wants them retried once the
@@ -215,6 +215,8 @@ any failure into a new entry above.
       while its row's tick, swatch and "Hop N" stay grey.
 - [ ] D37: open the view gallery on a blank graph: each card's description
       and its "Needs a seed" tag read at a size close to the card's name.
+- [ ] D36: on a seeded graph, the Key's States list Seed but no Selected row,
+      and selecting a paper still rings it on the plot.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -540,3 +542,5 @@ entries are in git history.
   the whole row, button included; it now greys the tick, swatch and words.
 - 2026-11-01, later: D37 shipped. The gallery card's description rises from
   11 to 12 and its tag from 10.5 to 11, beside the 13 of its name.
+- 2026-11-01, later: D36's Selected row is dropped from the Key's States
+  (and the heavy ring it alone used); the Seed ring's redesign stays open.

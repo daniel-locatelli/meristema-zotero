@@ -87,7 +87,6 @@ const LAYOUT: GraphLayoutOptions = {
 };
 
 const QUIET: KeyStates = {
-  selectedKey: null,
   seedKeys: new Set<string>(),
   searchMatches: null,
   visibleKeys: null,
@@ -277,15 +276,10 @@ describe("Graph key model", () => {
       node(3, { year: null }),
     ];
     const states = section(
-      build(
-        nodes,
-        {},
-        { selectedKey: "k2", visibleKeys: new Set(["k1", "k2"]) },
-      ),
+      build(nodes, {}, { visibleKeys: new Set(["k1", "k2"]) }),
       "states",
     )!;
     expect(states.entries.map((entry) => entry.label)).to.deep.equal([
-      "Selected",
       "Retracted",
       "Filtered out",
       "No data",
@@ -312,14 +306,13 @@ describe("Graph key model", () => {
     );
   });
 
-  it("draws Seed, Selected and Search match as a disc inside a ring, as the plot does (B107)", () => {
+  it("draws Seed and Search match as a disc inside a ring, as the plot does, and keys no selection (B107, D36)", () => {
     const nodes = [node(1), node(2), node(3), node(4, { kind: "external" })];
     const states = section(
       build(
         nodes,
         {},
         {
-          selectedKey: "k1",
           seedKeys: new Set(["k2", "k3"]),
           seedColors: new Map([
             ["k2", theme.seeds[0]!],
@@ -341,12 +334,7 @@ describe("Graph key model", () => {
       kind: "halo",
       colors: [theme.inks.muted, theme.seeds[0], theme.seeds[1]],
     });
-    expect(mark("seed").heavy ?? false).to.equal(false);
-    expect(mark("selected")).to.deep.include({
-      kind: "halo",
-      colors: [theme.inks.muted, theme.states.selected],
-      heavy: true,
-    });
+    expect(states.entries.map((entry) => entry.id)).to.not.include("selected");
     expect(mark("search-match")).to.deep.include({
       kind: "halo",
       colors: [theme.inks.muted, theme.states.searchMatch],

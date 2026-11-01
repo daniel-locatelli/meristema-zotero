@@ -57,14 +57,12 @@ export interface KeyMark {
   kind: KeyMarkKind;
   /**
    * The colours the mark paints, in the order it paints them. A `halo` is a
-   * disc inside a ring with a gap, as the plot marks a seed or the selection:
+   * disc inside a ring with a gap, as the plot marks a seed or a match:
    * the disc's colour first, then the ring's, one arc each (B107).
    */
   colors: string[];
   /** Drawn as an outline rather than a fill — the ghosted and no-data marks. */
   dashed?: boolean;
-  /** A `halo` whose ring is the plot's heavier selection ring. */
-  heavy?: boolean;
 }
 
 export interface KeyEntry {
@@ -102,7 +100,6 @@ export interface KeyModel {
  * null when nothing is filtered — an empty set would mean the opposite.
  */
 export interface KeyStates {
-  selectedKey: string | null;
   seedKeys: ReadonlySet<string>;
   searchMatches: ReadonlySet<string> | null;
   visibleKeys: ReadonlySet<string> | null;
@@ -400,13 +397,13 @@ function stateSection(input: KeyModelInput): KeySection | null {
     colors: [color],
     dashed,
   });
-  // Seed, Selected and Search match are drawn on the plot as a ring set off
-  // the node by a gap; a bare ring beside Not in Zotero's read as the same
-  // grey mark three times (B107).
-  const halo = (rings: string[], heavy = false): KeyMark => ({
+  // Seed and Search match are drawn on the plot as a ring set off the node
+  // by a gap; a bare ring beside Not in Zotero's read as the same grey mark
+  // again (B107). The selection is not keyed: the reader made it, and the
+  // Paper details pane names it (D36).
+  const halo = (rings: string[]): KeyMark => ({
     kind: "halo",
     colors: [theme.inks.muted, ...rings],
-    ...(heavy ? { heavy } : {}),
   });
 
   // A paper in Zotero fills; one known only through a hop is a ring (F14).
@@ -433,18 +430,6 @@ function stateSection(input: KeyModelInput): KeySection | null {
         matches: (node) => !inZotero(node),
       },
     );
-  }
-
-  if (states.selectedKey !== null) {
-    const selectedKey = states.selectedKey;
-    entries.push({
-      id: "selected",
-      label: "Selected",
-      count: 1,
-      detail: null,
-      mark: halo([theme.states.selected], true),
-      matches: (node) => node.key === selectedKey,
-    });
   }
 
   const seeds = nodes.filter((node) => states.seedKeys.has(node.key));

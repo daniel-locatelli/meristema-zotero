@@ -467,7 +467,6 @@ describe("Graph view, looked at", function () {
           theme: instance.getTheme(),
           edgeCount: instance.getVisibleEdgeCount(),
           states: {
-            selectedKey: null,
             seedKeys: new Set<string>(),
             searchMatches: null,
             visibleKeys: null,

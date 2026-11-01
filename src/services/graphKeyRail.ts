@@ -135,7 +135,7 @@ function markElement(document: Document, mark: KeyMark): SVGElement {
     root.appendChild(disc);
     const rings = mark.colors.slice(1);
     const radius = 7.75;
-    const width = mark.heavy ? "2.6" : "1.8";
+    const width = "1.8";
     const point = (turn: number): string => {
       const angle = turn * Math.PI * 2 - Math.PI / 2;
       return `${(10 + radius * Math.cos(angle)).toFixed(3)} ${(10 + radius * Math.sin(angle)).toFixed(3)}`;

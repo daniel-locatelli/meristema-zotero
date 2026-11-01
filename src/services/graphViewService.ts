@@ -4609,7 +4609,6 @@ ${error instanceof Error ? error.message : String(error)}`,
         // is a hop model (refreshScopeRail's `hops`).
         hopRows: hopModel !== null,
         states: {
-          selectedKey: selectedNode?.key ?? null,
           seedKeys: new Set(seedKeysOf()),
           // The plot's own seed colours, so the Key's Seed ring agrees (B107).
           seedColors: hopModel ? seedColorsFor(hopModel) : undefined,
