@@ -228,9 +228,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-01 at `da42a98`
-(131/0), so count with the commits since `da42a98`. A clean run is 131
-cases as of 2026-11-01. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-01 at `855e7fd` (135/0), so count with the commits since `855e7fd`. A clean run is 135 cases as of 2026-11-01. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
@@ -557,3 +555,5 @@ entries are in git history.
 - 2026-11-01, later: M6 closes as obsolete. D12's at-rest line counts what
   is `not expanded` and never prints the cap, so Fetch more's raised cap has
   no literal 500 left to contradict.
+- 2026-11-01, later: full suites 133/0 (before D36) and 135/0 at `855e7fd`.
+  D36's Seed ring has a canvas of three directions. Not pushed.
