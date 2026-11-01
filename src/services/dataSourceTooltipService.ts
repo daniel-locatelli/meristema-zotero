@@ -529,6 +529,11 @@ function resolveRowTooltip(
 ): ResolvedTooltip | null {
   const row = rowFromPath(path);
   if (!row) return null;
+  // A row the panel built carries its one hover (D41): what the figure
+  // means and where it came from, the same on the label and the value.
+  const target = row.isLabel ? row.term : row.value;
+  const carried = target.dataset.meristemaHover;
+  if (carried) return { target, text: carried };
   if (row.isLabel) {
     const definition = propertyDefinition(row.label) ?? storedTitle(row.term);
     return definition ? { target: row.term, text: definition } : null;

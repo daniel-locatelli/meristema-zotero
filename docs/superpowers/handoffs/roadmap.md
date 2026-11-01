@@ -221,6 +221,11 @@ any failure into a new entry above.
       35, High-Order Directional Fields at 6. Raise the floor: the axis does
       not rescale. Zoom in on a crowd: it goes about four times deeper than
       before and the discs pull apart.
+- [ ] D41: in Paper details, the Overview's top row reads Citations,
+      References, FWCI and Percentile; Citations / year is in Advanced only,
+      as Recent citation rate. Hover a label, then its number: both show the
+      same text, what the figure means and then its sources. Check it on a
+      hop paper outside your library too: the sources are that paper's.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -514,3 +519,7 @@ entries are in git history.
   whole model, and a seeded graph keeps the whole library in it, so a
   5,249-citation paper the graph did not show set the Y axis. The axes now
   fit the frame, what the folders and hops admit (`setFrameKeys`). Not pushed.
+- 2026-11-01, later: D41 shipped: the Overview leads with the citation and
+  reference counts, and every metric row carries one hover, meaning then
+  sources, read off the paper shown rather than matched by title. B81's
+  question (where the count's source shows) is answered by it. Not pushed.

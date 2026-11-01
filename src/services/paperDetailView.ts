@@ -9,7 +9,7 @@
  */
 import type { ManualCitationRelation } from "../domain/citationTypes";
 import type { ExternalWork } from "../domain/externalWork";
-import type { CitationGraphNode } from "../domain/graphTypes";
+import type { CitationGraphNode, MetricID } from "../domain/graphTypes";
 import type { LibrarySnapshot, ZoteroPaper } from "../domain/types";
 import {
   createIgnoredRelationIndex,
@@ -39,10 +39,12 @@ import {
   manualRelationsForSubject,
   type ManualRelationshipChange,
 } from "./manualRelationshipPickerService";
+import { nodeFieldDataSourceTooltip } from "./dataSourceTooltipService";
 import {
   formatMetricValue,
   getMetricDefinition,
   METRIC_DEFINITIONS,
+  metricTooltip,
   SUPPLEMENTARY_PROPERTY_DEFINITIONS,
 } from "./metricRegistry";
 import {
@@ -304,17 +306,21 @@ function advancedMetrics(
     details.addEventListener("toggle", () => folds.remember(details.open));
   details.appendChild(text(document, "summary", "Advanced"));
   const rows = element(document, "dl", "cm-metric-list");
-  const append = (label: string, value: string, description: string): void => {
-    const term = text(document, "dt", label);
-    term.title = description;
-    rows.append(term, text(document, "dd", value));
+  const append = (
+    label: string,
+    value: string,
+    description: string,
+    field: string,
+  ): void => {
+    appendMetricRow(document, rows, node, label, value, description, field);
   };
   for (const metric of METRIC_DEFINITIONS) {
     if (metric.itemPane !== "advanced") continue;
     append(
       metric.label,
       formatMetricValue(metric.id, metric.value(node)),
-      metric.description,
+      metricTooltip(metric.id),
+      metric.id,
     );
   }
   for (const property of SUPPLEMENTARY_PROPERTY_DEFINITIONS) {
@@ -326,6 +332,7 @@ function advancedMetrics(
         ? "—"
         : property.format(value),
       property.description,
+      property.id,
     );
   }
   details.appendChild(rows);
@@ -333,10 +340,34 @@ function advancedMetrics(
 }
 
 /**
- * Three figures — FWCI, citations per year, percentile — or one sentence when
- * none is known, then Advanced with the rest of the registry. The tab row
- * above already states the citation and reference counts. With `folds`,
- * Advanced opens as the reader last left it.
+ * One label and value pair of a metric list. Both carry one hover (D41):
+ * what the figure means, then where it came from, read off this node rather
+ * than looked up from the panel's title, which an external paper never
+ * matches.
+ */
+function appendMetricRow(
+  document: Document,
+  rows: HTMLElement,
+  node: CitationGraphNode,
+  label: string,
+  value: string,
+  description: string,
+  field: string,
+): void {
+  const term = text(document, "dt", label);
+  const figure = text(document, "dd", value);
+  const hover = [description, nodeFieldDataSourceTooltip(node, field)]
+    .filter(Boolean)
+    .join("\n\n");
+  term.dataset.meristemaHover = hover;
+  figure.dataset.meristemaHover = hover;
+  rows.append(term, figure);
+}
+
+/**
+ * Four figures — citations, references, FWCI, percentile — or one sentence
+ * when none is known, then Advanced with the rest of the registry. With
+ * `folds`, Advanced opens as the reader last left it.
  */
 export function createOverviewMetrics(
   document: Document,
@@ -344,22 +375,19 @@ export function createOverviewMetrics(
   folds?: DetailFoldMemory,
 ): DocumentFragment {
   const fragment = document.createDocumentFragment();
-  const headline = [
-    ["FWCI", formatMetricValue("fwci", node.fwci), "fwci"],
-    [
-      "Citations / year",
-      node.citationVelocity === null
-        ? "—"
-        : formatMetricValue("citation-rate", node.citationVelocity),
-      "citation-rate",
-    ],
-    [
-      "Percentile",
-      formatMetricValue("citation-percentile", node.citationPercentile),
-      "citation-percentile",
-    ],
-  ] as const;
-  if (headline.every(([, value]) => value === "—")) {
+  // The counts lead (D41): the tab row names them too, but as buttons, and
+  // a reader looks for what a paper is cited by among its figures.
+  // Citations / year lives in Advanced only, as Recent citation rate.
+  const headline: ReadonlyArray<readonly [string, MetricID]> = [
+    ["Citations", "citations"],
+    ["References", "references"],
+    ["FWCI", "fwci"],
+    ["Percentile", "citation-percentile"],
+  ];
+  const values = headline.map(([, metric]) =>
+    formatMetricValue(metric, getMetricDefinition(metric).value(node)),
+  );
+  if (values.every((value) => value === "—")) {
     fragment.appendChild(
       detailSection(
         document,
@@ -373,11 +401,17 @@ export function createOverviewMetrics(
     );
   } else {
     const rows = element(document, "dl", "cm-metric-strip cm-metric-list");
-    for (const [label, value, metric] of headline) {
-      const term = text(document, "dt", label);
-      term.title = getMetricDefinition(metric).description;
-      rows.append(term, text(document, "dd", value));
-    }
+    headline.forEach(([label, metric], index) => {
+      appendMetricRow(
+        document,
+        rows,
+        node,
+        label,
+        values[index],
+        metricTooltip(metric),
+        metric,
+      );
+    });
     fragment.appendChild(detailSection(document, rows));
   }
   fragment.appendChild(

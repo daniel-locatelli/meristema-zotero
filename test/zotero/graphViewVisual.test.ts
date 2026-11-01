@@ -1093,7 +1093,8 @@ describe("Graph view, as the product builds it", function () {
     }
 
     /*
-     * The headline strip: three values on one row, three labels on the next.
+     * The headline strip: four values on one row, four labels on the next
+     * (D41), and one hover on each pair: the meaning, then the source.
      */
     const strip = active.root.querySelector(".cm-metric-strip") as HTMLElement;
     expect(strip, "the overview leads with the metric strip").to.not.equal(
@@ -1101,7 +1102,21 @@ describe("Graph view, as the product builds it", function () {
     );
     const values = [...strip.querySelectorAll("dd")] as HTMLElement[];
     const labels = [...strip.querySelectorAll("dt")] as HTMLElement[];
-    expect(values.length, "three figures, and only three").to.equal(3);
+    expect(values.length, "four figures, and only four").to.equal(4);
+    expect(
+      labels.map((label) => (label.textContent ?? "").trim().toLowerCase()),
+      "the counts lead, Citations / year is Advanced's",
+    ).to.deep.equal(["citations", "references", "fwci", "percentile"]);
+    for (const [index, label] of labels.entries()) {
+      const hover = label.dataset.meristemaHover ?? "";
+      expect(
+        values[index]!.dataset.meristemaHover,
+        `${label.textContent}: the value's hover is the label's`,
+      ).to.equal(hover);
+      expect(hover, `${label.textContent}: meaning, then source`).to.match(
+        /\S[\s\S]*\n\nSources: /,
+      );
+    }
     notes.push(
       `view 10 strip: ${labels.map((label) => (label.textContent ?? "").trim()).join(" | ")} = ${values.map((value) => (value.textContent ?? "").trim()).join(" | ")}`,
     );
