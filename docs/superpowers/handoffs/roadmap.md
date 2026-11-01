@@ -225,6 +225,9 @@ opacity grade).
       Canvas: https://claude.ai/artifact/TQnib58fxDn67dxpiVKJiA, Now beside
       A (one neutral ring), B (a row per seed, by name), C (a neutral ring
       and a dot per seed colour)
+      A is built on branch `d36-neutral-seed-ring` (not merged); unit tests
+      only, as no Zotero case reads the ring. Its check: seed three papers,
+      and the Key's Seed row shows one dark ring, not three arcs
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
       papers had been tried or failed, and wants them retried once the
