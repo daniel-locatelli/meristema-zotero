@@ -404,6 +404,10 @@ function seedLinkCheckScheduler(): SeedLinkCheckScheduler {
       }),
     defer: (run) => void setTimeout(run, 0),
     now: () => Date.now(),
+    logError: (error) =>
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      ),
   });
   return seedLinkChecks;
 }

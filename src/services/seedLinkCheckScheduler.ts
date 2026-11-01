@@ -39,6 +39,8 @@ export interface SeedLinkCheckDeps {
   ): Promise<CheckOutcome>;
   defer(run: () => void): void;
   now(): number;
+  /** Where a client's failed `landed` goes; nowhere when absent. */
+  logError?(error: unknown): void;
 }
 
 export interface SeedLinkCheckScheduler {
@@ -138,7 +140,13 @@ export function createSeedLinkCheckScheduler(
     if (saved.length) {
       const savedAliases = new Set(saved.map((row) => row.identityKey));
       for (const client of [...clients]) {
-        if (wants(client, savedAliases)) client.landed();
+        // One graph failing to take the news must not keep it from the rest,
+        // nor escape this fire-and-forget dispatch as an unhandled rejection.
+        try {
+          if (wants(client, savedAliases)) client.landed();
+        } catch (error) {
+          deps.logError?.(error);
+        }
       }
     }
     if (dirty) schedule();

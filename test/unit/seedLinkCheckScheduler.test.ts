@@ -269,6 +269,30 @@ describe("seedLinkCheckScheduler", function () {
     expect(unrelated.count).to.equal(0);
   });
 
+  it("tells every wanting graph though one of them throws (B36 sweep)", async function () {
+    const h = harness();
+    const throwing = {
+      papers: () => [P],
+      landed: () => {
+        throw new Error("a graph torn down mid-landing");
+      },
+    };
+    const after = client([P]);
+    h.scheduler.register(throwing);
+    h.scheduler.register(after);
+    h.scheduler.markDirty();
+    await h.flush();
+    await h.land({
+      rows: referenceListRows(
+        [{ openAlexID: "W1", references: [], aliases: [] }],
+        [],
+        AT,
+      ),
+      failed: [],
+    });
+    expect(after.count, "the graph after the one that threw").to.equal(1);
+  });
+
   it("backs every paper off when the check throws", async function () {
     const h = harness();
     h.scheduler.register(client([P]));

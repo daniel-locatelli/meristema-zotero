@@ -254,6 +254,13 @@ opacity grade).
       recommendation is the shipped behaviour plus F9: a yes closes F3
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
+      Swept 2026-11-01: every `reject` passes an error, and of the 38
+      fire-and-forget promises in `src/` none can reject with `undefined`
+      (each catches, or rejects with an `Error`), so the bare `undefined`
+      most likely comes from a Zotero API the plugin awaits. One real gap
+      found and fixed: the seed-link check's `dispatch` let one graph's
+      throwing `landed` skip the rest and escape unhandled. None of the
+      night's Zotero runs logged it
 - [ ] B38 the region border grows a tip toward a neighbour just before two
       regions merge. Deferred by the user on 2026-09-11 after three
       renderings; not to be reopened unless they do
