@@ -145,7 +145,7 @@ opacity grade).
       plot, then chrome; the rail's inputs from their owners; the focus
       vocabulary rename) wait for a decision; 3 is large and comes after Stage
       4's spec. Left from the same pass: M6 and M13 (behaviour, need a
-      brainstorm), M12 (a service-path coverage gap), N2 (suite dependency)
+      brainstorm), N2 (suite dependency)
 
 ## From the 2026-11-01 walk
 
@@ -548,3 +548,7 @@ entries are in git history.
 - 2026-11-01, later: B112 shipped. Running connection updates live outside
   the view (`connectionUpdates.ts`), by library and node key; a remounted
   view reads them and redraws when the update ends.
+- 2026-11-01, later: M12 closes by structure. The stored list is looked up by
+  `RelationshipStoreSubject`, which has no `key`, only `itemKey` and the
+  library, so a promoted candidate (`itemKey` rewritten, `key` kept) finds the
+  resolved paper's list; no test can ask it by the candidate key.
