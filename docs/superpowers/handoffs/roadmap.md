@@ -161,8 +161,6 @@ opacity grade).
 - [ ] D36 the Key's States (B107): the Seed ring split into the seed colours
       looks wrong with several seeds; redesign it. Drop the Selected row,
       which needs no key
-- [ ] D37 the gallery cards' description and tags ("Needs a seed") are too
-      small to read (D34)
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
       papers had been tried or failed, and wants them retried once the
@@ -215,6 +213,8 @@ any failure into a new entry above.
       fresh one and it reads "references".
 - [ ] B119: on a seeded graph, the Fetch hop N button reads at full ink
       while its row's tick, swatch and "Hop N" stay grey.
+- [ ] D37: open the view gallery on a blank graph: each card's description
+      and its "Needs a seed" tag read at a size close to the card's name.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -538,3 +538,5 @@ entries are in git history.
 - 2026-11-01, later: the user walked B117; it passed, and its check retires.
 - 2026-11-01, later: B119 shipped. The unfetched row's 0.45 opacity sat on
   the whole row, button included; it now greys the tick, swatch and words.
+- 2026-11-01, later: D37 shipped. The gallery card's description rises from
+  11 to 12 and its tag from 10.5 to 11, beside the 13 of its name.

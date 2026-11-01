@@ -108,6 +108,41 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
     ).to.equal(0);
   });
 
+  it("sets the gallery cards' words and tags large enough to read (D37)", function () {
+    const sizes = inMainWindow(
+      (document) => {
+        const gallery = createViewGallery(document, {
+          shipped: SHIPPED_GRAPH_VIEWS,
+          listSaved: () => [],
+          onChoose: () => undefined,
+          onBlank: () => undefined,
+          onImport: () => undefined,
+        });
+        gallery.show({ shown: 15 });
+        return gallery.root;
+      },
+      (mount, host) => {
+        const px = (selector: string): number => {
+          const node = mount.querySelector(selector);
+          expect(node, `the gallery drew a ${selector}`).to.exist;
+          return parseFloat(
+            host.getComputedStyle(node as Element)?.fontSize ?? "",
+          );
+        };
+        return {
+          name: px(".cm-view-gallery-name"),
+          para: px(".cm-view-gallery-para"),
+          note: px(".cm-view-gallery-note"),
+        };
+      },
+    );
+    // Against the card's name, which is the reader's own Zotero font size:
+    // 12 and 11 of its 13, whatever that size is.
+    const detail = JSON.stringify(sizes);
+    expect(sizes.para / sizes.name, detail).to.be.at.least(12 / 13 - 0.01);
+    expect(sizes.note / sizes.name, detail).to.be.at.least(11 / 13 - 0.01);
+  });
+
   /**
    * The dropdown's rows, which is where the same clamp stopped being cosmetic:
    * a row painted taller than its own box leaves every row below it hit at the

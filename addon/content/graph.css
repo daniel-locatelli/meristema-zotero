@@ -937,15 +937,18 @@
 .cm-view-gallery-name {
   font-weight: 600;
 }
+/* The card's words read at the rail's body size, its tag one step under:
+   at 11 and 10.5 they were too small to read across the plot (D37). */
 .cm-view-gallery-para {
   color: var(--cm-muted);
-  font-size: calc(11 * var(--cm-font-unit));
+  font-size: calc(12 * var(--cm-font-unit));
   line-height: 1.4;
 }
 /* The note is the view card's tag, pinned to the card's foot so the tags of a
    row line up: outlined for a seed to add, filled for a view not yet here. */
 .cm-view-gallery-note {
   margin-top: auto;
+  font-size: calc(11 * var(--cm-font-unit));
   font-weight: 500;
 }
 .cm-view-gallery-note--status {
