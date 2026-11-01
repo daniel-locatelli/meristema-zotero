@@ -305,6 +305,7 @@ import {
   type ZoteroPaneState,
 } from "./zoteroPaneSync";
 import { followZoteroFontSize } from "./zoteroFontSize";
+import { doiOffer } from "./doiOffer";
 import {
   runningConnectionUpdate,
   startConnectionUpdate,
@@ -3975,7 +3976,76 @@ ${error instanceof Error ? error.message : String(error)}`,
       actions.appendChild(similar);
       actions.appendChild(seedToggleButton(node));
       detailBody.appendChild(detailSection(document, actions));
+      const doiSection = matchedDoiSection(node);
+      if (doiSection) detailBody.appendChild(doiSection);
     }
+  }
+
+  /**
+   * F9: the DOI the paper's match carries, offered for its empty DOI field.
+   * Written only on the reader's press; an unconfirmed match says how it was
+   * matched first, and its button says the reader is confirming it.
+   */
+  function matchedDoiSection(node: CitationGraphNode): HTMLElement | null {
+    const item = (Zotero.Items.get(node.itemID) as Zotero.Item | false) || null;
+    if (!item) return null;
+    let fieldValid: boolean;
+    let itemDOI = "";
+    try {
+      const fieldID = Zotero.ItemFields.getID("DOI");
+      fieldValid = Boolean(
+        fieldID && Zotero.ItemFields.isValidForType(fieldID, item.itemTypeID),
+      );
+      if (fieldValid) itemDOI = String(item.getField("DOI") ?? "");
+    } catch {
+      return null;
+    }
+    const offer = doiOffer({
+      matchedDOI: node.doi,
+      itemDOI,
+      fieldValid,
+      matchConfirmed: node.matchConfirmed,
+      matchedBy: node.matchedBy,
+      matchConfidence: node.matchConfidence,
+    });
+    if (!offer) return null;
+    const box = element(document, "div", "cm-doi-offer");
+    box.append(
+      text(
+        document,
+        "p",
+        `This item has no DOI. Its match has ${offer.doi}.`,
+        "cm-doi-offer-text",
+      ),
+    );
+    if (offer.evidence) {
+      box.append(text(document, "p", offer.evidence, "cm-doi-offer-evidence"));
+    }
+    const add = button(
+      document,
+      offer.confirmed ? "Add DOI to item" : "Confirm and add DOI",
+      "cm-secondary-button",
+    );
+    add.title = `Write ${offer.doi} into this item's DOI field`;
+    add.addEventListener("click", () => {
+      add.disabled = true;
+      void (async () => {
+        try {
+          item.setField("DOI", offer.doi);
+          await item.saveTx();
+          box.replaceChildren(
+            text(document, "p", `Added ${offer.doi}.`, "cm-doi-offer-text"),
+          );
+        } catch (error) {
+          Zotero.logError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+          add.disabled = false;
+        }
+      })();
+    });
+    box.append(add);
+    return detailSection(document, box);
   }
 
   const closeNodeMenu = (restoreFocus = false): void => {

@@ -2105,3 +2105,19 @@
   font-size: calc(11 * var(--cm-font-unit));
   font-variant-numeric: tabular-nums;
 }
+
+/* F9: the matched DOI offered for an item's empty DOI field. */
+.cm-doi-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.cm-doi-offer-text,
+.cm-doi-offer-evidence {
+  margin: 0;
+  font-size: calc(12 * var(--cm-font-unit));
+}
+.cm-doi-offer-evidence {
+  color: var(--cm-muted);
+}
