@@ -452,6 +452,11 @@ export interface GraphViewOptions {
     itemID: number | null,
     node: CitationGraphNode | null,
   ) => void;
+  /**
+   * F10: the reader's multi-selection in the graph changed. `itemIDs` are
+   * its Zotero items, in the order picked; external papers have none.
+   */
+  onGraphMultiSelection?: (itemIDs: readonly number[]) => void;
   initialFocusItemIDs?: readonly number[] | null;
   initialCollectionIDs?: readonly number[];
   /** Applied after the initial request, so a request wins where both speak. */
@@ -4164,8 +4169,38 @@ ${error instanceof Error ? error.message : String(error)}`,
   canvas.addEventListener("wheel", closeNodeMenuOnWheel, { passive: true });
   document.defaultView?.addEventListener("resize", closeNodeMenuOnResize);
 
+  /**
+   * F10: the papers a Ctrl-, Cmd- or Shift-click gathered. Drawn with the
+   * emphasis a multi-row list selection gets, since it is the same idea, and
+   * handed to Zotero's list. A plain click ends it.
+   */
+  let pickedKeys: string[] = [];
+  const handleNodeToggle = (node: CitationGraphNode): void => {
+    closeNodeMenu();
+    if (!pickedKeys.length) {
+      const selected = renderer?.getSelectedKey() ?? null;
+      if (selected && selected !== node.key) pickedKeys = [selected];
+    }
+    pickedKeys = pickedKeys.includes(node.key)
+      ? pickedKeys.filter((key) => key !== node.key)
+      : [...pickedKeys, node.key];
+    libraryEmphasisKeys = pickedKeys.length ? new Set(pickedKeys) : null;
+    applyEmphasis();
+    const byKey = new Map(model.nodes.map((entry) => [entry.key, entry]));
+    options.onGraphMultiSelection?.(
+      pickedKeys
+        .map((key) => byKey.get(key))
+        .filter(
+          (entry): entry is CitationGraphNode =>
+            Boolean(entry) && entry!.kind !== "external" && entry!.itemID > 0,
+        )
+        .map((entry) => entry.itemID),
+    );
+  };
+
   const handleGraphSelection = (node: CitationGraphNode | null): void => {
     closeNodeMenu();
+    if (!suppressSelectionReport) pickedKeys = [];
     renderOverview(node);
     // A selected seed lights its row (F11).
     refreshScopeRail();
@@ -4188,6 +4223,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     layout: currentLayout,
     collectionLabels,
     onSelectionChange: handleGraphSelection,
+    onNodeToggle: handleNodeToggle,
     // Hover and the camera re-order the runner's plan; neither changes what
     // is in it (spec, "The fill").
     onHoverChange: () => scheduleHopFill(),
