@@ -1191,7 +1191,7 @@ export function renderGraphView(
   const nodeMenuShow = nodeMenuButton("Show in Zotero");
   const nodeMenuAdd = nodeMenuButton(
     "Add to Zotero…",
-    "Choose a collection in Paper details, then add this paper to Zotero.",
+    "Choose collections in Paper details, then add this paper to Zotero.",
   );
   const nodeMenuSimilar = nodeMenuButton(
     "Find similar papers",
@@ -3722,9 +3722,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   /** The overview's Update button, while the overview shows one. */
   let overviewUpdateButton: { key: string; button: HTMLButtonElement } | null =
     null;
-  /** The overview's Add to Zotero button, while the overview shows one. */
-  let overviewAddButton: { key: string; button: HTMLButtonElement } | null =
-    null;
+  /** The overview's Add to Zotero area, while the overview shows one. */
+  let overviewAdd: { key: string; openChooser: () => void } | null = null;
   /** The paper the pane's overview shows; null under a list or graph-wide results. */
   let overviewNodeKey: string | null = null;
   const paneShowsUpdateFor = (node: CitationGraphNode): boolean =>
@@ -3788,7 +3787,7 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   function renderOverview(node: CitationGraphNode | null): void {
     overviewUpdateButton = null;
-    overviewAddButton = null;
+    overviewAdd = null;
     overviewNodeKey = node?.key ?? null;
     activeRelationshipView = null;
     refreshActiveRelationshipView = null;
@@ -3860,7 +3859,7 @@ ${error instanceof Error ? error.message : String(error)}`,
           },
         );
         actions.appendChild(importArea.addButton);
-        overviewAddButton = { key: node.key, button: importArea.addButton };
+        overviewAdd = { key: node.key, openChooser: importArea.openChooser };
         detailBody.appendChild(importArea.root);
       }
 
@@ -4072,13 +4071,13 @@ ${error instanceof Error ? error.message : String(error)}`,
   });
   nodeMenuAdd.addEventListener("click", () => {
     const node = nodeMenuTarget;
-    // Focus goes to the pane, not back to the canvas: the reader picks the
-    // collection there. `renderOverview` is synchronous, so the button exists
-    // by the time it is focused.
+    // The pane's collection chooser opens with focus in its search, not back
+    // on the canvas: the reader picks the collection there (B114).
+    // `renderOverview` is synchronous, so the area exists by now.
     closeNodeMenu();
     if (!node) return;
     if (overviewNodeKey !== node.key) renderOverview(node);
-    overviewAddButton?.button.focus();
+    if (overviewAdd?.key === node.key) overviewAdd.openChooser();
   });
   nodeMenuSimilar.addEventListener("click", () => {
     const node = nodeMenuTarget;

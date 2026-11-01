@@ -141,9 +141,6 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] B114 the node menu's Add to Zotero… reads as doing nothing: the focus
-      handoff to the pane's button is invisible. Make it open the pane's
-      collection picker directly, or show where it went
 - [ ] B115 a Seeds row click jumps to the seed with no glide (B105). Check
       first whether Windows' animation effects are off on that machine
       (`prefers-reduced-motion`), which jumps by design
@@ -209,12 +206,9 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] D38: the Views gallery and menu name the references view References,
-      not Cornerstones. A graph saved under Cornerstones before the rename
-      opens on it, still marked as that view.
-- [ ] D39: in a fresh graph tab, select a paper: Paper details shows the
-      headline counts with Advanced collapsed. Open it and select another
-      paper: it stays open.
+- [ ] B114: right-click a paper that is not in the library, choose Add to
+      Zotero…: Paper details opens its collection chooser, with the cursor in
+      Search collections and the chooser in view.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -522,3 +516,5 @@ entries are in git history.
   waited for them) and fixed: the tabs go up with Zotero's, and a graph's
   draw waits at a gate for the stores.
 - 2026-11-01, later: the user walked B113; it passed.
+- 2026-11-01, later: the user walked D38 and D39; both passed. B114 shipped:
+  the node menu's Add to Zotero… opens the pane's collection chooser.

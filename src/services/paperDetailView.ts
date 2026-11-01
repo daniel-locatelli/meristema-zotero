@@ -447,7 +447,7 @@ export function createAbstractSection(
 function createCollectionChooser(
   document: Document,
   snapshot: LibrarySnapshot,
-): { root: HTMLDivElement; selected: Set<number> } {
+): { root: HTMLDivElement; selected: Set<number>; search: HTMLInputElement } {
   const root = element(document, "div", "cm-collection-chooser");
   const selected = new Set<number>();
   const search = element(document, "input", "cm-collection-search");
@@ -475,20 +475,26 @@ function createCollectionChooser(
   search.addEventListener("input", render);
   root.append(search, list);
   render();
-  return { root, selected };
+  return { root, selected, search };
 }
 
 /**
  * Add to Zotero. With `host.collectionChooser` the button opens an area with
  * the chooser and Cancel / Add paper; without it the work is imported into no
  * collection at once. Either way `onImported` receives the new item.
+ * `openChooser` opens the chooser and puts focus in its search, scrolled into
+ * view (B114); without a chooser it focuses the button.
  */
 export function createImportArea(
   document: Document,
   work: ExternalWork,
   host: PaperDetailHost,
   onImported: (item: Zotero.Item) => void,
-): { root: HTMLElement; addButton: HTMLButtonElement } {
+): {
+  root: HTMLElement;
+  addButton: HTMLButtonElement;
+  openChooser: () => void;
+} {
   const root = element(document, "div", "cm-import-area");
   root.hidden = true;
   const addButton = button(document, "Add to Zotero", "cm-primary-button");
@@ -519,12 +525,16 @@ export function createImportArea(
         }
       });
     });
-    return { root, addButton };
+    return { root, addButton, openChooser: () => addButton.focus() };
   }
   // Building the chooser is deferred to the first click: a related-work list
   // can have dozens of not-yet-imported rows, and eagerly building a
   // collection tree for each one is wasted work no one may ever see.
-  let chooser: { root: HTMLDivElement; selected: Set<number> } | null = null;
+  let chooser: {
+    root: HTMLDivElement;
+    selected: Set<number>;
+    search: HTMLInputElement;
+  } | null = null;
   const build = (): void => {
     if (chooser) return;
     chooser = createCollectionChooser(document, host.snapshot);
@@ -553,12 +563,18 @@ export function createImportArea(
       buttons,
     );
   };
-  addButton.addEventListener("click", () => {
+  const open = (): void => {
     build();
     addButton.hidden = true;
     root.hidden = false;
-  });
-  return { root, addButton };
+  };
+  addButton.addEventListener("click", open);
+  const openChooser = (): void => {
+    open();
+    chooser!.search.focus();
+    root.scrollIntoView({ block: "nearest" });
+  };
+  return { root, addButton, openChooser };
 }
 
 /* ---------------------------------------------------------------- rows */

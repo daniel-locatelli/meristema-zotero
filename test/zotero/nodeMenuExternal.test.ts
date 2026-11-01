@@ -226,14 +226,21 @@ describe("The node menu on an external paper (F5)", function () {
       "and over the seed entries",
     ).to.equal("Remove seed");
 
-    // Add to Zotero… imports nothing: it hands the reader to the pane.
+    // Add to Zotero… imports nothing: it opens the pane's collection
+    // chooser, with focus in its search (B114).
     entry("Add to Zotero…").click();
     expect(menu.hidden, "the entry closes the menu").to.equal(true);
-    const paneAdd = paneButton("Add to Zotero");
-    expect(paneAdd, "the pane offers Add to Zotero").to.exist;
+    const chooserSearch = root!.querySelector(
+      ".cm-import-area .cm-collection-search",
+    ) as HTMLInputElement | null;
+    expect(chooserSearch, "the pane's collection chooser is open").to.exist;
     expect(
-      doc.activeElement === paneAdd,
-      `focus lands on the pane's Add to Zotero; it is on ${
+      (chooserSearch!.closest(".cm-import-area") as HTMLElement).hidden,
+      "and shown",
+    ).to.equal(false);
+    expect(
+      doc.activeElement === chooserSearch,
+      `focus lands in the chooser's search; it is on ${
         (doc.activeElement as HTMLElement | null)?.outerHTML?.slice(0, 120) ??
         "nothing"
       }`,
