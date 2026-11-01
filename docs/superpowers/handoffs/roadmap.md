@@ -193,6 +193,13 @@ opacity grade).
       a 650px tab: Now (plot 99), A (pane to 320, plot 130), B (pane folds
       below a plot floor), C (pane stacked under the plot, as Zotero does),
       D (pane as a drawer over the plot), E (the rail folds first)
+      B is built on branch `d23-fold-details-below-plot-floor` (not
+      merged): under a 320px plot the pane folds to its strip without
+      folding Zotero's item pane, its toggle reopens it, and a 40px band
+      stops flicker. Zotero will not shrink its window below ~930px, so the
+      case narrows the graph's root; 2/0 twice. Its check: narrow the graph
+      tab (a detached graph window) until the plot is thin, and the pane
+      folds; Zotero's item pane stays as it was
 
 ## Other
 
