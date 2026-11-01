@@ -151,6 +151,11 @@ opacity grade).
       it (OpenAlex, then Crossref) and adds it as an external seed; New
       Graph › Start blank plus that row is F6, and F9 can share the parser.
       Title search across providers stays out (request rates, ADR 0013)
+      Built on branch `f6-doi-seed-lookup` (not merged, 2026-11-01): the
+      row, a unit model (`doiQuery`, the `lookup` list kind) and a Scope rail
+      case that seeds a served DOI; Scope rail suite 8/0 twice. Merge on the
+      user's yes; its manual check: on a blank graph, + Add seed, paste a
+      DOI not in Zotero, press Look up, and the paper becomes the seed
 - [ ] F10 select nodes in the graph and have Zotero follow: no canvas
       multi-select, no graph → list direction, and the one-row ring and the
       multi-row opacity are two visual languages for one idea
