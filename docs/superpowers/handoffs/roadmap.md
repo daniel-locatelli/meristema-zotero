@@ -109,6 +109,10 @@ opacity grade).
       Weigh a channel that separates adjacent hops (ring, stroke weight, size),
       opacity for emphasis alone, and no ramp when the colouring already says
       hop
+      Canvas (2026-11-01): https://claude.ai/artifact/WZFVakcUYU4H2StpiJJEVU,
+      Now beside A (no hop channel; the Citation hop colouring tells it), B
+      (size by hop), C (fill, thick ring, thin ring; but a ring already
+      means not in Zotero), D (a steeper ramp, 1, .55, .25)
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
@@ -159,6 +163,12 @@ opacity grade).
       papers had been tried or failed, and wants them retried once the
       network is back. Brainstorm against ADR 0014 and B94, which chose not
       to ask again
+      Proposal (2026-11-01, for the brainstorm): record why a paper failed,
+      offline (no answer at all) or answered (a provider said nothing usable,
+      ADR 0014). Offline failures retry once the window's `online` event
+      fires, and Resume takes them back too; answered ones stay out as B94
+      chose. The hop line's `n failed` becomes a toggle that rings the failed
+      papers on the plot, so which ones were tried can be seen
 - B81's check retires: Paper details no longer shows a Citations row, only
   the Cited by tab (`Cited by (n reported)`), so the count's source is shown
   nowhere there. Reopen only if the user wants the source on that tab.
