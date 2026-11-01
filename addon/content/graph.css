@@ -1986,7 +1986,12 @@
   display: grid;
   margin-top: 6px;
 }
-.cm-scope-hop-row-dimmed {
+/* An unfetched or unticked hop greys its tick, swatch and words, never the
+   Fetch hop N button the first unfetched row carries: grey is for disabled
+   or inactive controls only, and the button works (B119). */
+.cm-scope-hop-row-dimmed > .cm-scope-check-label,
+.cm-scope-hop-row-dimmed > .cm-scope-hop-swatch,
+.cm-scope-hop-row-dimmed > .cm-scope-hop-body > :not(.cm-scope-hop-fetch) {
   opacity: 0.45;
 }
 .cm-scope-hop-spacer {

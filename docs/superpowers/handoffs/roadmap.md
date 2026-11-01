@@ -141,8 +141,6 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] B119 Fetch hop N looks greyed out while it works. Grey is for
-      disabled or inactive controls only
 - [ ] D35 view actions are spread out: the gear's foot holds Reset and the
       blank-graph default (D32), the View menu holds the rest. The user wants
       them under View (View › Reset, the blank-graph default), plus a
@@ -203,6 +201,8 @@ any failure into a new entry above.
       gallery asks "How do you want to look at this paper and its N citers?"
       (N matching the rail's hop 1); switch the rail to References on a
       fresh one and it reads "references".
+- [ ] B119: on a seeded graph, the Fetch hop N button reads at full ink
+      while its row's tick, swatch and "Hop N" stay grey.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -524,3 +524,5 @@ entries are in git history.
 - 2026-11-01, later: B117 shipped. The Scope folder rows lose their own
   `max-height: 40vh` scroll; the rail body is the one box that scrolls.
 - 2026-11-01, later: the user walked B117; it passed, and its check retires.
+- 2026-11-01, later: B119 shipped. The unfetched row's 0.45 opacity sat on
+  the whole row, button included; it now greys the tick, swatch and words.

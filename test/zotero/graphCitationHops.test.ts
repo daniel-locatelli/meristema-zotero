@@ -1194,6 +1194,18 @@ describe("Citation hops (Stage 3)", function () {
       normalize(button!.textContent),
       `the button in the hop 2 row read "${normalize(button!.textContent)}"`,
     ).to.equal("Fetch hop 2");
+    // B119: the row is greyed as not fetched, the button that fetches it is not.
+    const view = button!.ownerDocument.defaultView as any;
+    const inkOf = (start: Element): number => {
+      let ink = 1;
+      for (let at: Element | null = start; at; at = at.parentElement) {
+        ink *= Number(view.getComputedStyle(at).opacity);
+      }
+      return ink;
+    };
+    const label = hopRow(2)!.querySelector(".cm-scope-row-label")!;
+    expect(inkOf(label), "the hop 2 label is greyed").to.be.below(1);
+    expect(inkOf(button!), "the Fetch hop 2 button is not greyed").to.equal(1);
     expect(
       hopCountText(2),
       `hop 2 already had a count before the fetch: "${hopRowText(2)}"`,
