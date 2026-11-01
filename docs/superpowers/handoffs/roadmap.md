@@ -308,6 +308,15 @@ opacity grade).
 - D11's check failed on 2026-11-01: a References fill still leaves nodes as
   "Title unavailable" beside the resolved ones. Measure under D11.
 
+- 2026-11-01 night: twelve branches (F6, F9, F10, F12, D5, D10, D11, D13,
+  D23, D36, D40 twice) merge without loss into `overnight-candidates`
+  (two import and teardown conflicts, both kept). `npm run check` 1096/0.
+  Full Zotero runs there: 129/11 (the known Stage 3 ladder flake, 23/0
+  alone), then 139/1 twice, each a different case a remount breaks (F6's,
+  since made to retry; D15's toast, 15/0 alone). Main's runs that night
+  were clean, so check whether the merged branches remount more before
+  merging them. Its XPI was built aside, not over main's.
+
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
