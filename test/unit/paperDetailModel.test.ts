@@ -335,22 +335,22 @@ describe("paperAbstract", () => {
 });
 
 describe("createDetailFoldMemory", () => {
-  it("starts with Advanced open", () => {
-    expect(createDetailFoldMemory().isOpen()).to.equal(true);
+  it("starts with Advanced collapsed (D39)", () => {
+    expect(createDetailFoldMemory().isOpen()).to.equal(false);
   });
 
-  it("keeps Advanced closed for the next paper once the reader closes it", () => {
+  it("keeps Advanced open for the next paper once the reader opens it", () => {
     const folds = createDetailFoldMemory();
-    folds.remember(false);
-    expect(folds.isOpen()).to.equal(false);
     folds.remember(true);
-    expect(folds.isOpen(), "and open again once reopened").to.equal(true);
+    expect(folds.isOpen()).to.equal(true);
+    folds.remember(false);
+    expect(folds.isOpen(), "and closed again once closed").to.equal(false);
   });
 
   it("remembers per memory, so two graph views do not share one", () => {
     const first = createDetailFoldMemory();
     const second = createDetailFoldMemory();
-    first.remember(false);
-    expect(second.isOpen()).to.equal(true);
+    first.remember(true);
+    expect(second.isOpen()).to.equal(false);
   });
 });

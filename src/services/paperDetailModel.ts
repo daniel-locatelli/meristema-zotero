@@ -81,8 +81,9 @@ export function paperAbstract(node: CitationGraphNode): string | null {
 
 /**
  * Whether the reader left Advanced open, so selecting another paper redraws
- * it as it was rather than as it starts. It starts open (B22). One per graph
- * view, in memory: a fresh view starts open again. The abstract above it is
+ * it as it was rather than as it starts. It starts collapsed (D39): the
+ * headline carries the counts. One per graph view, in memory: a fresh view
+ * starts collapsed again. The abstract above it is
  * no fold (D27), so there is nothing else to remember.
  */
 export interface DetailFoldMemory {
@@ -91,7 +92,7 @@ export interface DetailFoldMemory {
 }
 
 export function createDetailFoldMemory(): DetailFoldMemory {
-  let open = true;
+  let open = false;
   return {
     isOpen: () => open,
     remember: (value) => {

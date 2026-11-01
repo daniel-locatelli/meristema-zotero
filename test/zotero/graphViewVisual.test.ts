@@ -1140,10 +1140,8 @@ describe("Graph view, as the product builds it", function () {
     ).to.not.equal(null);
     expect(
       (advanced!.parentElement as HTMLDetailsElement).open,
-      "Advanced opens by default (B22): nothing in it is editable, so " +
-        "there is nothing to protect the reader from, and a collapsed " +
-        "section hides what the plugin knows",
-    ).to.equal(true);
+      "Advanced starts collapsed (D39): the headline carries the counts",
+    ).to.equal(false);
 
     /*
      * Two actions, and no more. "Show in Zotero" repeated the double-click on
@@ -1634,10 +1632,10 @@ describe("Graph view, as the product builds it", function () {
 
   /**
    * D27: the abstract is a plain section, a heading and the full text, shown
-   * on every paper that has one, with no fold to open. Advanced stays a fold,
-   * and once closed stays closed as the selection moves from paper to paper,
-   * and once reopened stays open: the view's memory holds it, so a toggle is
-   * read back off the next paper's pane.
+   * on every paper that has one, with no fold to open. Advanced stays a fold
+   * that starts collapsed (D39), and once opened stays open as the selection
+   * moves from paper to paper, and once closed again stays closed: the view's
+   * memory holds it, so a toggle is read back off the next paper's pane.
    */
   it("view 16 — the abstract is always shown; Advanced stays as the reader left it across selections", async function () {
     this.timeout(60_000);
@@ -1680,9 +1678,11 @@ describe("Graph view, as the product builds it", function () {
       paragraph.getBoundingClientRect().height,
       "and the text is drawn, not hidden",
     ).to.be.greaterThan(0);
-    expect(advancedFold().open, "Advanced open on a fresh view").to.equal(true);
+    expect(advancedFold().open, "Advanced collapsed on a fresh view").to.equal(
+      false,
+    );
 
-    advancedFold().open = false;
+    advancedFold().open = true;
     await settle(view.window, 4);
     controller.applyLibrarySelection([b!.itemID]);
     await settle(view.window, 4);
@@ -1690,11 +1690,11 @@ describe("Graph view, as the product builds it", function () {
       abstractSection()?.querySelector("p")?.textContent,
       "the next paper shows its own abstract straight away",
     ).to.equal("The second paper's abstract.");
-    expect(advancedFold().open, "the closed Advanced stays closed").to.equal(
-      false,
+    expect(advancedFold().open, "the opened Advanced stays open").to.equal(
+      true,
     );
 
-    advancedFold().open = true;
+    advancedFold().open = false;
     await settle(view.window, 4);
     controller.applyLibrarySelection([c!.itemID]);
     await settle(view.window, 4);
@@ -1702,8 +1702,8 @@ describe("Graph view, as the product builds it", function () {
       abstractSection(),
       "a paper with no abstract shows no section",
     ).to.equal(null);
-    expect(advancedFold().open, "a reopened Advanced stays open").to.equal(
-      true,
+    expect(advancedFold().open, "a reclosed Advanced stays closed").to.equal(
+      false,
     );
   });
 

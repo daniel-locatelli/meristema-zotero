@@ -296,12 +296,11 @@ function advancedMetrics(
   folds?: DetailFoldMemory,
 ): HTMLElement {
   const details = element(document, "details", "cm-advanced-details");
-  // Open by default (B22): nothing in it is editable, so there is nothing to
-  // protect the reader from, and a closed disclosure only hides what the
-  // plugin knows. Every row stays, dashes included: a dash says the plugin
-  // looked and found nothing (F8), and F9 is what fills it. A reader who
-  // closes it keeps it closed for the next paper, when `folds` is given.
-  details.open = folds ? folds.isOpen() : true;
+  // Collapsed by default (D39): the headline carries the counts. Every row
+  // stays, dashes included: a dash says the plugin looked and found nothing
+  // (F8), and F9 is what fills it. A reader who opens it keeps it open for
+  // the next paper, when `folds` is given.
+  details.open = folds ? folds.isOpen() : false;
   if (folds)
     details.addEventListener("toggle", () => folds.remember(details.open));
   details.appendChild(text(document, "summary", "Advanced"));

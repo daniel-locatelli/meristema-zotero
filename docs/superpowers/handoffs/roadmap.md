@@ -168,7 +168,6 @@ opacity grade).
       which needs no key
 - [ ] D37 the gallery cards' description and tags ("Needs a seed") are too
       small to read (D34)
-- [ ] D39 Paper details' Advanced section starts collapsed
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
       papers had been tried or failed, and wants them retried once the
@@ -215,6 +214,9 @@ any failure into a new entry above.
 - [ ] D38: the Views gallery and menu name the references view References,
       not Cornerstones. A graph saved under Cornerstones before the rename
       opens on it, still marked as that view.
+- [ ] D39: in a fresh graph tab, select a paper: Paper details shows the
+      headline counts with Advanced collapsed. Open it and select another
+      paper: it stays open.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -515,3 +517,5 @@ entries are in git history.
 - 2026-11-01, later: the user walked B118 and D41; both passed.
 - 2026-11-01, later: D38 shipped: the Cornerstones view is named References;
   its id stays, since saved graphs reference it.
+- 2026-11-01, later: D39 shipped: Advanced starts collapsed, and stays as
+  the reader leaves it across papers.
