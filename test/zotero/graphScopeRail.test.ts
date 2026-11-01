@@ -641,42 +641,57 @@ describe("The graph's Scope rail", function () {
       graphRoot().querySelector(".cm-focus-seed-popover") as HTMLElement;
     try {
       const before = seedRowCount();
-      add().click();
-      await delay(50);
-      const popover = livePopover();
-      expect(popover.hidden, "the panel opens").to.equal(false);
-      const search = popover.querySelector(
+      // A full run's other suites erase fixtures, and each erase remounts the
+      // open graphs; a remount drops the lookup in flight with its view. So a
+      // remount mid-lookup is retried on the new view, up to three times.
+      let popover = livePopover();
+      let search = popover.querySelector(
         ".cm-focus-seed-search",
       ) as HTMLInputElement;
-      search.value = `https://doi.org/${doi}`;
-      search.dispatchEvent(new win.Event("input", { bubbles: true }));
-      const lookup = await waitFor(
-        () =>
-          (
-            Array.from(
-              popover.querySelectorAll(".cm-focus-seed-result-main"),
-            ) as HTMLButtonElement[]
-          ).find(
-            (button) =>
-              button.querySelector(".cm-focus-seed-result-title")
-                ?.textContent === `Look up ${doi}`,
-          ) ?? null,
-        10_000,
-      );
-      expect(
-        lookup,
-        `a lookup row for the DOI; the panel reads "${popover.textContent}"`,
-      ).to.exist;
-      lookup!.click();
-      const added = await waitFor(() => seedRowCount() === before + 1, 20_000);
-      expect(
-        livePopover() === popover,
-        "the view was not remounted mid-lookup",
-      ).to.equal(true);
+      let added: true | null = null;
+      for (let attempt = 0; attempt < 3 && !added; attempt += 1) {
+        if (livePopover().hidden) add().click();
+        await delay(50);
+        popover = livePopover();
+        expect(popover.hidden, "the panel opens").to.equal(false);
+        search = popover.querySelector(
+          ".cm-focus-seed-search",
+        ) as HTMLInputElement;
+        search.value = `https://doi.org/${doi}`;
+        search.dispatchEvent(new win.Event("input", { bubbles: true }));
+        const lookup = await waitFor(
+          () =>
+            (
+              Array.from(
+                popover.querySelectorAll(".cm-focus-seed-result-main"),
+              ) as HTMLButtonElement[]
+            ).find(
+              (button) =>
+                button.querySelector(".cm-focus-seed-result-title")
+                  ?.textContent === `Look up ${doi}`,
+            ) ?? null,
+          10_000,
+        );
+        if (!lookup && !popover.isConnected) continue;
+        expect(
+          lookup,
+          `a lookup row for the DOI; the panel reads "${popover.textContent}"`,
+        ).to.exist;
+        lookup!.click();
+        added = await waitFor(
+          () => seedRowCount() === before + 1 || !popover.isConnected,
+          20_000,
+        ).then((done) =>
+          done && popover.isConnected && seedRowCount() === before + 1
+            ? true
+            : null,
+        );
+        if (!added && popover.isConnected) break;
+      }
       expect(
         added,
-        `the looked-up paper became a seed (batch asked ${batchAsked} times); the panel reads "${popover.textContent}"; panel connected ${popover.isConnected}; errors: ${(Zotero.getErrors(true) as string[]).slice(-3).join(" || ")}; asked: ${asked.join(" | ")}`,
-      ).to.exist;
+        `the looked-up paper became a seed (batch asked ${batchAsked} times); the panel reads "${popover.textContent}"; panel connected ${popover.isConnected}; asked: ${asked.join(" | ")}`,
+      ).to.equal(true);
       const labels = (
         Array.from(
           graphRoot().querySelectorAll(".cm-scope-seed .cm-scope-seed-label"),
