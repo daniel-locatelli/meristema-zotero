@@ -176,8 +176,13 @@ opacity grade).
       (brainstorm: add or replace, tick or not, which window, the cap)
       Proposed defaults (2026-11-01): add, as a toggle, since a region
       selection already holds several (F14); tick the folder in Scope so the
-      graph shows what is lit; only the graph tab in front, not detached
-      windows; no cap, as F14 chose
+      graph shows what is lit; no cap, as F14 chose. Corrected: the tree
+      lives in the library tab, so no graph tab shows while a folder is
+      picked; detached graph windows are what can answer. Built on branch
+      `f12-folder-selection-lights-region` (not merged): a pick adds the
+      region in every detached graph of that main window. Unit tests and a
+      Zotero case, 1/0 twice. Its check: move a graph to its own window,
+      pick a folder in Zotero, and the graph lights that folder's region
 - [ ] F9 a tool for adding a DOI, starting with the one a resolved match
       already carries and never writes back. Design the unconfirmed-match case
       Proposal (2026-11-01): a library paper with no DOI whose match carries
