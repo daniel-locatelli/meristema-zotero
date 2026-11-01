@@ -2008,6 +2008,42 @@ describe("Citation hops (Stage 3)", function () {
         answerAgain();
       }
     });
+
+    it("ends a Refresh seeds in seconds while every provider refuses (B64)", async function () {
+      this.timeout(90_000);
+      // The previous case left a seeded graph whose hop 1 filled.
+      expect(
+        normalize(refreshButton().textContent),
+        "the graph is seeded, so Refresh names the seeds",
+      ).to.equal("Refresh seeds");
+      refuseProviders();
+      try {
+        await pressRefresh();
+        const pressedAt = Date.now();
+        const busy = await waitFor(
+          () =>
+            refreshButton().disabled ||
+            refreshButton().getAttribute("aria-busy") === "true",
+          5_000,
+        );
+        expect(busy, "the Refresh started (it went busy)").to.exist;
+        const free = await waitFor(
+          () =>
+            !refreshButton().disabled &&
+            refreshButton().getAttribute("aria-busy") !== "true",
+          30_000,
+        );
+        const took = Date.now() - pressedAt;
+        expect(free, "the Refresh came back").to.exist;
+        // Before B64 a refusal was retried until the 15 s timeout ended it.
+        expect(
+          took,
+          `the Refresh took ${took} ms under refusals; title "${refreshButton().title}"`,
+        ).to.be.below(12_000);
+      } finally {
+        answerAgain();
+      }
+    });
   });
 
   /**

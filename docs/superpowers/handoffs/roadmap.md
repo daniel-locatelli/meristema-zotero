@@ -211,6 +211,11 @@ any failure into a new entry above.
 
 - Refusals were not reached on 2026-10-07 or 2026-11-01, so B50, B72 and
   B64 wait for a session where Semantic Scholar refuses.
+- Offline cover, 2026-11-01: the Citation hops suite serves refusals for B50
+  ("under provider refusals"), B72 (its drain case), B64 (a Refresh seeds
+  under refusals ends in 1.3 s; with the fix reverted, 16.2 s, red) and
+  B78/B79 (Seeds linked tiers, the key cleared live). What only the live
+  walk adds is real provider timing; retire any of the four on your call.
 - [ ] B50: on your own profile (no Semantic Scholar key), fill a seeded graph
       to hop 3 under Citers. While it runs, the hop line shows only Stop and
       the hop counts keep climbing. If it reads `… refusing · retry in …`,
@@ -598,3 +603,6 @@ entries are in git history.
   into one block-wide line, which `ScopeHopsProgress.afterHop` documents as
   following the deepest open hop. Canvases for D10, D13 and D23 linked from
   their entries, and a proposal for D40.
+- 2026-11-01, later: B64 gains a Zotero case: Refresh seeds under served
+  refusals comes back in 1.3 s, and red at 16.2 s with `retryRefusals: true`.
+  Canvases for D5; proposals for F6, F10 and F12.
