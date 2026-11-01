@@ -283,6 +283,12 @@ opacity grade).
       papers while hovered or focused (the model's new `failed` field); the
       line's text is unchanged. Hops suite 23/0. Its check: after a fill
       offline, point at "n failed" and the failed papers stand out
+      The retry half is on branch `d40-retry-after-reconnect` (not merged):
+      on the window's `online` event, unless the fill is stopped, every
+      failed paper is asked again (`retryAfterReconnect`, unit-tested);
+      this reverses B94 for failures, so it is the user's call. Hops suite
+      23/0. Its check: fill offline, reconnect, and without pressing
+      anything the failed count falls as the papers fill
 - B81's check retires: Paper details no longer shows a Citations row, only
   the Cited by tab (`Cited by (n reported)`), so the count's source is shown
   nowhere there. Reopen only if the user wants the source on that tab.
