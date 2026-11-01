@@ -203,9 +203,6 @@ any failure into a new entry above.
       gallery asks "How do you want to look at this paper and its N citers?"
       (N matching the rail's hop 1); switch the rail to References on a
       fresh one and it reads "references".
-- [ ] B117: in a short window, open a graph whose Scope lists many folders:
-      the rail shows one scroll bar, and the folder rows scroll with the rest
-      of the rail, not inside Scope.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -526,3 +523,4 @@ entries are in git history.
   direction.
 - 2026-11-01, later: B117 shipped. The Scope folder rows lose their own
   `max-height: 40vh` scroll; the rail body is the one box that scrolls.
+- 2026-11-01, later: the user walked B117; it passed, and its check retires.
