@@ -116,6 +116,12 @@ opacity grade).
       queued again, which only `queueRelationshipMetadataHydration` does;
       whether a fill or a view rebuild re-queues it is the measurement to
       take on the user's profile before choosing the fix
+      The smallest fix is built on branch `d11-second-hydration-attempt`
+      (not merged): two attempts per paper per session
+      (`mayQueueHydration`), the session mark now a count. Hops suite 23/0,
+      so no request-count case moved. Its check, with the measurement: on
+      your profile, fill a References graph, note the Title unavailable
+      nodes, wait a minute without Refresh, and count them again
 
 ## The rail and the Key
 
