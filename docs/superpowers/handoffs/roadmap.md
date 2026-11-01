@@ -251,6 +251,11 @@ opacity grade).
       fires, and Resume takes them back too; answered ones stay out as B94
       chose. The hop line's `n failed` becomes a toggle that rings the failed
       papers on the plot, so which ones were tried can be seen
+      The visible half is built on branch `d40-show-failed-papers` (not
+      merged): the hop line's `n failed` is a control that lights the failed
+      papers while hovered or focused (the model's new `failed` field); the
+      line's text is unchanged. Hops suite 23/0. Its check: after a fill
+      offline, point at "n failed" and the failed papers stand out
 - B81's check retires: Paper details no longer shows a Citations row, only
   the Cited by tab (`Cited by (n reported)`), so the count's source is shown
   nowhere there. Reopen only if the user wants the source on that tab.
