@@ -215,17 +215,6 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B118: seed PH-CPF in Impact and let hop 2 land. The Y axis tops out
-      near the graph's own most cited paper, not at 5,249 ("Let's Verify
-      Step by Step", outside the graph). The BUGA Wood Pavilion paper sits at
-      35, High-Order Directional Fields at 6. Raise the floor: the axis does
-      not rescale. Zoom in on a crowd: it goes about four times deeper than
-      before and the discs pull apart.
-- [ ] D41: in Paper details, the Overview's top row reads Citations,
-      References, FWCI and Percentile; Citations / year is in Advanced only,
-      as Recent citation rate. Hover a label, then its number: both show the
-      same text, what the figure means and then its sources. Check it on a
-      hop paper outside your library too: the sources are that paper's.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -523,3 +512,4 @@ entries are in git history.
   reference counts, and every metric row carries one hover, meaning then
   sources, read off the paper shown rather than matched by title. B81's
   question (where the count's source shows) is answered by it. Not pushed.
+- 2026-11-01, later: the user walked B118 and D41; both passed.
