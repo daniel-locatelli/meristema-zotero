@@ -14,6 +14,23 @@ import { element, text } from "./graphViewControls";
  * state lives here; every decision arrives through a callback.
  */
 
+/**
+ * The gear's own actions, offered again under View (D35): the gear still
+ * holds them, and View is where a reader looks for what a graph shows.
+ */
+export interface GraphDisplayActions {
+  /** Open the gear's panel, Graph display settings. */
+  openSettings(): void;
+  /** This graph back on what a new blank graph opens with. */
+  reset(): void;
+  /** Open new blank graphs with this graph's settings. */
+  useForNewBlank(): void;
+  /** Forget the made default; new blank graphs open on the built-in one. */
+  restoreBuiltIn(): void;
+  /** Whether there is a made default for Restore built-in to forget. */
+  hasStoredDefault(): boolean;
+}
+
 export interface GraphViewsMenuOptions {
   document: Document;
   shipped: readonly GraphViewDefinition[];
@@ -31,6 +48,8 @@ export interface GraphViewsMenuOptions {
    * next open rather than on the next render.
    */
   onOpen?: () => void;
+  /** The gear's actions, in their own group under the view actions (D35). */
+  display?: GraphDisplayActions;
 }
 
 export interface GraphViewsMenu {
@@ -160,25 +179,48 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
         );
       }
     }
-    menu.append(
-      text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule"),
-    );
-    for (const [labelText, handler] of [
+    const group = (
+      actions: ReadonlyArray<readonly [string, () => void]>,
+    ): void => {
+      menu.append(
+        text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule"),
+      );
+      for (const [labelText, handler] of actions) {
+        const action = element(document, "button", "cm-view-action");
+        action.type = "button";
+        action.setAttribute("role", "menuitem");
+        action.textContent = labelText;
+        action.addEventListener("click", (event) => {
+          event.stopPropagation();
+          close();
+          handler();
+        });
+        menu.append(action);
+      }
+    };
+    group([
       ["Save current as view…", o.onSaveCurrent],
       ["Copy current as JSON", o.onCopyCurrent],
       ["Import view JSON…", o.onImport],
       ["Choose a view…", o.onOpenGallery],
-    ] as const) {
-      const action = element(document, "button", "cm-view-action");
-      action.type = "button";
-      action.setAttribute("role", "menuitem");
-      action.textContent = labelText;
-      action.addEventListener("click", (event) => {
-        event.stopPropagation();
-        close();
-        handler();
-      });
-      menu.append(action);
+    ]);
+    const display = o.display;
+    if (display) {
+      // What this graph shows, then what new blank graphs open with: the
+      // gear's two action lines, in its order (D32).
+      group([
+        ["Graph display settings…", () => display.openSettings()],
+        ["Reset this graph", () => display.reset()],
+        ["Use these for new blank graphs", () => display.useForNewBlank()],
+        ...(display.hasStoredDefault()
+          ? ([
+              [
+                "Restore built-in for new blank graphs",
+                () => display.restoreBuiltIn(),
+              ],
+            ] as const)
+          : []),
+      ]);
     }
   };
 

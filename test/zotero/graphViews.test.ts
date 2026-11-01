@@ -1326,4 +1326,79 @@ describe("Graph views (D4)", function () {
       }
     }
   });
+
+  it("opens the gear from View, on a collapsed rail too, and resets from there (D35)", async function () {
+    this.timeout(60_000);
+    const names = [
+      "graphAppearance",
+      "graphAppearanceVersion",
+      "focusGraphAppearance",
+      "focusGraphAppearanceVersion",
+    ].map((name) => `${config.prefsPrefix}.${name}`);
+    const previous = names.map((name) => Zotero.Prefs.get(name, true));
+    const rail = (): HTMLElement =>
+      graphRoot().querySelector(".cm-key-rail") as HTMLElement;
+    const panel = (): HTMLElement =>
+      graphRoot().querySelector(".cm-appearance-panel") as HTMLElement;
+    const menuAction = async (label: string): Promise<void> => {
+      const menu = await openChipMenu();
+      buttonReading(menu, label).click();
+    };
+    try {
+      for (const name of names) Zotero.Prefs.clear(name, true);
+      win.Zotero_Tabs.select(tabID);
+      if (rail().dataset.collapsed !== "true") {
+        (graphRoot().querySelector(".cm-key-toggle") as HTMLElement).click();
+      }
+      await waitFor(() => rail().dataset.collapsed === "true", 5_000);
+      expect(rail().dataset.collapsed, "the rail collapsed").to.equal("true");
+
+      await menuAction("Graph display settings…");
+      await waitFor(() => !panel().hidden, 5_000);
+      expect(rail().dataset.collapsed, "the rail opened for it").to.not.equal(
+        "true",
+      );
+      expect(panel().hidden, "the gear's panel opened").to.equal(false);
+      expect(
+        panel().getBoundingClientRect().width,
+        "and it is drawn",
+      ).to.be.greaterThan(0);
+
+      const labels = labelSelect();
+      labels.value = labels.value === "title" ? "none" : "title";
+      fire(labels, "change");
+      await delay(300);
+      await menuAction("Reset this graph");
+      expect(labelSelect().value, "Reset put the built-in label back").to.equal(
+        "author-year",
+      );
+      const menu = await openChipMenu();
+      expect(
+        (
+          Array.from(menu.querySelectorAll(".cm-view-action")) as HTMLElement[]
+        ).map((action) => normalize(action.textContent)),
+        "no made default, so no Restore built-in",
+      ).to.not.include("Restore built-in for new blank graphs");
+      await closeChipMenu();
+    } finally {
+      names.forEach((name, i) => {
+        const value = previous[i];
+        if (value === undefined || value === null) {
+          Zotero.Prefs.clear(name, true);
+        } else {
+          Zotero.Prefs.set(name, value as string | number, true);
+        }
+      });
+      const open = tabContent(tabID)?.querySelector(
+        ".cm-appearance-panel",
+      ) as HTMLElement | null;
+      if (open && !open.hidden) {
+        (
+          tabContent(tabID)?.querySelector(
+            ".cm-appearance-button",
+          ) as HTMLButtonElement | null
+        )?.click();
+      }
+    }
+  });
 });

@@ -9,6 +9,7 @@ import {
   createSavePanel,
   createViewGallery,
   galleryHeading,
+  type GraphDisplayActions,
 } from "../../src/services/graphViewsMenu";
 
 /*
@@ -93,6 +94,7 @@ const fakeDocument = {
 function openMenu(
   activeID: string | null,
   onCopyCurrent: () => void = () => {},
+  display?: GraphDisplayActions,
 ): FakeElement {
   const menu = createGraphViewsMenu({
     document: fakeDocument,
@@ -104,6 +106,7 @@ function openMenu(
     onCopyCurrent,
     onImport: () => {},
     onOpenGallery: () => {},
+    ...(display ? { display } : {}),
   });
   menu.setActive(activeID);
   menu.open();
@@ -177,6 +180,58 @@ describe("the View dropdown's actions (D31)", function () {
       .find((a) => a.textContent === "Copy current as JSON");
     action?.click();
     expect(copies).to.equal(1);
+  });
+});
+
+describe("the View dropdown's display actions (D35)", function () {
+  function display(stored: boolean, calls: string[]): GraphDisplayActions {
+    return {
+      openSettings: () => calls.push("settings"),
+      reset: () => calls.push("reset"),
+      useForNewBlank: () => calls.push("use"),
+      restoreBuiltIn: () => calls.push("restore"),
+      hasStoredDefault: () => stored,
+    };
+  }
+  const labels = (menu: FakeElement): string[] =>
+    menu.all("cm-view-action").map((action) => action.textContent);
+
+  it("groups the gear's actions after the view actions, behind a rule", function () {
+    const menu = openMenu(null, () => {}, display(true, []));
+    expect(labels(menu)).to.deep.equal([
+      "Save current as view…",
+      "Copy current as JSON",
+      "Import view JSON…",
+      "Choose a view…",
+      "Graph display settings…",
+      "Reset this graph",
+      "Use these for new blank graphs",
+      "Restore built-in for new blank graphs",
+    ]);
+    expect(menu.all("cm-view-menu-rule")).to.have.length(2);
+  });
+
+  it("offers Restore built-in only while a made default exists", function () {
+    expect(labels(openMenu(null, () => {}, display(false, [])))).to.not.include(
+      "Restore built-in for new blank graphs",
+    );
+  });
+
+  it("runs the gear's own action for each entry", function () {
+    const calls: string[] = [];
+    const menu = openMenu(null, () => {}, display(true, calls));
+    for (const label of [
+      "Graph display settings…",
+      "Reset this graph",
+      "Use these for new blank graphs",
+      "Restore built-in for new blank graphs",
+    ]) {
+      menu
+        .all("cm-view-action")
+        .find((action) => action.textContent === label)
+        ?.click();
+    }
+    expect(calls).to.deep.equal(["settings", "reset", "use", "restore"]);
   });
 });
 

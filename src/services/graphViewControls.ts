@@ -379,6 +379,13 @@ export function createAxesAppearance(
   close: () => void;
   /** Name the view the settings came from (D28); null hides the line. */
   setSource: (source: AppearanceSource | null) => void;
+  /** Open the panel, as its button does; View's Graph display settings (D35). */
+  open: () => void;
+  /** The panel's Reset, Use these and Restore built-in, for View (D35). */
+  reset: () => void;
+  useForNewBlank: () => void;
+  restoreBuiltIn: () => void;
+  hasStoredDefault: () => boolean;
   /**
    * Enable or disable one colouring's option. Citation hop means nothing
    * without a seed, so the view flips it with seededness; a disabled
@@ -738,18 +745,18 @@ export function createAxesAppearance(
     panel.style.display = "none";
     button.setAttribute("aria-expanded", "false");
   };
+  const open = (): void => {
+    panel.hidden = false;
+    panel.style.display = "block";
+    button.setAttribute("aria-expanded", "true");
+    // The graph may have gained or lost its seeds since, and with them
+    // the default the actions speak for.
+    refreshDefaultActions();
+    activate("x");
+  };
   button.addEventListener("click", () => {
-    if (panel.hidden) {
-      panel.hidden = false;
-      panel.style.display = "block";
-      button.setAttribute("aria-expanded", "true");
-      // The graph may have gained or lost its seeds since, and with them
-      // the default the actions speak for.
-      refreshDefaultActions();
-      activate("x");
-    } else {
-      close();
-    }
+    if (panel.hidden) open();
+    else close();
   });
   const setControls = (layout: GraphLayoutOptions): void => {
     selectAvailableValue(xMetric, layout.xMetric);
@@ -765,17 +772,18 @@ export function createAxesAppearance(
     setControls(layout);
     commit(read(), true);
   };
-  reset.addEventListener("click", () => {
-    setLayout(defaults.current());
-  });
-  makeDefault.addEventListener("click", () => {
+  const resetGraph = (): void => setLayout(defaults.current());
+  const useForNewBlank = (): void => {
     defaults.make(read());
     refreshDefaultActions();
-  });
-  forgetDefault.addEventListener("click", () => {
+  };
+  const restoreBuiltIn = (): void => {
     setLayout(defaults.forget());
     refreshDefaultActions();
-  });
+  };
+  reset.addEventListener("click", resetGraph);
+  makeDefault.addEventListener("click", useForNewBlank);
+  forgetDefault.addEventListener("click", restoreBuiltIn);
   updateAvailability();
   activate("x");
   // What the selects landed on is what this graph can show, not a choice the
@@ -791,6 +799,11 @@ export function createAxesAppearance(
     getLayout: read,
     close,
     setSource,
+    open,
+    reset: resetGraph,
+    useForNewBlank,
+    restoreBuiltIn,
+    hasStoredDefault: () => Boolean(defaults.stored()),
     setColourOptionAvailable(metric, available) {
       const option = colorMetric.querySelector(
         `option[data-metric="${metric}"]`,

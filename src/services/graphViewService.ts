@@ -1006,6 +1006,22 @@ export function renderGraphView(
     onCopyCurrent: () => copyCurrentJSON(),
     onImport: () => void importView(),
     onOpenGallery: () => showGallery(),
+    // The gear's actions under View (D35). `appearance` is built further
+    // down; these run only once the menu is open, long after.
+    display: {
+      // The gear sits in the rail's footer, which a collapsed rail hides.
+      openSettings: () => {
+        if (keyRail.isCollapsed()) {
+          keyRail.setCollapsed(false);
+          collectionsPane.setCollapsed(false);
+        }
+        appearance.open();
+      },
+      reset: () => appearance.reset(),
+      useForNewBlank: () => appearance.useForNewBlank(),
+      restoreBuiltIn: () => appearance.restoreBuiltIn(),
+      hasStoredDefault: () => appearance.hasStoredDefault(),
+    },
     // Another tab may have renamed or deleted the view this chip is on.
     onOpen: () => {
       invalidateActiveView();
