@@ -150,7 +150,10 @@ opacity grade).
 
 - [ ] D36 the Key's States (B107): the Seed ring split into the seed colours
       looks wrong with several seeds; redesign it (a design question: the
-      user picks on a canvas). The Selected row is gone (2026-11-01)
+      user picks on a canvas). The Selected row is gone (2026-11-01).
+      Canvas: https://claude.ai/artifact/TQnib58fxDn67dxpiVKJiA, Now beside
+      A (one neutral ring), B (a row per seed, by name), C (a neutral ring
+      and a dot per seed colour)
 - [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
       a fetch offline, reconnecting and Resume, the user could not tell which
       papers had been tried or failed, and wants them retried once the
