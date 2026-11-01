@@ -199,6 +199,13 @@ opacity grade).
       provider ID) writes it on one click, an unconfirmed one (title and
       year) shows both titles side by side first and writes only on
       confirm. A typed DOI goes through F6's parser
+      Built on branch `f9-add-matched-doi` (not merged): `doiOffer` (unit
+      tests) and the Paper details section, written only on the reader's
+      press. No Zotero case: seeding a match record the plugin's own copy
+      reads needs a served citation update. Selection and visual suites
+      13/0. Its check: a library paper with an empty DOI field that the
+      plugin matched shows "This item has no DOI"; Add (or Confirm and add)
+      writes it, and Zotero's Info pane shows the DOI
 - [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
       Paper details keeps its side width, so a 650px window leaves the plot
       about 99px. Brainstorm: shrink Paper details towards Zotero's 320px
