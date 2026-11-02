@@ -249,17 +249,23 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `e84e6d8` plus test messages (141/0), so count with the commits since `e84e6d8`. A clean run is 141 cases as of 2026-11-02. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `225de15` plus the network guard (142/1, F11, since fixed), so count with the commits since `225de15`. A clean run is 143 cases as of 2026-11-02. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
-- Open, 2026-11-02: three cases fail in some full runs and pass alone. F11's
-  (`graphScopeRail`, no node at the canvas centre, menu empty), B15's
-  (`graphScopeRail`, "the panel opens" or no search row) and D17's
-  (`graphViews`, the graph is on the built-in one). Five runs from `745639d` to
-  `e84e6d8`: 139/2, 140/1, 139/2, 140/1, 141/0. Each case holds elements across
-  awaits, so the remount below is the suspect, unproven. Their messages now
-  print whether the held element is still connected: `connected false` means
-  fix the case, `connected true` means look for a real bug.
+- The suite never reaches a citation provider (`networkGuard.test.ts`): the
+  user reports repeated runs saturate them. Root hooks answer every provider
+  request not-found under any case's own stub, and write what they stopped, by
+  case, to `.scaffold/visual/network-guard.txt`. The first guarded run stopped
+  60 (38 Semantic Scholar, 21 Crossref, 1 the guard's own case).
+- Open, 2026-11-02: B15's case (`graphScopeRail`, "the panel opens" or no search
+  row) and D17's (`graphViews`, the graph is on the built-in one) fail in some
+  full runs and pass alone; five runs from `745639d` to `e84e6d8` read 139/2,
+  140/1, 139/2, 140/1, 141/0. F11's failed the same way and was the remount
+  below: it failed with no provider traffic, and a forced remount reproduced it.
+  Both cases hold elements across awaits, so the remount is the suspect for them
+  too, unproven. Their messages print whether the held element is still
+  connected: `connected false` means fix the case as F11's was, `connected true`
+  means look for a real bug.
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
   B111: Zotero's tab hooks focus `.cm-search`, and in the 1000px test window
   the plot pane is narrower than its toolbar, so the focus scrolled the pane

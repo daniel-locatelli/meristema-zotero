@@ -384,9 +384,20 @@ describe("The graph's Scope rail", function () {
     // right-click at the canvas centre lands on a node, and its menu is a
     // seed's. The renderer prevents the default only when its hit test found
     // a node. The centring glides (B105), so the probe repeats until the
-    // camera has brought the seed there; a right-click does not stop it.
-    const canvas = graphRoot().querySelector("canvas") as HTMLCanvasElement;
+    // camera has brought the seed there; a right-click does not stop it. A
+    // full run's other suites erase fixtures, and each erase remounts the open
+    // graphs: the new view has a new canvas and has not centred, so the row is
+    // pressed again on it.
+    const liveCanvas = (): HTMLCanvasElement =>
+      graphRoot().querySelector("canvas") as HTMLCanvasElement;
+    let canvas = liveCanvas();
     const probeCentre = (): { prevented: boolean; menu: string } => {
+      if (liveCanvas() !== canvas) {
+        canvas = liveCanvas();
+        (
+          graphRoot().querySelector(".cm-scope-seed-body") as HTMLButtonElement
+        ).click();
+      }
       const box = canvas.getBoundingClientRect();
       const atCentre = new win.MouseEvent("contextmenu", {
         bubbles: true,
@@ -408,7 +419,7 @@ describe("The graph's Scope rail", function () {
     }, 5_000);
     expect(
       centre.prevented,
-      `a node sits at the canvas centre; menu [${centre.menu}]; canvas connected ${canvas.isConnected}, current ${graphRoot().querySelector("canvas") === canvas}`,
+      `a node sits at the canvas centre; menu [${centre.menu}]; canvas current ${liveCanvas() === canvas}`,
     ).to.equal(true);
     expect(centre.menu, "the node at the centre is the seed").to.include(
       "Remove seed",
