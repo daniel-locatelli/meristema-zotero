@@ -88,7 +88,6 @@ const LAYOUT: GraphLayoutOptions = {
 
 const QUIET: KeyStates = {
   seedKeys: new Set<string>(),
-  searchMatches: null,
   visibleKeys: null,
 };
 
@@ -318,7 +317,6 @@ describe("Graph key model", () => {
             ["k2", theme.seeds[0]!],
             ["k3", theme.seeds[1]!],
           ]),
-          searchMatches: new Set(["k1"]),
         },
       ),
       "states",
@@ -335,10 +333,6 @@ describe("Graph key model", () => {
       colors: [theme.inks.muted, theme.inks.primary],
     });
     expect(states.entries.map((entry) => entry.id)).to.not.include("selected");
-    expect(mark("search-match")).to.deep.include({
-      kind: "halo",
-      colors: [theme.inks.muted, theme.states.searchMatch],
-    });
   });
 
   it("rings the Seed mark once, in ink, however many seed colours there are (D36)", () => {

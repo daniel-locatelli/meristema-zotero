@@ -61,7 +61,6 @@ describe("Graph theme tokens", function () {
         theme.edges.incoming,
         theme.states.selected,
         theme.states.seed,
-        theme.states.searchMatch,
         theme.states.retracted,
       ]) {
         expect(value, `${theme.scheme} token`).to.match(/^#[0-9a-f]{6}$/);

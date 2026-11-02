@@ -256,9 +256,9 @@ describe("The graph's folder regions", function () {
    * what the search box leaves on the plot. The search here matches only the
    * sibling's paper, so before the fix the first folder's region had no keys
    * and selecting it drew nothing; now its hull is drawn around its paper
-   * even while search hides that paper.
+   * even while search greys that paper.
    */
-  it("keeps a selected folder's region while search hides its papers", async function () {
+  it("keeps a selected folder's region while search greys its papers", async function () {
     this.timeout(30_000);
     const canvas = graphRoot().querySelector(
       "canvas.cm-graph-canvas",

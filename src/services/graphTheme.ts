@@ -64,7 +64,6 @@ export interface GraphEdgeTokens {
 export interface GraphStateTokens {
   selected: string;
   seed: string;
-  searchMatch: string;
   retracted: string;
   /** Every non-seed node when no colour metric is chosen. */
   uniformFill: string;
@@ -159,7 +158,6 @@ const LIGHT_THEME: GraphTheme = {
   states: {
     selected: "#1b1d19",
     seed: "#63665d",
-    searchMatch: "#0f110d",
     retracted: "#a33a3a",
     uniformFill: "#8d928a",
     floorLine: "#2563eb",
@@ -211,7 +209,6 @@ const DARK_THEME: GraphTheme = {
   states: {
     selected: "#e8e9e3",
     seed: "#9a9c93",
-    searchMatch: "#ffffff",
     retracted: "#d98b8b",
     uniformFill: "#787d75",
     floorLine: "#8fb8ff",

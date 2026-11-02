@@ -198,6 +198,8 @@ const PLOT_BOTTOM = 675;
  * counts, the exports and the filter panel all still see every paper.
  */
 const EMPHASIS_ALPHA = 0.25;
+/** What a paper the search misses says under the pointer (ADR 0023). */
+const CLEAR_SEARCH_TO_SELECT = "Clear search to select";
 const EMPHASIS_EASE_MS = 120;
 /** The farthest out the view zooms. */
 const MIN_VIEW_SCALE = 0.15;
@@ -290,7 +292,7 @@ export class CitationGraphRenderer {
   private readonly onThemeChange: (theme: GraphTheme) => void;
   private visibleKeys: Set<string>;
   /**
-   * The keys the *filter* admits, before the search box narrows them further.
+   * The keys the *filter* admits. The search box only greys among them.
    *
    * A graph opened on a folder is the whole library with a filter over it, so
    * "which categories exist" cannot be asked of the model — it would rank the
@@ -308,7 +310,10 @@ export class CitationGraphRenderer {
    * not show must not stretch the axis its hop papers are read on.
    */
   private frameKeys: Set<string> | null = null;
+  /** Null when no search is on; otherwise the rest draw grey (ADR 0023). */
   private searchMatches: Set<string> | null = null;
+  /** The grey paper under the pointer, which names the way out in a tooltip. */
+  private greyHoverKey: string | null = null;
   private readonly hiddenEdgeKeys = new Set<string>();
   private layout: GraphLayoutOptions;
   private selectedKey: string | null = null;
@@ -853,6 +858,20 @@ export class CitationGraphRenderer {
     return hitTestRenderer(this as unknown as RendererSceneContext, x, y);
   }
 
+  /** The paper the pointer can act on: a grey one takes none (ADR 0023). */
+  private hitLiveNode(x: number, y: number): CitationGraphNode | null {
+    return hitTestRenderer(
+      this as unknown as RendererSceneContext,
+      x,
+      y,
+      (key) => !this.greyedBySearch(key),
+    );
+  }
+
+  private greyedBySearch(key: string): boolean {
+    return this.searchMatches !== null && !this.searchMatches.has(key);
+  }
+
   private onPointerDown = (event: PointerEvent): void => {
     // A right button belongs to the context menu: it must neither pan, drag nor clear the selection.
     if (event.button !== 0) return;
@@ -862,7 +881,7 @@ export class CitationGraphRenderer {
     // axis minimum covers the No data band's end, where a paper parks (B48).
     const floorHit = this.floorHit(event.clientX, event.clientY);
     const world = this.screenToWorld(event.clientX, event.clientY);
-    const node = this.hitTest(world.x, world.y);
+    const node = this.hitLiveNode(world.x, world.y);
     if (!node && floorHit) return this.beginFloorDrag(event);
     if (
       node &&
@@ -943,12 +962,24 @@ export class CitationGraphRenderer {
     const floorHit = this.floorHit(event.clientX, event.clientY);
     const world = this.screenToWorld(event.clientX, event.clientY);
     // The floor, tag or line, yields to a node under it.
-    const node = this.hitTest(world.x, world.y);
+    const node = this.hitLiveNode(world.x, world.y);
     const overFloor = floorHit !== null && !node;
     const key = node?.key ?? null;
-    if (key !== this.hoverKey || overFloor !== this.floorHovered) {
+    const greyKey =
+      node || overFloor || !this.searchMatches
+        ? null
+        : (this.hitTest(world.x, world.y)?.key ?? null);
+    if (
+      key !== this.hoverKey ||
+      overFloor !== this.floorHovered ||
+      greyKey !== this.greyHoverKey
+    ) {
       this.hoverKey = key;
       this.floorHovered = overFloor;
+      this.greyHoverKey = greyKey;
+      // The one `title` on the canvas (see describeHover): a grey paper has
+      // no hover label for the host's tooltip to cover.
+      this.canvas.title = greyKey ? CLEAR_SEARCH_TO_SELECT : "";
       this.onHoverChange(key);
       this.canvas.style.cursor = overFloor
         ? this.floorCursor()
@@ -962,7 +993,9 @@ export class CitationGraphRenderer {
           ? floorTagText(this.floor, this.floorBelow)
           : node
             ? this.tooltipForNode(node)
-            : "",
+            : greyKey
+              ? CLEAR_SEARCH_TO_SELECT
+              : "",
       );
       this.draw();
     }
@@ -1019,21 +1052,27 @@ export class CitationGraphRenderer {
       // Cleared with the description it wrote, so re-entering over the tag
       // counts as a change again and names the floor once more.
       this.floorHovered = false;
+      this.forgetGreyHover();
       this.onHoverChange(null);
       this.describeHover("");
       this.draw();
     }
   };
 
+  private forgetGreyHover(): void {
+    this.greyHoverKey = null;
+    this.canvas.title = "";
+  }
+
   private onDoubleClick = (event: MouseEvent): void => {
     const world = this.screenToWorld(event.clientX, event.clientY);
-    const node = this.hitTest(world.x, world.y);
+    const node = this.hitLiveNode(world.x, world.y);
     if (node) this.onOpenNode(node);
   };
 
   private onContextMenu = (event: MouseEvent): void => {
     const world = this.screenToWorld(event.clientX, event.clientY);
-    const node = this.hitTest(world.x, world.y);
+    const node = this.hitLiveNode(world.x, world.y);
     // The background keeps the browser's own menu.
     if (!node) return;
     event.preventDefault();
@@ -1284,17 +1323,12 @@ export class CitationGraphRenderer {
       context.lineWidth = (node.isRetracted ? 3 : 1.1) * ratio;
       context.strokeStyle = node.isRetracted
         ? this.theme.states.retracted
-        : this.theme.inks.primary;
+        : this.greyedBySearch(node.key)
+          ? color
+          : this.theme.inks.primary;
       context.stroke();
     }
     context.restore();
-    if (this.searchMatches?.has(node.key)) {
-      context.beginPath();
-      context.arc(position.x, position.y, radius + 8.5 * ratio, 0, Math.PI * 2);
-      context.lineWidth = 2.5 * ratio;
-      context.strokeStyle = this.theme.states.searchMatch;
-      context.stroke();
-    }
     const marks = this.seedMarks;
     if (marks?.seedKeys.has(node.key)) {
       context.save();
@@ -2359,7 +2393,9 @@ export class CitationGraphRenderer {
           node,
           position,
           radius,
-          this.nodeColor(node, colorDomain),
+          this.greyedBySearch(node.key)
+            ? this.theme.states.uniformFill
+            : this.nodeColor(node, colorDomain),
           this.emphasisAlphaFor(node.key),
         );
       }
@@ -2381,9 +2417,9 @@ export class CitationGraphRenderer {
   }
 
   /**
-   * Names what is under the pointer as the canvas's ARIA description. Never
+   * Names what is under the pointer as the canvas's ARIA description. Not
    * its `title`: the host drew that as a native tooltip over the plugin's own
-   * hover label (B101).
+   * hover label (B101). Only a grey paper, which has no such label, sets one.
    */
   private describeHover(text: string): void {
     if (text) this.canvas.setAttribute("aria-description", text);
@@ -2500,16 +2536,39 @@ export class CitationGraphRenderer {
     if (draw) this.draw();
   }
 
+  /**
+   * The papers the search box found, or null with no search on. The rest stay
+   * on the plot, grey and out of the pointer's reach (ADR 0023). The pointer
+   * has not moved, so what it was over is forgotten; its next move reads anew.
+   */
   public setSearchMatches(keys: Set<string> | null, draw = true): void {
     this.searchMatches = keys ? new Set(keys) : null;
+    if (this.greyHoverKey) {
+      this.forgetGreyHover();
+      this.describeHover("");
+    }
+    if (this.hoverKey && this.greyedBySearch(this.hoverKey)) {
+      this.hoverKey = null;
+      this.onHoverChange(null);
+      this.describeHover("");
+    }
     if (draw) this.draw();
   }
 
-  /** How strongly a node — or an edge's endpoint — is drawn right now. */
+  /**
+   * How strongly a node, or an edge's endpoint, is drawn right now: the Key's
+   * emphasis, and never above its alpha for a paper the search greyed.
+   */
   public emphasisAlphaFor(key: string): number {
-    if (!this.emphasisKeys || this.emphasisAmount <= 0) return 1;
-    if (this.emphasisKeys.has(key)) return 1;
-    return 1 - (1 - EMPHASIS_ALPHA) * this.emphasisAmount;
+    const emphasis =
+      !this.emphasisKeys ||
+      this.emphasisAmount <= 0 ||
+      this.emphasisKeys.has(key)
+        ? 1
+        : 1 - (1 - EMPHASIS_ALPHA) * this.emphasisAmount;
+    return this.greyedBySearch(key)
+      ? Math.min(emphasis, EMPHASIS_ALPHA)
+      : emphasis;
   }
 
   /**

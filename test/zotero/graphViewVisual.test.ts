@@ -183,10 +183,6 @@ describe("Graph view, as the product builds it", function () {
     this.timeout(60_000);
     const active = await open(220);
     const before = railEntries(active.root);
-    expect(
-      before.some((entry) => /Search match/i.test(entry)),
-      "nothing is matched before a search",
-    ).to.equal(false);
 
     const search = active.root.querySelector(
       "input.cm-search",
@@ -199,24 +195,16 @@ describe("Graph view, as the product builds it", function () {
 
     const after = railEntries(active.root);
     notes.push(`view 2 after search: ${after.join(" | ")}`);
-    expect(
-      after.some((entry) => /Search match/i.test(entry)),
-      "the search reaches the Key through updateSummary",
-    ).to.equal(true);
-    expect(
-      after.some((entry) => /Filtered out/i.test(entry)),
-      "and so does what the search hid",
-    ).to.equal(true);
-    expect(after).to.not.deep.equal(before);
+    // The search only greys: the Key reads as it did, with no row for it.
+    expect(after, "the search leaves the Key alone").to.deep.equal(before);
     await shot("view-02-rail-after-search");
 
     search.value = "";
     search.dispatchEvent(new (active.window as any).Event("input"));
     await settle(active.window, 8);
-    expect(
-      railEntries(active.root).some((entry) => /Search match/i.test(entry)),
-      "and clearing it puts the Key back",
-    ).to.equal(false);
+    expect(railEntries(active.root), "and so does clearing it").to.deep.equal(
+      before,
+    );
   });
 
   it("view 3 — a click on the graph releases a pinned Key entry", async function () {

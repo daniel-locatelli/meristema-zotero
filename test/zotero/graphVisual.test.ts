@@ -468,7 +468,6 @@ describe("Graph view, looked at", function () {
           edgeCount: instance.getVisibleEdgeCount(),
           states: {
             seedKeys: new Set<string>(),
-            searchMatches: null,
             visibleKeys: null,
           },
         }),

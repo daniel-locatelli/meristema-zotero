@@ -195,7 +195,7 @@ export interface GraphScopeInput {
   hiddenKeys: ReadonlySet<string>;
   /**
    * The Filter popover's remaining facets: tags, item type, year, and the
-   * data-quality switches. Not the search box, which narrows what is drawn
+   * data-quality switches. Not the search box, which greys what is drawn
    * without changing a single count the rail prints.
    */
   facetAdmits: (key: string) => boolean;

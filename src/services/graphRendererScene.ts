@@ -771,6 +771,7 @@ export function hitTestRenderer(
   renderer: RendererSceneContext,
   x: number,
   y: number,
+  accepts: (key: string) => boolean = () => true,
 ): CitationGraphNode | null {
   const nodes = renderer.visibleNodes();
   const sizeValues =
@@ -788,6 +789,7 @@ export function hitTestRenderer(
   let best: CitationGraphNode | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
   for (const node of nodes) {
+    if (!accepts(node.key)) continue;
     const position = renderer.positions.get(node.key);
     if (!position) continue;
     // The node is drawn at a fixed size on screen, so its world-space reach
@@ -1009,8 +1011,8 @@ export function drawRendererLabels(
     // A pushed-aside label draws no leader to its node: a line from the disc
     // to the label reads as an edge (B101, B103).
     const ghosted = renderer.isNodeGhosted(node);
-    // The label fades with its disc under the Key's emphasis, so a dimmed
-    // paper does not keep a full-strength name.
+    // The label fades with its disc under the Key's emphasis and the search,
+    // so a dimmed paper does not keep a full-strength name.
     context.globalAlpha =
       (ghosted ? 0.58 : 1) * renderer.emphasisAlphaFor(node.key);
     context.textAlign = chosen.align;

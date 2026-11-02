@@ -101,7 +101,6 @@ export interface KeyModel {
  */
 export interface KeyStates {
   seedKeys: ReadonlySet<string>;
-  searchMatches: ReadonlySet<string> | null;
   visibleKeys: ReadonlySet<string> | null;
   /** Each seed's own colour, which rings it on the plot; absent rings in `states.seed`. */
   seedColors?: ReadonlyMap<string, string>;
@@ -444,21 +443,6 @@ function stateSection(input: KeyModelInput): KeySection | null {
       mark: halo([theme.inks.primary]),
       matches: (node) => states.seedKeys.has(node.key),
     });
-  }
-
-  const searchMatches = states.searchMatches;
-  if (searchMatches) {
-    const matched = nodes.filter((node) => searchMatches.has(node.key));
-    if (matched.length) {
-      entries.push({
-        id: "search-match",
-        label: "Search match",
-        count: matched.length,
-        detail: null,
-        mark: halo([theme.states.searchMatch]),
-        matches: (node) => searchMatches.has(node.key),
-      });
-    }
   }
 
   const retracted = nodes.filter((node) => node.isRetracted === true);

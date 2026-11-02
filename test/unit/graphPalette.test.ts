@@ -178,23 +178,21 @@ describe("the sequential ramp", function () {
 });
 
 /**
- * `theme.states.selected` and `.searchMatch` are deliberately extreme —
- * near-black on light, near-white on dark. A flat ΔE floor is the wrong
- * tool for either: recomputing it here found light `selected` (#1b1d19)
- * measures ΔE 19.2 against the darkest ramp stop (#0f3b33) and light
- * `searchMatch` (#0f110d) measures 23.2 — both under the 30-point floor —
- * purely because that stop is also low-lightness, even though its chroma
- * (17.2) is nearly six times either state token's. Both are genuine floor
- * misses on the shipped colours, not bugs to fix — the colours are right,
- * the flat floor is not the right measurement for this pair.
+ * `theme.states.selected` is deliberately extreme — near-black on light,
+ * near-white on dark. A flat ΔE floor is the wrong tool for it: recomputing
+ * it here found light `selected` (#1b1d19) measures ΔE 19.2 against the
+ * darkest ramp stop (#0f3b33), under the 30-point floor, purely because that
+ * stop is also low-lightness, even though its chroma (17.2) is nearly six
+ * times the state token's. That is a genuine floor miss on the shipped
+ * colours, not a bug to fix — the colour is right, the flat floor is not the
+ * right measurement for this pair.
  *
- * What actually keeps a reader from mistaking these tokens for a data
- * colour: `selected`/`searchMatch` sit clearly outside the lightness range
- * every seed, categorical swatch and ramp stop occupies (measured margins:
- * light 10.5-16.1, dark 12.1-20 — well clear of the 10-point clearance
+ * What actually keeps a reader from mistaking the token for a data colour:
+ * `selected` sits clearly outside the lightness range every seed, categorical
+ * swatch and ramp stop occupies (well clear of the 10-point clearance
  * required below). Every dichromacy simulation still clears
- * CVD_SEPARATION_FLOOR for both tokens against all three palettes, so a
- * colour-blind reader is never at risk either.
+ * CVD_SEPARATION_FLOOR against all three palettes, so a colour-blind reader
+ * is never at risk either.
  */
 const NEUTRAL_CHROMA_CEILING = 15; // ~half the ramp's own lowest-chroma stop
 const STATE_LIGHTNESS_CLEARANCE = 10; // measured margins: 10.5-20, both themes
@@ -209,9 +207,9 @@ function dataLightnessRange(theme: GraphTheme): [number, number] {
 }
 
 describe("the state tokens", function () {
-  it("keeps selected and searchMatch apart from every seed and categorical swatch, in normal vision and under each dichromacy", function () {
+  it("keeps selected apart from every seed and categorical swatch, in normal vision and under each dichromacy", function () {
     for (const theme of themes()) {
-      for (const stateName of ["selected", "searchMatch"] as const) {
+      for (const stateName of ["selected"] as const) {
         const combined = [
           theme.states[stateName],
           ...theme.seeds,
@@ -231,10 +229,10 @@ describe("the state tokens", function () {
     }
   });
 
-  it("keeps selected and searchMatch outside the lightness range any data colour occupies, and away from the ramp under every dichromacy", function () {
+  it("keeps selected outside the lightness range any data colour occupies, and away from the ramp under every dichromacy", function () {
     for (const theme of themes()) {
       const [min, max] = dataLightnessRange(theme);
-      for (const stateName of ["selected", "searchMatch"] as const) {
+      for (const stateName of ["selected"] as const) {
         const stateHex = theme.states[stateName];
         const lab = labOf(stateHex);
         const clearance = Math.max(min - lab[0], lab[0] - max);

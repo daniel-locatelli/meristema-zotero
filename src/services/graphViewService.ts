@@ -530,7 +530,6 @@ export function renderGraphView(
   const collectionLabels = collectionLabelsByID(snapshot);
   let visibleKeys = new Set(model.nodes.map((node) => node.key));
   /** What the filter admits, before the search box. See `applyFilters`. */
-  let scopeKeys = new Set(visibleKeys);
   /** Each folder's descendants, excluding itself, from the snapshot's list. */
   const folderDescendants = (): Array<[number, readonly number[]]> =>
     snapshot.collections.map((collection) => [
@@ -788,7 +787,6 @@ export function renderGraphView(
     nodeKeys: ReadonlySet<string>;
   }> = () => [];
   /** What the search is currently matching, so the Key can name that mark. */
-  let searchMatchKeys: Set<string> | null = null;
   // D17: a graph that carries its own appearance (a saved graph, a restored
   // tab, a rebuild) opens on it; any other opens on the default for its kind.
   // B41: a graph that opens seeded takes the seeded default, the one "Make
@@ -2376,7 +2374,7 @@ export function renderGraphView(
     return `${explore.hops} hop${explore.hops === 1 ? "" : "s"} of ${word}${floorPart}${sharedPart}`;
   };
   /** The "shown" number the Scope rail prints: the scope, before the search box. */
-  const visibleNodeCount = (): number => lastScope?.shown ?? scopeKeys.size;
+  const visibleNodeCount = (): number => lastScope?.shown ?? visibleKeys.size;
   const activeView = (): GraphViewDefinition | null => {
     if (!activeViewRef || activeViewRef === "blank") return null;
     if (activeViewCache && activeViewCache.id === activeViewRef.id) {
@@ -4466,9 +4464,9 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   /**
    * The regions handed to the renderer: each region's folder colour, from
-   * the swatch ledger, and its papers in scope. Not the search-narrowed
-   * `visibleKeys`: the search box is a lens, so it never reshapes or empties
-   * a selected folder's hull (B26). Colour follows
+   * the swatch ledger, and its papers in scope: the search box only greys,
+   * so it never reshapes or empties a selected folder's hull (B26, ADR 0023).
+   * Colour follows
    * the folder's key through the ledger, so ticking or unticking one folder
    * can never repaint another's swatch (backlog B12).
    *
@@ -4495,7 +4493,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         swatchIndexFor(ledger, String(collectionID)),
         theme,
       ),
-      nodeKeys: regionMemberKeys(model.nodes, scopeKeys, collectionID),
+      nodeKeys: regionMemberKeys(model.nodes, visibleKeys, collectionID),
     }));
   };
 
@@ -4871,7 +4869,6 @@ ${error instanceof Error ? error.message : String(error)}`,
           seedKeys: new Set(seedKeysOf()),
           // The plot's own seed colours, so the Key's Seed ring agrees (B107).
           seedColors: hopModel ? seedColorsFor(hopModel) : undefined,
-          searchMatches: searchMatchKeys,
           visibleKeys:
             visibleKeys.size === model.nodes.length ? null : visibleKeys,
         },
@@ -4939,22 +4936,11 @@ ${error instanceof Error ? error.message : String(error)}`,
       keepNoCount: true,
       shared: 1,
     });
-    // Two sets, not one. `scopeKeys` is what the graph is a graph *of* — the
-    // Key, the colour assignment and the regions' hulls are built from it. `visibleKeys` narrows
-    // it by the search box, which is a transient lens and must not reshuffle
-    // the swatches under the reader as they type.
-    scopeKeys = scope.visibleKeys;
-    const matchesSearch = (node: CitationGraphNode): boolean => {
-      if (!tokens.length) return true;
-      const searchable = graphNodeSearchText(node);
-      return tokens.every((token) => searchable.includes(token));
-    };
-    visibleKeys = new Set(
-      model.nodes
-        .filter((node) => scopeKeys.has(node.key) && matchesSearch(node))
-        .map((node) => node.key),
-    );
-    renderer?.setScopeKeys(scopeKeys);
+    // What the graph is a graph *of*. The search box stays out of it: it only
+    // greys the rest (ADR 0023), so counts, colours, regions and exports do
+    // not move as the reader types.
+    visibleKeys = scope.visibleKeys;
+    renderer?.setScopeKeys(visibleKeys);
     renderer?.setFrameKeys(frame.visibleKeys, false);
     renderer?.setFloor(floor, scope.belowFloorCount, false);
     renderer?.setVisibleKeys(visibleKeys, false);
@@ -4965,9 +4951,19 @@ ${error instanceof Error ? error.message : String(error)}`,
       libraryEmphasisKeys = kept.size ? kept : null;
       applyEmphasis();
     }
-    const matches = tokens.length ? new Set(visibleKeys) : null;
-    searchMatchKeys = matches;
-    renderer?.setSearchMatches(matches);
+    renderer?.setSearchMatches(
+      tokens.length
+        ? new Set(
+            model.nodes
+              .filter((node) => {
+                if (!visibleKeys.has(node.key)) return false;
+                const searchable = graphNodeSearchText(node);
+                return tokens.every((token) => searchable.includes(token));
+              })
+              .map((node) => node.key),
+          )
+        : null,
+    );
     updateSummary();
     refreshKeyRail();
     maybeShowGallery();
