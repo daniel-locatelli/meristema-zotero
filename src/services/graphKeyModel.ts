@@ -434,22 +434,14 @@ function stateSection(input: KeyModelInput): KeySection | null {
 
   const seeds = nodes.filter((node) => states.seedKeys.has(node.key));
   if (seeds.length) {
-    // One arc per distinct seed colour on screen, no more than the palette
-    // holds: past it the colours repeat.
-    const seedColors = [
-      ...new Set(
-        seeds.flatMap((seed) => {
-          const color = states.seedColors?.get(seed.key);
-          return color ? [color] : [];
-        }),
-      ),
-    ].slice(0, theme.seeds.length);
+    // One whole ring in ink: the plot's own rings carry each seed's colour,
+    // and arcs split by colour read as a pie with several seeds (D36).
     entries.push({
       id: "seed",
       label: "Seed",
       count: seeds.length,
       detail: null,
-      mark: halo(seedColors.length ? seedColors : [theme.states.seed]),
+      mark: halo([theme.inks.primary]),
       matches: (node) => states.seedKeys.has(node.key),
     });
   }

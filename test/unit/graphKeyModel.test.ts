@@ -329,10 +329,10 @@ describe("Graph key model", () => {
       kind: "ring",
       colors: [theme.inks.muted],
     });
-    // The disc first, then the ring: one arc per seed colour.
+    // The disc first, then one whole ring in ink, whatever the seed colours.
     expect(mark("seed")).to.deep.include({
       kind: "halo",
-      colors: [theme.inks.muted, theme.seeds[0], theme.seeds[1]],
+      colors: [theme.inks.muted, theme.inks.primary],
     });
     expect(states.entries.map((entry) => entry.id)).to.not.include("selected");
     expect(mark("search-match")).to.deep.include({
@@ -341,28 +341,25 @@ describe("Graph key model", () => {
     });
   });
 
-  it("rings the Seed mark in each seed colour once, at most as many as the palette holds", () => {
+  it("rings the Seed mark once, in ink, however many seed colours there are (D36)", () => {
     const keys = Array.from({ length: theme.seeds.length + 3 }, (_, i) => i);
     const nodes = keys.map((i) => node(i));
     const seedColors = new Map(
       keys.map((i) => [`k${i}`, theme.seeds[i % theme.seeds.length]!]),
     );
-    const seed = section(
+    const many = section(
       build(nodes, {}, { seedKeys: new Set(seedColors.keys()), seedColors }),
       "states",
     )!.entries.find((entry) => entry.id === "seed")!;
-    expect(seed.mark.colors.slice(1)).to.deep.equal([...theme.seeds]);
-  });
-
-  it("rings the Seed mark in the neutral seed tone when no colours are known", () => {
-    const seed = section(
+    const none = section(
       build([node(1)], {}, { seedKeys: new Set(["k1"]) }),
       "states",
     )!.entries.find((entry) => entry.id === "seed")!;
-    expect(seed.mark).to.deep.include({
-      kind: "halo",
-      colors: [theme.inks.muted, theme.states.seed],
-    });
+    expect(many.mark.colors).to.deep.equal([
+      theme.inks.muted,
+      theme.inks.primary,
+    ]);
+    expect(none.mark.colors).to.deep.equal(many.mark.colors);
   });
 
   it("names neither when every paper is in Zotero, or none is", () => {
