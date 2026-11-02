@@ -149,6 +149,7 @@ import {
   libraryPaperID,
   seedPaperID,
   seedPopoverList,
+  type DoiLookupState,
   type LibrarySearchState,
   type SeedPopoverPaper,
 } from "./seedPopoverRows";
@@ -305,6 +306,7 @@ import {
   type ZoteroPaneState,
 } from "./zoteroPaneSync";
 import { followZoteroFontSize } from "./zoteroFontSize";
+import { resolveRelatedWorkSummaries } from "./relatedWorkSummaryService";
 import {
   runningConnectionUpdate,
   startConnectionUpdate,
@@ -1918,6 +1920,8 @@ export function renderGraphView(
   let libraryNodeForSeedRow = (_itemID: number): CitationGraphNode | null =>
     null;
   let libraryState: LibrarySearchState = { status: "idle" };
+  /** The online lookup of a typed DOI the library lacks, once started (F6). */
+  let doiLookup: { doi: string; state: DoiLookupState } | null = null;
   /** The library paper behind each listed row, by `libraryPaperID`. */
   const libraryPaperBySeedRowID = new Map<string, ZoteroPaper>();
   /** The seed node behind each listed seed row, by `seedPaperID`. */
@@ -1965,11 +1969,16 @@ export function renderGraphView(
       query: focusSeedSearch.value,
       seeds: seeds.map(seedPopoverPaperForNode),
       library: libraryState,
+      lookup: doiLookup,
     });
     if (list.kind === "placeholder") {
       focusSeedResults.appendChild(
         text(document, "p", list.message, "cm-placeholder"),
       );
+      return;
+    }
+    if (list.kind === "lookup") {
+      renderDoiLookupRow(list.doi, list.state);
       return;
     }
     for (const { paper, isSeed } of list.rows) {
@@ -2050,6 +2059,91 @@ export function renderGraphView(
       focusSeedResults.appendChild(row);
     }
     focusSeedResults.scrollTop = scrollTop;
+  };
+
+  /**
+   * A DOI the library lacks: one row that looks it up online and adds it as
+   * an external seed, so a blank graph can start from a paper outside Zotero
+   * (F6). One request chain per press, the summary lookup the fill uses.
+   */
+  const renderDoiLookupRow = (doi: string, state: DoiLookupState): void => {
+    if (state === "not-found") {
+      focusSeedResults.appendChild(
+        text(
+          document,
+          "p",
+          `No record of ${doi} was found online.`,
+          "cm-placeholder",
+        ),
+      );
+      return;
+    }
+    const row = element(document, "div", "cm-focus-seed-result");
+    row.setAttribute("role", "listitem");
+    const main = element(document, "button", "cm-focus-seed-result-main");
+    main.type = "button";
+    main.disabled = state === "looking";
+    const lines = element(document, "span", "cm-focus-seed-result-text");
+    lines.append(
+      text(
+        document,
+        "span",
+        state === "looking" ? `Looking up ${doi}…` : `Look up ${doi}`,
+        "cm-focus-seed-result-title",
+      ),
+      text(
+        document,
+        "span",
+        state === "failed"
+          ? "The lookup failed. Press to try again."
+          : "Not in the library: find it online and add it as a seed.",
+        "cm-focus-seed-result-meta",
+      ),
+    );
+    main.append(lines);
+    main.title = `Look up ${doi} online and add it as a seed`;
+    main.addEventListener("click", () => void lookUpDoiSeed(doi));
+    row.appendChild(main);
+    focusSeedResults.appendChild(row);
+  };
+
+  const lookUpDoiSeed = async (doi: string): Promise<void> => {
+    if (doiLookup?.doi === doi && doiLookup.state === "looking") return;
+    doiLookup = { doi, state: "looking" };
+    renderFocusSeedResults();
+    let next: DoiLookupState;
+    try {
+      const [work] = await resolveRelatedWorkSummaries(
+        [
+          {
+            provider: "manual",
+            providerWorkID: null,
+            doi,
+            title: null,
+            year: null,
+            authors: [],
+          },
+        ],
+        "auto",
+      );
+      if (cleaned) return;
+      if (work?.title?.trim()) {
+        doiLookup = null;
+        addFocusSeed(externalWorkToFocusNode(work, "seed"));
+        focusSeedSearch.focus();
+        return;
+      }
+      next = "not-found";
+    } catch (error) {
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      if (cleaned) return;
+      next = "failed";
+    }
+    // The reader may have typed on meanwhile; the state stays with its DOI.
+    doiLookup = { doi, state: next };
+    if (!focusSeedPopover.hidden) renderFocusSeedResults();
   };
 
   const updateFocusBar = (): void => {

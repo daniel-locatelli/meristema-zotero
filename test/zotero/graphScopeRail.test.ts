@@ -579,6 +579,182 @@ describe("The graph's Scope rail", function () {
     await delay(50);
   });
 
+  it("seeds a paper outside Zotero from a typed DOI (F6)", async function () {
+    this.timeout(60_000);
+    const doi = `10.5555/f6.lookup.${Date.now()}`;
+    const title = "F6 looked-up paper";
+    const live = Zotero.HTTP.request;
+    const providerHost =
+      /^https:\/\/(api\.semanticscholar\.org|opencitations\.net|api\.opencitations\.net|api\.openalex\.org|api\.crossref\.org|inspirehep\.net)\//;
+    let batchAsked = 0;
+    const asked: string[] = [];
+    const startedAt = Date.now();
+    (Zotero.HTTP as any).request = async (
+      method: string,
+      url: string,
+      options?: { body?: string },
+    ) => {
+      if (!providerHost.test(url)) {
+        return live.call(Zotero.HTTP, method, url, options as any);
+      }
+      asked.push(`${Date.now() - startedAt}ms ${method} ${url.slice(0, 90)}`);
+      await delay(0);
+      if (
+        method === "POST" &&
+        url.startsWith("https://api.semanticscholar.org/graph/v1/paper/batch")
+      ) {
+        batchAsked += 1;
+        const ids = (JSON.parse(String(options?.body ?? "{}")).ids ??
+          []) as string[];
+        return {
+          status: 200,
+          responseText: JSON.stringify(
+            ids.map((id) =>
+              id.toLowerCase() === `doi:${doi}`
+                ? {
+                    paperId: "f6lookuppaper",
+                    title,
+                    year: 2001,
+                    authors: [{ name: "Ada Lovelace" }],
+                    externalIds: { DOI: doi },
+                  }
+                : null,
+            ),
+          ),
+          getResponseHeader: () => null,
+        };
+      }
+      // Crossref answers the DOI too: a Semantic Scholar an earlier suite
+      // left sitting out is skipped, and the lookup falls back to Crossref.
+      if (
+        decodeURIComponent(url).toLowerCase() ===
+        `https://api.crossref.org/works/${doi}`
+      ) {
+        return {
+          status: 200,
+          responseText: JSON.stringify({
+            message: {
+              DOI: doi,
+              title: [title],
+              author: [{ family: "Lovelace", given: "Ada" }],
+              issued: { "date-parts": [[2001]] },
+            },
+          }),
+          getResponseHeader: () => null,
+        };
+      }
+      return { status: 404, responseText: "", getResponseHeader: () => null };
+    };
+    // The stub answers the fixtures' own background updates too, and what
+    // they store remounts the view: wait for one root to hold for 3 s.
+    let settled: Element | null = null;
+    for (let tries = 0; tries < 10 && !settled; tries += 1) {
+      const root = graphRoot();
+      await delay(3_000);
+      if (graphRoot() === root) settled = root;
+    }
+    expect(settled, "the view settled after the stub went in").to.exist;
+    const add = (): HTMLButtonElement =>
+      graphRoot().querySelector(".cm-scope-add-seed") as HTMLButtonElement;
+    const livePopover = (): HTMLElement =>
+      graphRoot().querySelector(".cm-focus-seed-popover") as HTMLElement;
+    try {
+      const before = seedRowCount();
+      // A full run's other suites erase fixtures, and each erase remounts the
+      // open graphs; a remount drops the lookup in flight with its view. So a
+      // remount mid-lookup is retried on the new view, up to three times.
+      let popover = livePopover();
+      let search = popover.querySelector(
+        ".cm-focus-seed-search",
+      ) as HTMLInputElement;
+      let added: true | null = null;
+      for (let attempt = 0; attempt < 3 && !added; attempt += 1) {
+        if (livePopover().hidden) add().click();
+        await delay(50);
+        popover = livePopover();
+        expect(popover.hidden, "the panel opens").to.equal(false);
+        search = popover.querySelector(
+          ".cm-focus-seed-search",
+        ) as HTMLInputElement;
+        search.value = `https://doi.org/${doi}`;
+        search.dispatchEvent(new win.Event("input", { bubbles: true }));
+        const lookup = await waitFor(
+          () =>
+            (
+              Array.from(
+                popover.querySelectorAll(".cm-focus-seed-result-main"),
+              ) as HTMLButtonElement[]
+            ).find(
+              (button) =>
+                button.querySelector(".cm-focus-seed-result-title")
+                  ?.textContent === `Look up ${doi}`,
+            ) ?? null,
+          10_000,
+        );
+        if (!lookup && !popover.isConnected) continue;
+        expect(
+          lookup,
+          `a lookup row for the DOI; the panel reads "${popover.textContent}"`,
+        ).to.exist;
+        lookup!.click();
+        added = await waitFor(
+          () => seedRowCount() === before + 1 || !popover.isConnected,
+          20_000,
+        ).then((done) =>
+          done && popover.isConnected && seedRowCount() === before + 1
+            ? true
+            : null,
+        );
+        if (!added && popover.isConnected) break;
+      }
+      expect(
+        added,
+        `the looked-up paper became a seed (batch asked ${batchAsked} times); the panel reads "${popover.textContent}"; panel connected ${popover.isConnected}; asked: ${asked.join(" | ")}`,
+      ).to.equal(true);
+      const labels = (
+        Array.from(
+          graphRoot().querySelectorAll(".cm-scope-seed .cm-scope-seed-label"),
+        ) as HTMLElement[]
+      ).map((label) => label.textContent ?? "");
+      expect(
+        // The rail labels by author and year.
+        labels.includes("Lovelace (2001)"),
+        `a seed row names it; the rows read ${JSON.stringify(labels)}`,
+      ).to.equal(true);
+
+      // Leave one seed for the cases that follow: the empty query lists the
+      // seeds, each with its ×.
+      search.value = "";
+      search.dispatchEvent(new win.Event("input", { bubbles: true }));
+      const remove = await waitFor(
+        () =>
+          (
+            Array.from(
+              popover.querySelectorAll(".cm-focus-seed-result"),
+            ) as HTMLElement[]
+          )
+            .find(
+              (row) =>
+                row.querySelector(".cm-focus-seed-result-title")
+                  ?.textContent === title,
+            )
+            ?.querySelector(
+              ".cm-focus-seed-result-remove",
+            ) as HTMLButtonElement | null,
+        5_000,
+      );
+      expect(remove, "the new seed's row offers ×").to.exist;
+      remove!.click();
+      await waitFor(() => seedRowCount() === before, 5_000);
+      expect(seedRowCount()).to.equal(before);
+    } finally {
+      (Zotero.HTTP as any).request = live;
+      const popover = livePopover();
+      if (popover && !popover.hidden) add().click();
+      await delay(50);
+    }
+  });
+
   it("hides a paper and brings it back with Show all", async function () {
     this.timeout(30_000);
     (await nodeMenuEntry("Remove from graph")).click();

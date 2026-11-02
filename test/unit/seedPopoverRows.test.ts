@@ -7,6 +7,7 @@ import {
   SEARCH_FAILED_MESSAGE,
   libraryPaperID,
   seedPaperID,
+  doiQuery,
   seedPopoverList,
   type SeedPopoverPaper,
 } from "../../src/services/seedPopoverRows";
@@ -129,5 +130,84 @@ describe("seed ids", function () {
     expect(seedPaperID({ key: "doi:10.1/y", itemID: -1 })).to.equal(
       "doi:10.1/y",
     );
+  });
+});
+
+describe("a DOI typed into the seed search (F6)", function () {
+  it("reads a bare DOI, a doi.org link and a doi: prefix, and nothing else", function () {
+    expect(doiQuery("10.1145/1201775.882296")).to.equal(
+      "10.1145/1201775.882296",
+    );
+    expect(doiQuery(" https://doi.org/10.1145/1201775.882296 ")).to.equal(
+      "10.1145/1201775.882296",
+    );
+    expect(doiQuery("doi:10.1145/ABC.1")).to.equal("10.1145/abc.1");
+    expect(doiQuery("graph drawing"), "words").to.equal(null);
+    expect(
+      doiQuery("see 10.1145/1201775.882296 for more"),
+      "a DOI inside a sentence",
+    ).to.equal(null);
+  });
+
+  it("offers a lookup when the library has no match for the DOI", function () {
+    const list = seedPopoverList({
+      query: "10.1145/1201775.882296",
+      seeds: [],
+      library: { status: "done", papers: [] },
+    });
+    expect(list).to.deep.equal({
+      kind: "lookup",
+      doi: "10.1145/1201775.882296",
+      state: "ready",
+    });
+  });
+
+  it("carries the lookup's state", function () {
+    const list = seedPopoverList({
+      query: "10.1145/1201775.882296",
+      seeds: [],
+      library: { status: "done", papers: [] },
+      lookup: { doi: "10.1145/1201775.882296", state: "not-found" },
+    });
+    expect(list).to.deep.equal({
+      kind: "lookup",
+      doi: "10.1145/1201775.882296",
+      state: "not-found",
+    });
+  });
+
+  it("ignores a lookup state left from another DOI", function () {
+    const list = seedPopoverList({
+      query: "10.1145/2",
+      seeds: [],
+      library: { status: "done", papers: [] },
+      lookup: { doi: "10.1145/1", state: "failed" },
+    });
+    expect(list).to.deep.equal({
+      kind: "lookup",
+      doi: "10.1145/2",
+      state: "ready",
+    });
+  });
+
+  it("lists the library's match instead when it has one", function () {
+    const list = seedPopoverList({
+      query: "10.1145/1201775.882296",
+      seeds: [],
+      library: { status: "done", papers: [paper("item:7", "In Zotero")] },
+    });
+    expect(list.kind).to.equal("rows");
+  });
+
+  it("still says no matches for words the library lacks", function () {
+    const list = seedPopoverList({
+      query: "nothing here",
+      seeds: [],
+      library: { status: "done", papers: [] },
+    });
+    expect(list).to.deep.equal({
+      kind: "placeholder",
+      message: NO_MATCHES_MESSAGE,
+    });
   });
 });
