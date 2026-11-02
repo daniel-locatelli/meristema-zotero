@@ -165,6 +165,13 @@ export interface HopFillRunner {
    * longer. Fetch hop N and applying a view call `resume` alone.
    */
   retryNow(): void;
+  /**
+   * D40: the network came back. Every failed paper, the ordinary ones too,
+   * is asked again: offline, a failure says nothing about the paper, so
+   * B94's "stays out" no longer holds for it. A paper that fails again
+   * stays out until the next reconnect.
+   */
+  retryAfterReconnect(): void;
   /** Raise the cap by 500 for every hop whose papers wait on it. */
   fetchMore(): void;
   /**
@@ -511,6 +518,20 @@ export function createHopFillRunner(host: HopFillHost): HopFillRunner {
         limitFailed[direction].clear();
       }
       coolingUntil = null;
+      wake();
+    },
+    retryAfterReconnect: () => {
+      windows = endAll(windows, host.now());
+      let forgot = false;
+      for (const direction of DIRECTIONS) {
+        deferrals[direction].clear();
+        if (failed[direction].size) forgot = true;
+        failed[direction].clear();
+        limitFailed[direction].clear();
+      }
+      coolingUntil = null;
+      // A saved graph keeps its failures (B94); these are no longer failed.
+      if (forgot) host.savedStateChanged();
       wake();
     },
     fetchMore: () => {

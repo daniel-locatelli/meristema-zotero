@@ -4782,6 +4782,15 @@ ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error : new Error(String(error)),
       ),
   });
+  // D40: offline, every paper the fill asked failed. Once the window is back
+  // online the failures say nothing about the papers, so they are asked
+  // again, unless the reader has stopped the fill.
+  const retryFailedOnReconnect = (): void => {
+    if (cleaned || !hopModel || hopFill.stopped()) return;
+    hopFill.retryAfterReconnect();
+    scheduleHopFill();
+  };
+  document.defaultView?.addEventListener("online", retryFailedOnReconnect);
   /**
    * Re-plan on the next frame. Every scope change, selection, camera move
    * and landing wakes the fill; the plan decides what, if anything, to do.
@@ -6105,6 +6114,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     detachDetailResizer();
     unsubscribeCollectionsPane();
     unsubscribeItemPane();
+    document.defaultView?.removeEventListener("online", retryFailedOnReconnect);
     collectionsPane.dispose();
     itemPane.dispose();
     keyRail.destroy();
