@@ -123,8 +123,6 @@ opacity grade).
       your profile, fill a References graph, note the Title unavailable
       nodes, wait a minute without Refresh, and count them again
 
-## The rail and the Key
-
 ## Seeds, selection and the detail surfaces
 
 - [ ] F6 seed a paper that is not in Zotero into a new graph
