@@ -1323,9 +1323,10 @@ describe("Graph views (D4)", function () {
       win.Zotero_Tabs.select(tabID);
       back().click();
       expect(stored(), "the made default is forgotten").to.equal("");
-      expect(labelSelect().value, "the graph is on the built-in one").to.equal(
-        "author-year",
-      );
+      expect(
+        labelSelect().value,
+        `the graph is on the built-in one; panel connected ${panel!.isConnected}`,
+      ).to.equal("author-year");
       expect(back().hidden, "nothing left to forget").to.equal(true);
     } finally {
       if (otherTab) win.Zotero_Tabs.close(otherTab);

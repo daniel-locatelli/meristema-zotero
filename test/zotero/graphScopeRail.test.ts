@@ -408,7 +408,7 @@ describe("The graph's Scope rail", function () {
     }, 5_000);
     expect(
       centre.prevented,
-      `a node sits at the canvas centre; menu [${centre.menu}]`,
+      `a node sits at the canvas centre; menu [${centre.menu}]; canvas connected ${canvas.isConnected}, current ${graphRoot().querySelector("canvas") === canvas}`,
     ).to.equal(true);
     expect(centre.menu, "the node at the centre is the seed").to.include(
       "Remove seed",
@@ -506,7 +506,10 @@ describe("The graph's Scope rail", function () {
     const popover = graphRoot().querySelector(
       ".cm-focus-seed-popover",
     ) as HTMLElement;
-    expect(popover.hidden, "the panel opens").to.equal(false);
+    expect(
+      popover.hidden,
+      `the panel opens; button connected ${add.isConnected}, panel connected ${popover.isConnected}`,
+    ).to.equal(false);
     const search = popover.querySelector(
       ".cm-focus-seed-search",
     ) as HTMLInputElement;
@@ -523,7 +526,10 @@ describe("The graph's Scope rail", function () {
           otherTitle,
       ) ?? null;
     const row = await waitFor(resultRow, 10_000);
-    expect(row, `a search row for ${otherTitle}`).to.exist;
+    expect(
+      row,
+      `a search row for ${otherTitle}; panel connected ${popover.isConnected}`,
+    ).to.exist;
 
     // B45: the metadata line sits clear of the title. 4px read as touching.
     const titleBox = row!

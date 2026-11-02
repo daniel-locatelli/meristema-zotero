@@ -116,83 +116,17 @@ opacity grade).
       queued again, which only `queueRelationshipMetadataHydration` does;
       whether a fill or a view rebuild re-queues it is the measurement to
       take on the user's profile before choosing the fix
-      The smallest fix is built on branch `d11-second-hydration-attempt`
-      (not merged): two attempts per paper per session
-      (`mayQueueHydration`), the session mark now a count. Hops suite 23/0,
-      so no request-count case moved. Its check, with the measurement: on
-      your profile, fill a References graph, note the Title unavailable
-      nodes, wait a minute without Refresh, and count them again
+      The smallest fix is merged: two attempts per paper per session
+      (`mayQueueHydration`), the session mark now a count. The measurement
+      is its manual check below
 
 ## Seeds, selection and the detail surfaces
 
-- [ ] F6 seed a paper that is not in Zotero into a new graph
-      2026-11-01 reading: the seed search searches the library only
-      (`seedPopoverList` over `libraryState`), so a blank graph has no way to
-      a paper outside Zotero. Proposal: a query that parses as a DOI and
-      matches no library paper gets one row, "Look up 10.…", which resolves
-      it (OpenAlex, then Crossref) and adds it as an external seed; New
-      Graph › Start blank plus that row is F6, and F9 can share the parser.
-      Title search across providers stays out (request rates, ADR 0013)
-      Built on branch `f6-doi-seed-lookup` (not merged, 2026-11-01): the
-      row, a unit model (`doiQuery`, the `lookup` list kind) and a Scope rail
-      case that seeds a served DOI; Scope rail suite 8/0 twice. Merge on the
-      user's yes; its manual check: on a blank graph, + Add seed, paste a
-      DOI not in Zotero, press Look up, and the paper becomes the seed
-- [ ] F10 select nodes in the graph and have Zotero follow: no canvas
-      multi-select, no graph → list direction, and the one-row ring and the
-      multi-row opacity are two visual languages for one idea
-      Proposal (2026-11-01): shift-click and a drag box add to a canvas
-      selection; a multi-selection selects the same rows in Zotero's list
-      (the one direction it lacks), and the plot marks every selected paper
-      with the one ring a single selection uses, dropping the opacity
-      Built on branch `f10-multi-select-follows-zotero` (not merged): a
-      Shift-, Ctrl- or Cmd-click toggles a paper in the graph's
-      multi-selection (from the selected one), drawn with the existing
-      multi-row emphasis, and Zotero's list selects the set; a plain click
-      ends it. No drag box, and the ring-versus-opacity question stays open.
-      Selection suite 2/0 three times (one run lost the first, older case
-      to a pointer outside the window). Its check: with the library shown,
-      click a paper in the graph, Shift-click two more, and Zotero's list
-      holds all three
-- [ ] F12 selecting a folder in Zotero activates its region in the graph
-      (brainstorm: add or replace, tick or not, which window, the cap)
-      Proposed defaults (2026-11-01): add, as a toggle, since a region
-      selection already holds several (F14); tick the folder in Scope so the
-      graph shows what is lit; no cap, as F14 chose. Corrected: the tree
-      lives in the library tab, so no graph tab shows while a folder is
-      picked; detached graph windows are what can answer. Built on branch
-      `f12-folder-selection-lights-region` (not merged): a pick adds the
-      region in every detached graph of that main window. Unit tests and a
-      Zotero case, 1/0 twice. Its check: move a graph to its own window,
-      pick a folder in Zotero, and the graph lights that folder's region
-- [ ] F9 a tool for adding a DOI, starting with the one a resolved match
-      already carries and never writes back. Design the unconfirmed-match case
-      Proposal (2026-11-01): a library paper with no DOI whose match carries
-      one shows "Add DOI 10.…" in Paper details; a confirmed match (DOI or
-      provider ID) writes it on one click, an unconfirmed one (title and
-      year) shows both titles side by side first and writes only on
-      confirm. A typed DOI goes through F6's parser
-      Built on branch `f9-add-matched-doi` (not merged): `doiOffer` (unit
-      tests) and the Paper details section, written only on the reader's
-      press. Its Zotero case (`doiOffer.test.ts`) draws a real item with a
-      title match in the harness: evidence first, nothing written before
-      the press, the DOI written on Confirm. Its check: a library paper with an empty DOI field that the
-      plugin matched shows "This item has no DOI"; Add (or Confirm and add)
-      writes it, and Zotero's Info pane shows the DOI
+- [ ] F10 left from multi-selection: a drag box, and the one-row ring
+      against the multi-row opacity, two visual languages for one idea
 
 ## Other
 
-- [ ] F3 open, for the user: whether matching may use title+year alone
-      Recommendation (2026-11-01): yes for display, never for writes. A
-      title and year match may join a library paper to its node on the plot
-      (marked unconfirmed, as F9's case), but nothing is written to Zotero
-      from it without the reader's confirm
-      Today (read 2026-11-01): the exact-title fallback is on by default
-      (`exactTitleFallback`, true in `addon/prefs.js`), its matches carry
-      `matchConfirmed: false` and the "Match needs confirmation" badge, and
-      nothing writes to Zotero from them; F9's branch keeps that, asking
-      for a confirm before it writes a title match's DOI. So the
-      recommendation is the shipped behaviour plus F9: a yes closes F3
 - [ ] B36 one "Uncaught (in promise) undefined" in the Error Console, no
       stack, seen twice. Name it when it comes back
       Swept 2026-11-01: every `reject` passes an error, and of the 38
@@ -212,57 +146,11 @@ opacity grade).
 
 ## From the 2026-11-01 walk
 
-- [ ] D36 the Key's States (B107): the Seed ring split into the seed colours
-      looks wrong with several seeds; redesign it (a design question: the
-      user picks on a canvas). The Selected row is gone (2026-11-01).
-      Canvas: https://claude.ai/artifact/TQnib58fxDn67dxpiVKJiA, Now beside
-      A (one neutral ring), B (a row per seed, by name), C (a neutral ring
-      and a dot per seed colour)
-      A is built on branch `d36-neutral-seed-ring` (not merged); unit tests
-      only, as no Zotero case reads the ring. Its check: seed three papers,
-      and the Key's Seed row shows one dark ring, not three arcs
-- [ ] D40 failed hop papers are invisible and stay failed (B94's walk): after
-      a fetch offline, reconnecting and Resume, the user could not tell which
-      papers had been tried or failed, and wants them retried once the
-      network is back. Brainstorm against ADR 0014 and B94, which chose not
-      to ask again
-      Proposal (2026-11-01, for the brainstorm): record why a paper failed,
-      offline (no answer at all) or answered (a provider said nothing usable,
-      ADR 0014). Offline failures retry once the window's `online` event
-      fires, and Resume takes them back too; answered ones stay out as B94
-      chose. The hop line's `n failed` becomes a toggle that rings the failed
-      papers on the plot, so which ones were tried can be seen
-      The visible half is built on branch `d40-show-failed-papers` (not
-      merged): the hop line's `n failed` is a control that lights the failed
-      papers while hovered or focused (the model's new `failed` field); the
-      line's text is unchanged. Hops suite 23/0. Its check: after a fill
-      offline, point at "n failed" and the failed papers stand out
-      The retry half is on branch `d40-retry-after-reconnect` (not merged):
-      on the window's `online` event, unless the fill is stopped, every
-      failed paper is asked again (`retryAfterReconnect`, unit-tested);
-      this reverses B94 for failures, so it is the user's call. The B94
-      case fires `online` and sees the failure asked again (red with the
-      listener removed); hops suite 23/0. Its check: fill offline, reconnect, and without pressing
-      anything the failed count falls as the papers fill
 - B81's check retires: Paper details no longer shows a Citations row, only
   the Cited by tab (`Cited by (n reported)`), so the count's source is shown
   nowhere there. Reopen only if the user wants the source on that tab.
 - D11's check failed on 2026-11-01: a References fill still leaves nodes as
   "Title unavailable" beside the resolved ones. Measure under D11.
-
-- 2026-11-01 night: twelve branches (F6, F9, F10, F12, D5, D10, D11, D13,
-  D23, D36, D40 twice) merge without loss into `overnight-candidates`
-  (two import and teardown conflicts, both kept). `npm run check` 1096/0.
-  Full Zotero runs there: 129/11 (the known Stage 3 ladder flake, 23/0
-  alone), then 139/1 twice, each a different case a remount breaks (F6's,
-  since made to retry; D15's toast, 15/0 alone). Main's runs that night
-  were clean. No branch adds a remount trigger (only removals and library
-  refreshes remount); the extra cases shift when an earlier erase's
-  delayed refresh lands. D15's case now copies again on a remounted view,
-  on main, and the fourth run read 140/0. Later F9 and D40's retry gained
-  Zotero cases (D40's red with its listener removed) and F6's case learned
-  to take the DOI from Crossref; the run at `45e2580` read 141/0. Its XPI is
-  built aside, not over main's.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -333,6 +221,24 @@ any failure into a new entry above.
 - [ ] B112: on an external paper, press Update this paper's connections, and
       while it runs delete any item in the library: the graph redraws, and
       the button stays disabled until the update ends.
+- [ ] F6: on a blank graph, + Add seed, paste a DOI not in Zotero, press Look
+      up, and the paper becomes the seed.
+- [ ] F9: a library paper with an empty DOI field that the plugin matched
+      shows "This item has no DOI"; Add (or Confirm and add) writes it, and
+      Zotero's Info pane shows it.
+- [ ] F10: with the library shown, click a paper in the graph, Shift-click two
+      more, and Zotero's list holds all three.
+- [ ] F12: move a graph to its own window, pick a folder in Zotero, and the
+      graph lights that folder's region.
+- [ ] D11: on your profile, fill a References graph, note the Title
+      unavailable nodes, wait a minute without Refresh, and count them again.
+- [ ] D40: after a fill offline, point at "n failed" and the failed papers
+      stand out; fill offline, reconnect, and without pressing anything the
+      failed count falls as the papers fill.
+- [ ] D36: seed three papers, and the Key's Seed row shows one dark ring. Type
+      in the search box: papers it misses go grey and faint, the counts and the
+      Key do not move, clicking a grey paper does nothing, and its tooltip
+      reads "Clear search to select". Clear the box and the colours return.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -343,9 +249,17 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `1746959` (137/0), so count with the commits since `1746959`. A clean run is 137 cases as of 2026-11-02. The run before it, at `710f40d`, read 136/1: the F11 case in `graphScopeRail` found no node at the canvas centre within its 5 s wait; that suite read 7/0 twice alone. Unexplained so far; look there if it recurs. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `e84e6d8` plus test messages (141/0), so count with the commits since `e84e6d8`. A clean run is 141 cases as of 2026-11-02. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
+- Open, 2026-11-02: three cases fail in some full runs and pass alone. F11's
+  (`graphScopeRail`, no node at the canvas centre, menu empty), B15's
+  (`graphScopeRail`, "the panel opens" or no search row) and D17's
+  (`graphViews`, the graph is on the built-in one). Five runs from `745639d` to
+  `e84e6d8`: 139/2, 140/1, 139/2, 140/1, 141/0. Each case holds elements across
+  awaits, so the remount below is the suspect, unproven. Their messages now
+  print whether the held element is still connected: `connected false` means
+  fix the case, `connected true` means look for a real bug.
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
   B111: Zotero's tab hooks focus `.cm-search`, and in the 1000px test window
   the plot pane is narrower than its toolbar, so the focus scrolled the pane
