@@ -71,6 +71,7 @@ import {
   fetchRelatedWorkSummaryPage,
   resolveRelatedWorkSummaries,
 } from "./relatedWorkSummaryService";
+import { mayQueueHydration } from "./hydrationAttempts";
 import {
   normalizeImportedZoteroItems,
   normalizeRelatedWorkText,
@@ -213,7 +214,8 @@ const relationshipMetadataHydrationQueue = new Map<
   string,
   RelationshipMetadataHydrationQueueEntry
 >();
-const relationshipMetadataAttemptedThisSession = new Set<string>();
+/** Attempts per paper this session (D11): a key's count, oldest first. */
+const relationshipMetadataAttemptedThisSession = new Map<string, number>();
 let relationshipMetadataHydrationTimer: ReturnType<typeof setTimeout> | null =
   null;
 let relationshipMetadataHydrationRunning = false;
@@ -227,13 +229,15 @@ const activeExternalMetadataResolutions = new Map<
 >();
 
 function markRelationshipMetadataAttempted(identityKey: string): void {
+  const attempts =
+    relationshipMetadataAttemptedThisSession.get(identityKey) ?? 0;
   relationshipMetadataAttemptedThisSession.delete(identityKey);
-  relationshipMetadataAttemptedThisSession.add(identityKey);
+  relationshipMetadataAttemptedThisSession.set(identityKey, attempts + 1);
   while (
     relationshipMetadataAttemptedThisSession.size >
     RELATIONSHIP_METADATA_ATTEMPTED_MAX
   ) {
-    const oldest = relationshipMetadataAttemptedThisSession.values().next()
+    const oldest = relationshipMetadataAttemptedThisSession.keys().next()
       .value as string | undefined;
     if (!oldest) break;
     relationshipMetadataAttemptedThisSession.delete(oldest);
@@ -684,7 +688,10 @@ function queueRelationshipMetadataHydration(
     const work = cached ? mergeExternalWorkMetadata(rawWork, cached) : rawWork;
     const stillNeedsLookup = needsRelationshipBibliographicMetadata(work);
     if (retryAttempted) relationshipMetadataAttemptedThisSession.delete(key);
-    if (stillNeedsLookup && relationshipMetadataAttemptedThisSession.has(key)) {
+    if (
+      stillNeedsLookup &&
+      !mayQueueHydration(relationshipMetadataAttemptedThisSession.get(key) ?? 0)
+    ) {
       continue;
     }
     const existing = relationshipMetadataHydrationQueue.get(key);
