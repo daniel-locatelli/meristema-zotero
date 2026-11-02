@@ -1,16 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- D5: phyllotaxis, the user's ArchCompute mark: organs set out from the
+       meristem at the golden angle. One ink, so it also works as a mask. -->
   <style>
     :root { color-scheme: light dark; --meristema-icon: #3f4650; }
     @media (prefers-color-scheme: dark) {
       :root { --meristema-icon: #f2f2f2; }
     }
   </style>
-  <g fill="none" stroke="var(--meristema-icon)" stroke-width="5" stroke-linecap="round">
-    <path d="M17 18l28 10M17 18l11 29M45 28L28 47"/>
-  </g>
   <g fill="var(--meristema-icon)">
-    <circle cx="17" cy="18" r="9"/>
-    <circle cx="45" cy="28" r="9"/>
-    <circle cx="28" cy="47" r="9"/>
+    <circle cx="76.95" cy="73.80" r="1.22"/>
+    <circle cx="58.82" cy="43.55" r="1.33"/>
+    <circle cx="51.58" cy="79.01" r="1.46"/>
+    <circle cx="81.58" cy="57.22" r="1.41"/>
+    <circle cx="43.87" cy="52.94" r="1.55"/>
+    <circle cx="69.36" cy="82.26" r="1.57"/>
+    <circle cx="70.39" cy="42.52" r="1.56"/>
+    <circle cx="42.16" cy="71.75" r="1.67"/>
+    <circle cx="83.60" cy="69.21" r="1.77"/>
+    <circle cx="50.62" cy="42.52" r="1.88"/>
+    <circle cx="57.05" cy="85.38" r="1.99"/>
+    <circle cx="81.77" cy="48.70" r="2.10"/>
+    <circle cx="37.89" cy="59.24" r="2.20"/>
+    <circle cx="78.17" cy="81.52" r="2.31"/>
+    <circle cx="63.25" cy="37.06" r="2.42"/>
+    <circle cx="43.83" cy="80.75" r="2.52"/>
+    <circle cx="88.46" cy="61.30" r="2.63"/>
+    <circle cx="41.58" cy="45.19" r="2.74"/>
+    <circle cx="65.70" cy="89.52" r="2.84"/>
+    <circle cx="78.07" cy="39.66" r="2.94"/>
+    <circle cx="34.51" cy="68.56" r="3.04"/>
+    <circle cx="87.04" cy="76.83" r="3.14"/>
+    <circle cx="53.35" cy="34.55" r="3.24"/>
+    <circle cx="49.59" cy="89.36" r="3.33"/>
+    <circle cx="90.03" cy="50.88" r="3.42"/>
+    <circle cx="33.32" cy="51.94" r="3.51"/>
+    <circle cx="76.53" cy="90.07" r="3.59"/>
+    <circle cx="70.32" cy="31.88" r="3.67"/>
+    <circle cx="35.06" cy="79.69" r="3.75"/>
+    <circle cx="94.24" cy="68.11" r="3.82"/>
+    <circle cx="42.00" cy="36.19" r="3.89"/>
+    <circle cx="59.20" cy="95.86" r="3.95"/>
+    <circle cx="87.23" cy="39.44" r="4.01"/>
+    <circle cx="27.63" cy="62.46" r="4.07"/>
+    <circle cx="87.94" cy="86.08" r="4.12"/>
+    <circle cx="59.04" cy="27.09" r="4.16"/>
+    <circle cx="40.27" cy="90.97" r="4.21"/>
+    <circle cx="98.00" cy="56.12" r="4.24"/>
+    <circle cx="31.01" cy="42.62" r="4.27"/>
+    <circle cx="71.80" cy="98.56" r="4.30"/>
+    <circle cx="79.61" cy="28.86" r="4.32"/>
+    <circle cx="26.09" cy="75.54" r="4.33"/>
+    <circle cx="98.00" cy="77.31" r="4.34"/>
+    <circle cx="45.54" cy="26.84" r="4.35"/>
+    <circle cx="50.17" cy="100.39" r="4.35"/>
+    <circle cx="97.01" cy="42.30" r="4.34"/>
+    <circle cx="22.36" cy="53.62" r="4.33"/>
+    <circle cx="85.79" cy="96.21" r="4.31"/>
+    <circle cx="67.59" cy="21.10" r="4.29"/>
+    <circle cx="29.82" cy="89.55" r="4.26"/>
+    <circle cx="104.75" cy="64.29" r="4.23"/>
+    <circle cx="31.62" cy="31.95" r="4.19"/>
+    <circle cx="64.02" cy="106.02" r="4.15"/>
+    <circle cx="90.48" cy="28.67" r="4.10"/>
+    <circle cx="17.96" cy="68.24" r="4.05"/>
+    <circle cx="99.03" cy="88.27" r="3.99"/>
+    <circle cx="52.29" cy="17.99" r="3.93"/>
+    <circle cx="39.14" cy="102.29" r="3.86"/>
+    <circle cx="106.46" cy="48.47" r="3.79"/>
+    <circle cx="19.56" cy="42.59" r="3.72"/>
+    <circle cx="80.29" cy="106.27" r="3.64"/>
+    <circle cx="78.52" cy="17.40" r="3.56"/>
+    <circle cx="19.21" cy="84.80" r="3.48"/>
+    <circle cx="109.35" cy="75.09" r="3.39"/>
+    <circle cx="35.61" cy="20.80" r="3.29"/>
+    <circle cx="53.48" cy="111.51" r="3.20"/>
+    <circle cx="102.05" cy="31.82" r="3.10"/>
+    <circle cx="11.53" cy="58.02" r="3.01"/>
+    <circle cx="96.78" cy="100.26" r="2.91"/>
+    <circle cx="62.13" cy="10.68" r="2.80"/>
+    <circle cx="26.83" cy="100.97" r="2.70"/>
+    <circle cx="114.65" cy="57.86" r="2.59"/>
+    <circle cx="19.92" cy="30.05" r="2.49"/>
+    <circle cx="71.45" cy="115.31" r="2.38"/>
+    <circle cx="91.22" cy="16.77" r="2.27"/>
+    <circle cx="9.37" cy="76.57" r="2.16"/>
+    <circle cx="111.02" cy="87.88" r="2.06"/>
+    <circle cx="43.13" cy="10.20" r="1.95"/>
+    <circle cx="40.68" cy="114.25" r="1.84"/>
+    <circle cx="113.40" cy="38.54" r="1.74"/>
+    <circle cx="7.73" cy="45.29" r="1.63"/>
+    <circle cx="90.90" cy="112.25" r="1.53"/>
+    <circle cx="74.70" cy="5.82" r="1.60"/>
+    <circle cx="14.23" cy="95.98" r="1.46"/>
+    <circle cx="120.57" cy="70.14" r="1.33"/>
+    <circle cx="23.94" cy="16.91" r="1.28"/>
+    <circle cx="59.52" cy="122.28" r="1.50"/>
+    <circle cx="104.82" cy="19.74" r="1.13"/>
+    <circle cx="109.13" cy="101.87" r="1.22"/>
   </g>
 </svg>

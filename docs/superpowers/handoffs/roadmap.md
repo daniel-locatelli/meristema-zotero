@@ -182,17 +182,6 @@ opacity grade).
 
 ## Other
 
-- [ ] D5 the logo: one mark on both themes that says meristem, replacing the
-      blue installer icon and the white UI icon
-      Canvas (2026-11-01): https://claude.ai/artifact/VvZtSZNZCjRY3AUQtqn57w,
-      A (the shoot apex between two leaf primordia), B (a citation tree
-      that sprouts), C (phyllotaxis dots), each at 96, 32 and 16px on both
-      themes
-      A is built on branch `d5-apex-mark` (not merged) for the UI icons
-      (`network.svg`, `network-section.svg`: menus, tab, pane section,
-      settings) and, rendered with Zotero's own engine, the installer PNGs
-      (96 and 48 px, in the plot's greens). Its check: the Tools menu, the graph tab and the item
-      pane section show the apex mark on both themes
 - [ ] F3 open, for the user: whether matching may use title+year alone
       Recommendation (2026-11-01): yes for display, never for writes. A
       title and year match may join a library paper to its node on the plot
@@ -338,6 +327,9 @@ any failure into a new entry above.
 - [ ] D13: on a seeded graph with more than 3,200 edges, only the seeds'
       edges draw; hovering or selecting a paper draws its edges too. A
       smaller graph draws every edge as before.
+- [ ] D5: the Tools menu, the graph tab, the item pane section, Settings and
+      the Key rail's logo show the ArchCompute phyllotaxis ring on both
+      themes; the add-ons manager shows it in green.
 - [ ] B112: on an external paper, press Update this paper's connections, and
       while it runs delete any item in the library: the graph redraws, and
       the button stays disabled until the update ends.
