@@ -66,6 +66,6 @@ describe("CitationGraphRenderer library mark", function () {
       (call) => call.method === "stroke" && call.strokeStyle === fill,
     );
     expect(ring, "the hop paper's ring strokes in the node's colour").to.exist;
-    expect(ring!.globalAlpha, "the ring keeps the hop's opacity").to.equal(0.9);
+    expect(ring!.globalAlpha, "the ring draws at full ink (D10)").to.equal(1);
   });
 });

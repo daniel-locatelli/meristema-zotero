@@ -125,20 +125,6 @@ opacity grade).
 
 ## The rail and the Key
 
-- [ ] D10 hop depth is encoded as opacity, the wrong channel. The ramp
-      `1, .9, .8, .7, .6, .5, .4` makes adjacent early hops untellable, and the
-      spec applies it under every colouring, so under Citation hop one variable
-      takes two channels and spends the one emphasis and search dimming use.
-      Weigh a channel that separates adjacent hops (ring, stroke weight, size),
-      opacity for emphasis alone, and no ramp when the colouring already says
-      hop
-      Canvas (2026-11-01): https://claude.ai/artifact/WZFVakcUYU4H2StpiJJEVU,
-      Now beside A (no hop channel; the Citation hop colouring tells it), B
-      (size by hop), C (fill, thick ring, thin ring; but a ring already
-      means not in Zotero), D (a steeper ramp, 1, .55, .25)
-      A is built on branch `d10-no-ramp-under-hop-colouring` (not merged):
-      `hopOpacityUnder`, unit-tested; graphVisual 12/0. Its check: colour by
-      Citation hop on a filled graph, and every hop draws at full ink
 - [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
       Weigh: no edges past a density threshold, edges only for what is hovered,
       selected or seeded, bundling, or an aggregate layer. The Key spends three
@@ -378,6 +364,8 @@ any failure into a new entry above.
       too once a default is stored). Graph display settings… opens the gear,
       also with the rail collapsed (the rail opens first); Reset this graph
       undoes a gear edit. The gear's own foot buttons still work.
+- [ ] D10: on a filled graph, under any colouring, papers at every hop draw
+      at full ink; only Citation hop colouring tells the hops apart (ADR 0022).
 - [ ] B112: on an external paper, press Update this paper's connections, and
       while it runs delete any item in the library: the graph redraws, and
       the button stays disabled until the update ends.

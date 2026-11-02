@@ -38,10 +38,6 @@ describe("CitationGraphRenderer hops", function () {
     return target;
   }
 
-  function modelOf(nodes: CitationGraphNode[]): CitationGraphModel {
-    return model(nodes);
-  }
-
   it("feeds the Citation hop assignment from the seed marks, not from the node", function () {
     const renderer = makeRenderer([node("s"), node("a")], {
       nodeColorMetric: "citation-hop",
@@ -84,46 +80,11 @@ describe("CitationGraphRenderer hops", function () {
     expect(assignment.labelFor(node("s"))).to.equal("Not graded");
   });
 
-  it("fades a node's alpha by hop and leaves unmapped nodes whole", function () {
-    const renderer = makeRenderer([node("s"), node("a"), node("lib")], {});
-    renderer.setSeedMarks(
-      {
-        ...EMPTY_SEED_MARKS,
-        hops: new Map([
-          ["s", 0],
-          ["a", 3],
-        ]),
-      },
-      false,
-    );
-    expect(renderer.hopAlphaFor("s")).to.equal(1);
-    expect(renderer.hopAlphaFor("a")).to.equal(0.7);
-    expect(renderer.hopAlphaFor("lib")).to.equal(1);
-  });
-
-  it("drops hops for nodes that left the model on syncModel", function () {
-    const graphModel = modelOf([node("s"), node("a")]);
-    const renderer = makeRenderer(graphModel.nodes, {});
-    renderer.setSeedMarks(
-      {
-        ...EMPTY_SEED_MARKS,
-        hops: new Map([
-          ["s", 0],
-          ["a", 1],
-        ]),
-      },
-      false,
-    );
-    graphModel.nodes.splice(1, 1);
-    renderer.syncModel({ draw: false });
-    expect(renderer.hopAlphaFor("a")).to.equal(1);
-  });
-
   /**
-   * The hop ramp actually lands on the canvas: a citer's node fill, the
-   * edge it draws toward its cited paper, and its label all draw at its
-   * hop's alpha — not at the emphasis-only alpha the pre-Task-7 code drew
-   * everything at.
+   * No hop ramp (D10): a citer's node fill, the edge it draws toward its
+   * cited paper, and its label all draw at full alpha whatever its hop;
+   * opacity is left to emphasis and search, and hop is told by the Citation
+   * hop colouring.
    *
    * Three nodes, one edge: a seed at hop 0, a citer at hop 1 with an edge
    * citer -> seed (the citer→cited convention, so the edge's `source` is
@@ -133,9 +94,9 @@ describe("CitationGraphRenderer hops", function () {
    * budget, since a selected node always draws (`important` in
    * `drawRendererLabels`) regardless of how much room is left. Nothing here
    * emphasises a node (`setEmphasis` untouched), so `emphasisAlphaFor`
-   * returns 1 throughout and the recorded alpha is the hop alpha alone.
+   * returns 1 throughout and any alpha below 1 would be a hop ramp.
    */
-  it("lands the hop ramp on the node fill, the edge and the label", function () {
+  it("draws every hop at full alpha on the node fill, the edge and the label", function () {
     const seed = node("s", { title: "Seed Paper" });
     const citer = node("a", { title: "Citer Paper" });
     const farNode = node("b", { title: "Hop2 Paper" });
@@ -196,8 +157,8 @@ describe("CitationGraphRenderer hops", function () {
     // `graphModel.nodes` order: seed, citer, hop-2.
     const [seedFill, citerFill, hop2Fill] = fills.slice(-3);
     expect(seedFill.globalAlpha, "seed's fill alpha").to.equal(1);
-    expect(citerFill.globalAlpha, "citer's (hop 1) fill alpha").to.equal(0.9);
-    expect(hop2Fill.globalAlpha, "hop-2 node's fill alpha").to.equal(0.8);
+    expect(citerFill.globalAlpha, "citer's (hop 1) fill alpha").to.equal(1);
+    expect(hop2Fill.globalAlpha, "hop-2 node's fill alpha").to.equal(1);
 
     // Only one edge exists, so the first stroke recorded overall is that
     // edge's line, drawn before any node's outline or selection ring.
@@ -205,16 +166,13 @@ describe("CitationGraphRenderer hops", function () {
       (call) => call.method === "stroke",
     );
     expect(edgeStroke, "an edge stroke was recorded").to.exist;
-    expect(
-      edgeStroke!.globalAlpha,
-      "the edge draws at the citer's alpha, not the seed's",
-    ).to.equal(0.9);
+    expect(edgeStroke!.globalAlpha, "the edge draws at full alpha").to.equal(1);
 
     const hop2Label = canvas.context.calls.find(
       (call) => call.method === "fillText" && call.args[0] === "Hop2 Paper",
     );
     expect(hop2Label, "the hop-2 node's label was drawn").to.exist;
-    expect(hop2Label!.globalAlpha, "hop-2 node's label alpha").to.equal(0.8);
+    expect(hop2Label!.globalAlpha, "hop-2 node's label alpha").to.equal(1);
   });
 
   it("draws a shared paper's edge to a seed in that seed's colour, only under Seeds linked", function () {
@@ -275,8 +233,8 @@ describe("CitationGraphRenderer hops", function () {
     expect(linked.strokeStyle, "the edge took seed s's colour").to.equal(
       "#123456",
     );
-    // 0.85, times the citer's hop-1 alpha of 0.9.
-    expect(linked.globalAlpha).to.be.closeTo(0.765, 1e-9);
+    // The seed-link strength, with no hop ramp on top (D10).
+    expect(linked.globalAlpha).to.be.closeTo(0.85, 1e-9);
     const [plain] = strokesUnder("uniform");
     expect(
       plain.strokeStyle,

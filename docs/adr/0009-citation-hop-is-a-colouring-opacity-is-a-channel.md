@@ -8,3 +8,6 @@ fill was not built because it would have collided with the colour system's
 reserved channels (colour-system spec, D3). The entry is available only while
 the graph has a seed, toggled by seededness, because library nodes never
 carry a hop field (ADR 0008).
+
+The opacity ramp was withdrawn by ADR 0022: hop is told by its colouring
+alone.

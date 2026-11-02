@@ -45,7 +45,6 @@ import {
 } from "./graphMetricScale";
 import {
   graphThemeFor,
-  hopOpacity,
   litEdgeHalo,
   observeGraphScheme,
   resolveGraphScheme,
@@ -2305,13 +2304,11 @@ export class CitationGraphRenderer {
           curveApex,
           baseOpacity,
           // An edge belongs to an emphasised group if either end does, so the
-          // group's connections out into the graph stay legible. The hop
-          // opacity is the citer's: under the citer → cited convention the
-          // source is the citer.
+          // group's connections out into the graph stay legible.
           Math.max(
             this.emphasisAlphaFor(edge.source),
             this.emphasisAlphaFor(edge.target),
-          ) * this.hopAlphaFor(edge.source),
+          ),
           seedLink,
         );
       }
@@ -2338,7 +2335,7 @@ export class CitationGraphRenderer {
           position,
           radius,
           this.nodeColor(node, colorDomain),
-          this.emphasisAlphaFor(node.key) * this.hopAlphaFor(node.key),
+          this.emphasisAlphaFor(node.key),
         );
       }
       this.drawLabels(nodes, radii);
@@ -2415,11 +2412,6 @@ export class CitationGraphRenderer {
     }
     return metricNumber(node, metric);
   };
-
-  /** The hop opacity ramp for a node; 1 for a node no hop reached. */
-  public hopAlphaFor(key: string): number {
-    return hopOpacity(this.seedMarks?.hops.get(key));
-  }
 
   /** Seeds linked ranks seeds, then seed links, ahead of citations. */
   public labelRankFor(key: string): number {

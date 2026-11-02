@@ -93,7 +93,6 @@ export interface RendererSceneContext {
   isDarkMode(): boolean;
   getTheme(): GraphTheme;
   draw(): void;
-  hopAlphaFor(key: string): number;
   emphasisAlphaFor(key: string): number;
   /** Rectangles in device pixels no label may cover: the floor's tag. */
   labelObstacles(): LabelRectangle[];
@@ -1010,12 +1009,10 @@ export function drawRendererLabels(
     // A pushed-aside label draws no leader to its node: a line from the disc
     // to the label reads as an edge (B101, B103).
     const ghosted = renderer.isNodeGhosted(node);
-    // The label fades with its disc: hop opacity and the Key's emphasis both
-    // feed it, so a dimmed hop-6 paper does not keep a full-strength name.
+    // The label fades with its disc under the Key's emphasis, so a dimmed
+    // paper does not keep a full-strength name.
     context.globalAlpha =
-      (ghosted ? 0.58 : 1) *
-      renderer.hopAlphaFor(node.key) *
-      renderer.emphasisAlphaFor(node.key);
+      (ghosted ? 0.58 : 1) * renderer.emphasisAlphaFor(node.key);
     context.textAlign = chosen.align;
     context.fillStyle = renderer.getTheme().inks.primary;
     lines.forEach((line, index) =>
