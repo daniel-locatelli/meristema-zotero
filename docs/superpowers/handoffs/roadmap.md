@@ -198,21 +198,6 @@ opacity grade).
       the press, the DOI written on Confirm. Its check: a library paper with an empty DOI field that the
       plugin matched shows "This item has no DOI"; Add (or Confirm and add)
       writes it, and Zotero's Info pane shows the DOI
-- [ ] D23 the graph has no narrow layout (user agreed, 2026-10-09): after B90
-      Paper details keeps its side width, so a 650px window leaves the plot
-      about 99px. Brainstorm: shrink Paper details towards Zotero's 320px
-      minimum, auto-collapse it, or stack it
-      Canvas (2026-11-01): https://claude.ai/artifact/Rrdd91oRmMdLewy1pJqsna,
-      a 650px tab: Now (plot 99), A (pane to 320, plot 130), B (pane folds
-      below a plot floor), C (pane stacked under the plot, as Zotero does),
-      D (pane as a drawer over the plot), E (the rail folds first)
-      B is built on branch `d23-fold-details-below-plot-floor` (not
-      merged): under a 320px plot the pane folds to its strip without
-      folding Zotero's item pane, its toggle reopens it, and a 40px band
-      stops flicker. Zotero will not shrink its window below ~930px, so the
-      case narrows the graph's root; 2/0 twice. Its check: narrow the graph
-      tab (a detached graph window) until the plot is thin, and the pane
-      folds; Zotero's item pane stays as it was
 
 ## Other
 
@@ -366,6 +351,9 @@ any failure into a new entry above.
       undoes a gear edit. The gear's own foot buttons still work.
 - [ ] D10: on a filled graph, under any colouring, papers at every hop draw
       at full ink; only Citation hop colouring tells the hops apart (ADR 0022).
+- [ ] D23: open the graph in a detached window and narrow it: once the plot
+      is down to about 320px, Paper details narrows too, stopping at 320px;
+      widen it and the pane is back at Zotero's item pane width.
 - [ ] B112: on an external paper, press Update this paper's connections, and
       while it runs delete any item in the library: the graph redraws, and
       the button stays disabled until the update ends.

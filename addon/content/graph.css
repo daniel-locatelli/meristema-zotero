@@ -156,9 +156,14 @@
   background: var(--cm-sidepane);
 }
 /* The plot and its toolbar, as one column: #zotero-items-pane-container. */
+/*
+ * The plot's basis is the floor Paper details gives way to (D23): in a tab
+ * too narrow for the rail, the pane and a 320px plot, both shrink, the pane
+ * no further than Zotero's 320px item pane minimum.
+ */
 .cm-plot-pane {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 320px;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
@@ -497,6 +502,14 @@
    * pane, so the graph's two side panels match each other and match Zotero. */
   border-left: 1px solid var(--cm-panedivider);
   background: var(--cm-sidepane);
+}
+/*
+ * Open, the pane may give width to a squeezed plot, down to Zotero's 320px
+ * item pane minimum; its inline width stays what Zotero's pane says (D23).
+ */
+.cm-detail-shell:not([data-collapsed="true"]) {
+  flex-shrink: 1;
+  min-width: 320px;
 }
 /*
  * Collapsed, the pane keeps its toolbar and its toggle, the way the Key rail

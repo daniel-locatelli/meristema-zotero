@@ -180,4 +180,47 @@ describe("Paper details while Zotero is stacked", function () {
       await delay(500);
     }
   });
+
+  it("narrows Paper details towards 320px in a narrow tab, leaving Zotero's pane alone (D23)", async function () {
+    this.timeout(60_000);
+    const doc = win.document as Document;
+    const width = (el: Element | null | undefined): number =>
+      el ? Math.round(el.getBoundingClientRect().width) : -1;
+    const shell = (): number =>
+      width(graphRoot().querySelector(".cm-detail-shell"));
+    const zoteroWidth = (): string | null | undefined =>
+      doc.getElementById("zotero-item-pane")?.getAttribute("width");
+    const evidence = (): string =>
+      `root ${width(graphRoot())}; rail ${width(graphRoot().querySelector(".cm-key-rail"))}, ` +
+      `plot ${width(graphRoot().querySelector(".cm-plot-pane"))}, shell ${shell()}; ` +
+      `Zotero item pane width attr ${zoteroWidth()}`;
+    const before = shell();
+    const zoteroBefore = zoteroWidth();
+    expect(
+      before,
+      `the pane starts wider than 320, or nothing can give way (${evidence()})`,
+    ).to.be.above(325);
+    // Zotero will not shrink its window below ~930px, so the graph's own
+    // root is narrowed: the tab's width is what the pane measures.
+    const narrow = (on: boolean): void => {
+      graphRoot().style.maxWidth = on ? "650px" : "";
+    };
+    try {
+      narrow(true);
+      const shrunk = await waitFor(() => Math.abs(shell() - 320) <= 1, 5_000);
+      expect(shrunk, `a 650px tab draws it at 320 (${evidence()})`).to.equal(
+        true,
+      );
+      expect(zoteroWidth(), "Zotero's own item pane keeps its width").to.equal(
+        zoteroBefore,
+      );
+    } finally {
+      narrow(false);
+    }
+    const back = await waitFor(() => Math.abs(shell() - before) <= 1, 5_000);
+    expect(
+      back,
+      `the full tab draws it at ${before} again (${evidence()})`,
+    ).to.equal(true);
+  });
 });
