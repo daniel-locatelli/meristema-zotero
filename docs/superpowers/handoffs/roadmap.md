@@ -125,23 +125,6 @@ opacity grade).
 
 ## The rail and the Key
 
-- [ ] D13 at ~1,500 papers the edges are a wash and carry no information.
-      Weigh: no edges past a density threshold, edges only for what is hovered,
-      selected or seeded, bundling, or an aggregate layer. The Key spends three
-      rows (Link, Reference, Cited by) on a channel the reader cannot use
-      2026-10-07 walk: a seed with many citers piles the nodes up into a mess
-      that says nothing; the nodes need the same answer as the edges (B89)
-      Canvas (2026-11-01): https://claude.ai/artifact/Y5C4TfGMGbNh4ZP9YQ8o9U,
-      Now beside A (no edges past a density, focus edges only), B (every
-      edge at the dimmed strength, focus at full), C (the seeds' edges and
-      focus only)
-      Found (2026-11-01): the mesh already fades with the count
-      (`edgeBaseOpacity`: full below 240 edges, a 0.3 floor above 3,200, on
-      a base ink at .32), so B is close to what ships. A is built on branch
-      `d13-hide-unlit-edges-when-dense` (not merged): past 3,200 edges only
-      the selection's and the seed links draw. Its check: on a graph that
-      big, the mesh is gone and clicking a paper draws its edges
-
 ## Seeds, selection and the detail surfaces
 
 - [ ] F6 seed a paper that is not in Zotero into a new graph
@@ -354,6 +337,9 @@ any failure into a new entry above.
 - [ ] D23: open the graph in a detached window and narrow it: once the plot
       is down to about 320px, Paper details narrows too, stopping at 320px;
       widen it and the pane is back at Zotero's item pane width.
+- [ ] D13: on a seeded graph with more than 3,200 edges, only the seeds'
+      edges draw; hovering or selecting a paper draws its edges too. A
+      smaller graph draws every edge as before.
 - [ ] B112: on an external paper, press Update this paper's connections, and
       while it runs delete any item in the library: the graph redraws, and
       the button stays disabled until the update ends.

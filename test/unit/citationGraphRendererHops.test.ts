@@ -17,8 +17,8 @@ import { EMPTY_SEED_MARKS } from "../../src/services/graphHopModel";
 
 /**
  * Hops arrive by map, never as a node field (`additiveGraphModel` keeps the
- * library's own node objects, which no walk stamps), and fade fill, label
- * and edge alpha the further out a paper sits.
+ * library's own node objects, which no walk stamps); a hop changes no
+ * alpha (D10).
  */
 describe("CitationGraphRenderer hops", function () {
   function makeRenderer(

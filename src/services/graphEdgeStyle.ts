@@ -61,6 +61,34 @@ export function edgeBaseOpacity(edgeCount: number): number {
   return 1 - span * (1 - OPACITY_FLOOR);
 }
 
+/** What keeps an edge lit once the mesh is too dense to read (D13). */
+export interface MeshFocus {
+  seedKeys: ReadonlySet<string>;
+  selectedKey: string | null;
+  hoverKey: string | null;
+}
+
+/**
+ * Past the floor's count the mesh says nothing (D13): only the seeds' edges,
+ * the graph's spine, and the selected or hovered paper's draw; the rest wait
+ * for a hover.
+ */
+export function edgeShownInMesh(
+  edge: { source: string; target: string },
+  edgeCount: number,
+  focus: MeshFocus,
+): boolean {
+  if (edgeCount <= OPACITY_FLOOR_ABOVE) return true;
+  const touches = (key: string | null): boolean =>
+    key !== null && (edge.source === key || edge.target === key);
+  return (
+    focus.seedKeys.has(edge.source) ||
+    focus.seedKeys.has(edge.target) ||
+    touches(focus.selectedKey) ||
+    touches(focus.hoverKey)
+  );
+}
+
 function edgeKey(source: string, target: string): string {
   return `${source}>${target}`;
 }

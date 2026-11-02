@@ -5,6 +5,7 @@ import {
   arrivalDirection,
   curveControlPoint,
   edgeBaseOpacity,
+  edgeShownInMesh,
   edgeCullMargin,
   edgeLineInset,
   reciprocalEdgeKeys,
@@ -224,5 +225,49 @@ describe("edgeCullMargin", () => {
         }
       }
     }
+  });
+});
+
+describe("edgeShownInMesh (D13)", function () {
+  const focus = {
+    seedKeys: new Set(["s"]),
+    selectedKey: "sel",
+    hoverKey: "hov",
+  };
+  const edge = (source: string, target: string) => ({ source, target });
+
+  it("draws every edge while the mesh is sparse enough to read", function () {
+    expect(edgeShownInMesh(edge("a", "b"), 3200, focus)).to.equal(true);
+  });
+
+  it("past the floor keeps the seeds' edges as the spine and the focus's", function () {
+    const dense = 3201;
+    expect(edgeShownInMesh(edge("a", "s"), dense, focus), "to a seed").to.equal(
+      true,
+    );
+    expect(
+      edgeShownInMesh(edge("s", "a"), dense, focus),
+      "from a seed",
+    ).to.equal(true);
+    expect(
+      edgeShownInMesh(edge("sel", "a"), dense, focus),
+      "selected",
+    ).to.equal(true);
+    expect(edgeShownInMesh(edge("a", "hov"), dense, focus), "hovered").to.equal(
+      true,
+    );
+    expect(edgeShownInMesh(edge("a", "b"), dense, focus), "the rest").to.equal(
+      false,
+    );
+  });
+
+  it("past the floor with no seed or focus draws no mesh", function () {
+    expect(
+      edgeShownInMesh(edge("a", "b"), 5000, {
+        seedKeys: new Set(),
+        selectedKey: null,
+        hoverKey: null,
+      }),
+    ).to.equal(false);
   });
 });

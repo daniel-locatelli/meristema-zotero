@@ -92,6 +92,7 @@ import {
   arrivalDirection,
   curveControlPoint,
   edgeBaseOpacity,
+  edgeShownInMesh,
   edgeCullMargin,
   edgeLineInset,
   reciprocalEdgeKeys,
@@ -2257,7 +2258,13 @@ export class CitationGraphRenderer {
         right: this.canvas.width,
         bottom: this.canvas.height,
       };
+      const meshFocus = {
+        seedKeys: this.seedMarks?.seedKeys ?? new Set<string>(),
+        selectedKey,
+        hoverKey: this.hoverKey,
+      };
       for (const { edge, seedLink, reciprocal: reciprocalEdge } of edges) {
+        if (!edgeShownInMesh(edge, edges.length, meshFocus)) continue;
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
         if (!source || !target) continue;
