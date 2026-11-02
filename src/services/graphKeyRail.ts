@@ -43,7 +43,9 @@ import {
 export type RailEmphasis =
   | { kind: "key"; entry: KeyEntry }
   | { kind: "seed"; seedKey: string }
-  | { kind: "collection"; collectionID: number };
+  | { kind: "collection"; collectionID: number }
+  /** The papers the fill failed on, in the current direction (D40). */
+  | { kind: "failed" };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 /** Matches the 0.9s `cm-scope-hop-spin` duration in graph.css: spinners rebuilt mid-turn share one phase. */
@@ -857,6 +859,26 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
     if (progress.title) line.title = progress.title;
     const parts: HTMLElement[] = [];
     if (progress.text) parts.push(text(document, "span", progress.text));
+    if (progress.failed) {
+      // Hovered or focused, it lights the papers that failed, as a seed row
+      // lights what its seed reached: which ones were tried is otherwise
+      // nowhere on screen (D40).
+      const failed = element(document, "button", "cm-scope-hop-failed");
+      failed.type = "button";
+      failed.textContent = progress.failed;
+      failed.title = "Point at it to show which papers failed";
+      const show = (): void => {
+        if (!pinned) options.onEmphasise({ kind: "failed" });
+      };
+      const hide = (): void => {
+        if (!pinned) options.onEmphasise(null);
+      };
+      failed.addEventListener("pointerenter", show);
+      failed.addEventListener("pointerleave", hide);
+      failed.addEventListener("focus", show);
+      failed.addEventListener("blur", hide);
+      parts.push(failed);
+    }
     const countdown = progress.countdown;
     if (countdown) {
       // Only this span changes each second. The model's `retryAt` is fixed,

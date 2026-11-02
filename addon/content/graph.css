@@ -1710,6 +1710,26 @@
   border-color: transparent;
   text-decoration: underline;
 }
+/* D40: "n failed" lights the failed papers while pointed at. It reads as
+   the line's text, in its ink, with a dotted rule saying it does something. */
+.meristema-root button.cm-scope-hop-failed {
+  appearance: none;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+.meristema-root button.cm-scope-hop-failed:hover {
+  background: transparent;
+  border-color: transparent;
+}
 .cm-scope-seed {
   display: flex;
   gap: 6px;
