@@ -343,7 +343,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-01 at `50c0ac4` (136/0), so count with the commits since `50c0ac4`. A clean run is 136 cases as of 2026-11-01. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `1746959` (137/0), so count with the commits since `1746959`. A clean run is 137 cases as of 2026-11-02. The run before it, at `710f40d`, read 136/1: the F11 case in `graphScopeRail` found no node at the canvas centre within its 5 s wait; that suite read 7/0 twice alone. Unexplained so far; look there if it recurs. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
