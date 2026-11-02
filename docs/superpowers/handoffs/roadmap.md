@@ -152,6 +152,34 @@ opacity grade).
 - D11's check failed on 2026-11-01: a References fill still leaves nodes as
   "Title unavailable" beside the resolved ones. Measure under D11.
 
+## From the 2026-11-02 walk
+
+Passed: B116, B119, D10, D23, D36's Selected row and rail, F6, F10, F12. B50,
+B72 and B64 are retired on the suite's simulated refusals, the user's call.
+
+- [ ] W1 D37: Impact's card description leaves "hop" alone on its last line
+- [ ] W2 D13 changes: only the seeds' edges draw at any graph size, not only
+      past 3,200 edges. Hovering or selecting a paper must add its edges; on
+      the walk a hover gave only the hover ring (also seen on a non-seed)
+- [ ] W3 D5: the ArchCompute mark does not read at small UI sizes. Go back to
+      concept C of https://claude.ai/artifact/VvZtSZNZCjRY3AUQtqn57w. The
+      Settings icon should be white, it is green
+- [ ] W4 D36: hide the edges of papers the search misses; clicking a grey paper
+      warns (a small dialog, maybe); an x at the end of the box clears it
+- [ ] W5 D35: the View menu is too complicated. Fewer items, the rest behind
+      them. The gear's foot keeps only reset, labelled without "this graph"
+- [ ] W6 B114: Enter in Search collections does not confirm the folder; typing
+      "PhD" still needs a click
+- [ ] W7 B112: Update this paper's connections does nothing; a library delete
+      still triggers the update
+- [ ] W8 D11: Title unavailable nodes grew over time, then many snapped onto one
+      spot, seen by their edges converging
+- [ ] W9 D40: 14 failed after an offline fill; nothing changed on reconnecting
+- [ ] W10 a selected paper's mark: no extra ring, its outermost circle glows
+- [ ] W11 while hop 2 fills, Fetch hop 3 can be pressed; hop 2's button goes and
+      it cannot be resumed, only hop 3's Stop and Resume remain
+- [ ] W12 F9's check and B78's were not understood; explain them
+
 ## Manual verification (the user checks these in Zotero, in one batch)
 
 Each session that merges an item appends its checks here instead of asking the
@@ -159,26 +187,6 @@ user to verify right away. Install the XPI from `.scaffold/build/meristema.xpi`
 (built from the latest main), then walk the list; tick what passes, and turn
 any failure into a new entry above.
 
-- Refusals were not reached on 2026-10-07 or 2026-11-01, so B50, B72 and
-  B64 wait for a session where Semantic Scholar refuses.
-- Offline cover, 2026-11-01: the Citation hops suite serves refusals for B50
-  ("under provider refusals"), B72 (its drain case), B64 (a Refresh seeds
-  under refusals ends in 1.3 s; with the fix reverted, 16.2 s, red) and
-  B78/B79 (Seeds linked tiers, the key cleared live). What only the live
-  walk adds is real provider timing; retire any of the four on your call.
-- [ ] B50: on your own profile (no Semantic Scholar key), fill a seeded graph
-      to hop 3 under Citers. While it runs, the hop line shows only Stop and
-      the hop counts keep climbing. If it reads `… refusing · retry in …`,
-      the countdown ticks without the rail flickering, Stop keeps focus under
-      the keyboard, and Resume starts expanding at once. (The countdown half
-      passed under the 2026-09-16 probe.)
-- [ ] B72: fill hop 3 on your own profile while Semantic Scholar is refusing.
-      The hop line ends at rest (`n not expanded`, `n failed`, with Resume)
-      rather than switching between Stop and refusing for good. A 2026
-      frontier paper reads as expanded with no citers, not re-asked; on
-      2026-09-16 the same ~20 DOIs were fetched 10 to 16 times.
-- [ ] B64: with Semantic Scholar refusing, press Refresh seeds. The progress
-      window closes in seconds, not after 15 s.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
@@ -189,56 +197,9 @@ any failure into a new entry above.
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] B114: right-click a paper that is not in the library, choose Add to
-      Zotero…: Paper details opens its collection chooser, with the cursor in
-      Search collections and the chooser in view.
-- [ ] B116: start a graph from one paper an earlier graph had filled: the
-      gallery asks "How do you want to look at this paper and its N citers?"
-      (N matching the rail's hop 1); switch the rail to References on a
-      fresh one and it reads "references".
-- [ ] B119: on a seeded graph, the Fetch hop N button reads at full ink
-      while its row's tick, swatch and "Hop N" stay grey.
-- [ ] D37: open the view gallery on a blank graph: each card's description
-      and its "Needs a seed" tag read at a size close to the card's name.
-- [ ] D36: on a seeded graph, the Key's States list Seed but no Selected row,
-      and selecting a paper still rings it on the plot.
-- [ ] D35: open View: under a rule it offers Graph display settings…,
-      Reset this graph and Use these for new blank graphs (Restore built-in
-      too once a default is stored). Graph display settings… opens the gear,
-      also with the rail collapsed (the rail opens first); Reset this graph
-      undoes a gear edit. The gear's own foot buttons still work.
-- [ ] D10: on a filled graph, under any colouring, papers at every hop draw
-      at full ink; only Citation hop colouring tells the hops apart (ADR 0022).
-- [ ] D23: open the graph in a detached window and narrow it: once the plot
-      is down to about 320px, Paper details narrows too, stopping at 320px;
-      widen it and the pane is back at Zotero's item pane width.
-- [ ] D13: on a seeded graph with more than 3,200 edges, only the seeds'
-      edges draw; hovering or selecting a paper draws its edges too. A
-      smaller graph draws every edge as before.
-- [ ] D5: the Tools menu, the graph tab, the item pane section, Settings and
-      the Key rail's logo show the ArchCompute phyllotaxis ring on both
-      themes; the add-ons manager shows it in green.
-- [ ] B112: on an external paper, press Update this paper's connections, and
-      while it runs delete any item in the library: the graph redraws, and
-      the button stays disabled until the update ends.
-- [ ] F6: on a blank graph, + Add seed, paste a DOI not in Zotero, press Look
-      up, and the paper becomes the seed.
 - [ ] F9: a library paper with an empty DOI field that the plugin matched
       shows "This item has no DOI"; Add (or Confirm and add) writes it, and
       Zotero's Info pane shows it.
-- [ ] F10: with the library shown, click a paper in the graph, Shift-click two
-      more, and Zotero's list holds all three.
-- [ ] F12: move a graph to its own window, pick a folder in Zotero, and the
-      graph lights that folder's region.
-- [ ] D11: on your profile, fill a References graph, note the Title
-      unavailable nodes, wait a minute without Refresh, and count them again.
-- [ ] D40: after a fill offline, point at "n failed" and the failed papers
-      stand out; fill offline, reconnect, and without pressing anything the
-      failed count falls as the papers fill.
-- [ ] D36: seed three papers, and the Key's Seed row shows one dark ring. Type
-      in the search box: papers it misses go grey and faint, the counts and the
-      Key do not move, clicking a grey paper does nothing, and its tooltip
-      reads "Clear search to select". Clear the box and the colours return.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
