@@ -329,4 +329,53 @@ describe("Selecting a node whose paper is outside the open folder", function () 
       tree.selectItems = realSelectItems;
     }
   });
+
+  it("selects every paper a Shift-click gathered in Zotero's list (F10)", async function () {
+    this.timeout(60_000);
+    // The library lists both fixtures; the folder listed one.
+    await win.ZoteroPane.collectionsView.selectLibrary(
+      Zotero.Libraries.userLibraryID,
+    );
+    await waitFor(() => (win.ZoteroPane.itemsView?.rowCount ?? 0) >= 2, 10_000);
+    win.Zotero_Tabs.select(tabID);
+    await delay(500);
+    // Back on the tab, the view may have redrawn; fit it so both are on screen.
+    (
+      graphRoot().querySelector(
+        '.cm-zoom-controls button[data-action="fit"]',
+      ) as HTMLButtonElement
+    ).click();
+    await delay(500);
+    const utils = win.windowUtils;
+    const shift = (Ci as any).nsIDOMWindowUtils?.MODIFIER_SHIFT ?? 4;
+    const click = (point: { x: number; y: number }, modifiers: number) => {
+      utils.sendMouseEvent("mousedown", point.x, point.y, 0, 1, modifiers);
+      utils.sendMouseEvent("mouseup", point.x, point.y, 0, 1, modifiers);
+    };
+    const inside = await pointOnNode(INSIDE_TITLE);
+    const outside = await pointOnNode(OUTSIDE_TITLE);
+    click(inside, 0);
+    await waitFor(
+      () => listSelection().length === 1 && listSelection()[0] === insideID,
+      5_000,
+    );
+    click(outside, shift);
+    const both = await waitFor(() => listSelection().length === 2, 5_000);
+    expect(
+      [...listSelection()].sort(),
+      `Zotero's list holds both papers (it holds ${listSelection().join(",")})`,
+    ).to.deep.equal([insideID, outsideID].sort());
+    expect(both, "within the wait").to.equal(true);
+
+    // A second Shift-click takes a paper out again.
+    click(outside, shift);
+    const one = await waitFor(
+      () => listSelection().length === 1 && listSelection()[0] === insideID,
+      5_000,
+    );
+    expect(
+      one,
+      `the Shift-click took it out; the list holds ${listSelection().join(",")}`,
+    ).to.equal(true);
+  });
 });

@@ -145,6 +145,11 @@ export interface CitationGraphRendererOptions {
   /** Display names for the collections a colouring can name. */
   collectionLabels: ReadonlyMap<number, string>;
   onSelectionChange: (node: CitationGraphNode | null) => void;
+  /**
+   * F10: a Ctrl-, Cmd- or Shift-click on a node. It toggles the node in the
+   * view's multi-selection and leaves the single selection alone.
+   */
+  onNodeToggle?: (node: CitationGraphNode) => void;
   onOpenNode: (node: CitationGraphNode) => void;
   onBackgroundInteraction?: () => void;
   /** The node under the pointer changed, or left. */
@@ -271,6 +276,8 @@ export class CitationGraphRenderer {
   /** Which palette index each category key holds, carried across reassignment. */
   private categorySwatchLedger: SwatchLedgerState = emptySwatchLedger();
   private readonly onSelectionChange: (node: CitationGraphNode | null) => void;
+  private readonly onNodeToggle:
+    ((node: CitationGraphNode) => void) | undefined;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
   private readonly onHoverChange: (key: string | null) => void;
@@ -434,6 +441,7 @@ export class CitationGraphRenderer {
     this.layout = { ...options.layout };
     this.collectionLabels = options.collectionLabels;
     this.onSelectionChange = options.onSelectionChange;
+    this.onNodeToggle = options.onNodeToggle;
     this.onOpenNode = options.onOpenNode;
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
@@ -856,6 +864,16 @@ export class CitationGraphRenderer {
     const world = this.screenToWorld(event.clientX, event.clientY);
     const node = this.hitTest(world.x, world.y);
     if (!node && floorHit) return this.beginFloorDrag(event);
+    if (
+      node &&
+      this.onNodeToggle &&
+      (event.ctrlKey || event.metaKey || event.shiftKey)
+    ) {
+      // A modifier click adds to or takes from the multi-selection; it never
+      // starts a drag or a pan (F10).
+      this.onNodeToggle(node);
+      return;
+    }
     const canDragNode = Boolean(
       node &&
       (this.layout.xMetric === "free" || this.layout.yMetric === "free"),

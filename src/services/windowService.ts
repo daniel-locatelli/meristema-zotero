@@ -1168,6 +1168,8 @@ function renderDetachedWindow(
       ),
     onGraphSelection: (itemID, node) =>
       reportGraphSelection(host, itemID, node !== null),
+    onGraphMultiSelection: (itemIDs) =>
+      reportGraphMultiSelection(host, itemIDs),
     initialFocusItemIDs: request.focusItemIDs,
     initialCollectionIDs: request.collectionIDs,
     ...stateOptions,
@@ -1494,6 +1496,17 @@ function disposeSelectionBinding(win: _ZoteroTypes.MainWindow): void {
  * nothing. It never creates a binding: with no graph open in the window
  * there is nothing to click.
  */
+/** F10: the graph's multi-selection selects its rows in Zotero's list. */
+function reportGraphMultiSelection(
+  win: _ZoteroTypes.MainWindow,
+  itemIDs: readonly number[],
+): void {
+  const binding = selectionBindingByWindow.get(win);
+  if (!binding) return;
+  if (itemIDs.length) binding.selectListed(itemIDs);
+  else binding.clearListed();
+}
+
 function reportGraphSelection(
   win: _ZoteroTypes.MainWindow,
   itemID: number | null,
@@ -1675,6 +1688,8 @@ function renderTab(
         ),
       onGraphSelection: (itemID, node) =>
         reportGraphSelection(win, itemID, node !== null),
+      onGraphMultiSelection: (itemIDs) =>
+        reportGraphMultiSelection(win, itemIDs),
       initialFocusItemIDs: request.focusItemIDs,
       initialCollectionIDs: request.collectionIDs,
       ...stateOptions,
