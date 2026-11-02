@@ -1,3 +1,7 @@
+import {
+  bindZoteroCollectionSelection,
+  type CollectionSelectionBinding,
+} from "./zoteroCollectionSelection";
 import { config } from "../../package.json";
 import type { LibrarySnapshot } from "../domain/types";
 import { positiveInteger } from "../domain/valueNormalization";
@@ -95,6 +99,11 @@ const selectionBindingByWindow = new Map<
   ZoteroSelectionBinding
 >();
 /** The one-turn fan-out timer per window, so bursts collapse into one apply. */
+/** F12: each main window's folder picks, for its detached graph windows. */
+const folderBindingByWindow = new Map<
+  _ZoteroTypes.MainWindow,
+  CollectionSelectionBinding
+>();
 const pendingSelectionFlushByWindow = new Map<
   _ZoteroTypes.MainWindow,
   number
@@ -1470,7 +1479,38 @@ function selectionBinding(
     pendingSelectionFlushByWindow.set(win, win.setTimeout(flush, 0));
   });
   selectionBindingByWindow.set(win, binding);
+  if (!folderBindingByWindow.has(win)) {
+    folderBindingByWindow.set(
+      win,
+      bindZoteroCollectionSelection(win as unknown as Window, (collectionID) =>
+        lightFolderInDetachedGraphs(win, collectionID),
+      ),
+    );
+  }
   return binding;
+}
+
+/**
+ * A folder picked in the library tab lights its region in every detached
+ * graph window of this main window that shows it (F12). A graph tab is not
+ * showing while the tree is, so it is left alone.
+ */
+function lightFolderInDetachedGraphs(
+  win: _ZoteroTypes.MainWindow,
+  collectionID: number,
+): void {
+  for (const instance of liveInstances(win)) {
+    const mount = instance.detachedMount;
+    if (!mount || !instance.detachedWindow || instance.detachedWindow.closed)
+      continue;
+    try {
+      getGraphViewController(mount)?.lightFolder(collectionID);
+    } catch (error) {
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
 }
 
 /** Drops the window's binding and any fan-out it still had queued. */
@@ -1486,6 +1526,8 @@ function disposeSelectionBinding(win: _ZoteroTypes.MainWindow): void {
   }
   selectionBindingByWindow.get(win)?.dispose();
   selectionBindingByWindow.delete(win);
+  folderBindingByWindow.get(win)?.dispose();
+  folderBindingByWindow.delete(win);
 }
 
 /**

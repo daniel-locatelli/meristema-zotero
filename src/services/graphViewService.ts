@@ -100,6 +100,8 @@ import {
 } from "./graphScopeModel";
 import {
   buildScopeRailModel,
+  type ScopeCollectionRow,
+  type ScopeRailModel,
   nextRegionSelection,
   regionsStillInLibrary,
   seedRowLabel,
@@ -358,6 +360,11 @@ export interface GraphViewController {
   ): void;
   addFocusItems(itemIDs: readonly number[]): GraphFocusResult;
   openCollections(collectionIDs: readonly number[]): GraphFocusResult;
+  /**
+   * F12: light a folder's region, as selecting its Scope row does, ticking it
+   * first when it is off. Adds; never turns a lit region off.
+   */
+  lightFolder(collectionID: number): GraphFocusResult;
   /** The graph as a recipe: seeds, Explore settings, filters, camera, title. */
   getState(): GraphViewState;
   /** Rebuilds the graph from a recipe. Seeds whose item is gone are dropped. */
@@ -752,6 +759,8 @@ export function renderGraphView(
   let refreshKeyRail = (): void => undefined;
   /** Rebuild the Scope rows and hand the renderer their regions. Assigned once the rail exists. */
   let refreshScopeRail: () => void = () => undefined;
+  /** What the Scope rail last drew: its rows answer F12's folder lookups. */
+  let lastScopeRailModel: ScopeRailModel | null = null;
   /*
    * D4's five verbs. The View chip's DOM is built with the toolbar, long
    * before the appearance controller and the swatch ledger these need, so
@@ -4799,31 +4808,30 @@ ${error instanceof Error ? error.message : String(error)}`,
     if (!lastScope) return;
     const drawnRegions = regionsForRenderer();
     renderer?.setRegions(drawnRegions);
-    keyRail.renderScope(
-      buildScopeRailModel({
-        collections: snapshot.collections,
-        ticks: collectionTicks,
-        includeUnfiled,
-        includeExternal,
-        seeds: scopeSeedRows(),
-        selectedKey: selectedNode?.key ?? null,
-        scope: lastScope,
-        regions,
-        regionColors: new Map(
-          drawnRegions.map((region) => [region.collectionID, region.color]),
-        ),
-        hops: hopModel ? scopeHopsInput() : null,
-        floor,
-        keepNoCount: graphFilter.state().includeMissingCitations,
-        shared: hopModel
-          ? {
-              value: shared,
-              seedCount: hopModel.seeds.length,
-              direction: hopDirection,
-            }
-          : undefined,
-      }),
-    );
+    lastScopeRailModel = buildScopeRailModel({
+      collections: snapshot.collections,
+      ticks: collectionTicks,
+      includeUnfiled,
+      includeExternal,
+      seeds: scopeSeedRows(),
+      selectedKey: selectedNode?.key ?? null,
+      scope: lastScope,
+      regions,
+      regionColors: new Map(
+        drawnRegions.map((region) => [region.collectionID, region.color]),
+      ),
+      hops: hopModel ? scopeHopsInput() : null,
+      floor,
+      keepNoCount: graphFilter.state().includeMissingCitations,
+      shared: hopModel
+        ? {
+            value: shared,
+            seedCount: hopModel.seeds.length,
+            direction: hopDirection,
+          }
+        : undefined,
+    });
+    keyRail.renderScope(lastScopeRailModel);
   };
 
   refreshKeyRail = (): void => {
@@ -5849,6 +5857,30 @@ ${error instanceof Error ? error.message : String(error)}`,
       });
     },
     addFocusItems,
+    lightFolder(collectionID: number) {
+      if (cleaned) return "not-found";
+      const row = lastScopeRailModel?.rows.find(
+        (candidate): candidate is ScopeCollectionRow =>
+          candidate.kind === "collection" &&
+          candidate.collectionID === collectionID,
+      );
+      if (!row) return "not-found";
+      if (regions.includes(collectionID)) return "selected";
+      if (row.state === "off") {
+        collectionTicks = setCollectionTicks(
+          collectionTicks,
+          row.cascadeIDs,
+          true,
+        );
+        applyFilters();
+      }
+      regions = [...regions, collectionID];
+      ensureSwatchesFor();
+      notifyStateChange();
+      refreshScopeRail();
+      refreshViewChip();
+      return "selected";
+    },
     openCollections(collectionIDs: readonly number[]) {
       const known = collectionIDs.filter((collectionID: number) =>
         snapshot.collections.some(
