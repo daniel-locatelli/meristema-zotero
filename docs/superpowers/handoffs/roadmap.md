@@ -165,8 +165,8 @@ Use all providers button, and the three-action View menu.
       unnecessary. Include the `From view:` line, whose reason (the gear's
       Use these) has left the gear
 - [ ] W22 "keeps a record of an open graph tab" failed once with no records at
-      all, in the full run at `c0bc3b8`, after 149/0 twice. Cause unknown; the case
-      prints the records
+      all, in the full run at `c0bc3b8`, after 149/0 twice, and not in the three
+      runs since. Cause unknown; the case prints the records
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -232,7 +232,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `31e9051` (149/0, the second clean run in a row), so count from there. A clean run is 149 cases as of 2026-11-04. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-05 at `9912c64` (152/0), so count from there. A clean run is 152 cases as of 2026-11-05. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The suite never reaches a citation provider (`networkGuard.test.ts`): the
@@ -596,4 +596,5 @@ entries are in git history.
   queue, so a graph now holds back what the queue has not tried.
 - 2026-11-05: W18's evidence printed `connected false`: a refresh read the view's
   state, then mounted on a frame, and a click in that gap was lost (Fetch hop N
-  went back to its button). The refresh now reads again at the mount.
+  went back to its button). The refresh now reads again at the mount. Zotero's own `#zotero-pane-progress` can lie over the whole pane in a full
+  run, so a hit test there asks what of the graph is on top.
