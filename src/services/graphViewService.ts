@@ -3900,6 +3900,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): void {
     if (followedConnectionUpdates.has(node.key)) return;
     followedConnectionUpdates.add(node.key);
+    setStatus("Updating this paper's connections...");
     void run
       .then((succeeded) => {
         followedConnectionUpdates.delete(node.key);
@@ -3907,6 +3908,11 @@ ${error instanceof Error ? error.message : String(error)}`,
         if (succeeded && hopModel?.entries.has(node.key)) {
           rebuildCurrentFocus();
         }
+        setStatus(
+          succeeded
+            ? connectionUpdateDone(node)
+            : "Could not update this paper's connections.",
+        );
         // Only when the pane still shows this paper's overview: an update
         // started from the menu must not pull the pane back from another one.
         if (paneShowsUpdateFor(node)) renderOverview(node);
@@ -3917,6 +3923,19 @@ ${error instanceof Error ? error.message : String(error)}`,
         );
       });
   }
+
+  /** What an update found, or nothing to count: it can end with no change to see. */
+  const connectionUpdateDone = (node: CitationGraphNode): string => {
+    const counts = [
+      node.referenceCount === null ? null : `${node.referenceCount} references`,
+      node.citationCount === null
+        ? null
+        : `${node.citationCount} citing papers`,
+    ].filter(Boolean);
+    return counts.length
+      ? `Connections updated: ${counts.join(", ")}.`
+      : "Connections updated.";
+  };
 
   /** Fetch both directions of one paper's connections again, then redraw what depends on them. */
   function updatePaperConnections(node: CitationGraphNode): Promise<boolean> {

@@ -2547,6 +2547,9 @@ describe("Citation hops (Stage 3)", function () {
       { id: "W802", doi: "10.5555/d8.order.a" },
       { id: "W803", doi: "10.5555/d8.order.b" },
     ];
+    /** W7: a citer the provider only names once the case has filled. */
+    const LATE_CITER = { id: "W804", doi: "10.5555/d8.order.late" };
+    let lateCiter = false;
     let previousKey: unknown = undefined;
     let seedItemID: number | null = null;
     let tabID: string | null = null;
@@ -2626,6 +2629,37 @@ describe("Citation hops (Stage 3)", function () {
                 }),
               ),
               meta: { count: CITERS.length },
+            }),
+          );
+        }
+        // A manual update looks the paper up by its work ID first.
+        if (lateCiter && filter === "ids.openalex:W802") {
+          return providerAnswer(
+            JSON.stringify({
+              results: [
+                openAlexWork({
+                  ...CITERS[0]!,
+                  title: "D8 paper W802",
+                  year: 2021,
+                  count: 1,
+                }),
+              ],
+              meta: { count: 1 },
+            }),
+          );
+        }
+        if (lateCiter && filter === "cites:W802") {
+          return providerAnswer(
+            JSON.stringify({
+              results: [
+                openAlexWork({
+                  ...LATE_CITER,
+                  title: `D8 paper ${LATE_CITER.id}`,
+                  year: 2022,
+                  count: null,
+                }),
+              ],
+              meta: { count: 1 },
             }),
           );
         }
@@ -2872,6 +2906,38 @@ describe("Citation hops (Stage 3)", function () {
         fillRequests().length,
         `fill requests: ${fillRequests().join(" | ")} (of ${asked.length} in all: ${asked.join(" | ")}; before the case: ${settledAfter}, line ${wentQuiet ? "quiet" : "STILL BUSY"})`,
       ).to.equal(2 + CITERS.length);
+    });
+
+    it("draws a citer the update finds, with no library change (W7)", async function () {
+      this.timeout(120_000);
+      lateCiter = true;
+      const root = graphRoot();
+      const before = hopRowText(2);
+      const pageAsked = asked.length;
+      (
+        await nodeMenuEntry("Update this paper's connections", "D8 paper W802")
+      ).click();
+      const grew = await waitFor(
+        () => (hopCounts(2)?.available === 1 ? 1 : null),
+        30_000,
+      );
+      expect(
+        grew,
+        `hop 2 read "${before}", now "${hopRowText(2)}"; the view was ` +
+          `${graphRoot() === root ? "kept" : "remounted"}; asked since: ` +
+          `${asked.slice(pageAsked).join(" | ")}`,
+      ).to.equal(1);
+      expect(graphRoot() === root, "no remount did it").to.equal(true);
+      const said = await waitFor(
+        () =>
+          graphRoot()
+            .querySelector(".cm-status-toast")
+            ?.textContent?.includes("Connections updated")
+            ? 1
+            : null,
+        30_000,
+      );
+      expect(said, "the update says it ended").to.equal(1);
     });
   });
 

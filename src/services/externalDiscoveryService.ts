@@ -1303,6 +1303,7 @@ async function fetchProviderRelationshipSnapshot(
   providerWorkIDs: ProviderIdentityHints = {},
   requestOptions?: ProviderRequestOptions,
   fill = false,
+  askAgain = false,
 ): Promise<RelationshipProviderSnapshot> {
   const failed = (): RelationshipProviderSnapshot => ({
     provider: providerID,
@@ -1369,15 +1370,19 @@ async function fetchProviderRelationshipSnapshot(
     // A provider that reports no count cannot own the node's: a hop node
     // hydrated from another index keeps its first provider's name over that
     // index's count, which would otherwise cut this list short (B73).
+    // Asking again is the point of an update: the count stored from the last
+    // answer neither ends the list early nor, at 0, skips the request (W7).
     let reportedCount =
       direction === "references"
         ? (match?.referenceCount ??
-          (provider.capabilities.referenceCount &&
+          (!askAgain &&
+          provider.capabilities.referenceCount &&
           providerID === node.referenceCountProvider
             ? node.referenceCount
             : null))
         : (match?.citationCount ??
-          (provider.capabilities.citationCount &&
+          (!askAgain &&
+          provider.capabilities.citationCount &&
           providerID === node.citationCountProvider
             ? node.citationCount
             : null));
@@ -2077,6 +2082,8 @@ async function runExternalRelationshipRefresh(
               maximum,
               options.providerWorkIDs,
               { signal: options.signal, retryRefusals: options.retryRefusals },
+              false,
+              mode === "manual" && refreshMembership,
             );
           },
           {
