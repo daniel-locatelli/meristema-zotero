@@ -2953,7 +2953,7 @@ describe("Citation hops (Stage 3)", function () {
         () =>
           graphRoot()
             .querySelector(".cm-status-toast")
-            ?.textContent?.includes("Connections updated")
+            ?.textContent?.includes("Updated ")
             ? 1
             : null,
         30_000,

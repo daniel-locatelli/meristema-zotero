@@ -216,6 +216,41 @@ const relationshipMetadataHydrationQueue = new Map<
 >();
 /** Attempts per paper this session (D11): a key's count, oldest first. */
 const relationshipMetadataAttemptedThisSession = new Map<string, number>();
+/** Taken from the queue, and not yet published or given up on. */
+const relationshipMetadataInFlight = new Set<string>();
+const relationshipMetadataSettledListeners = new Set<() => void>();
+
+/**
+ * The lookup identities of the papers whose details are still to be tried: a
+ * graph holds these back, so a paper lands once, in its final place (W8).
+ */
+export function relationshipMetadataPendingKeys(): ReadonlySet<string> {
+  return new Set([
+    ...relationshipMetadataHydrationQueue.keys(),
+    ...relationshipMetadataInFlight,
+  ]);
+}
+
+/** Hear when papers stop being pending, whether or not a lookup found them. */
+export function onRelationshipMetadataSettled(
+  listener: () => void,
+): () => void {
+  relationshipMetadataSettledListeners.add(listener);
+  return () => relationshipMetadataSettledListeners.delete(listener);
+}
+
+function settleRelationshipMetadata(keys: readonly string[]): void {
+  for (const key of keys) relationshipMetadataInFlight.delete(key);
+  for (const listener of relationshipMetadataSettledListeners) {
+    try {
+      listener();
+    } catch (error) {
+      Zotero.debug(
+        `Meristema: relationship metadata listener failed: ${String(error)}`,
+      );
+    }
+  }
+}
 let relationshipMetadataHydrationTimer: ReturnType<typeof setTimeout> | null =
   null;
 let relationshipMetadataHydrationRunning = false;
@@ -755,6 +790,8 @@ async function persistHydratedRelationshipMetadata(
 interface HydratedSummaryBatch {
   targets: RelationshipMetadataHydrationTarget[];
   identityKeys: string[];
+  /** Every paper the batch asked about, found or not. */
+  lookupKeys: string[];
 }
 
 /**
@@ -894,6 +931,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
         return;
       }
       await publishHydratedSummaryBatches(batches);
+      settleRelationshipMetadata(batches.flatMap((batch) => batch.lookupKeys));
     },
   });
   try {
@@ -920,6 +958,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
       const input: ExternalWork[] = [];
       for (const [key, entry] of batchEntries) {
         relationshipMetadataHydrationQueue.delete(key);
+        relationshipMetadataInFlight.add(key);
         markRelationshipMetadataAttempted(key);
         targets.push(...entry.targets.values());
         input.push({
@@ -986,10 +1025,13 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
           {
             targets,
             identityKeys: resolved.flatMap((work) => stableWorkAliases(work)),
+            lookupKeys: batchEntries.map(([key]) => key),
           },
           relationshipMetadataHydrationQueue.size > 0,
         );
       } else {
+        // Nothing to publish: these were tried, and they land as they are.
+        settleRelationshipMetadata(batchEntries.map(([key]) => key));
         await publisher.waiting();
       }
 
@@ -1027,6 +1069,8 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
     throw error;
   } finally {
     relationshipMetadataHydrationRunning = false;
+    // A cancel or a failure must not leave a paper held back for good.
+    settleRelationshipMetadata([...relationshipMetadataInFlight]);
     if (
       externalDiscoveryRunning &&
       generation === externalDiscoveryGeneration &&

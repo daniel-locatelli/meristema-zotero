@@ -73,8 +73,13 @@ function countProviderForNode(
   return provider;
 }
 
+/** An external paper's node key, from its lookup identity. */
+export function focusNodeKey(lookupIdentity: string): string {
+  return `focus:${lookupIdentity}`;
+}
+
 function externalNodeKey(work: RelatedWorkMetadata): string {
-  return `focus:${externalWorkLookupIdentity(work)}`;
+  return focusNodeKey(externalWorkLookupIdentity(work));
 }
 
 /** The title an external node carries until its summary hydrates. */

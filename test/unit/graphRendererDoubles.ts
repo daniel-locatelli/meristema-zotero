@@ -90,7 +90,9 @@ export class FakeContext2D {
   moveTo(): void {}
   lineTo(): void {}
   quadraticCurveTo(): void {}
-  arc(): void {}
+  arc(...args: unknown[]): void {
+    this.record("arc", args);
+  }
   rect(): void {}
   clip(): void {}
   rotate(): void {}

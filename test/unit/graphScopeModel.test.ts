@@ -667,6 +667,40 @@ describe("initialGraphScope", function () {
   });
 });
 
+describe("a paper awaiting its details (W8)", function () {
+  it("is not placed, but its hop counts it, and a seed is never held", function () {
+    const paper = (key: string) => ({
+      key,
+      collectionIDs: [],
+      inLibrary: false,
+      citationCount: 1,
+    });
+    const result = computeGraphScope({
+      papers: [paper("seed"), paper("landed"), paper("waiting")],
+      seedKeys: new Set(["seed"]),
+      hops: {
+        depth: 1,
+        enabled: [true, true],
+        entries: new Map([
+          ["seed", { hop: 0, parents: [] }],
+          ["landed", { hop: 1, parents: ["seed"] }],
+          ["waiting", { hop: 1, parents: ["seed"] }],
+        ]),
+      },
+      ticks: allCollectionsTicked(),
+      includeUnfiled: true,
+      includeExternal: true,
+      hiddenKeys: new Set(),
+      facetAdmits: () => true,
+      floor: 0,
+      awaitingDetails: new Set(["seed", "waiting"]),
+    } as any);
+    expect([...result.visibleKeys].sort()).to.deep.equal(["landed", "seed"]);
+    expect(result.availableByHop[1]).to.equal(2);
+    expect(result.shownByHop[1]).to.equal(1);
+  });
+});
+
 describe("keysInCollections", function () {
   const nodes = [
     { key: "own", collectionIDs: [1] },

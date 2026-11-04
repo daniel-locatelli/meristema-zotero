@@ -213,6 +213,11 @@ export interface GraphScopeInput {
    */
   facetAdmits: (key: string) => boolean;
   /**
+   * Papers whose details are still to be tried: not placed yet, since their
+   * place depends on them (W8). The hop counts them as available. Never a seed.
+   */
+  awaitingDetails?: ReadonlySet<string>;
+  /**
    * The citation count a non-seed paper needs to be shown. 0 is off. The last
    * rule of the order, so a paper a facet already hid is not counted below it.
    */
@@ -343,6 +348,7 @@ export function computeGraphScope(input: GraphScopeInput): GraphScopeResult {
     if (!folderAdmitted && !hopCanBeAdmitted) continue;
     if (!paper.inLibrary && !input.includeExternal) continue;
     if (input.hiddenKeys.has(paper.key)) continue;
+    if (input.awaitingDetails?.has(paper.key)) continue;
     if (!input.facetAdmits(paper.key)) continue;
     if (paper.citationCount === null) {
       if (input.floor > 0) noCountCount += 1;

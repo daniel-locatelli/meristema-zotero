@@ -202,6 +202,8 @@ const EMPHASIS_ALPHA = 0.25;
 export const CLEAR_SEARCH_TO_SELECT = "Clear search to select";
 /** How far a selected paper's glow reaches. */
 const SELECTION_GLOW_BLUR_CSS = 6;
+/** A paper being updated: how long one pulse of its ring takes. */
+const UPDATE_PULSE_MS = 1_200;
 
 /** How an edge lights for the paper `key`: into it, out of it, or not at all. */
 function litConnection(
@@ -399,6 +401,8 @@ export class CitationGraphRenderer {
   /** How far into the emphasis the ease has travelled: 0 none, 1 full. */
   private emphasisAmount = 0;
   private emphasisFrame: number | null = null;
+  private updatingKeys: ReadonlySet<string> = new Set();
+  private updatePulseFrame: number | null = null;
   /** The next step of a glide to a centred seed, or null when none runs. */
   private centringFrame: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -1353,6 +1357,25 @@ export class CitationGraphRenderer {
       if (ghosted) context.setLineDash([5 * ratio, 3 * ratio]);
       context.strokeStyle =
         marks.seedColors.get(node.key) ?? this.theme.states.seed;
+      context.stroke();
+      context.restore();
+    }
+    if (this.updatingKeys.has(node.key)) {
+      // W7: a ring leaves the paper and fades, until its update ends.
+      const phase = (Date.now() % UPDATE_PULSE_MS) / UPDATE_PULSE_MS;
+      const reach = this.updatePulseMoves() ? phase : 0.5;
+      context.save();
+      context.beginPath();
+      context.arc(
+        position.x,
+        position.y,
+        radius + (3 + reach * 7) * ratio,
+        0,
+        Math.PI * 2,
+      );
+      context.lineWidth = 1.5 * ratio;
+      context.strokeStyle = this.theme.states.selected;
+      context.globalAlpha = 1 - reach * 0.85;
       context.stroke();
       context.restore();
     }
@@ -2611,6 +2634,32 @@ export class CitationGraphRenderer {
     this.animateEmphasis(next ? 1 : 0);
   }
 
+  /** Mark the papers being updated. The rings pulse until the set empties. */
+  public setUpdatingKeys(keys: ReadonlySet<string>): void {
+    this.updatingKeys = new Set(keys);
+    if (this.updatingKeys.size && this.updatePulseFrame === null) {
+      this.pulseUpdates();
+    }
+    this.requestDraw();
+  }
+
+  private updatePulseMoves(): boolean {
+    const view = this.canvas.ownerDocument.defaultView;
+    return !view?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  }
+
+  private pulseUpdates(): void {
+    if (this.destroyed || !this.updatingKeys.size || !this.updatePulseMoves()) {
+      this.updatePulseFrame = null;
+      return;
+    }
+    this.updatePulseFrame = this.frames.request(() => {
+      this.updatePulseFrame = null;
+      this.requestDraw();
+      this.pulseUpdates();
+    });
+  }
+
   private animateEmphasis(target: number): void {
     const view = this.canvas.ownerDocument.defaultView;
     if (this.emphasisFrame !== null) {
@@ -2975,6 +3024,10 @@ export class CitationGraphRenderer {
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (this.updatePulseFrame !== null) {
+      this.frames.cancel(this.updatePulseFrame);
+      this.updatePulseFrame = null;
+    }
     this.cancelSceneFrame();
     this.cancelCentring();
     if (this.initialFitFrame !== null) {

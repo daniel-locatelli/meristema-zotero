@@ -36,7 +36,9 @@ import { paperAbstractLookup } from "./paperAbstractService";
 import {
   hopFillPagingProviders,
   hydrateExternalWorksMetadata,
+  onRelationshipMetadataSettled,
   refreshExternalRelationships,
+  relationshipMetadataPendingKeys,
   selectedRelationshipCacheIsFresh,
 } from "./externalDiscoveryService";
 import {
@@ -243,9 +245,11 @@ import {
   additiveGraphModel,
   buildLocalWorkIndexes,
   externalWorkToFocusNode,
+  focusNodeKey,
   lacksDetails,
   localNodeForWork,
   synchronizeExternalFocusNode,
+  TITLE_UNAVAILABLE,
   type GraphFocusState,
   type LocalWorkIndexes,
 } from "./graphFocusService";
@@ -747,6 +751,8 @@ export function renderGraphView(
   const applyEmphasis = (): void => {
     renderer?.setEmphasis(railEmphasisKeys ?? libraryEmphasisKeys);
   };
+  /** Every paper this view has placed (W8). */
+  const placedKeys = new Set<string>();
   let inactiveRelationshipDirty = false;
   let applyFilters = (): void => undefined;
   /**
@@ -3914,32 +3920,49 @@ ${error instanceof Error ? error.message : String(error)}`,
   ): void {
     if (followedConnectionUpdates.has(node.key)) return;
     followedConnectionUpdates.add(node.key);
-    setStatus("Updating this paper's connections...");
+    renderer?.setUpdatingKeys(followedConnectionUpdates);
+    const paper = paperForStatus(node);
+    setStatus(`Updating ${paper}...`);
     void run
       .then((succeeded) => {
         followedConnectionUpdates.delete(node.key);
         if (cleaned) return;
+        renderer?.setUpdatingKeys(followedConnectionUpdates);
         if (succeeded && hopModel?.entries.has(node.key)) {
           rebuildCurrentFocus();
         }
         setStatus(
           succeeded
-            ? connectionUpdateDone(node)
-            : "Could not update this paper's connections.",
+            ? connectionUpdateDone(node, paper)
+            : `Could not update ${paper}.`,
         );
         // Only when the pane still shows this paper's overview: an update
         // started from the menu must not pull the pane back from another one.
         if (paneShowsUpdateFor(node)) renderOverview(node);
       })
       .catch((error: unknown) => {
+        followedConnectionUpdates.delete(node.key);
+        if (!cleaned) renderer?.setUpdatingKeys(followedConnectionUpdates);
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
         );
       });
   }
 
+  /** Two updates can overlap, so each message names its paper. */
+  const paperForStatus = (node: CitationGraphNode): string => {
+    const title = node.title.trim();
+    if (!title || title === TITLE_UNAVAILABLE) return "this paper";
+    return title.length > 48
+      ? `"${title.slice(0, 47).trimEnd()}…"`
+      : `"${title}"`;
+  };
+
   /** What an update found, or nothing to count: it can end with no change to see. */
-  const connectionUpdateDone = (node: CitationGraphNode): string => {
+  const connectionUpdateDone = (
+    node: CitationGraphNode,
+    paper: string,
+  ): string => {
     const counts = [
       node.referenceCount === null ? null : `${node.referenceCount} references`,
       node.citationCount === null
@@ -3947,8 +3970,8 @@ ${error instanceof Error ? error.message : String(error)}`,
         : `${node.citationCount} citing papers`,
     ].filter(Boolean);
     return counts.length
-      ? `Connections updated: ${counts.join(", ")}.`
-      : "Connections updated.";
+      ? `Updated ${paper}: ${counts.join(", ")}.`
+      : `Updated ${paper}.`;
   };
 
   /** Fetch both directions of one paper's connections again, then redraw what depends on them. */
@@ -4944,7 +4967,15 @@ ${error instanceof Error ? error.message : String(error)}`,
 
   applyFilters = (): void => {
     const tokens = normalizeSearch(search.value).split(/\s+/).filter(Boolean);
+    const pendingDetails = relationshipMetadataPendingKeys();
+    const awaitingDetails = new Set<string>();
+    for (const lookupKey of pendingDetails) {
+      const key = focusNodeKey(lookupKey);
+      // A paper already on the plot stays there through a later lookup.
+      if (!placedKeys.has(key)) awaitingDetails.add(key);
+    }
     const scopeInput: GraphScopeInput = {
+      awaitingDetails,
       papers: model.nodes.map((node): ScopePaper => ({
         key: node.key,
         collectionIDs: node.collectionIDs,
@@ -4992,6 +5023,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     // greys the rest (ADR 0023), so counts, colours, regions and exports do
     // not move as the reader types.
     visibleKeys = scope.visibleKeys;
+    for (const key of visibleKeys) placedKeys.add(key);
     renderer?.setScopeKeys(visibleKeys);
     renderer?.setFrameKeys(frame.visibleKeys, false);
     renderer?.setFloor(floor, scope.belowFloorCount, false);
@@ -5148,6 +5180,13 @@ ${error instanceof Error ? error.message : String(error)}`,
       );
     }, STATUS_TOAST_MS);
   };
+  // A lookup can end with nothing to publish, and a paper held back for it
+  // lands then, as it is (W8).
+  const stopHearingMetadata = onRelationshipMetadataSettled(() => {
+    if (cleaned) return;
+    if (hopModel) scheduleFocusRebuild();
+    else applyFilters();
+  });
   const setStatus = (
     message: string | null,
     options: { sticky?: boolean } = {},
@@ -6058,6 +6097,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     : 0;
   const cleanup = (): void => {
     cleaned = true;
+    stopHearingMetadata();
     document.removeEventListener(
       "pointerdown",
       closeGraphMenuOnOutsidePointer,

@@ -120,6 +120,26 @@ describe("CitationGraphRenderer dense mesh", function () {
     expect(glowing, "the outline, stroked twice").to.have.length(2);
   });
 
+  it("pulses a ring round a paper being updated, until it ends (W7)", function () {
+    const { renderer, canvas } = graphOf(3, 0);
+    // The pulse runs until the set empties, so a failure must not leave it on.
+    try {
+      const strokes = (): number => {
+        canvas.context.calls = [];
+        renderer.setSeedMarks({ ...EMPTY_SEED_MARKS });
+        return canvas.context.calls.filter((call) => call.method === "stroke")
+          .length;
+      };
+      const atRest = strokes();
+      renderer.setUpdatingKeys(new Set(["n0"]));
+      expect(strokes(), "one more stroke, its ring").to.equal(atRest + 1);
+      renderer.setUpdatingKeys(new Set());
+      expect(strokes(), "gone when it ends").to.equal(atRest);
+    } finally {
+      renderer.destroy();
+    }
+  });
+
   it("lights the hovered paper's edges at full strength", function () {
     const { renderer, canvas } = graphOf(3, 2);
     renderer.setViewTransform({ x: 0, y: 0, scale: 1 });
