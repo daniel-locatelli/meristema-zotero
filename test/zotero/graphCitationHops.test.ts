@@ -1383,14 +1383,18 @@ describe("Citation hops (Stage 3)", function () {
       `References inherited Citers' depth; ladder ${ladder()}`,
     ).to.exist;
     expect(hopCountText(2), "hop 2 waits for its own Fetch").to.equal(null);
-    (await freeFetchButton(2)).click();
-    await traceUntil(() => {
+    const fetchHop2 = await freeFetchButton(2);
+    const rootAtClick = graphRoot();
+    fetchHop2.click();
+    const trace = await traceUntil(() => {
       const hop2 = hopCounts(2);
       return hop2 !== null && hop2.available > 0;
-    }, 120_000);
+    }, 60_000);
     expect(
-      hopCounts(2)?.available,
-      `References hop 2 read "${hopRowText(2)}"`,
+      hopCounts(2)?.available ?? 0,
+      `References hop 2 read "${hopRowText(2)}"; the button connected ` +
+        `${fetchHop2.isConnected}, the same root ${graphRoot() === rootAtClick}; ` +
+        `ladder ${ladder()}; trace: ${trace}`,
     ).to.be.greaterThan(0);
   });
 
