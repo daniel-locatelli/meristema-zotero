@@ -69,28 +69,30 @@ describe("CitationGraphRenderer dense mesh", function () {
     return { renderer, canvas, strokes };
   }
 
-  it("draws the whole mesh at 3,200 edges", function () {
-    const { renderer, canvas, strokes } = graphOf(60, 3200);
-    canvas.context.calls = [];
-    renderer.setSeedMarks(EMPTY_SEED_MARKS);
-    expect(strokes()).to.be.at.least(3200);
-  });
-
-  it("past 3,200 draws no mesh, then the seed's edges, then the selection's", function () {
+  it("draws the whole mesh of a graph with no seed", function () {
     const { renderer, canvas, strokes } = graphOf(60, 3300);
     canvas.context.calls = [];
     renderer.setSeedMarks(EMPTY_SEED_MARKS);
-    // Each node's disc outline is a stroke: 60 of them, and no edge.
-    const outlines = strokes();
-    expect(outlines, "no edge, only the 60 outlines").to.equal(60);
+    expect(strokes()).to.be.at.least(3300);
+  });
+
+  it("draws only the seed's edges at any size, then the selection's", function () {
+    const small = graphOf(10, 40);
+    small.canvas.context.calls = [];
+    small.renderer.setSeedMarks({
+      ...EMPTY_SEED_MARKS,
+      seedKeys: new Set(["n0"]),
+    });
+    // n0 cites the 9 others, and n1 to n4 cite n0 among the first 40; the rest
+    // are not the seed's. Ten outlines, the seed's ring, and those edges.
+    expect(small.strokes(), "a small graph hides the rest too").to.be.below(40);
+
+    const { renderer, canvas, strokes } = graphOf(60, 3300);
     canvas.context.calls = [];
     renderer.setSeedMarks({ ...EMPTY_SEED_MARKS, seedKeys: new Set(["n0"]) });
     // The first 3,300 edges: n0 cites the 59 others, and n1 to n55 each
-    // cite n0, so the seed has 114 edges; its ring adds a stroke.
-    expect(
-      strokes() - outlines,
-      "the seed's edges, and no others",
-    ).to.be.within(114, 116);
+    // cite n0, so the seed has 114 edges, its ring a stroke and 60 outlines.
+    expect(strokes(), "the seed's edges, and no others").to.be.within(174, 176);
     const seedOnly = strokes();
     canvas.context.calls = [];
     renderer.selectNode("n30", false);
@@ -98,5 +100,48 @@ describe("CitationGraphRenderer dense mesh", function () {
       strokes() - seedOnly,
       "the selected paper's edges join them",
     ).to.be.at.least(50);
+  });
+
+  it("glows a selected paper's outermost circle and adds no ring", function () {
+    const { renderer, canvas } = graphOf(3, 0);
+    const arcs = (): number[] =>
+      canvas.context.calls
+        .filter((call) => call.method === "arc")
+        .map((call) => Number(call.args[2]));
+    canvas.context.calls = [];
+    renderer.setSeedMarks(EMPTY_SEED_MARKS);
+    const widest = Math.max(...arcs());
+    canvas.context.calls = [];
+    renderer.selectNode("n2", false);
+    expect(Math.max(...arcs()), "nothing outside the disc").to.equal(widest);
+    const glowing = canvas.context.calls.filter(
+      (call) => call.method === "stroke" && call.shadowBlur > 0,
+    );
+    expect(glowing, "the outline, stroked twice").to.have.length(2);
+  });
+
+  it("lights the hovered paper's edges at full strength", function () {
+    const { renderer, canvas } = graphOf(3, 2);
+    renderer.setViewTransform({ x: 0, y: 0, scale: 1 });
+    renderer.setNodePositions(
+      new Map([
+        ["n0", { x: 100, y: 100 }],
+        ["n1", { x: 300, y: 100 }],
+        ["n2", { x: 500, y: 100 }],
+      ]),
+    );
+    const edgeStrokes = (): string[] =>
+      canvas.context.calls
+        .filter((call) => call.method === "stroke")
+        .map((call) => call.strokeStyle);
+    canvas.context.calls = [];
+    renderer.setSeedMarks(EMPTY_SEED_MARKS);
+    const atRest = edgeStrokes();
+    canvas.context.calls = [];
+    canvas.fire("pointermove", { clientX: 100, clientY: 100 });
+    expect(
+      edgeStrokes(),
+      "the hover's edges take another colour",
+    ).to.not.deep.equal(atRest);
   });
 });

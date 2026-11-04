@@ -228,46 +228,47 @@ describe("edgeCullMargin", () => {
   });
 });
 
-describe("edgeShownInMesh (D13)", function () {
+describe("edgeShownInMesh", function () {
   const focus = {
     seedKeys: new Set(["s"]),
     selectedKey: "sel",
     hoverKey: "hov",
+    searchMatches: null,
   };
   const edge = (source: string, target: string) => ({ source, target });
 
-  it("draws every edge while the mesh is sparse enough to read", function () {
-    expect(edgeShownInMesh(edge("a", "b"), 3200, focus)).to.equal(true);
-  });
-
-  it("past the floor keeps the seeds' edges as the spine and the focus's", function () {
-    const dense = 3201;
-    expect(edgeShownInMesh(edge("a", "s"), dense, focus), "to a seed").to.equal(
+  it("keeps the seeds' edges and the focus's, at any graph size (D13)", function () {
+    expect(edgeShownInMesh(edge("a", "s"), focus), "to a seed").to.equal(true);
+    expect(edgeShownInMesh(edge("s", "a"), focus), "from a seed").to.equal(
       true,
     );
-    expect(
-      edgeShownInMesh(edge("s", "a"), dense, focus),
-      "from a seed",
-    ).to.equal(true);
-    expect(
-      edgeShownInMesh(edge("sel", "a"), dense, focus),
-      "selected",
-    ).to.equal(true);
-    expect(edgeShownInMesh(edge("a", "hov"), dense, focus), "hovered").to.equal(
-      true,
-    );
-    expect(edgeShownInMesh(edge("a", "b"), dense, focus), "the rest").to.equal(
-      false,
-    );
+    expect(edgeShownInMesh(edge("sel", "a"), focus), "selected").to.equal(true);
+    expect(edgeShownInMesh(edge("a", "hov"), focus), "hovered").to.equal(true);
+    expect(edgeShownInMesh(edge("a", "b"), focus), "the rest").to.equal(false);
   });
 
-  it("past the floor with no seed or focus draws no mesh", function () {
+  it("draws every edge of a graph with no seed", function () {
     expect(
-      edgeShownInMesh(edge("a", "b"), 5000, {
+      edgeShownInMesh(edge("a", "b"), {
         seedKeys: new Set(),
         selectedKey: null,
         hoverKey: null,
+        searchMatches: null,
       }),
-    ).to.equal(false);
+    ).to.equal(true);
+  });
+
+  it("under a search keeps an edge only when both ends match (D36)", function () {
+    const searching = { ...focus, searchMatches: new Set(["s", "m"]) };
+    expect(edgeShownInMesh(edge("s", "m"), searching), "both").to.equal(true);
+    expect(edgeShownInMesh(edge("s", "a"), searching), "one").to.equal(false);
+    expect(
+      edgeShownInMesh(edge("sel", "a"), searching),
+      "the selected paper keeps its own",
+    ).to.equal(true);
+    expect(
+      edgeShownInMesh(edge("hov", "a"), searching),
+      "the hovered paper keeps its own",
+    ).to.equal(true);
   });
 });

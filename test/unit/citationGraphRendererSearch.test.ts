@@ -29,6 +29,7 @@ describe("CitationGraphRenderer search", function () {
     const menus: string[] = [];
     const toggled: string[] = [];
     const hovers: Array<string | null> = [];
+    const greyClicks: number[] = [];
     const canvas = new FakeCanvas();
     const renderer = new CitationGraphRenderer({
       canvas: canvas as unknown as HTMLCanvasElement,
@@ -41,6 +42,7 @@ describe("CitationGraphRenderer search", function () {
       onNodeContextMenu: (entry: CitationGraphNode) => menus.push(entry.key),
       onNodeToggle: (entry: CitationGraphNode) => toggled.push(entry.key),
       onHoverChange: (key: string | null) => hovers.push(key),
+      onGreyedNodeClick: () => greyClicks.push(1),
     });
     attachView(canvas);
     renderer.setViewTransform({ x: 0, y: 0, scale: 1 });
@@ -50,7 +52,16 @@ describe("CitationGraphRenderer search", function () {
         ["grey", { x: AT_GREY.clientX, y: AT_GREY.clientY }],
       ]),
     );
-    return { renderer, canvas, selected, opened, menus, toggled, hovers };
+    return {
+      renderer,
+      canvas,
+      selected,
+      opened,
+      menus,
+      toggled,
+      hovers,
+      greyClicks,
+    };
   }
 
   /** The two discs' fills of the last draw, in draw order: match, then grey. */
@@ -161,6 +172,25 @@ describe("CitationGraphRenderer search", function () {
     canvas.fire("pointerdown", press);
     canvas.fire("pointerup", press);
     expect(selected, "the click did not clear it").to.be.empty;
+  });
+
+  it("warns on a click on a grey paper, not on a match or a drag", function () {
+    const { renderer, canvas, greyClicks } = makeRenderer();
+    renderer.setSearchMatches(new Set(["match"]));
+    const atGrey = { button: 0, pointerId: 1, ...AT_GREY };
+    canvas.fire("pointerdown", atGrey);
+    canvas.fire("pointerup", atGrey);
+    expect(greyClicks, "the click warns").to.have.length(1);
+
+    canvas.fire("pointerdown", atGrey);
+    canvas.fire("pointermove", { clientX: 560, clientY: 200 });
+    canvas.fire("pointerup", { ...atGrey, clientX: 560 });
+    expect(greyClicks, "a pan from it does not").to.have.length(1);
+
+    const atMatch = { button: 0, pointerId: 1, ...AT_MATCH };
+    canvas.fire("pointerdown", atMatch);
+    canvas.fire("pointerup", atMatch);
+    expect(greyClicks, "a match does not").to.have.length(1);
   });
 
   it("still selects a match, and pans from a grey paper", function () {

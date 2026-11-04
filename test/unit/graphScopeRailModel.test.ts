@@ -582,6 +582,25 @@ describe("the Citation hops block", function () {
     });
   });
 
+  it("keeps the Fetch button waiting while the open hops have papers to fill", function () {
+    const waits = (fill: unknown): boolean =>
+      railWithHops(hopsInput({ fill: fill as never }))!.hops!.rows[3]
+        .fetchWaits;
+    expect(waits(null), "nothing to do").to.equal(false);
+    expect(
+      waits({ remaining: 3, waiting: 0, paused: false, refusal: null }),
+      "filling",
+    ).to.equal(true);
+    expect(
+      waits({ remaining: 3, waiting: 0, paused: true, refusal: null }),
+      "stopped",
+    ).to.equal(true);
+    expect(
+      waits({ remaining: 0, waiting: 5, paused: false, refusal: null }),
+      "only the cap holds papers back",
+    ).to.equal(false);
+  });
+
   it("titles a hop row with its parents out of the visible papers one hop up (B104)", function () {
     const block = railWithHops(
       hopsInput({

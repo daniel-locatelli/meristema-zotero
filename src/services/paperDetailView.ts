@@ -447,15 +447,30 @@ export function createAbstractSection(
 function createCollectionChooser(
   document: Document,
   snapshot: LibrarySnapshot,
-): { root: HTMLDivElement; selected: Set<number>; search: HTMLInputElement } {
+): {
+  root: HTMLDivElement;
+  selected: Set<number>;
+  search: HTMLInputElement;
+  tickNext: () => void;
+} {
   const root = element(document, "div", "cm-collection-chooser");
   const selected = new Set<number>();
   const search = element(document, "input", "cm-collection-search");
   search.type = "search";
   search.placeholder = "Search collections";
   const list = element(document, "div", "cm-collection-tree");
+  // With a search typed and nothing ticked, Enter takes the first match; the
+  // row says so.
+  let next: { collectionID: number; label: HTMLElement } | null = null;
+  const markNext = (): void => {
+    next?.label.classList.toggle(
+      "cm-collection-choice--next",
+      selected.size === 0,
+    );
+  };
   const render = (): void => {
     clear(list);
+    next = null;
     const query = normalizeSearch(search.value);
     for (const collection of snapshot.collections) {
       if (query && !normalizeSearch(collection.path).includes(query)) continue;
@@ -467,15 +482,23 @@ function createCollectionChooser(
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) selected.add(collection.collectionID);
         else selected.delete(collection.collectionID);
+        markNext();
       });
       label.append(checkbox, text(document, "span", collection.name));
       list.appendChild(label);
+      if (query && !next) {
+        next = { collectionID: collection.collectionID, label };
+      }
     }
+    markNext();
   };
   search.addEventListener("input", render);
   root.append(search, list);
   render();
-  return { root, selected, search };
+  const tickNext = (): void => {
+    if (selected.size === 0 && next) selected.add(next.collectionID);
+  };
+  return { root, selected, search, tickNext };
 }
 
 /**
@@ -534,6 +557,7 @@ export function createImportArea(
     root: HTMLDivElement;
     selected: Set<number>;
     search: HTMLInputElement;
+    tickNext: () => void;
   } | null = null;
   const build = (): void => {
     if (chooser) return;
@@ -554,6 +578,14 @@ export function createImportArea(
     cancel.addEventListener("click", () => {
       root.hidden = true;
       addButton.hidden = false;
+    });
+    // Enter adds to what is ticked, or to the first match. With neither it
+    // does nothing, so it never files a paper in no collection by accident.
+    chooser.search.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      chooser!.tickNext();
+      if (chooser!.selected.size > 0 && !confirm.disabled) confirm.click();
     });
     const buttons = element(document, "div", "cm-detail-actions");
     buttons.append(cancel, confirm);

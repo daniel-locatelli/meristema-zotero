@@ -497,6 +497,11 @@
   background: transparent;
   text-align: left;
 }
+/* What Enter in the search would tick. */
+.cm-collection-choice--next {
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
+}
 .cm-success {
   color: #15803d;
   font-weight: 650;

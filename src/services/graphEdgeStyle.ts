@@ -61,32 +61,50 @@ export function edgeBaseOpacity(edgeCount: number): number {
   return 1 - span * (1 - OPACITY_FLOOR);
 }
 
-/** What keeps an edge lit once the mesh is too dense to read (D13). */
+/** What decides which edges draw. */
 export interface MeshFocus {
   seedKeys: ReadonlySet<string>;
   selectedKey: string | null;
   hoverKey: string | null;
+  /** The search's matches, or null with no search. */
+  searchMatches: ReadonlySet<string> | null;
+}
+
+/** An edge of the graph's spine: a seed's, or any edge with no seeds. */
+export function edgeInSpine(
+  edge: { source: string; target: string },
+  seedKeys: ReadonlySet<string>,
+): boolean {
+  return (
+    seedKeys.size === 0 ||
+    seedKeys.has(edge.source) ||
+    seedKeys.has(edge.target)
+  );
 }
 
 /**
- * Past the floor's count the mesh says nothing (D13): only the seeds' edges,
- * the graph's spine, and the selected or hovered paper's draw; the rest wait
- * for a hover.
+ * The seeds' edges are the graph's spine and draw at any graph size (D13); a
+ * graph with no seed has no spine and draws them all. The selected or hovered
+ * paper's edges always draw. A search hides an edge unless both its ends match
+ * (D36), though the paper under the reader's hand keeps its own.
  */
 export function edgeShownInMesh(
   edge: { source: string; target: string },
-  edgeCount: number,
   focus: MeshFocus,
 ): boolean {
-  if (edgeCount <= OPACITY_FLOOR_ABOVE) return true;
   const touches = (key: string | null): boolean =>
     key !== null && (edge.source === key || edge.target === key);
-  return (
-    focus.seedKeys.has(edge.source) ||
-    focus.seedKeys.has(edge.target) ||
-    touches(focus.selectedKey) ||
-    touches(focus.hoverKey)
-  );
+  if (touches(focus.selectedKey) || touches(focus.hoverKey)) return true;
+  if (
+    focus.searchMatches &&
+    !(
+      focus.searchMatches.has(edge.source) &&
+      focus.searchMatches.has(edge.target)
+    )
+  ) {
+    return false;
+  }
+  return edgeInSpine(edge, focus.seedKeys);
 }
 
 function edgeKey(source: string, target: string): string {

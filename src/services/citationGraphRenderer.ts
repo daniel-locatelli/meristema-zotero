@@ -92,6 +92,7 @@ import {
   arrivalDirection,
   curveControlPoint,
   edgeBaseOpacity,
+  edgeInSpine,
   edgeShownInMesh,
   edgeCullMargin,
   edgeLineInset,
@@ -152,6 +153,8 @@ export interface CitationGraphRendererOptions {
   onNodeToggle?: (node: CitationGraphNode) => void;
   onOpenNode: (node: CitationGraphNode) => void;
   onBackgroundInteraction?: () => void;
+  /** A click on a paper the search greyed, which takes no selection (D36). */
+  onGreyedNodeClick?: () => void;
   /** The node under the pointer changed, or left. */
   onHoverChange?: (key: string | null) => void;
   /** The camera moved: a pan, a zoom, a fit or a transform set from outside. */
@@ -199,7 +202,19 @@ const PLOT_BOTTOM = 675;
  */
 const EMPHASIS_ALPHA = 0.25;
 /** What a paper the search misses says under the pointer (ADR 0023). */
-const CLEAR_SEARCH_TO_SELECT = "Clear search to select";
+export const CLEAR_SEARCH_TO_SELECT = "Clear search to select";
+/** How far a selected paper's glow reaches. */
+const SELECTION_GLOW_BLUR_CSS = 12;
+
+/** How an edge lights for the paper `key`: into it, out of it, or not at all. */
+function litConnection(
+  edge: { source: string; target: string },
+  key: string | null,
+): "citation" | "reference" | null {
+  if (key === null) return null;
+  if (edge.target === key) return "citation";
+  return edge.source === key ? "reference" : null;
+}
 const EMPHASIS_EASE_MS = 120;
 /** The farthest out the view zooms. */
 const MIN_VIEW_SCALE = 0.15;
@@ -282,6 +297,7 @@ export class CitationGraphRenderer {
     ((node: CitationGraphNode) => void) | undefined;
   private readonly onOpenNode: (node: CitationGraphNode) => void;
   private readonly onBackgroundInteraction: () => void;
+  private readonly onGreyedNodeClick: () => void;
   private readonly onHoverChange: (key: string | null) => void;
   private readonly onViewChange: () => void;
   private readonly onNodeContextMenu: (
@@ -451,6 +467,7 @@ export class CitationGraphRenderer {
     this.onBackgroundInteraction =
       options.onBackgroundInteraction ?? (() => undefined);
     this.onHoverChange = options.onHoverChange ?? (() => undefined);
+    this.onGreyedNodeClick = options.onGreyedNodeClick ?? (() => undefined);
     this.onViewChange = options.onViewChange ?? (() => undefined);
     this.onNodeContextMenu = options.onNodeContextMenu ?? (() => undefined);
     this.onThemeChange = options.onThemeChange ?? (() => undefined);
@@ -1042,6 +1059,8 @@ export class CitationGraphRenderer {
       if (!this.hitTest(world.x, world.y)) {
         this.clearSelection();
         this.onBackgroundInteraction();
+      } else if (this.searchMatches) {
+        this.onGreyedNodeClick();
       }
     }
   };
@@ -1342,12 +1361,30 @@ export class CitationGraphRenderer {
       context.restore();
     }
     if (node.key === this.selectedKey) {
+      // The selection adds no ring: the paper's outermost circle glows, stroked
+      // over itself in its own colour so that only the glow shows.
+      const isSeed = marks?.seedKeys.has(node.key) ?? false;
       context.save();
       context.beginPath();
-      context.arc(position.x, position.y, radius + 5.5 * ratio, 0, Math.PI * 2);
-      context.lineWidth = 3 * ratio;
-      if (ghosted) context.setLineDash([6 * ratio, 4 * ratio]);
-      context.strokeStyle = this.theme.states.selected;
+      context.arc(
+        position.x,
+        position.y,
+        isSeed ? radius + 4 * ratio : radius,
+        0,
+        Math.PI * 2,
+      );
+      context.lineWidth = (isSeed ? 2.4 : 1.1) * ratio;
+      if (ghosted) context.setLineDash([5 * ratio, 3 * ratio]);
+      context.strokeStyle = isSeed
+        ? (marks?.seedColors.get(node.key) ?? this.theme.states.seed)
+        : node.isRetracted
+          ? this.theme.states.retracted
+          : inZotero
+            ? this.theme.inks.primary
+            : color;
+      context.shadowColor = this.theme.states.selected;
+      context.shadowBlur = SELECTION_GLOW_BLUR_CSS * ratio;
+      context.stroke();
       context.stroke();
       context.restore();
     } else if (node.key === this.hoverKey) {
@@ -2222,7 +2259,13 @@ export class CitationGraphRenderer {
               `${entry.edge.source}>${entry.edge.target}`,
             ),
           })),
-          baseOpacity: edgeBaseOpacity(sorted.length),
+          // Taken over what draws at rest, so a spine of 100 edges reads as
+          // lines however many edges the graph holds.
+          baseOpacity: edgeBaseOpacity(
+            sorted.filter((entry) =>
+              edgeInSpine(entry.edge, marks?.seedKeys ?? new Set<string>()),
+            ).length,
+          ),
         };
       },
       this.interactionDraw,
@@ -2314,9 +2357,10 @@ export class CitationGraphRenderer {
         seedKeys: this.seedMarks?.seedKeys ?? new Set<string>(),
         selectedKey,
         hoverKey: this.hoverKey,
+        searchMatches: this.searchMatches,
       };
       for (const { edge, seedLink, reciprocal: reciprocalEdge } of edges) {
-        if (!edgeShownInMesh(edge, edges.length, meshFocus)) continue;
+        if (!edgeShownInMesh(edge, meshFocus)) continue;
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
         if (!source || !target) continue;
@@ -2338,14 +2382,10 @@ export class CitationGraphRenderer {
         ) {
           continue;
         }
+        // The selected paper's edges light, and so do the hovered paper's.
         const connection =
-          selectedKey === null
-            ? null
-            : edge.target === selectedKey
-              ? "citation"
-              : edge.source === selectedKey
-                ? "reference"
-                : null;
+          litConnection(edge, selectedKey) ??
+          litConnection(edge, this.hoverKey);
         // A positive apex, not a signed one: each half bows to its own chord's
         // left, and the two halves traverse the chord in opposite directions.
         const curveApex = reciprocalEdge ? EDGE_CURVE_APEX_CSS * this.ratio : 0;

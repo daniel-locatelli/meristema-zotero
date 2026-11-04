@@ -134,6 +134,11 @@ export interface ScopeHopRow {
   available: number;
   /** The Fetch hop N button sits in this row instead of a count. */
   fetchButton: boolean;
+  /**
+   * The hop above still has papers to fill, so Fetch waits: opening a hop
+   * moves the fill's one Stop and Resume to it, and the hop above is lost.
+   */
+  fetchWaits: boolean;
   /** The row carries a checkbox: every hop, never Seeds. */
   checkbox: boolean;
   enabled: boolean;
@@ -431,6 +436,7 @@ export function buildScopeHopsBlock(input: ScopeHopsInput): ScopeHopsBlock {
       shown,
       available,
       fetchButton: hop === input.depth + 1,
+      fetchWaits: hop === input.depth + 1 && (fill?.remaining ?? 0) > 0,
       checkbox: hop > 0,
       enabled,
       dimmed: !opened || !enabled,

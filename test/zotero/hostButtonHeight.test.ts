@@ -316,6 +316,7 @@ describe("B44, a plugin button's height in a Zotero tab", function () {
           shown: 73,
           available: 173,
           fetchButton: false,
+          fetchWaits: false,
           checkbox: true,
           enabled: true,
           dimmed: false,

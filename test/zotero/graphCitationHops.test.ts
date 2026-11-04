@@ -659,6 +659,22 @@ describe("Citation hops (Stage 3)", function () {
     return button ?? null;
   }
 
+  /**
+   * The Fetch button once it may be pressed: it waits while the hop above
+   * still has papers to fill (W11), and a click on it then does nothing.
+   */
+  async function freeFetchButton(hop: number): Promise<HTMLButtonElement> {
+    const button = await waitFor(() => {
+      const found = fetchButton(hop);
+      return found && !found.disabled ? found : null;
+    }, 120_000);
+    expect(
+      button,
+      `Fetch hop ${hop} never came free; hop ${hop} read "${hopRowText(hop)}", line "${progressText()}"`,
+    ).to.exist;
+    return button as HTMLButtonElement;
+  }
+
   function hopCheckbox(hop: number): HTMLInputElement {
     const box = hopRow(hop)?.querySelector(
       "input.cm-scope-check",
@@ -2346,6 +2362,12 @@ describe("Citation hops (Stage 3)", function () {
           `hop 2 carries no Fetch button, so the hop-1 papers never enter a ` +
             `plan; hop 1 read "${hopRowText(1)}", hop 2 "${hopRowText(2)}"`,
         ).to.exist;
+        // The refused seed holds Fetch hop 2 for minutes now (W11), but this
+        // case needs its window renewed while the hop-1 papers land. The same
+        // plan arises when a refusing seed joins with hop 2 already open, and
+        // the fill is under test here, not the button, so this one press goes
+        // past the button's wait.
+        fetchHop2!.disabled = false;
         fetchHop2!.click();
         // The progress line renders only while a fill is in flight, so confirm
         // one actually started before treating any absence as "drained". The
@@ -2773,7 +2795,7 @@ describe("Citation hops (Stage 3)", function () {
       ).to.equal("Top 50 citers per paper, most cited first");
       // Hop 2: both citers expand to nothing, so hop 2 reads none yet and no
       // Fetch row follows it.
-      fetchButton(2)!.click();
+      (await freeFetchButton(2)).click();
       // Hop 2 reads "none yet" the moment it opens, before either citer has
       // been asked anything, so waiting on that word alone is vacuous: red
       // run 4 reached the last assertion with the pair still in flight and
@@ -3485,7 +3507,7 @@ describe("Citation hops (Stage 3)", function () {
       // The fill expands SHOWN papers only, so the one citer above the floor
       // is the only one paged — and the papers it brings back carry a count of
       // 0 apiece, so the same floor hides them as they land.
-      fetchButton(2)!.click();
+      (await freeFetchButton(2)).click();
       const hop2 = await waitFor(
         () => (hopCounts(2)?.available ? hopCounts(2) : null),
         60_000,

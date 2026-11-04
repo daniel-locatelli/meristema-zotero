@@ -25,6 +25,7 @@ import {
 import { rereadSnapshotPapers } from "./zoteroLibraryService";
 import {
   CitationGraphRenderer,
+  CLEAR_SEARCH_TO_SELECT,
   type GraphViewTransform,
 } from "./citationGraphRenderer";
 import {
@@ -1091,6 +1092,23 @@ export function renderGraphView(
   search.placeholder = "Search all fields";
   search.setAttribute("aria-label", "Search all fields in the current view");
   searchWrap.appendChild(search);
+  const clearSearch = element(document, "button", "cm-search-clear");
+  clearSearch.type = "button";
+  clearSearch.textContent = "\u00d7";
+  clearSearch.title = "Clear search";
+  clearSearch.setAttribute("aria-label", "Clear search");
+  clearSearch.hidden = true;
+  clearSearch.addEventListener("click", (event) => {
+    // The wrap is a label, which would hand the click to the field.
+    event.preventDefault();
+    search.value = "";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    search.focus();
+  });
+  search.addEventListener("input", () => {
+    clearSearch.hidden = !search.value;
+  });
+  searchWrap.appendChild(clearSearch);
 
   // The things that act on the graph, then the search at the far right — the
   // order and the alignment of `#zotero-items-toolbar`, which ends
@@ -4406,6 +4424,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     // is in it (spec, "The fill").
     onHoverChange: () => scheduleHopFill(),
     onViewChange: () => scheduleHopFill(),
+    onGreyedNodeClick: () => setStatus(CLEAR_SEARCH_TO_SELECT),
     onFloorChange: (value) => {
       floorDragging = true;
       setFloor(value);

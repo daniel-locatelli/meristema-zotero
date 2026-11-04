@@ -50,6 +50,7 @@ export interface RecordedCall {
   strokeStyle: string;
   globalAlpha: number;
   font: string;
+  shadowBlur: number;
 }
 
 export class FakeContext2D {
@@ -74,6 +75,7 @@ export class FakeContext2D {
       strokeStyle: this.strokeStyle,
       globalAlpha: this.globalAlpha,
       font: this.font,
+      shadowBlur: this.shadowBlur,
     });
   }
 

@@ -834,6 +834,10 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
       const fetch = element(document, "button", "cm-scope-hop-fetch");
       fetch.type = "button";
       fetch.textContent = `Fetch ${row.label.toLowerCase()}`;
+      fetch.disabled = row.fetchWaits;
+      if (row.fetchWaits) {
+        fetch.title = `Hop ${row.hop - 1} is not finished. Let it finish or resume it first.`;
+      }
       fetch.addEventListener("click", () => options.onScope.fetchHop(row.hop));
       body.appendChild(fetch);
     } else {

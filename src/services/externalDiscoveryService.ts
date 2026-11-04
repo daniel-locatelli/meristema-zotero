@@ -2493,6 +2493,18 @@ export async function getExternalCitedBy(
   return getCachedExternalCitedBy(node, libraryNodes, maximum, offset);
 }
 
+/**
+ * On the item, not `collection.addItem`: that throws outside a transaction, and
+ * unawaited the rejection left the paper in no collection with no message.
+ */
+function fileInCollections(item: Zotero.Item, collectionIDs: number[]): void {
+  for (const collectionID of collectionIDs) {
+    if (Zotero.Collections.get(collectionID)) {
+      item.addToCollection(collectionID);
+    }
+  }
+}
+
 export async function importExternalWork(
   work: ExternalWork,
   libraryID: number,
@@ -2505,13 +2517,8 @@ export async function importExternalWork(
       normalizedWork.inLibraryItemKey,
     );
     if (existing) {
-      for (const collectionID of collectionIDs) {
-        const collection = Zotero.Collections.get(collectionID);
-        if (collection && !collection.hasItem?.(existing.id)) {
-          collection.addItem(existing.id);
-          await collection.saveTx?.();
-        }
-      }
+      fileInCollections(existing, collectionIDs);
+      await existing.saveTx();
       return [existing];
     }
   }
@@ -2563,13 +2570,7 @@ export async function importExternalWork(
       lastName: parts.at(-1) ?? creator,
     });
   }
-  const id = await item.saveTx();
-  for (const collectionID of collectionIDs) {
-    const collection = Zotero.Collections.get(collectionID);
-    if (collection) {
-      collection.addItem(id);
-      await collection.saveTx?.();
-    }
-  }
+  fileInCollections(item, collectionIDs);
+  await item.saveTx();
   return [item];
 }
