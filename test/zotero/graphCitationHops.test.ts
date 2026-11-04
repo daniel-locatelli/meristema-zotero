@@ -1200,7 +1200,9 @@ describe("Citation hops (Stage 3)", function () {
 
   it("opens hop 2 from the Fetch hop 2 button", async function () {
     this.timeout(180_000);
-    const button = fetchButton(2);
+    // The case above ends when hop 1's count shows, a moment before the seed
+    // leaves the plan, and until then the button waits (W11).
+    const button = await freeFetchButton(2);
     expect(
       button,
       `hop 2 carries no Fetch button; hop 2 read "${hopRowText(2)}"; ` +
@@ -1508,6 +1510,9 @@ describe("Citation hops (Stage 3)", function () {
 
   it("reopens a graph saved while stopped and waits for Resume (B55)", async function () {
     this.timeout(180_000);
+    // Before the hold: held requests would keep hop 2 filling, and Fetch hop 3
+    // waits for it (W11).
+    await freeFetchButton(3);
     // Every provider request is held, then answered 404, so hop 3's one
     // paper is still in flight when Stop is pressed and stores nothing.
     const held: Array<() => void> = [];
@@ -1624,6 +1629,7 @@ describe("Citation hops (Stage 3)", function () {
 
   it("reopens without asking a paper that failed before the save (B94)", async function () {
     this.timeout(180_000);
+    await freeFetchButton(4);
     // Every list request fails with a server error, so the hop 3 paper
     // Fetch hop 4 expands stores nothing and fails. A 404 would not do: it
     // stores an empty list, and the paper counts as expanded. Metadata

@@ -509,23 +509,8 @@ describe("The graph's Scope rail", function () {
     const titles = ["Scope fixture one", "Scope fixture two"];
     expect(titles, "the seed is a fixture").to.include(seedLabel);
     const otherTitle = titles[1 - titles.indexOf(seedLabel)];
-    const add = graphRoot().querySelector(
-      ".cm-scope-add-seed",
-    ) as HTMLButtonElement;
-    add.click();
-    await delay(50);
-    const popover = graphRoot().querySelector(
-      ".cm-focus-seed-popover",
-    ) as HTMLElement;
-    expect(
-      popover.hidden,
-      `the panel opens; button connected ${add.isConnected}, panel connected ${popover.isConnected}`,
-    ).to.equal(false);
-    const search = popover.querySelector(
-      ".cm-focus-seed-search",
-    ) as HTMLInputElement;
-    search.value = otherTitle;
-    search.dispatchEvent(new win.Event("input", { bubbles: true }));
+    let popover!: HTMLElement;
+    let search!: HTMLInputElement;
     const resultRow = (): HTMLElement | null =>
       (
         Array.from(
@@ -536,10 +521,30 @@ describe("The graph's Scope rail", function () {
           row.querySelector(".cm-focus-seed-result-title")?.textContent ===
           otherTitle,
       ) ?? null;
-    const row = await waitFor(resultRow, 10_000);
+    // A library change remounts the view, and the panel with it (a full run
+    // read `panel connected false` here). The search starts over in the new one.
+    let row: HTMLElement | null = null;
+    for (let attempt = 0; attempt < 3 && !row; attempt += 1) {
+      const add = graphRoot().querySelector(
+        ".cm-scope-add-seed",
+      ) as HTMLButtonElement;
+      add.click();
+      await delay(50);
+      popover = graphRoot().querySelector(
+        ".cm-focus-seed-popover",
+      ) as HTMLElement;
+      if (!popover.isConnected || popover.hidden) continue;
+      search = popover.querySelector(
+        ".cm-focus-seed-search",
+      ) as HTMLInputElement;
+      search.value = otherTitle;
+      search.dispatchEvent(new win.Event("input", { bubbles: true }));
+      await waitFor(() => !popover.isConnected || resultRow() !== null, 10_000);
+      row = popover.isConnected ? resultRow() : null;
+    }
     expect(
       row,
-      `a search row for ${otherTitle}; panel connected ${popover.isConnected}`,
+      `a search row for ${otherTitle}; panel connected ${popover.isConnected}, hidden ${popover.hidden}`,
     ).to.exist;
 
     // B45: the metadata line sits clear of the title. 4px read as touching.
@@ -592,7 +597,9 @@ describe("The graph's Scope rail", function () {
     remove!.click();
     await waitFor(() => seedRowCount() === 1, 5_000);
     expect(seedRowCount()).to.equal(1);
-    add.click();
+    (
+      graphRoot().querySelector(".cm-scope-add-seed") as HTMLButtonElement
+    ).click();
     await delay(50);
   });
 

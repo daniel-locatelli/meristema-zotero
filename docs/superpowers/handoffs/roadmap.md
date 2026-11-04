@@ -216,7 +216,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-02 at `225de15` plus the network guard (142/1, F11, since fixed), so count with the commits since `225de15`. A clean run is 143 cases as of 2026-11-02. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `473ed7c` plus the W11 test waits (146/1, B15's case, since fixed and passing alone), so count from there. A clean run is 147 cases as of 2026-11-04. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The suite never reaches a citation provider (`networkGuard.test.ts`): the
@@ -232,7 +232,8 @@ selected, so it does not test what its name says.
   Both cases hold elements across awaits, so the remount is the suspect for them
   too, unproven. Their messages print whether the held element is still
   connected: `connected false` means fix the case as F11's was, `connected true`
-  means look for a real bug.
+  means look for a real bug. 2026-11-04: B15's read `connected false`, and its
+  search now starts over in a remounted panel. D17's is still open.
 - The floor drag case's full-run failures (2026-10-06 to 2026-10-18) were
   B111: Zotero's tab hooks focus `.cm-search`, and in the 1000px test window
   the plot pane is narrower than its toolbar, so the focus scrolled the pane
