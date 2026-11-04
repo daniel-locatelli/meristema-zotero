@@ -804,6 +804,10 @@
 .meristema-root .cm-view-more[aria-expanded="true"] {
   background: var(--cm-surface);
 }
+/* A grid, so More's row is as wide as the menu's other rows. */
+.cm-view-more-wrap {
+  display: grid;
+}
 .cm-view-more-actions {
   position: fixed;
   z-index: 9;

@@ -30,19 +30,24 @@ export interface GraphDisplayActions {
 const SUBMENU_SHUT_MS = 200;
 
 /**
- * Beside its row, overlapping by the popup's padding. Fixed, since the menu
- * may clip what leaves it; to the left when the window has no room on the
- * right, and pulled up when it would run off the bottom.
+ * Against the menu's edge, level with its row. Fixed, since the menu may clip
+ * what leaves it; to the left when the window has no room on the right, and
+ * pulled up when it would run off the bottom.
  */
-function placeSubmenu(row: HTMLElement, submenu: HTMLElement): void {
+function placeSubmenu(
+  menu: HTMLElement,
+  row: HTMLElement,
+  submenu: HTMLElement,
+): void {
   const view = row.ownerDocument.defaultView;
   if (!view) return;
+  const edges = menu.getBoundingClientRect();
   const anchor = row.getBoundingClientRect();
   const own = submenu.getBoundingClientRect();
-  const fitsRight = anchor.right + own.width <= view.innerWidth;
+  const fitsRight = edges.right + own.width <= view.innerWidth;
   const left = fitsRight
-    ? anchor.right - 2
-    : Math.max(0, anchor.left - own.width + 2);
+    ? edges.right - 2
+    : Math.max(0, edges.left - own.width + 2);
   const top = Math.max(
     0,
     Math.min(anchor.top - 6, view.innerHeight - own.height),
@@ -247,7 +252,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
       if (!rest.hidden) return;
       rest.hidden = false;
       more.setAttribute("aria-expanded", "true");
-      placeSubmenu(more, rest);
+      placeSubmenu(menu, more, rest);
     };
     more.addEventListener("click", (event) => {
       event.stopPropagation();

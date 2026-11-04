@@ -1327,41 +1327,93 @@ describe("Graph views (D4)", function () {
     }
   });
 
+  /*
+   * A refresh reads the view's state, then mounts the new view on a frame; the
+   * old view takes clicks until then. Fetch hop N pressed in that gap went
+   * back to a Fetch button (W18). The state's zero-delay report is held, since
+   * it usually beats the frame and would hide the loss.
+   */
+  it("keeps a change made while a refresh waits for its frame", async function () {
+    this.timeout(60_000);
+    const container = tabContent(tabID) as any;
+    const oldRoot = graphRoot();
+    const labels = labelSelect();
+    const edited = labels.value === "title" ? "none" : "title";
+    const realSetTimeout = win.setTimeout;
+    const held: unknown[] = [];
+    let caught = false;
+    container.setAttribute = function (name: string, value: string) {
+      Element.prototype.setAttribute.call(this, name, value);
+      if (name !== "flex" || caught) return;
+      caught = true;
+      win.setTimeout = (run: unknown, delayMs?: number, ...rest: unknown[]) => {
+        if (!delayMs) {
+          held.push(run);
+          return 0;
+        }
+        return realSetTimeout.call(win, run, delayMs, ...rest);
+      };
+      labels.value = edited;
+      fire(labels, "change");
+    };
+    const item = new Zotero.Item("book");
+    item.setField("title", "Refresh gap fixture");
+    try {
+      await item.saveTx();
+      await item.eraseTx();
+      const fresh = await waitFor(() => {
+        const live = tabContent(tabID)?.querySelector(".meristema-root");
+        return caught && live && live !== oldRoot ? live : null;
+      }, 30_000);
+      expect(fresh, `a refresh remounted the view; caught ${caught}`).to.exist;
+      expect(
+        labelSelect().value,
+        `the new view read the change; held ${held.length} reports`,
+      ).to.equal(edited);
+    } finally {
+      delete container.setAttribute;
+      win.setTimeout = realSetTimeout;
+    }
+  });
+
   it("opens More beside the menu on hover, and shuts it on leaving (W5)", async function () {
     this.timeout(60_000);
     const menu = await openChipMenu();
-    const wrap = menu.querySelector(".cm-view-more-wrap") as HTMLElement;
-    const more = wrap.querySelector(".cm-view-more") as HTMLElement;
-    const rest = wrap.querySelector(".cm-view-more-actions") as HTMLElement;
-    const view = wrap.ownerDocument.defaultView as any;
-    expect(rest.hidden, "More starts shut").to.equal(true);
-    const mark = more.querySelector("svg") as unknown as Element;
-    expect(
-      mark.getBoundingClientRect().width,
-      "the chevron is icon-sized",
-    ).to.equal(16);
+    try {
+      const wrap = menu.querySelector(".cm-view-more-wrap") as HTMLElement;
+      const more = wrap.querySelector(".cm-view-more") as HTMLElement;
+      const rest = wrap.querySelector(".cm-view-more-actions") as HTMLElement;
+      const view = wrap.ownerDocument.defaultView as any;
+      expect(rest.hidden, "More starts shut").to.equal(true);
+      const mark = more.querySelector("svg") as unknown as Element;
+      expect(
+        mark.getBoundingClientRect().width,
+        "the chevron is icon-sized",
+      ).to.equal(16);
 
-    wrap.dispatchEvent(new view.PointerEvent("pointerenter"));
-    expect(rest.hidden, "hovering opens it").to.equal(false);
-    const menuBox = menu.getBoundingClientRect();
-    const restBox = rest.getBoundingClientRect();
-    const evidence = `menu ${menuBox.left}..${menuBox.right}, submenu ${restBox.left}..${restBox.right}, window ${view.innerWidth}`;
-    const beside =
-      restBox.left >= menuBox.right - 4 || restBox.right <= menuBox.left + 4;
-    expect(beside, `it opens to one side; ${evidence}`).to.equal(true);
-    const middle = view.document.elementFromPoint(
-      (restBox.left + restBox.right) / 2,
-      (restBox.top + restBox.bottom) / 2,
-    ) as Element | null;
-    expect(
-      rest.contains(middle),
-      `nothing covers or clips it, found ${middle?.className}; ${evidence}`,
-    ).to.equal(true);
+      wrap.dispatchEvent(new view.PointerEvent("pointerenter"));
+      expect(rest.hidden, "hovering opens it").to.equal(false);
+      const menuBox = menu.getBoundingClientRect();
+      const restBox = rest.getBoundingClientRect();
+      const evidence = `menu ${menuBox.left}..${menuBox.right}, submenu ${restBox.left}..${restBox.right}, window ${view.innerWidth}`;
+      const beside =
+        restBox.left >= menuBox.right - 4 || restBox.right <= menuBox.left + 4;
+      expect(beside, `it opens to one side; ${evidence}`).to.equal(true);
+      const middle = view.document.elementFromPoint(
+        (restBox.left + restBox.right) / 2,
+        (restBox.top + restBox.bottom) / 2,
+      ) as Element | null;
+      expect(
+        rest.contains(middle),
+        `nothing covers or clips it, found ${middle?.className}; ${evidence}`,
+      ).to.equal(true);
 
-    wrap.dispatchEvent(new view.PointerEvent("pointerleave"));
-    const shut = await waitFor(() => (rest.hidden ? true : null), 2_000);
-    expect(shut, "leaving shuts it").to.equal(true);
-    await closeChipMenu();
+      wrap.dispatchEvent(new view.PointerEvent("pointerleave"));
+      const shut = await waitFor(() => (rest.hidden ? true : null), 2_000);
+      expect(shut, "leaving shuts it").to.equal(true);
+    } finally {
+      await closeChipMenu();
+    }
   });
 
   it("opens the gear from View, on a collapsed rail too, and resets from there (D35)", async function () {

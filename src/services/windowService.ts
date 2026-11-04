@@ -1694,6 +1694,9 @@ function renderTab(
   container: HTMLElement,
   snapshot: LibrarySnapshot,
 ): void {
+  const sameGraph =
+    !instance.discardViewState &&
+    (instance.libraryID === null || instance.libraryID === snapshot.libraryID);
   captureViewState(instance, container);
   const stateOptions = viewStateOptions(win, instance, snapshot.libraryID);
   instance.libraryID = snapshot.libraryID;
@@ -1713,6 +1716,9 @@ function renderTab(
       win.setTimeout(() => frames.request(render), 50);
       return;
     }
+    // The old view took clicks until this frame: Fetch hop N pressed in the
+    // gap must reach the new view (W18).
+    if (sameGraph) captureViewState(instance, container);
     const request = consumePendingRequest(instance);
     renderGraphView(win.document, container, snapshot, {
       // First, so the seam can only supply test-only options such as
