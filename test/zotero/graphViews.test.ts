@@ -1378,9 +1378,6 @@ describe("Graph views (D4)", function () {
 
   it("opens More beside the menu on hover, and shuts it on leaving (W5)", async function () {
     this.timeout(60_000);
-    // A case above may have left another tab on top, and that tab takes the hit.
-    win.Zotero_Tabs.select(tabID);
-    await delay(300);
     const menu = await openChipMenu();
     try {
       const wrap = menu.querySelector(".cm-view-more-wrap") as HTMLElement;
@@ -1402,13 +1399,16 @@ describe("Graph views (D4)", function () {
       const beside =
         restBox.left >= menuBox.right - 4 || restBox.right <= menuBox.left + 4;
       expect(beside, `it opens to one side; ${evidence}`).to.equal(true);
-      const middle = view.document.elementFromPoint(
+      // Zotero's own progress overlay can lie over the whole pane in a full run,
+      // so the first thing of the graph's at this point is what is asked.
+      const stack = view.document.elementsFromPoint(
         (restBox.left + restBox.right) / 2,
         (restBox.top + restBox.bottom) / 2,
-      ) as Element | null;
+      ) as Element[];
+      const topOfGraph = stack.find((found) => graphRoot().contains(found));
       expect(
-        rest.contains(middle),
-        `nothing covers or clips it, found ${middle?.className}; ${evidence}`,
+        rest.contains(topOfGraph ?? null),
+        `nothing of the graph covers or clips it, found ${topOfGraph?.className}; ${evidence}`,
       ).to.equal(true);
 
       wrap.dispatchEvent(new view.PointerEvent("pointerleave"));
