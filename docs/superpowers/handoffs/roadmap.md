@@ -162,8 +162,8 @@ Use all providers button, and the three-action View menu.
       user left the check for later; no fix without it
 - [ ] W14 why an update can take long is unexplored; W7 only shows it
 - [ ] W18 References' Fetch hop 2 opened nothing once, in the full run at
-      `649f589` (144/4, the rest cascaded), then 149/0 at `b5fe112` with no
-      Fetch change between. The case's message now prints whether the button
+      `649f589` (144/4, the rest cascaded), then 149/0 twice at `b5fe112` and
+      `31e9051` with no Fetch change between. The case's message now prints whether the button
       stayed connected and the root stayed the same: `false` means fix the
       case, `true` means a real bug
 
@@ -221,7 +221,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `b5fe112` (149/0), so count from there. A clean run is 149 cases as of 2026-11-04. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `31e9051` (149/0, the second clean run in a row), so count from there. A clean run is 149 cases as of 2026-11-04. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The suite never reaches a citation provider (`networkGuard.test.ts`): the
