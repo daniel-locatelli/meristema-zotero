@@ -98,6 +98,70 @@ describe("No data bands", function () {
     ).to.deep.equal([]);
   });
 
+  /** How many cells of an 8-unit grid the papers cover: one pile covers few. */
+  function cellsCovered(
+    renderer: CitationGraphRenderer,
+    papers: CitationGraphNode[],
+  ): number {
+    return new Set(
+      papers.map((paper) => {
+        const { x, y } = renderer.positionOf(paper.key)!;
+        return `${Math.floor(x / 8)}:${Math.floor(y / 8)}`;
+      }),
+    ).size;
+  }
+
+  it("spreads papers missing both values over the corner (W8)", function () {
+    const unknown = Array.from({ length: 60 }, (_value, index) =>
+      node(`unknown${index}`, { year: null, citationCount: null }),
+    );
+    const renderer = placed([
+      node("old", { year: 2000, citationCount: 1200 }),
+      node("new", { year: 2026, citationCount: 0 }),
+      ...unknown,
+    ]);
+    const { x, y } = noDataBands({ x: true, y: true });
+    const astray = unknown
+      .map((paper) => renderer.positionOf(paper.key)!)
+      .filter(
+        (at) =>
+          at.x < x!.left ||
+          at.x > x!.right ||
+          at.y < y!.top ||
+          at.y > y!.bottom,
+      );
+    expect(astray, "papers outside the corner").to.deep.equal([]);
+    expect(cellsCovered(renderer, unknown), "cells covered").to.be.at.least(20);
+  });
+
+  it("spreads a paper missing one value across the band's depth (W8)", function () {
+    const unknown = Array.from({ length: 40 }, (_value, index) =>
+      node(`unknown${index}`, { year: 2026, citationCount: null }),
+    );
+    const renderer = placed([
+      node("old", { year: 2000, citationCount: 1200 }),
+      node("new", { year: 2026, citationCount: 0 }),
+      ...unknown,
+    ]);
+    const ys = unknown.map((paper) => renderer.positionOf(paper.key)!.y);
+    expect(Math.max(...ys) - Math.min(...ys), "depth used").to.be.at.least(25);
+  });
+
+  it("leaves a parked paper in place when another lands (W8)", function () {
+    const paper = node("kept", { year: null, citationCount: null });
+    const known = [
+      node("old", { year: 2000, citationCount: 1200 }),
+      node("new", { year: 2026, citationCount: 0 }),
+    ];
+    const alone = placed([...known, paper]).positionOf("kept")!;
+    const crowded = placed([
+      ...known,
+      paper,
+      node("later", { year: null, citationCount: null }),
+    ]).positionOf("kept")!;
+    expect(Math.hypot(alone.x - crowded.x, alone.y - crowded.y)).to.be.below(5);
+  });
+
   it("fits the bands and the corner into the plot", function () {
     const canvas = new FakeCanvas();
     const renderer = new CitationGraphRenderer({

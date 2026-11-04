@@ -120,6 +120,27 @@ const NO_DATA_DEPTH = 50;
  */
 export const MISSING_X = PLOT_LEFT - NO_DATA_GAP - NO_DATA_DEPTH / 2;
 export const MISSING_Y = PLOT_BOTTOM + NO_DATA_GAP + NO_DATA_DEPTH / 2;
+/**
+ * How far either way of the band's middle a parked paper's anchor may sit. A
+ * parked paper has no value for the axis to misstate, so the relaxation's small
+ * displacement cap must not pile the band's papers onto one spot (W8).
+ */
+const PARKED_SPREAD = NO_DATA_DEPTH / 2 - 6;
+
+/**
+ * The paper's own place in a No data band, from its key alone, so a paper
+ * landing later moves nobody. The hash's halves give the two axes independent
+ * places; one hash per axis would lay a corner's papers along a diagonal.
+ */
+function parkedCoordinate(
+  middle: number,
+  key: string,
+  axis: "x" | "y",
+): number {
+  const hash = hashString(key);
+  const bits = axis === "x" ? hash & 0xffff : hash >>> 16;
+  return middle + (bits / 0xffff - 0.5) * 2 * PARKED_SPREAD;
+}
 
 export interface WorldRect {
   left: number;
@@ -692,7 +713,7 @@ export function projectRendererPositions(
       const value = renderer.metricNumber(node, renderer.layout.xMetric);
       x =
         value === null || (renderer.layout.xScale === "log" && value <= 0)
-          ? MISSING_X
+          ? parkedCoordinate(MISSING_X, node.key, "x")
           : PLOT_LEFT +
             clamp(
               scaleValue(
@@ -717,7 +738,7 @@ export function projectRendererPositions(
       const value = renderer.metricNumber(node, renderer.layout.yMetric);
       y =
         value === null || (renderer.layout.yScale === "log" && value <= 0)
-          ? MISSING_Y
+          ? parkedCoordinate(MISSING_Y, node.key, "y")
           : PLOT_BOTTOM -
             clamp(
               scaleValue(
