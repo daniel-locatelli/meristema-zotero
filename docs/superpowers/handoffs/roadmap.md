@@ -161,6 +161,11 @@ Use all providers button, and the three-action View menu.
       Two unknowns: what the 14 are, and whether Zotero fires `online`. The
       user left the check for later; no fix without it
 - [ ] W14 why an update can take long is unexplored; W7 only shows it
+- [ ] W18 References' Fetch hop 2 opened nothing once, in the full run at
+      `649f589` (144/4, the rest cascaded), then 149/0 at `b5fe112` with no
+      Fetch change between. The case's message now prints whether the button
+      stayed connected and the root stayed the same: `false` means fix the
+      case, `true` means a real bug
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -216,7 +221,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `473ed7c` plus the W11 test waits (146/1, B15's case, since fixed and passing alone), so count from there. A clean run is 147 cases as of 2026-11-04. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-04 at `b5fe112` (149/0), so count from there. A clean run is 149 cases as of 2026-11-04. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The suite never reaches a citation provider (`networkGuard.test.ts`): the
@@ -572,7 +577,7 @@ entries are in git history.
   a stored 0 sent no request to the paper's own provider, and any other number
   capped its list. Filing with Enter also found collection.addItem rejecting
   outside a transaction: a paper with no identifier or already held was never
-  filed. Not pushed.
+  filed.
 - 2026-11-04: the user walked that build. Fixed: the x's input event threw in
   the plugin's scope; a parent folder's row read only its own papers; hop depth
   was shared across directions; Seeds linked no longer colours arrows, the
