@@ -12,8 +12,6 @@
     byID("zotero-prefpane-meristema-automatic-updates");
   const updateInputs = () =>
     Array.from(document.querySelectorAll("input[data-update-pref]"));
-  const updateChildren = () =>
-    document.querySelector(".meristema-pref-children");
 
   function prefKey(name) {
     return PREF_PREFIX + name;
@@ -126,9 +124,6 @@
         );
       }
     }
-
-    for (const input of inputs) input.disabled = automatic;
-    updateChildren()?.classList.toggle("meristema-options-locked", automatic);
   }
 
   function handleUpdateParentChange() {
@@ -143,7 +138,13 @@
   }
 
   function handleUpdateChildChange(input) {
+    const inputs = updateInputs();
     if (readBoolean("automaticUpdates", true)) {
+      // The first untick leaves automatic: the others stay as they read.
+      for (const candidate of inputs) {
+        writeInputState(candidate, "data-update-pref");
+      }
+      writeBoolean("automaticUpdates", false);
       renderUpdateMode();
       return;
     }

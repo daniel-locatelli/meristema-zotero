@@ -107,7 +107,7 @@ export interface NodeMenuEntry {
   disabled: boolean;
 }
 
-export const UPDATE_CONNECTIONS_LABEL = "Update this paper's connections";
+export const UPDATE_CONNECTIONS_LABEL = "Update connections";
 export const UPDATE_CONNECTIONS_TITLE =
   "Fetch this paper's references and citing papers again.";
 export const FIND_SIMILAR_TITLE =

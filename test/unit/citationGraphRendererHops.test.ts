@@ -80,6 +80,45 @@ describe("CitationGraphRenderer hops", function () {
     expect(assignment.labelFor(node("s"))).to.equal("Not graded");
   });
 
+  /*
+   * W16: a folder with no paper on the graph answers an empty set. Pointing at
+   * it says "none of these", so the rest dims; only null releases.
+   */
+  it("dims every paper for an empty emphasis, and releases on null", function () {
+    const seed = node("s", { title: "Seed Paper" });
+    const graphModel: CitationGraphModel = {
+      nodes: [seed],
+      edges: [],
+      statistics: { nodes: 1, resolvedNodes: 1, edges: 0, isolatedNodes: 1 },
+    };
+    const canvas = new FakeCanvas();
+    const renderer = new CitationGraphRenderer({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      model: graphModel,
+      layout: { ...FREE_LAYOUT, nodeLabelMode: "title" },
+      collectionLabels: new Map(),
+      onSelectionChange: () => undefined,
+      onOpenNode: () => undefined,
+    });
+    attachView(canvas);
+    // Reduced motion, so the ease lands at once.
+    (
+      canvas as unknown as {
+        ownerDocument: { defaultView: Record<string, unknown> };
+      }
+    ).ownerDocument.defaultView.matchMedia = () => ({ matches: true });
+    try {
+      renderer.setEmphasis(new Set());
+      expect(renderer.emphasisAlphaFor("s"), "the paper dims").to.be.lessThan(
+        1,
+      );
+      renderer.setEmphasis(null);
+      expect(renderer.emphasisAlphaFor("s"), "null releases").to.equal(1);
+    } finally {
+      renderer.destroy();
+    }
+  });
+
   /**
    * No hop ramp (D10): a citer's node fill, the edge it draws toward its
    * cited paper, and its label all draw at full alpha whatever its hop;

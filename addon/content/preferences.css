@@ -200,11 +200,3 @@
   min-height: 28px;
   cursor: pointer;
 }
-
-.meristema-pref-children.meristema-options-locked .meristema-child-option {
-  opacity: 0.55;
-}
-
-.meristema-pref-children.meristema-options-locked .meristema-child-option {
-  cursor: default;
-}

@@ -36,6 +36,55 @@ describe("Meristema settings", function () {
     }
   });
 
+  it("greys no update option, and the first untick leaves automatic", async function () {
+    const name = (pref: string): string => `${config.prefsPrefix}.${pref}`;
+    const prefs = ["automaticUpdates", "updateNewItems", "updateModifiedItems"];
+    const previous = prefs.map((pref) => Zotero.Prefs.get(name(pref), true));
+    for (const pref of prefs) Zotero.Prefs.clear(name(pref), true);
+    const win = (Zotero.Utilities.Internal as any).openPreferences(
+      `${config.addonRef}-preferences`,
+    ) as Window;
+    try {
+      const child = await until(
+        () =>
+          win.document?.getElementById(
+            "zotero-prefpane-meristema-update-new-items",
+          ) as HTMLInputElement | null,
+      );
+      expect(child, "the option rendered").to.exist;
+      const other = win.document.getElementById(
+        "zotero-prefpane-meristema-update-modified-items",
+      ) as HTMLInputElement;
+      const parent = win.document.getElementById(
+        "zotero-prefpane-meristema-automatic-updates",
+      ) as HTMLInputElement;
+      const ready = await until(() => (parent.checked ? true : null));
+      expect(ready, "automatic reads on").to.equal(true);
+      expect(child!.disabled, "the option is not greyed").to.equal(false);
+      expect(child!.checked, "and reads on").to.equal(true);
+
+      child!.click();
+      expect(Zotero.Prefs.get(name("automaticUpdates"), true)).to.equal(false);
+      expect(parent.checked, "the parent follows").to.equal(false);
+      expect(Zotero.Prefs.get(name("updateNewItems"), true)).to.equal(false);
+      expect(
+        Zotero.Prefs.get(name("updateModifiedItems"), true),
+        "the other keeps what it read",
+      ).to.equal(true);
+      expect(other.checked).to.equal(true);
+    } finally {
+      win.close();
+      prefs.forEach((pref, i) => {
+        const value = previous[i];
+        if (value === undefined || value === null) {
+          Zotero.Prefs.clear(name(pref), true);
+        } else {
+          Zotero.Prefs.set(name(pref), value as boolean, true);
+        }
+      });
+    }
+  });
+
   it("updates every library, with no library choice to make (D30)", async function () {
     // An older version stored a narrower selection; the pane must open on it.
     const stale = `${config.prefsPrefix}.updateLibraryIDs`;

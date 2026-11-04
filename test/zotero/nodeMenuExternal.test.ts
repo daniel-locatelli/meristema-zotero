@@ -11,7 +11,7 @@ import { delay } from "./visualHarness";
 const ROW_ATTR = "data-meristema-saved-graph";
 const GRAPH_NAME = "F5 external menu";
 const TITLE = "F5 external menu fixture";
-const UPDATE = "Update this paper's connections";
+const UPDATE = "Update connections";
 /**
  * Every provider host. The case answers them all with a 404 at once, so
  * nothing reaches the network and the update ends in a few seconds. The

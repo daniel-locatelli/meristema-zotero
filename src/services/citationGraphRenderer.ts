@@ -2620,7 +2620,8 @@ export class CitationGraphRenderer {
    * graph. The Key names the encoding and points at it. That is the whole job.
    */
   public setEmphasis(keys: ReadonlySet<string> | null): void {
-    const next = keys && keys.size ? new Set(keys) : null;
+    // Empty is an answer: the folder pointed at has no paper here, so all dim.
+    const next = keys ? new Set(keys) : null;
     const sameKeys =
       (next === null && this.emphasisKeys === null) ||
       (next !== null &&

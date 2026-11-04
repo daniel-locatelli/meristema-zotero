@@ -199,8 +199,8 @@ describe("the View dropdown's display actions (D35)", function () {
     expect(labels(menu)).to.deep.equal([
       "Choose a view…",
       "Save current as view…",
-      "Set as default for new graphs",
-      "Reset default for new graphs",
+      "Set this view as default for new graphs",
+      "Reset default view for new graphs",
       "Copy view as JSON",
       "Import view JSON…",
     ]);
@@ -209,7 +209,7 @@ describe("the View dropdown's display actions (D35)", function () {
 
   it("offers Reset default only while a made default exists", function () {
     expect(labels(openMenu(null, () => {}, display(false, [])))).to.not.include(
-      "Reset default for new graphs",
+      "Reset default view for new graphs",
     );
   });
 
@@ -217,8 +217,8 @@ describe("the View dropdown's display actions (D35)", function () {
     const calls: string[] = [];
     const menu = openMenu(null, () => {}, display(true, calls));
     for (const label of [
-      "Set as default for new graphs",
-      "Reset default for new graphs",
+      "Set this view as default for new graphs",
+      "Reset default view for new graphs",
     ]) {
       menu
         .all("cm-view-action")

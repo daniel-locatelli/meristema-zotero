@@ -1281,7 +1281,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      await viewAction("Set as default for new graphs");
+      await viewAction("Set this view as default for new graphs");
       expect(
         JSON.parse(stored()).nodeLabelMode,
         `the made default; stored ${stored()}`,
@@ -1297,7 +1297,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      await viewAction("Reset default for new graphs");
+      await viewAction("Reset default view for new graphs");
       expect(stored(), "the made default is forgotten").to.equal("");
       expect(
         labelSelect().value,
@@ -1325,6 +1325,43 @@ describe("Graph views (D4)", function () {
         )?.click();
       }
     }
+  });
+
+  it("opens More beside the menu on hover, and shuts it on leaving (W5)", async function () {
+    this.timeout(60_000);
+    const menu = await openChipMenu();
+    const wrap = menu.querySelector(".cm-view-more-wrap") as HTMLElement;
+    const more = wrap.querySelector(".cm-view-more") as HTMLElement;
+    const rest = wrap.querySelector(".cm-view-more-actions") as HTMLElement;
+    const view = wrap.ownerDocument.defaultView as any;
+    expect(rest.hidden, "More starts shut").to.equal(true);
+    const mark = more.querySelector("svg") as unknown as Element;
+    expect(
+      mark.getBoundingClientRect().width,
+      "the chevron is icon-sized",
+    ).to.equal(16);
+
+    wrap.dispatchEvent(new view.PointerEvent("pointerenter"));
+    expect(rest.hidden, "hovering opens it").to.equal(false);
+    const menuBox = menu.getBoundingClientRect();
+    const restBox = rest.getBoundingClientRect();
+    const evidence = `menu ${menuBox.left}..${menuBox.right}, submenu ${restBox.left}..${restBox.right}, window ${view.innerWidth}`;
+    const beside =
+      restBox.left >= menuBox.right - 4 || restBox.right <= menuBox.left + 4;
+    expect(beside, `it opens to one side; ${evidence}`).to.equal(true);
+    const middle = view.document.elementFromPoint(
+      (restBox.left + restBox.right) / 2,
+      (restBox.top + restBox.bottom) / 2,
+    ) as Element | null;
+    expect(
+      rest.contains(middle),
+      `nothing covers or clips it, found ${middle?.className}; ${evidence}`,
+    ).to.equal(true);
+
+    wrap.dispatchEvent(new view.PointerEvent("pointerleave"));
+    const shut = await waitFor(() => (rest.hidden ? true : null), 2_000);
+    expect(shut, "leaving shuts it").to.equal(true);
+    await closeChipMenu();
   });
 
   it("opens the gear from View, on a collapsed rail too, and resets from there (D35)", async function () {
@@ -1365,7 +1402,7 @@ describe("Graph views (D4)", function () {
           Array.from(menu.querySelectorAll(".cm-view-action")) as HTMLElement[]
         ).map((action) => normalize(action.textContent)),
         "no made default, so no Restore built-in",
-      ).to.not.include("Reset default for new graphs");
+      ).to.not.include("Reset default view for new graphs");
       await closeChipMenu();
     } finally {
       names.forEach((name, i) => {

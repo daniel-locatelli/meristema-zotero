@@ -312,34 +312,17 @@ function createScaleSelect(
   return select;
 }
 
-function createMetricHelp(
-  document: Document,
-  select: HTMLSelectElement,
-  fallback: string,
-): HTMLParagraphElement {
-  const help = text(document, "p", fallback, "cm-metric-help");
+/** A select's description lives in its tooltip; the panel carries no prose. */
+function describeInTooltip(select: HTMLSelectElement, fallback: string): void {
   const showSelected = (): void => {
     const option = select.selectedOptions[0];
-    const description =
+    select.title =
       option?.dataset.metricDescription || option?.title || fallback;
-    help.textContent = description;
-    select.title = description;
-  };
-  const showHovered = (event: Event): void => {
-    const option = (event.target as Element | null)?.closest?.(
-      "option",
-    ) as HTMLOptionElement | null;
-    const description = option?.dataset.metricDescription || option?.title;
-    if (description) help.textContent = description;
   };
   for (const eventName of ["input", "change", "command"]) {
     select.addEventListener(eventName, showSelected);
   }
-  select.addEventListener("mouseover", showHovered, true);
-  select.addEventListener("mousemove", showHovered, true);
-  select.addEventListener("mouseleave", showSelected);
   showSelected();
-  return help;
 }
 
 /**
@@ -604,27 +587,22 @@ export function createAxesAppearance(
   yMetric.style.flex = "1 1 auto";
 
   const xPane = makePane("x", "X axis");
-  xPane.append(
-    compactLine(xScale, xMetric),
-    createMetricHelp(document, xMetric, "Choose horizontal position."),
-  );
+  xPane.append(compactLine(xScale, xMetric));
+  describeInTooltip(xMetric, "Choose horizontal position.");
   const yPane = makePane("y", "Y axis");
-  yPane.append(
-    compactLine(yScale, yMetric),
-    createMetricHelp(document, yMetric, "Choose vertical position."),
-  );
+  yPane.append(compactLine(yScale, yMetric));
+  describeInTooltip(yMetric, "Choose vertical position.");
   const nodesPane = makePane("nodes", "Nodes");
   nodesPane.append(
     labelledLine("Label", labels),
     labelledLine("Size", sizeMetric),
-    createMetricHelp(
-      document,
-      sizeMetric,
-      "Visible minimum and maximum values map to the plugin minimum and maximum node sizes.",
-    ),
     labelledLine("Color", colorMetric),
-    createMetricHelp(document, colorMetric, "Choose node colour."),
   );
+  describeInTooltip(
+    sizeMetric,
+    "Visible minimum and maximum values map to the plugin minimum and maximum node sizes.",
+  );
+  describeInTooltip(colorMetric, "Choose node colour.");
 
   // D28: "Use these" for new blank graphs reads as overwriting the view the graph
   // came from unless the gear says which view that was.

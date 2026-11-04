@@ -2939,9 +2939,7 @@ describe("Citation hops (Stage 3)", function () {
       const root = graphRoot();
       const before = hopRowText(2);
       const pageAsked = asked.length;
-      (
-        await nodeMenuEntry("Update this paper's connections", "D8 paper W802")
-      ).click();
+      (await nodeMenuEntry("Update connections", "D8 paper W802")).click();
       const grew = await waitFor(
         () => (hopCounts(2)?.available === 1 ? 1 : null),
         30_000,

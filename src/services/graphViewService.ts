@@ -4082,11 +4082,12 @@ ${error instanceof Error ? error.message : String(error)}`,
         detailBody.appendChild(importArea.root);
       }
 
-      const sourceURL = externalWorkURL(work);
+      // A DOI is already the header's link; only a paper without one needs this.
+      const sourceURL = node.doi?.trim() ? null : externalWorkURL(work);
       if (sourceURL) {
         const open = element(document, "button", "cm-secondary-button");
         open.type = "button";
-        open.textContent = work.doi ? "Open DOI" : "Open provider record";
+        open.textContent = "Open provider record";
         open.addEventListener("click", () => Zotero.launchURL(sourceURL));
         actions.appendChild(open);
       }

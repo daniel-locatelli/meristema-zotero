@@ -27,6 +27,30 @@ export interface GraphDisplayActions {
   hasStoredDefault(): boolean;
 }
 
+const SUBMENU_SHUT_MS = 200;
+
+/**
+ * Beside its row, overlapping by the popup's padding. Fixed, since the menu
+ * may clip what leaves it; to the left when the window has no room on the
+ * right, and pulled up when it would run off the bottom.
+ */
+function placeSubmenu(row: HTMLElement, submenu: HTMLElement): void {
+  const view = row.ownerDocument.defaultView;
+  if (!view) return;
+  const anchor = row.getBoundingClientRect();
+  const own = submenu.getBoundingClientRect();
+  const fitsRight = anchor.right + own.width <= view.innerWidth;
+  const left = fitsRight
+    ? anchor.right - 2
+    : Math.max(0, anchor.left - own.width + 2);
+  const top = Math.max(
+    0,
+    Math.min(anchor.top - 6, view.innerHeight - own.height),
+  );
+  submenu.style.left = `${left}px`;
+  submenu.style.top = `${top}px`;
+}
+
 export interface GraphViewsMenuOptions {
   document: Document;
   shipped: readonly GraphViewDefinition[];
@@ -199,29 +223,62 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
       ["Choose a view…", o.onOpenGallery],
       ["Save current as view…", o.onSaveCurrent],
     ]);
-    // The rest opens in place, so the menu stays one box (W5).
+    // A submenu as Zotero's own menus have it: hover opens it to the side the
+    // chevron points. A click opens it too, for the keyboard.
+    const moreWrap = element(document, "div", "cm-view-more-wrap");
     const more = element(document, "button", "cm-view-more");
     more.type = "button";
+    more.setAttribute("aria-haspopup", "menu");
     more.setAttribute("aria-expanded", "false");
     more.append(
       text(document, "span", "More"),
-      text(document, "span", "›", "cm-view-more-mark"),
+      createIcon(document, "chevron-right", 16),
     );
     const rest = element(document, "div", "cm-view-more-actions");
+    rest.setAttribute("role", "menu");
     rest.hidden = true;
+    let shutTimer: number | null = null;
+    const keepOpen = (): void => {
+      if (shutTimer !== null) document.defaultView?.clearTimeout(shutTimer);
+      shutTimer = null;
+    };
+    const openRest = (): void => {
+      keepOpen();
+      if (!rest.hidden) return;
+      rest.hidden = false;
+      more.setAttribute("aria-expanded", "true");
+      placeSubmenu(more, rest);
+    };
     more.addEventListener("click", (event) => {
       event.stopPropagation();
-      rest.hidden = !rest.hidden;
-      more.setAttribute("aria-expanded", rest.hidden ? "false" : "true");
+      openRest();
     });
-    menu.append(more, rest);
+    moreWrap.addEventListener("pointerenter", openRest);
+    moreWrap.addEventListener("pointerleave", () => {
+      keepOpen();
+      // A moment's grace, for a pointer crossing the corner to the submenu.
+      shutTimer =
+        document.defaultView?.setTimeout(() => {
+          shutTimer = null;
+          rest.hidden = true;
+          more.setAttribute("aria-expanded", "false");
+        }, SUBMENU_SHUT_MS) ?? null;
+    });
+    moreWrap.append(more, rest);
+    menu.append(moreWrap);
     const display = o.display;
     if (display) {
       group(rest, [
-        ["Set as default for new graphs", () => display.useForNewBlank()],
+        [
+          "Set this view as default for new graphs",
+          () => display.useForNewBlank(),
+        ],
         ...(display.hasStoredDefault()
           ? ([
-              ["Reset default for new graphs", () => display.restoreBuiltIn()],
+              [
+                "Reset default view for new graphs",
+                () => display.restoreBuiltIn(),
+              ],
             ] as const)
           : []),
       ]);

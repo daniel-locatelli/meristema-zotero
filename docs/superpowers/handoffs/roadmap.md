@@ -161,6 +161,9 @@ Use all providers button, and the three-action View menu.
       Two unknowns: what the 14 are, and whether Zotero fires `online`. The
       user left the check for later; no fix without it
 - [ ] W14 why an update can take long is unexplored; W7 only shows it
+- [ ] W19 review every option in Graph display settings: some may be
+      unnecessary. Include the `From view:` line, whose reason (the gear's
+      Use these) has left the gear
 - [ ] W18 References' Fetch hop 2 opened nothing once, in the full run at
       `649f589` (144/4, the rest cascaded), then 149/0 twice at `b5fe112` and
       `31e9051` with no Fetch change between. The case's message now prints whether the button
@@ -177,12 +180,16 @@ any failure into a new entry above.
 - [ ] W3: the small marks across Zotero are the five-arm whorl, and it holds its
       shape at 16px; the add-ons manager's icon is white in the dark theme and
       dark in the light one.
-- [ ] W5: View lists Choose a view, Save current as view and More; More opens in
-      place with Set as default for new graphs, Reset default for new graphs
-      (only once one is set), Copy view as JSON and Import view JSON.
+- [ ] W5: View lists Choose a view, Save current as view and More, with a
+      full-size chevron. Hovering More opens a submenu to its right with Set this
+      view as default for new graphs, Reset default view for new graphs (only
+      once one is set), Copy view as JSON and Import view JSON; the pointer can
+      cross to it, and leaving shuts it.
 - [ ] W13: Settings has no Automatic row and nothing greyed: all providers are
-      ticked, and unticking one sticks across a reopen. Reset all settings asks
-      first, then puts the settings back and keeps both API keys.
+      ticked, and unticking one sticks across a reopen. Automatically update
+      citation data greys nothing either: unticking an option under it unticks
+      it and leaves the others on. Reset all settings asks first, then puts the
+      settings back and keeps both API keys.
 - [ ] W4: the search box's x sits on the field's middle, with room to its right
       and no background; pressing it empties the field and it goes away, and the
       graph stops searching.
@@ -192,15 +199,21 @@ any failure into a new entry above.
       paper appears once its details were tried, in its final place, and the
       hop's count shows the ones still held back. The paper stays Title
       unavailable only if no provider knew it. A paper already placed does not
-      vanish on a Refresh.
+      vanish on a Refresh. Check under Citers and under References.
 - [ ] W10: the selected paper's glow is tighter.
 - [ ] W15: Fetch to hop 5 under Citers, switch to References: it opens at hop 1
       and fetches nothing deeper; back on Citers, hop 5 is still there; save and
       reopen keeps both.
 - [ ] W16: hovering a folder whose papers are all in subfolders dims the rest,
-      like a subfolder's row.
+      like a subfolder's row. Hovering an empty folder, such as Representation,
+      dims every paper.
 - [ ] W17: the gear's foot is one Reset button, with no label; View keeps the
-      new blank graph actions.
+      new blank graph actions. The gear has no paragraphs under its selects; a
+      select's tooltip still describes it.
+- [ ] W20: an outside paper's sidebar says Update connections, and has no Open
+      DOI button; a paper with no DOI has Open provider record.
+- [ ] W21: Similar works from the toolbar and from a paper's sidebar: results
+      list, each one a real paper. No case runs it against a provider.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
