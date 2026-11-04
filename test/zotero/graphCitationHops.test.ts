@@ -1386,7 +1386,7 @@ describe("Citation hops (Stage 3)", function () {
     const fetchHop2 = await freeFetchButton(2);
     const rootAtClick = graphRoot();
     fetchHop2.click();
-    const trace = await traceUntil(() => {
+    const fetchTrace = await traceUntil(() => {
       const hop2 = hopCounts(2);
       return hop2 !== null && hop2.available > 0;
     }, 60_000);
@@ -1394,7 +1394,7 @@ describe("Citation hops (Stage 3)", function () {
       hopCounts(2)?.available ?? 0,
       `References hop 2 read "${hopRowText(2)}"; the button connected ` +
         `${fetchHop2.isConnected}, the same root ${graphRoot() === rootAtClick}; ` +
-        `ladder ${ladder()}; trace: ${trace}`,
+        `ladder ${ladder()}; trace: ${fetchTrace}`,
     ).to.be.greaterThan(0);
   });
 
