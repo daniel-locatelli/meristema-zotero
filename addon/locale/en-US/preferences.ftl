@@ -29,10 +29,12 @@ pref-refresh-all = Update all libraries now
 pref-clear-cache-heading = Clear cached citation data
 pref-clear-cache-help = Removes stored provider metrics, relationship snapshots, and externally retrieved metadata. Zotero items and manually created relationships are not deleted.
 pref-clear-cache = Clear all cached data
+pref-reset-heading = Reset
+pref-reset-help = Puts every Meristema setting back on its default. Your API keys and cached data stay.
+pref-reset-all = Reset all settings
 
 pref-providers-heading = Citation Data Providers
 pref-selected-providers-heading = Selected Providers
-pref-provider-all = Automatic (combine all providers)
 pref-provider-crossref = Crossref
 pref-provider-semantic-scholar = Semantic Scholar
 pref-provider-opencitations = OpenCitations

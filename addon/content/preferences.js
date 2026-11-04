@@ -6,11 +6,8 @@
   let notificationTimer = null;
 
   const byID = (id) => document.getElementById(id);
-  const providerParent = () => byID("zotero-prefpane-meristema-provider-all");
   const providerInputs = () =>
     Array.from(document.querySelectorAll("input[data-provider-pref]"));
-  const providerChildren = () =>
-    document.querySelector(".meristema-provider-children");
   const updateParent = () =>
     byID("zotero-prefpane-meristema-automatic-updates");
   const updateInputs = () =>
@@ -55,25 +52,25 @@
     }, 0);
   }
 
-  function updateProviderStatus(inputs, automatic) {
+  function updateProviderStatus(inputs) {
     const status = byID("zotero-prefpane-meristema-provider-status");
     if (!status) return;
     const selected = inputs.filter((input) => input.checked).length;
-    status.textContent = automatic
-      ? `Automatic selection: all ${inputs.length} providers enabled.`
-      : `Custom selection: ${selected} of ${inputs.length} providers enabled.`;
+    status.textContent =
+      selected === inputs.length
+        ? `All ${inputs.length} providers on, and combined.`
+        : `${selected} of ${inputs.length} providers on.`;
   }
 
+  /**
+   * `providerAutomatic` now only means nobody has chosen yet: every provider
+   * reads as ticked, and the first untick writes the whole list.
+   */
   function renderProviderMode() {
-    const parent = providerParent();
     const inputs = providerInputs();
-    if (!parent || !inputs.length) return;
+    if (!inputs.length) return;
 
-    const automatic = readBoolean("providerAutomatic", true);
-    parent.checked = automatic;
-    parent.indeterminate = false;
-
-    if (automatic) {
+    if (readBoolean("providerAutomatic", true)) {
       setInputStates(inputs, "data-provider-pref", true);
     } else {
       for (const input of inputs) {
@@ -88,36 +85,26 @@
       }
     }
 
-    for (const input of inputs) input.disabled = automatic;
-    providerChildren()?.classList.toggle("meristema-options-locked", automatic);
-    updateProviderStatus(inputs, automatic);
-  }
-
-  function handleProviderParentChange() {
-    const parent = providerParent();
-    const inputs = providerInputs();
-    if (!parent || !inputs.length) return;
-
-    const automatic = parent.checked;
-    writeBoolean("providerAutomatic", automatic);
-    if (automatic) setInputStates(inputs, "data-provider-pref", true);
-    renderProviderMode();
-    notifyProviderChange();
+    updateProviderStatus(inputs);
   }
 
   function handleProviderChildChange(input) {
-    if (readBoolean("providerAutomatic", true)) {
-      renderProviderMode();
-      return;
-    }
-
     const inputs = providerInputs();
     if (!inputs.some((candidate) => candidate.checked)) {
       input.checked = true;
     }
-    writeInputState(input, "data-provider-pref");
-    updateProviderStatus(inputs, false);
+    for (const candidate of inputs) {
+      writeInputState(candidate, "data-provider-pref");
+    }
+    writeBoolean("providerAutomatic", false);
+    updateProviderStatus(inputs);
     notifyProviderChange();
+  }
+
+  function handleResetAll() {
+    if (!Zotero.__addonInstance__.api.resetAllSettings()) return;
+    renderProviderMode();
+    renderUpdateMode();
   }
 
   function renderUpdateMode() {
@@ -164,15 +151,17 @@
   }
 
   function bindControls() {
-    const parent = providerParent();
     const providers = providerInputs();
     const updateMode = updateParent();
     const updates = updateInputs();
-    if (!parent || !providers.length || !updateMode || !updates.length) {
+    if (!providers.length || !updateMode || !updates.length) {
       return false;
     }
 
-    parent.addEventListener("change", handleProviderParentChange);
+    byID("zotero-prefpane-meristema-reset-all")?.addEventListener(
+      "click",
+      handleResetAll,
+    );
     for (const input of providers) {
       input.addEventListener("change", () => handleProviderChildChange(input));
     }

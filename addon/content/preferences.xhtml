@@ -119,15 +119,6 @@
 
   <html:h3 data-l10n-id="pref-selected-providers-heading"></html:h3>
   <html:div class="meristema-provider-list">
-    <html:label class="meristema-provider-option meristema-provider-all">
-      <html:input
-        id="zotero-prefpane-meristema-provider-all"
-        type="checkbox"
-        checked="checked"
-      />
-      <html:span data-l10n-id="pref-provider-all"></html:span>
-    </html:label>
-
     <html:div class="meristema-provider-children">
       <html:div class="meristema-provider-entry">
         <html:label class="meristema-provider-option">
@@ -260,4 +251,17 @@
     class="meristema-pref-help"
     data-l10n-id="pref-title-fallback-help"
   />
+
+  <html:h3 data-l10n-id="pref-reset-heading"></html:h3>
+  <description
+    class="meristema-pref-help meristema-pref-help-unindented"
+    data-l10n-id="pref-reset-help"
+  />
+  <hbox class="meristema-pref-actions">
+    <html:button
+      id="zotero-prefpane-meristema-reset-all"
+      type="button"
+      data-l10n-id="pref-reset-all"
+    ></html:button>
+  </hbox>
 </groupbox>

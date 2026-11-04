@@ -1,6 +1,7 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
 import { config } from "../../package.json";
+import { resetAllPreferences } from "../../src/services/citationPreferences";
 
 async function until<T>(
   read: () => T | null | undefined,
@@ -17,6 +18,23 @@ async function until<T>(
 
 describe("Meristema settings", function () {
   this.timeout(30000);
+
+  it("resets every setting and keeps the API keys", function () {
+    const name = (pref: string): string => `${config.prefsPrefix}.${pref}`;
+    Zotero.Prefs.set(name("showMetricTooltips"), false, true);
+    Zotero.Prefs.set(name("providerAutomatic"), false, true);
+    Zotero.Prefs.set(name("openAlexAPIKey"), "kept-key", true);
+    try {
+      resetAllPreferences();
+      expect(Zotero.Prefs.get(name("showMetricTooltips"), true)).to.equal(true);
+      expect(Zotero.Prefs.get(name("providerAutomatic"), true)).to.equal(true);
+      expect(Zotero.Prefs.get(name("openAlexAPIKey"), true)).to.equal(
+        "kept-key",
+      );
+    } finally {
+      Zotero.Prefs.clear(name("openAlexAPIKey"), true);
+    }
+  });
 
   it("updates every library, with no library choice to make (D30)", async function () {
     // An older version stored a narrower selection; the pane must open on it.

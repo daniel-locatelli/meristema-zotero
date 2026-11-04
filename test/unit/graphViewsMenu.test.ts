@@ -158,15 +158,15 @@ describe("the View dropdown's rows (D18)", function () {
 });
 
 describe("the View dropdown's actions (D31)", function () {
-  it("puts Copy current as JSON directly under Save current as view…", function () {
+  it("offers Choose and Save, with the rest behind More (W5)", function () {
     const labels = openMenu(null)
       .all("cm-view-action")
       .map((action) => action.textContent);
     expect(labels).to.deep.equal([
-      "Save current as view…",
-      "Copy current as JSON",
-      "Import view JSON…",
       "Choose a view…",
+      "Save current as view…",
+      "Copy view as JSON",
+      "Import view JSON…",
     ]);
   });
 
@@ -177,7 +177,7 @@ describe("the View dropdown's actions (D31)", function () {
     });
     const action = menu
       .all("cm-view-action")
-      .find((a) => a.textContent === "Copy current as JSON");
+      .find((a) => a.textContent === "Copy view as JSON");
     action?.click();
     expect(copies).to.equal(1);
   });
@@ -186,8 +186,6 @@ describe("the View dropdown's actions (D31)", function () {
 describe("the View dropdown's display actions (D35)", function () {
   function display(stored: boolean, calls: string[]): GraphDisplayActions {
     return {
-      openSettings: () => calls.push("settings"),
-      reset: () => calls.push("reset"),
       useForNewBlank: () => calls.push("use"),
       restoreBuiltIn: () => calls.push("restore"),
       hasStoredDefault: () => stored,
@@ -196,24 +194,22 @@ describe("the View dropdown's display actions (D35)", function () {
   const labels = (menu: FakeElement): string[] =>
     menu.all("cm-view-action").map((action) => action.textContent);
 
-  it("groups the gear's actions after the view actions, behind a rule", function () {
+  it("names what the default actions do, under More", function () {
     const menu = openMenu(null, () => {}, display(true, []));
     expect(labels(menu)).to.deep.equal([
-      "Save current as view…",
-      "Copy current as JSON",
-      "Import view JSON…",
       "Choose a view…",
-      "Graph display settings…",
-      "Reset this graph",
-      "Use these for new blank graphs",
-      "Restore built-in for new blank graphs",
+      "Save current as view…",
+      "Set as default for new graphs",
+      "Reset default for new graphs",
+      "Copy view as JSON",
+      "Import view JSON…",
     ]);
     expect(menu.all("cm-view-menu-rule")).to.have.length(2);
   });
 
-  it("offers Restore built-in only while a made default exists", function () {
+  it("offers Reset default only while a made default exists", function () {
     expect(labels(openMenu(null, () => {}, display(false, [])))).to.not.include(
-      "Restore built-in for new blank graphs",
+      "Reset default for new graphs",
     );
   });
 
@@ -221,17 +217,15 @@ describe("the View dropdown's display actions (D35)", function () {
     const calls: string[] = [];
     const menu = openMenu(null, () => {}, display(true, calls));
     for (const label of [
-      "Graph display settings…",
-      "Reset this graph",
-      "Use these for new blank graphs",
-      "Restore built-in for new blank graphs",
+      "Set as default for new graphs",
+      "Reset default for new graphs",
     ]) {
       menu
         .all("cm-view-action")
         .find((action) => action.textContent === label)
         ?.click();
     }
-    expect(calls).to.deep.equal(["settings", "reset", "use", "restore"]);
+    expect(calls).to.deep.equal(["use", "restore"]);
   });
 });
 

@@ -152,20 +152,15 @@ opacity grade).
 - D11's check failed on 2026-11-01: a References fill still leaves nodes as
   "Title unavailable" beside the resolved ones. Measure under D11.
 
-## From the 2026-11-02 walk
+## From the 2026-11-04 walk
 
-Passed: B116, B119, D10, D23, D36's Selected row and rail, F6, F10, F12. B50,
-B72 and B64 are retired on the suite's simulated refusals, the user's call.
+Passed: D37, W2, W6, W11, F9. The user chose logo B, settings A with no
+Use all providers button, and the three-action View menu.
 
-- [ ] W5 D35: the View menu is too complicated. Fewer items, the rest behind
-      them. The gear's foot keeps only reset, labelled without "this graph"
-- [ ] W8 D11: Title unavailable nodes grow over a fill and do not resolve; why
-      is unexplained (hydration stops at 2 attempts a session). The stack is
-      fixed
 - [ ] W9 D40: 14 failed after an offline fill; nothing changed on reconnecting.
       Two unknowns: what the 14 are, and whether Zotero fires `online`. The
-      check below tells; no fix without it
-- [ ] W12 F9's check and B78's were not understood; explain them
+      user left the check for later; no fix without it
+- [ ] W14 why an update can take long is unexplored; W7 only shows it
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -174,38 +169,43 @@ user to verify right away. Install the XPI from `.scaffold/build/meristema.xpi`
 (built from the latest main), then walk the list; tick what passes, and turn
 any failure into a new entry above.
 
-- [ ] D37: Impact's card description has no word alone on its last line.
-- [ ] W2: only the seeds' edges draw, at any size; hovering or selecting any
-      paper adds its edges; a graph with no seed draws them all.
-- [ ] W3: the small marks across Zotero are concept C; the add-ons manager's
-      icon is white in the dark theme and dark in the light one.
-- [ ] W4: a search hides the edges of papers it misses; clicking a grey paper
-      gives a corner message; the x clears the box.
-- [ ] W6: type a folder's name in Search collections and press Enter: the paper
-      is added to the first match, also when the library already holds it.
-- [ ] W7: Update this paper's connections on an external paper says when it
-      starts and ends, and new citers draw with no library change.
-- [ ] W8: Title unavailable papers spread out in the No data band, and do not
-      pile up.
-- [ ] W9: fill offline, reconnect, read the failed count, and point at it: do
-      the lit papers have a DOI? Run `return navigator.onLine` in Run JavaScript
-      offline and online.
-- [ ] W10: a selected paper's outermost circle glows, with no extra ring.
-- [ ] W11: while a hop fills, or stops with papers left, Fetch of the next hop
-      is greyed with a tooltip.
+- [ ] W3: the small marks across Zotero are the five-arm whorl, and it holds its
+      shape at 16px; the add-ons manager's icon is white in the dark theme and
+      dark in the light one.
+- [ ] W5: View lists Choose a view, Save current as view and More; More opens in
+      place with Set as default for new graphs, Reset default for new graphs
+      (only once one is set), Copy view as JSON and Import view JSON.
+- [ ] W13: Settings has no Automatic row and nothing greyed: all providers are
+      ticked, and unticking one sticks across a reopen. Reset all settings asks
+      first, then puts the settings back and keeps both API keys.
+- [ ] W4: the search box's x sits on the field's middle, with room to its right
+      and no background; pressing it empties the field and it goes away, and the
+      graph stops searching.
+- [ ] W7: update two papers at once: each pulses a ring until its own update
+      ends, and each message names its paper.
+- [ ] W8: a fill no longer lands Title unavailable papers that move later: a
+      paper appears once its details were tried, in its final place, and the
+      hop's count shows the ones still held back. The paper stays Title
+      unavailable only if no provider knew it. A paper already placed does not
+      vanish on a Refresh.
+- [ ] W10: the selected paper's glow is tighter.
+- [ ] W15: Fetch to hop 5 under Citers, switch to References: it opens at hop 1
+      and fetches nothing deeper; back on Citers, hop 5 is still there; save and
+      reopen keeps both.
+- [ ] W16: hovering a folder whose papers are all in subfolders dims the rest,
+      like a subfolder's row.
+- [ ] W17: the gear's foot is one Reset button, with no label; View keeps the
+      new blank graph actions.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
-      `Cite all 2 seeds`, with an edge to each seed in its colour;
+      `Cite all 2 seeds`, with an edge to each seed, in the usual edge colour;
       `Shared by ≥ 2` keeps it. Repeat under References, where the tier reads
       `Cited by all 2 seeds`. Close and reopen the graph: the grading is back
       with no check request. Clear the key in Settings with the graph open:
       the citer moves to `Cite 1 seed` at once, no reopen; put it back and it
       is in
       `Cite all 2 seeds` again, with no check request (B79).
-- [ ] F9: a library paper with an empty DOI field that the plugin matched
-      shows "This item has no DOI"; Add (or Confirm and add) writes it, and
-      Zotero's Info pane shows it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -573,3 +573,8 @@ entries are in git history.
   capped its list. Filing with Enter also found collection.addItem rejecting
   outside a transaction: a paper with no identifier or already held was never
   filed. Not pushed.
+- 2026-11-04: the user walked that build. Fixed: the x's input event threw in
+  the plugin's scope; a parent folder's row read only its own papers; hop depth
+  was shared across directions; Seeds linked no longer colours arrows, the
+  user's call. W8 was what the user guessed: papers landed ahead of the summary
+  queue, so a graph now holds back what the queue has not tried.

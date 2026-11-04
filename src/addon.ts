@@ -12,6 +12,8 @@ export interface MeristemaAPI {
   refreshAll(): void;
   clearAllCachedData(): void;
   providerSelectionChanged(): void;
+  /** Asks first; whether the settings were reset. */
+  resetAllSettings(): boolean;
   openOpenAlexAccount(): void;
   cacheStatus(): GraphCacheStatus;
 }
@@ -24,6 +26,7 @@ function unavailableAPI(): MeristemaAPI {
     refreshAll: unavailable,
     clearAllCachedData: unavailable,
     providerSelectionChanged: unavailable,
+    resetAllSettings: unavailable,
     openOpenAlexAccount: unavailable,
     cacheStatus: unavailable,
   });

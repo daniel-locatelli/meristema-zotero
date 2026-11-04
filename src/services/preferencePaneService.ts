@@ -8,6 +8,7 @@ import {
 import {
   getShowMetricTooltipsEnabled,
   normalizeCitationPreferences,
+  resetAllPreferences,
 } from "./citationPreferences";
 import { getCitationUpdateLibraryIDs } from "./citationLibraryService";
 import { clearExternalWorkCache } from "./externalWorkCacheService";
@@ -137,6 +138,17 @@ function exposePreferenceActions(): void {
       void runPreferenceAction("clearing all cached data", clearAllCachedData);
     },
     providerSelectionChanged: (): void => refreshProviderConfiguration(),
+    resetAllSettings: (): boolean => {
+      const confirmed = Services.prompt.confirm(
+        Zotero.getMainWindow() as any,
+        "Reset all settings",
+        "Put every Meristema setting back on its default? Your API keys and cached data stay.",
+      );
+      if (!confirmed) return false;
+      resetAllPreferences();
+      refreshProviderConfiguration();
+      return true;
+    },
     openOpenAlexAccount: (): void => Zotero.launchURL("https://openalex.org/"),
     cacheStatus: (): ReturnType<typeof getCitationCacheStatus> =>
       getCitationCacheStatus(),

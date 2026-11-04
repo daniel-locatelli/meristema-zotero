@@ -133,17 +133,9 @@
   cursor: pointer;
 }
 
-.meristema-provider-all {
-  font-weight: 600;
-}
-
 .meristema-provider-children {
   min-width: 0;
-  margin: 3px 0 3px 26px;
-}
-
-.meristema-provider-status {
-  margin-left: 26px;
+  margin: 3px 0;
 }
 
 .meristema-pref-help html|a {
@@ -209,23 +201,10 @@
   cursor: pointer;
 }
 
-.meristema-pref-children.meristema-options-locked .meristema-child-option,
-.meristema-provider-children.meristema-options-locked
-  .meristema-provider-option {
+.meristema-pref-children.meristema-options-locked .meristema-child-option {
   opacity: 0.55;
 }
 
-.meristema-pref-children.meristema-options-locked .meristema-child-option,
-.meristema-provider-children.meristema-options-locked
-  .meristema-provider-option {
+.meristema-pref-children.meristema-options-locked .meristema-child-option {
   cursor: default;
-}
-
-/* Provider credentials remain fully interactive while provider selection is
-   locked by Automatic mode. */
-.meristema-provider-children.meristema-options-locked
-  .meristema-provider-credential-row,
-.meristema-provider-children.meristema-options-locked
-  .meristema-provider-key-help {
-  opacity: 1;
 }

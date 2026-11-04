@@ -791,19 +791,18 @@ describe("Graph views (D4)", function () {
           ) as HTMLButtonElement[]
         ).find(
           (candidate) =>
-            normalize(candidate.textContent) === "Copy current as JSON",
+            normalize(candidate.textContent) === "Copy view as JSON",
         );
-        expect(action, "the Copy current as JSON action").to.exist;
+        expect(action, "the Copy view as JSON action").to.exist;
         action!.click();
         await waitFor(() => copied.length > 0, 2_000);
       }
     } finally {
       internal.copyTextToClipboard = copy;
     }
-    expect(
-      copied.length,
-      "Copy current as JSON reached the clipboard",
-    ).to.equal(1);
+    expect(copied.length, "Copy view as JSON reached the clipboard").to.equal(
+      1,
+    );
     expect(
       JSON.parse(copied[0]!).name,
       "the copy is named after the graph's view",
@@ -851,7 +850,7 @@ describe("Graph views (D4)", function () {
         )
           .find(
             (candidate) =>
-              normalize(candidate.textContent) === "Copy current as JSON",
+              normalize(candidate.textContent) === "Copy view as JSON",
           )
           ?.click();
       } finally {
@@ -1027,7 +1026,7 @@ describe("Graph views (D4)", function () {
       await waitFor(() => greeting.hidden, 5_000);
     }
 
-    // A toast, raised the way a reader raises one: Copy current as JSON.
+    // A toast, raised the way a reader raises one: Copy view as JSON.
     const internal = Zotero.Utilities.Internal as unknown as {
       copyTextToClipboard: (text: string) => void;
     };
@@ -1053,9 +1052,9 @@ describe("Graph views (D4)", function () {
           ) as HTMLButtonElement[]
         ).find(
           (candidate) =>
-            normalize(candidate.textContent) === "Copy current as JSON",
+            normalize(candidate.textContent) === "Copy view as JSON",
         );
-        expect(action, "the Copy current as JSON action").to.exist;
+        expect(action, "the Copy view as JSON action").to.exist;
         action!.click();
         await waitFor(() => copies > 0, 2_000);
       }
@@ -1282,7 +1281,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      await viewAction("Use these for new blank graphs");
+      await viewAction("Set as default for new graphs");
       expect(
         JSON.parse(stored()).nodeLabelMode,
         `the made default; stored ${stored()}`,
@@ -1298,7 +1297,7 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      await viewAction("Restore built-in for new blank graphs");
+      await viewAction("Reset default for new graphs");
       expect(stored(), "the made default is forgotten").to.equal("");
       expect(
         labelSelect().value,
@@ -1337,28 +1336,15 @@ describe("Graph views (D4)", function () {
       "focusGraphAppearanceVersion",
     ].map((name) => `${config.prefsPrefix}.${name}`);
     const previous = names.map((name) => Zotero.Prefs.get(name, true));
-    const rail = (): HTMLElement =>
-      graphRoot().querySelector(".cm-key-rail") as HTMLElement;
     const panel = (): HTMLElement =>
       graphRoot().querySelector(".cm-appearance-panel") as HTMLElement;
-    const menuAction = async (label: string): Promise<void> => {
-      const menu = await openChipMenu();
-      buttonReading(menu, label).click();
-    };
     try {
       for (const name of names) Zotero.Prefs.clear(name, true);
       win.Zotero_Tabs.select(tabID);
-      if (rail().dataset.collapsed !== "true") {
-        (graphRoot().querySelector(".cm-key-toggle") as HTMLElement).click();
-      }
-      await waitFor(() => rail().dataset.collapsed === "true", 5_000);
-      expect(rail().dataset.collapsed, "the rail collapsed").to.equal("true");
-
-      await menuAction("Graph display settings…");
+      (
+        graphRoot().querySelector(".cm-appearance-button") as HTMLElement
+      ).click();
       await waitFor(() => !panel().hidden, 5_000);
-      expect(rail().dataset.collapsed, "the rail opened for it").to.not.equal(
-        "true",
-      );
       expect(panel().hidden, "the gear's panel opened").to.equal(false);
       expect(
         panel().getBoundingClientRect().width,
@@ -1369,7 +1355,7 @@ describe("Graph views (D4)", function () {
       labels.value = labels.value === "title" ? "none" : "title";
       fire(labels, "change");
       await delay(300);
-      await menuAction("Reset this graph");
+      buttonReading(panel(), "Reset").click();
       expect(labelSelect().value, "Reset put the built-in label back").to.equal(
         "author-year",
       );
@@ -1379,7 +1365,7 @@ describe("Graph views (D4)", function () {
           Array.from(menu.querySelectorAll(".cm-view-action")) as HTMLElement[]
         ).map((action) => normalize(action.textContent)),
         "no made default, so no Restore built-in",
-      ).to.not.include("Restore built-in for new blank graphs");
+      ).to.not.include("Reset default for new graphs");
       await closeChipMenu();
     } finally {
       names.forEach((name, i) => {

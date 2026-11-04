@@ -802,9 +802,26 @@
   margin-top: 10px;
   margin-bottom: 6px;
 }
-.meristema-root .cm-view-action {
+.meristema-root .cm-view-action,
+.meristema-root .cm-view-more {
   justify-content: flex-start;
   border-color: transparent;
+}
+.meristema-root .cm-view-more {
+  justify-content: space-between;
+}
+.cm-view-more-mark {
+  transition: transform 80ms linear;
+}
+.cm-view-more[aria-expanded="true"] .cm-view-more-mark {
+  transform: rotate(90deg);
+}
+.cm-view-more-actions {
+  display: flex;
+  flex-direction: column;
+}
+.cm-view-more-actions[hidden] {
+  display: none;
 }
 .meristema-root .cm-link-button {
   padding: 0;

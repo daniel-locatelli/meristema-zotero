@@ -19,10 +19,6 @@ import { element, text } from "./graphViewControls";
  * holds them, and View is where a reader looks for what a graph shows.
  */
 export interface GraphDisplayActions {
-  /** Open the gear's panel, Graph display settings. */
-  openSettings(): void;
-  /** This graph back on what a new blank graph opens with. */
-  reset(): void;
   /** Open new blank graphs with this graph's settings. */
   useForNewBlank(): void;
   /** Forget the made default; new blank graphs open on the built-in one. */
@@ -179,12 +175,12 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
         );
       }
     }
+    const rule = (): HTMLElement =>
+      text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule");
     const group = (
+      host: HTMLElement,
       actions: ReadonlyArray<readonly [string, () => void]>,
     ): void => {
-      menu.append(
-        text(document, "div", "", "cm-graph-menu-heading cm-view-menu-rule"),
-      );
       for (const [labelText, handler] of actions) {
         const action = element(document, "button", "cm-view-action");
         action.type = "button";
@@ -195,33 +191,46 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
           close();
           handler();
         });
-        menu.append(action);
+        host.append(action);
       }
     };
-    group([
-      ["Save current as view…", o.onSaveCurrent],
-      ["Copy current as JSON", o.onCopyCurrent],
-      ["Import view JSON…", o.onImport],
+    menu.append(rule());
+    group(menu, [
       ["Choose a view…", o.onOpenGallery],
+      ["Save current as view…", o.onSaveCurrent],
     ]);
+    // The rest opens in place, so the menu stays one box (W5).
+    const more = element(document, "button", "cm-view-more");
+    more.type = "button";
+    more.setAttribute("aria-expanded", "false");
+    more.append(
+      text(document, "span", "More"),
+      text(document, "span", "›", "cm-view-more-mark"),
+    );
+    const rest = element(document, "div", "cm-view-more-actions");
+    rest.hidden = true;
+    more.addEventListener("click", (event) => {
+      event.stopPropagation();
+      rest.hidden = !rest.hidden;
+      more.setAttribute("aria-expanded", rest.hidden ? "false" : "true");
+    });
+    menu.append(more, rest);
     const display = o.display;
     if (display) {
-      // What this graph shows, then what new blank graphs open with: the
-      // gear's two action lines, in its order (D32).
-      group([
-        ["Graph display settings…", () => display.openSettings()],
-        ["Reset this graph", () => display.reset()],
-        ["Use these for new blank graphs", () => display.useForNewBlank()],
+      group(rest, [
+        ["Set as default for new graphs", () => display.useForNewBlank()],
         ...(display.hasStoredDefault()
           ? ([
-              [
-                "Restore built-in for new blank graphs",
-                () => display.restoreBuiltIn(),
-              ],
+              ["Reset default for new graphs", () => display.restoreBuiltIn()],
             ] as const)
           : []),
       ]);
+      rest.append(rule());
     }
+    group(rest, [
+      ["Copy view as JSON", o.onCopyCurrent],
+      ["Import view JSON…", o.onImport],
+    ]);
   };
 
   const close = (): void => {

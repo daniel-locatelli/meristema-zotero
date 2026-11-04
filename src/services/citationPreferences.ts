@@ -31,6 +31,22 @@ function setBoolPref(name: string, value: boolean): void {
   Zotero.Prefs.set(key(name), value, true);
 }
 
+/** Credentials the reader pasted in: a reset of settings leaves them. */
+const PREFERENCES_A_RESET_KEEPS = new Set([
+  "openAlexAPIKey",
+  "semanticScholarAPIKey",
+]);
+
+/** Every Meristema preference back on its default, except the keys. */
+export function resetAllPreferences(): void {
+  const names = Services.prefs.getBranch(key("")).getChildList("");
+  for (const name of names) {
+    if (!PREFERENCES_A_RESET_KEEPS.has(name)) {
+      Zotero.Prefs.clear(key(name), true);
+    }
+  }
+}
+
 export function getProviderAutomaticEnabled(): boolean {
   return boolPref("providerAutomatic", true);
 }
