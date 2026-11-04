@@ -164,11 +164,9 @@ Use all providers button, and the three-action View menu.
 - [ ] W19 review every option in Graph display settings: some may be
       unnecessary. Include the `From view:` line, whose reason (the gear's
       Use these) has left the gear
-- [ ] W18 References' Fetch hop 2 opened nothing once, in the full run at
-      `649f589` (144/4, the rest cascaded), then 149/0 twice at `b5fe112` and
-      `31e9051` with no Fetch change between. The case's message now prints whether the button
-      stayed connected and the root stayed the same: `false` means fix the
-      case, `true` means a real bug
+- [ ] W22 "keeps a record of an open graph tab" failed once with no records at
+      all, in the full run at `c0bc3b8`, after 149/0 twice. Cause unknown; the case
+      prints the records
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -596,3 +594,6 @@ entries are in git history.
   was shared across directions; Seeds linked no longer colours arrows, the
   user's call. W8 was what the user guessed: papers landed ahead of the summary
   queue, so a graph now holds back what the queue has not tried.
+- 2026-11-05: W18's evidence printed `connected false`: a refresh read the view's
+  state, then mounted on a frame, and a click in that gap was lost (Fetch hop N
+  went back to its button). The refresh now reads again at the mount.
