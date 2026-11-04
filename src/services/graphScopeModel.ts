@@ -86,6 +86,19 @@ export function initialGraphScope(origin: GraphOrigin): InitialGraphScope {
   }
 }
 
+/** The papers filed in any of these folders: a parent's row covers its subtree. */
+export function keysInCollections(
+  nodes: readonly { key: string; collectionIDs: readonly number[] }[],
+  collectionIDs: readonly number[],
+): Set<string> {
+  const wanted = new Set(collectionIDs);
+  return new Set(
+    nodes
+      .filter((node) => node.collectionIDs.some((id) => wanted.has(id)))
+      .map((node) => node.key),
+  );
+}
+
 export function isCollectionTicked(
   ticks: GraphViewCollectionTicks,
   collectionID: number,

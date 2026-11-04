@@ -469,6 +469,31 @@ describe("The graph's Scope rail", function () {
     expect(scopeCount()).to.equal(before);
   });
 
+  it("clears the search with its x, which then goes away (W4)", async function () {
+    const search = graphRoot().querySelector(".cm-search") as HTMLInputElement;
+    const clear = graphRoot().querySelector(
+      ".cm-search-clear",
+    ) as HTMLButtonElement;
+    expect(clear.hidden, "no x over an empty field").to.equal(true);
+    search.value = "fixture";
+    search.dispatchEvent(new win.Event("input", { bubbles: true }));
+    expect(clear.hidden, "the x shows with text").to.equal(false);
+    const field = search.getBoundingClientRect();
+    const box = clear.getBoundingClientRect();
+    expect(
+      Math.abs(box.top + box.height / 2 - (field.top + field.height / 2)),
+      "the x sits on the field's middle",
+    ).to.be.at.most(1);
+    expect(field.right - box.right, "room right of the x").to.be.at.least(6);
+    expect(
+      win.getComputedStyle(clear).backgroundColor,
+      "the x has no background",
+    ).to.equal("rgba(0, 0, 0, 0)");
+    clear.click();
+    expect(search.value, "the field is empty").to.equal("");
+    expect(clear.hidden, "the x goes away").to.equal(true);
+  });
+
   it("has File and no Seeds button, and opens the panel from the rail", async function () {
     this.timeout(30_000);
     const toolbar = graphRoot().querySelector(

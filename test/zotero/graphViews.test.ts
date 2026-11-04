@@ -1263,31 +1263,9 @@ describe("Graph views (D4)", function () {
         return null;
       }, 5_000);
       expect(panel, "the gear's panel opened").to.exist;
-      const back = (): HTMLButtonElement =>
-        buttonReading(panel!, "Restore built-in");
-      expect(back().hidden, "no made default, no way back").to.equal(true);
-      // D32: two labelled lines, their buttons in one column.
-      const left = (label: string): number =>
-        Math.round(buttonReading(panel!, label).getBoundingClientRect().left);
-      const labelsLeft = (
-        Array.from(
-          panel!.querySelectorAll(".cm-appearance-action-label"),
-        ) as HTMLElement[]
-      ).map((label) => [
-        normalize(label.textContent),
-        Math.round(label.getBoundingClientRect().right) <= left("Reset"),
-      ]);
-      expect(
-        labelsLeft,
-        "the lines' labels, left of the buttons",
-      ).to.deep.equal([
-        ["This graph", true],
-        ["New blank graphs", true],
-      ]);
-      expect(left("Use these"), "Use these lines up under Reset").to.equal(
-        left("Reset"),
-      );
-
+      const viewAction = async (label: string): Promise<void> => {
+        buttonReading(await openChipMenu(), label).click();
+      };
       const labels = labelSelect();
       labels.value = labels.value === "title" ? "none" : "title";
       const edited = labels.value;
@@ -1304,12 +1282,11 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      buttonReading(panel!, "Use these").click();
+      await viewAction("Use these for new blank graphs");
       expect(
         JSON.parse(stored()).nodeLabelMode,
         `the made default; stored ${stored()}`,
       ).to.equal(edited);
-      expect(back().hidden, "the way back is offered").to.equal(false);
 
       otherTab = await openNewGraphFromTools();
       expect(
@@ -1321,13 +1298,12 @@ describe("Graph views (D4)", function () {
       await delay(300);
 
       win.Zotero_Tabs.select(tabID);
-      back().click();
+      await viewAction("Restore built-in for new blank graphs");
       expect(stored(), "the made default is forgotten").to.equal("");
       expect(
         labelSelect().value,
         `the graph is on the built-in one; panel connected ${panel!.isConnected}`,
       ).to.equal("author-year");
-      expect(back().hidden, "nothing left to forget").to.equal(true);
     } finally {
       if (otherTab) win.Zotero_Tabs.close(otherTab);
       names.forEach((name, i) => {

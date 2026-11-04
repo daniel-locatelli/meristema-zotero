@@ -11,6 +11,7 @@ import {
   regionMemberKeys,
   initialGraphScope,
   setCollectionTicks,
+  keysInCollections,
 } from "../../src/services/graphScopeModel";
 import type {
   GraphScopeHops,
@@ -663,5 +664,21 @@ describe("initialGraphScope", function () {
       floor: 0,
     });
     expect([...result.visibleKeys].sort()).to.deep.equal(["citer", "seed"]);
+  });
+});
+
+describe("keysInCollections", function () {
+  const nodes = [
+    { key: "own", collectionIDs: [1] },
+    { key: "child", collectionIDs: [2] },
+    { key: "out", collectionIDs: [3] },
+  ];
+
+  it("covers a parent's subfolders, so a parent with no papers of its own lights them", function () {
+    expect([...keysInCollections(nodes, [1, 2])]).to.deep.equal([
+      "own",
+      "child",
+    ]);
+    expect([...keysInCollections(nodes, [9, 2])]).to.deep.equal(["child"]);
   });
 });

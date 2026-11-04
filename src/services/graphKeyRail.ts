@@ -43,7 +43,7 @@ import {
 export type RailEmphasis =
   | { kind: "key"; entry: KeyEntry }
   | { kind: "seed"; seedKey: string }
-  | { kind: "collection"; collectionID: number }
+  | { kind: "collection"; collectionIDs: readonly number[] }
   /** The papers the fill failed on, in the current direction (D40). */
   | { kind: "failed" };
 
@@ -578,7 +578,12 @@ export function createKeyRail(options: KeyRailOptions): KeyRail {
         options.onScope.selectRow(row, !row.selected),
       );
       body.addEventListener("pointerenter", () => {
-        if (!pinned) options.onEmphasise({ kind: "collection", collectionID });
+        if (!pinned) {
+          options.onEmphasise({
+            kind: "collection",
+            collectionIDs: row.cascadeIDs,
+          });
+        }
       });
       body.addEventListener("pointerleave", () => {
         if (!pinned) options.onEmphasise(null);

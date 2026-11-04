@@ -309,12 +309,14 @@
 }
 .cm-search {
   width: 100%;
+  margin: 0 !important;
   padding-left: 29px !important;
-  padding-right: 24px !important;
+  padding-right: 30px !important;
 }
-.meristema-root .cm-plot-toolbar .cm-search-clear {
+.meristema-root .cm-plot-toolbar .cm-search-clear,
+.meristema-root .cm-plot-toolbar .cm-search-clear:hover:not(:disabled) {
   position: absolute;
-  right: 4px;
+  right: 8px;
   top: 50%;
   display: flex;
   align-items: center;
@@ -325,16 +327,24 @@
   min-height: 18px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: transparent;
+  appearance: none;
+  background: none;
+  box-shadow: none;
   color: inherit;
-  font-size: 1.2em;
-  line-height: 1;
   opacity: 0.65;
   transform: translateY(-50%);
 }
-.meristema-root .cm-plot-toolbar .cm-search-clear:hover {
+.meristema-root .cm-plot-toolbar .cm-search-clear:hover:not(:disabled) {
   opacity: 1;
+}
+.meristema-root .cm-plot-toolbar .cm-search-clear svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
 }
 .meristema-root .cm-plot-toolbar .cm-search-clear[hidden] {
   display: none;
@@ -496,26 +506,10 @@
   color: var(--cm-muted);
   font-size: calc(11 * var(--cm-font-unit));
 }
-/* D32: a muted label, then its buttons; the grid lines the buttons of both
- * lines up under each other. */
 .cm-appearance-actions {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 7px 10px;
-  align-items: center;
-  margin-top: 10px;
-}
-.cm-appearance-action-line {
-  display: contents;
-}
-.cm-appearance-action-label {
-  color: var(--cm-muted);
-  font-size: calc(11 * var(--cm-font-unit));
-}
-.cm-appearance-action-buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 .cm-detail-shell {
   position: relative;

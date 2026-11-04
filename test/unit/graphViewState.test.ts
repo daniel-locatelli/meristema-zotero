@@ -364,6 +364,27 @@ describe("serializeGraphViewState / parseGraphViewState", function () {
   });
 });
 
+describe("each direction's own depth", function () {
+  it("keeps the other direction's depth, and reads a missing one as 1", function () {
+    const state: GraphViewState = {
+      ...emptyGraphViewState(),
+      hops: {
+        direction: "references",
+        depth: 2,
+        otherDepth: 5,
+        enabled: emptyGraphViewState().hops.enabled,
+      },
+    };
+    const parsed = parseGraphViewState(serializeGraphViewState(state));
+    expect(parsed!.hops.depth).to.equal(2);
+    expect(parsed!.hops.otherDepth).to.equal(5);
+    const plain = parseGraphViewState(
+      serializeGraphViewState(emptyGraphViewState()),
+    );
+    expect(plain!.hops.otherDepth).to.equal(undefined);
+  });
+});
+
 describe("version 3", function () {
   it("keeps the regions a graph was saved with", function () {
     const state = { ...emptyGraphViewState(), regions: [7, 9] };

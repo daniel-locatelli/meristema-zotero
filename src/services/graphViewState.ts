@@ -62,6 +62,8 @@ export interface GraphViewHopsSettings {
   direction: HopDirection;
   /** The deepest hop opened, 1..6. */
   depth: number;
+  /** The same for the other direction; absent reads 1. */
+  otherDepth?: number;
   /** By hop, length 7; index 0 is the seeds and is always true. */
   enabled: boolean[];
 }
@@ -540,7 +542,14 @@ function parseHops(
           : fallback,
     );
     return {
-      hops: { direction, depth: clampHopDepth(rawHops.depth), enabled },
+      hops: {
+        direction,
+        depth: clampHopDepth(rawHops.depth),
+        ...(typeof rawHops.otherDepth === "number"
+          ? { otherDepth: clampHopDepth(rawHops.otherDepth) }
+          : {}),
+        enabled,
+      },
       migratedFromBoth: false,
     };
   }

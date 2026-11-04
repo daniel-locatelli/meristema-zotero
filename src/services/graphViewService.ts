@@ -89,6 +89,7 @@ import {
   initialGraphScope,
   collectionTickState,
   computeGraphScope,
+  keysInCollections,
   expandTicksThroughDescendants,
   onlyCollectionsTicked,
   purgeHiddenKeys,
@@ -676,6 +677,8 @@ export function renderGraphView(
   let hopModel: GraphHopModel | null = null;
   let hopDirection: HopDirection = "cited-by";
   let hopDepth = 1;
+  /** The other direction's own depth: a Fetch opens hops on one side only. */
+  let otherHopDepth = 1;
   let hopEnabled: boolean[] = defaultHopEnabled();
   /** The citation floor (spec: the citation floor), 0 when off. */
   let floor = 0;
@@ -1094,7 +1097,18 @@ export function renderGraphView(
   searchWrap.appendChild(search);
   const clearSearch = element(document, "button", "cm-search-clear");
   clearSearch.type = "button";
-  clearSearch.textContent = "\u00d7";
+  const clearMark = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "svg",
+  );
+  clearMark.setAttribute("viewBox", "0 0 10 10");
+  const clearStroke = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "path",
+  );
+  clearStroke.setAttribute("d", "M1.5 1.5l7 7M8.5 1.5l-7 7");
+  clearMark.appendChild(clearStroke);
+  clearSearch.appendChild(clearMark);
   clearSearch.title = "Clear search";
   clearSearch.setAttribute("aria-label", "Clear search");
   clearSearch.hidden = true;
@@ -1102,7 +1116,11 @@ export function renderGraphView(
     // The wrap is a label, which would hand the click to the field.
     event.preventDefault();
     search.value = "";
-    search.dispatchEvent(new Event("input", { bubbles: true }));
+    // The window's Event: this bundle's scope has none, and a throw here left
+    // the x showing over an empty field, and the graph still searching.
+    search.dispatchEvent(
+      new (document.defaultView as any).Event("input", { bubbles: true }),
+    );
     search.focus();
   });
   search.addEventListener("input", () => {
@@ -1581,12 +1599,7 @@ export function renderGraphView(
     if (emphasis.kind === "failed") {
       return new Set(hopFill.failures()[hopDirection]);
     }
-    const collectionID = emphasis.collectionID;
-    return new Set(
-      model.nodes
-        .filter((node) => node.collectionIDs.includes(collectionID))
-        .map((node) => node.key),
-    );
+    return keysInCollections(model.nodes, emphasis.collectionIDs);
   };
   // Both are the runner's, assigned where it is built: Fetch hop N raises the
   // depth and starts the fill, and the progress line controls it.
@@ -2493,6 +2506,7 @@ export function renderGraphView(
       );
       hopFill.resume();
       if (change.changed) {
+        if (change.direction !== hopDirection) otherHopDepth = hopDepth;
         hopDirection = change.direction;
         hopDepth = change.depth;
         hopEnabled = [...change.enabled];
@@ -5011,6 +5025,7 @@ ${error instanceof Error ? error.message : String(error)}`,
   const setHopDirection = (direction: HopDirection): void => {
     if (direction === hopDirection) return;
     hopDirection = direction;
+    [hopDepth, otherHopDepth] = [otherHopDepth, hopDepth];
     // A request in flight still stores; only its callbacks are dropped, and
     // the counts and caps are kept per direction (spec, "Direction switch").
     hopFill.invalidate();
@@ -5672,6 +5687,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       hops: {
         direction: hopDirection,
         depth: hopDepth,
+        ...(otherHopDepth > 1 ? { otherDepth: otherHopDepth } : {}),
         enabled: [...hopEnabled],
       },
       filters,
@@ -5732,6 +5748,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     const result = withoutSelectionReport(() => {
       hopDirection = state.hops.direction;
       hopDepth = state.hops.depth;
+      otherHopDepth = state.hops.otherDepth ?? 1;
       hopEnabled = [...state.hops.enabled];
       floor = state.floor;
       shared = state.shared;
@@ -5982,6 +5999,7 @@ ${error instanceof Error ? error.message : String(error)}`,
         // request does not name, and a request never names filters.
         hopDirection = options.initialState.hops.direction;
         hopDepth = options.initialState.hops.depth;
+        otherHopDepth = options.initialState.hops.otherDepth ?? 1;
         hopEnabled = [...options.initialState.hops.enabled];
         floor = options.initialState.floor;
         shared = options.initialState.shared;

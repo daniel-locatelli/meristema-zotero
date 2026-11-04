@@ -97,13 +97,10 @@ import {
   edgeCullMargin,
   edgeLineInset,
   reciprocalEdgeKeys,
-  seedLinkEdgeColor,
   shouldDrawArrowhead,
   ARROWHEAD_SEAM_OVERLAP_CSS,
   ARROWHEAD_SIZE_CSS,
   EDGE_CURVE_APEX_CSS,
-  SEED_LINK_EDGE_ALPHA,
-  SEED_LINK_EDGE_WIDTH_CSS,
 } from "./graphEdgeStyle";
 import { seedLinkLabelRank } from "./graphSeedLinks";
 import { isContextMenuKey } from "./nodeMenu";
@@ -204,7 +201,7 @@ const EMPHASIS_ALPHA = 0.25;
 /** What a paper the search misses says under the pointer (ADR 0023). */
 export const CLEAR_SEARCH_TO_SELECT = "Clear search to select";
 /** How far a selected paper's glow reaches. */
-const SELECTION_GLOW_BLUR_CSS = 12;
+const SELECTION_GLOW_BLUR_CSS = 6;
 
 /** How an edge lights for the paper `key`: into it, out of it, or not at all. */
 function litConnection(
@@ -431,7 +428,6 @@ export class CitationGraphRenderer {
     {
       entries: Array<{
         edge: { source: string; target: string };
-        seedLink: string | null;
         reciprocal: boolean;
       }>;
       baseOpacity: number;
@@ -1410,13 +1406,10 @@ export class CitationGraphRenderer {
     baseOpacity: number,
     /** The Key rail's emphasis, 1 when this edge belongs to what is emphasised. */
     emphasis: number,
-    /** The seed's colour for a shared paper's edge under Seeds linked. */
-    seedLinkColor: string | null = null,
   ): void {
     const context = this.context;
     const ratio = this.ratio;
     const edges = this.theme.edges;
-    const linked = seedLinkColor !== null && connection === null && !dimmed;
     const connected =
       connection === "citation" ? edges.incoming : edges.outgoing;
     // A reciprocal pair overdraws as one line when both are straight, so each
@@ -1452,11 +1445,7 @@ export class CitationGraphRenderer {
     // it is the whole point of the selection.
     context.globalAlpha =
       (ghosted ? 0.58 : 1) *
-      (connection
-        ? 1
-        : linked
-          ? SEED_LINK_EDGE_ALPHA
-          : Math.max(0, baseOpacity)) *
+      (connection ? 1 : Math.max(0, baseOpacity)) *
       emphasis;
     context.beginPath();
     context.moveTo(source.x, source.y);
@@ -1464,13 +1453,10 @@ export class CitationGraphRenderer {
     else context.quadraticCurveTo(control.x, control.y, endX, endY);
     context.strokeStyle = connection
       ? connected
-      : linked
-        ? seedLinkColor
-        : dimmed
-          ? edges.dimmed
-          : edges.base;
-    context.lineWidth =
-      (connection ? 2.15 : linked ? SEED_LINK_EDGE_WIDTH_CSS : 1) * ratio;
+      : dimmed
+        ? edges.dimmed
+        : edges.base;
+    context.lineWidth = (connection ? 2.15 : 1) * ratio;
     context.setLineDash(ghosted ? [6 * ratio, 5 * ratio] : []);
     if (connection) {
       context.shadowColor = litEdgeHalo(this.theme, connected);
@@ -2219,7 +2205,6 @@ export class CitationGraphRenderer {
   }
 
   private orderedEdges(selectedKey: string | null, marks: SeedMarks | null) {
-    const seedLinks = this.layout.nodeColorMetric === "seed-links";
     return this.edgeOrder.get(
       {
         edges: this.model.edges,
@@ -2228,26 +2213,18 @@ export class CitationGraphRenderer {
         hidden: this.hiddenEdgeRevision,
         selectedKey,
         marks,
-        seedLinks,
       },
       () => {
-        const seedLinkColorOf = (edge: { source: string; target: string }) =>
-          seedLinks && marks
-            ? seedLinkEdgeColor(edge.source, edge.target, marks)
-            : null;
         const rank = (entry: {
           edge: { source: string; target: string };
-          seedLink: string | null;
         }): number =>
           selectedKey !== null &&
           (entry.edge.source === selectedKey ||
             entry.edge.target === selectedKey)
-            ? 2
-            : entry.seedLink
-              ? 1
-              : 0;
+            ? 1
+            : 0;
         const sorted = [...this.visibleEdges()]
-          .map((edge) => ({ edge, seedLink: seedLinkColorOf(edge) }))
+          .map((edge) => ({ edge }))
           .sort((left, right) => rank(left) - rank(right));
         const reciprocal = reciprocalEdgeKeys(
           sorted.map((entry) => entry.edge),
@@ -2359,7 +2336,7 @@ export class CitationGraphRenderer {
         hoverKey: this.hoverKey,
         searchMatches: this.searchMatches,
       };
-      for (const { edge, seedLink, reciprocal: reciprocalEdge } of edges) {
+      for (const { edge, reciprocal: reciprocalEdge } of edges) {
         if (!edgeShownInMesh(edge, meshFocus)) continue;
         const source = this.screenPositions.get(edge.source);
         const target = this.screenPositions.get(edge.target);
@@ -2408,7 +2385,6 @@ export class CitationGraphRenderer {
             this.emphasisAlphaFor(edge.source),
             this.emphasisAlphaFor(edge.target),
           ),
-          seedLink,
         );
       }
 

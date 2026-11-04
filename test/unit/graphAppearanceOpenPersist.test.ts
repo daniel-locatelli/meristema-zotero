@@ -219,8 +219,7 @@ function colourSelect(gear: { root: HTMLDivElement }): FakeElement {
 
 /**
  * D17: a gear edit stays with its graph. The stored default changes only
- * through "Use these", and "Restore built-in" is there
- * only while a made default exists.
+ * through View's menu, which calls the two handlers these cases call.
  */
 describe("The gear's default", () => {
   it("keeps an edit with the graph and stores nothing", () => {
@@ -242,7 +241,7 @@ describe("The gear's default", () => {
     expect(persisted, "a gear edit stored a default").to.deep.equal([]);
   });
 
-  it("stores the graph's settings on Use these, then offers the way back", () => {
+  it("stores the graph's settings when View asks", () => {
     const { defaults, persisted } = fakeDefaults(false);
     const gear = createAxesAppearance(
       fakeDocument,
@@ -251,19 +250,16 @@ describe("The gear's default", () => {
       () => {},
       defaults,
     );
-    const back = buttonReading(gear, "Restore built-in");
-    expect(back.hidden, "no made default, no way back").to.equal(true);
     const select = colourSelect(gear);
     select.value = "provider";
     select.fire("change");
-    buttonReading(gear, "Use these").fire("click");
+    gear.useForNewBlank();
     expect(persisted).to.deep.equal([
       { ...BUILT_IN, nodeColorMetric: "provider" },
     ]);
-    expect(back.hidden).to.equal(false);
   });
 
-  it("forgets a made default on Restore built-in and shows the built-in one", () => {
+  it("forgets a made default when View asks, and shows the built-in one", () => {
     const { defaults, forgotten } = fakeDefaults(true);
     const changes: GraphLayoutOptions[] = [];
     const gear = createAxesAppearance(
@@ -273,16 +269,13 @@ describe("The gear's default", () => {
       (layout) => changes.push(layout),
       defaults,
     );
-    const back = buttonReading(gear, "Restore built-in");
-    expect(back.hidden, "a made default offers the way back").to.equal(false);
-    back.fire("click");
+    gear.restoreBuiltIn();
     expect(forgotten()).to.equal(1);
     expect(gear.getLayout()).to.deep.equal(BUILT_IN);
     expect(changes.at(-1)).to.deep.equal(BUILT_IN);
-    expect(back.hidden).to.equal(true);
   });
 
-  it("lays the actions out as two labelled lines (D32)", () => {
+  it("offers only Reset, with no label (the 2026-11-04 walk)", () => {
     const gear = createAxesAppearance(
       fakeDocument,
       BUILT_IN,
@@ -290,19 +283,11 @@ describe("The gear's default", () => {
       () => {},
       fakeDefaults(true).defaults,
     );
-    const lines = (gear.root as unknown as FakeElement)
+    const actions = (gear.root as unknown as FakeElement)
       .descendants()
-      .filter((el) =>
-        el.className.split(" ").includes("cm-appearance-action-line"),
-      );
-    expect(
-      lines.map((line) => [
-        line.children[0]?.textContent,
-        line.children[1]?.children.map((button) => button.textContent),
-      ]),
-    ).to.deep.equal([
-      ["This graph", ["Reset"]],
-      ["New blank graphs", ["Use these", "Restore built-in"]],
+      .find((el) => el.className.split(" ").includes("cm-appearance-actions"));
+    expect(actions?.children.map((child) => child.textContent)).to.deep.equal([
+      "Reset",
     ]);
   });
 

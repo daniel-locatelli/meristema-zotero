@@ -175,7 +175,7 @@ describe("CitationGraphRenderer hops", function () {
     expect(hop2Label!.globalAlpha, "hop-2 node's label alpha").to.equal(1);
   });
 
-  it("draws a shared paper's edge to a seed in that seed's colour, only under Seeds linked", function () {
+  it("keeps every edge's colour under Seeds linked (B78's walk)", function () {
     const graphModel: CitationGraphModel = {
       nodes: [node("s"), node("t"), node("a")],
       edges: [
@@ -230,16 +230,13 @@ describe("CitationGraphRenderer hops", function () {
     // its line. A seed's ring is stroked in the seed's colour too, so matching
     // any stroke by colour would find the ring.
     const [linked] = strokesUnder("seed-links");
-    expect(linked.strokeStyle, "the edge took seed s's colour").to.equal(
-      "#123456",
-    );
-    // The seed-link strength, with no hop ramp on top (D10).
-    expect(linked.globalAlpha).to.be.closeTo(0.85, 1e-9);
     const [plain] = strokesUnder("uniform");
-    expect(
+    expect(linked.strokeStyle, "the same ink as any colouring").to.equal(
       plain.strokeStyle,
-      "no seed-coloured edge under another colouring",
-    ).to.not.equal("#123456");
+    );
+    expect(linked.globalAlpha, "and the same strength").to.equal(
+      plain.globalAlpha,
+    );
   });
 });
 

@@ -381,7 +381,7 @@ export function createAxesAppearance(
   setSource: (source: AppearanceSource | null) => void;
   /** Open the panel, as its button does; View's Graph display settings (D35). */
   open: () => void;
-  /** The panel's Reset, Use these and Restore built-in, for View (D35). */
+  /** Reset, and what View's menu offers for new blank graphs (D35). */
   reset: () => void;
   useForNewBlank: () => void;
   restoreBuiltIn: () => void;
@@ -638,55 +638,14 @@ export function createAxesAppearance(
   };
   setSource(null);
   panel.append(sourceLine, tabs, xPane, yPane, nodesPane);
-  // D32: what each button moves, as a labelled line: this graph, or the
-  // graphs opened blank from now on. One flex row wrapped them out of order.
+  // New blank graphs' default is View's to set (D35); the gear keeps Reset.
   const actions = element(document, "div", "cm-appearance-actions");
-  const actionLine = (label: string): HTMLElement => {
-    const line = element(document, "div", "cm-appearance-action-line");
-    const buttons = element(document, "div", "cm-appearance-action-buttons");
-    line.append(text(document, "span", label, "cm-appearance-action-label"));
-    line.appendChild(buttons);
-    actions.appendChild(line);
-    return buttons;
-  };
-  const actionButton = (
-    line: HTMLElement,
-    label: string,
-    title: string,
-  ): HTMLButtonElement => {
-    const action = element(document, "button", "cm-secondary-button");
-    action.type = "button";
-    action.textContent = label;
-    action.title = title;
-    line.appendChild(action);
-    return action;
-  };
-  const thisGraph = actionLine("This graph");
-  const newBlank = actionLine("New blank graphs");
-  const reset = actionButton(
-    thisGraph,
-    "Reset",
-    "Put this graph back on the settings a new blank graph opens with.",
-  );
-  // D28: the stored default is what Start blank and a plain new graph open
-  // with; a view keeps its own settings, so the line says which it moves.
-  const makeDefault = actionButton(
-    newBlank,
-    "Use these",
-    "Open every new blank graph of this kind with this graph's settings. Views keep their own.",
-  );
-  const forgetDefault = actionButton(
-    newBlank,
-    "Restore built-in",
-    "Forget the settings you chose and open new blank graphs on the built-in ones.",
-  );
-  /** The way back is offered only while there is a made default to forget. */
-  const refreshDefaultActions = (): void => {
-    const stored = defaults.stored();
-    forgetDefault.hidden = !stored;
-    forgetDefault.style.display = stored ? "" : "none";
-  };
-  refreshDefaultActions();
+  const reset = element(document, "button", "cm-secondary-button");
+  reset.type = "button";
+  reset.textContent = "Reset";
+  reset.title =
+    "Put this graph back on the settings a new blank graph opens with.";
+  actions.appendChild(reset);
   panel.appendChild(actions);
   root.append(button, panel);
 
@@ -749,9 +708,6 @@ export function createAxesAppearance(
     panel.hidden = false;
     panel.style.display = "block";
     button.setAttribute("aria-expanded", "true");
-    // The graph may have gained or lost its seeds since, and with them
-    // the default the actions speak for.
-    refreshDefaultActions();
     activate("x");
   };
   button.addEventListener("click", () => {
@@ -775,15 +731,11 @@ export function createAxesAppearance(
   const resetGraph = (): void => setLayout(defaults.current());
   const useForNewBlank = (): void => {
     defaults.make(read());
-    refreshDefaultActions();
   };
   const restoreBuiltIn = (): void => {
     setLayout(defaults.forget());
-    refreshDefaultActions();
   };
   reset.addEventListener("click", resetGraph);
-  makeDefault.addEventListener("click", useForNewBlank);
-  forgetDefault.addEventListener("click", restoreBuiltIn);
   updateAvailability();
   activate("x");
   // What the selects landed on is what this graph can show, not a choice the
@@ -812,7 +764,9 @@ export function createAxesAppearance(
       option.disabled = !available;
       if (!available && colorMetric.value === metric) {
         colorMetric.value = "uniform";
-        colorMetric.dispatchEvent(new Event("change"));
+        colorMetric.dispatchEvent(
+          new (document.defaultView as any).Event("change"),
+        );
       }
     },
   };
