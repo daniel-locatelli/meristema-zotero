@@ -157,27 +157,14 @@ opacity grade).
 Passed: B116, B119, D10, D23, D36's Selected row and rail, F6, F10, F12. B50,
 B72 and B64 are retired on the suite's simulated refusals, the user's call.
 
-- [ ] W1 D37: Impact's card description leaves "hop" alone on its last line
-- [ ] W2 D13 changes: only the seeds' edges draw at any graph size, not only
-      past 3,200 edges. Hovering or selecting a paper must add its edges; on
-      the walk a hover gave only the hover ring (also seen on a non-seed)
-- [ ] W3 D5: the ArchCompute mark does not read at small UI sizes. Go back to
-      concept C of https://claude.ai/artifact/VvZtSZNZCjRY3AUQtqn57w. The
-      Settings icon should be white, it is green
-- [ ] W4 D36: hide the edges of papers the search misses; clicking a grey paper
-      warns (a small dialog, maybe); an x at the end of the box clears it
 - [ ] W5 D35: the View menu is too complicated. Fewer items, the rest behind
       them. The gear's foot keeps only reset, labelled without "this graph"
-- [ ] W6 B114: Enter in Search collections does not confirm the folder; typing
-      "PhD" still needs a click
-- [ ] W7 B112: Update this paper's connections does nothing; a library delete
-      still triggers the update
-- [ ] W8 D11: Title unavailable nodes grew over time, then many snapped onto one
-      spot, seen by their edges converging
-- [ ] W9 D40: 14 failed after an offline fill; nothing changed on reconnecting
-- [ ] W10 a selected paper's mark: no extra ring, its outermost circle glows
-- [ ] W11 while hop 2 fills, Fetch hop 3 can be pressed; hop 2's button goes and
-      it cannot be resumed, only hop 3's Stop and Resume remain
+- [ ] W8 D11: Title unavailable nodes grow over a fill and do not resolve; why
+      is unexplained (hydration stops at 2 attempts a session). The stack is
+      fixed
+- [ ] W9 D40: 14 failed after an offline fill; nothing changed on reconnecting.
+      Two unknowns: what the 14 are, and whether Zotero fires `online`. The
+      check below tells; no fix without it
 - [ ] W12 F9's check and B78's were not understood; explain them
 
 ## Manual verification (the user checks these in Zotero, in one batch)
@@ -187,6 +174,25 @@ user to verify right away. Install the XPI from `.scaffold/build/meristema.xpi`
 (built from the latest main), then walk the list; tick what passes, and turn
 any failure into a new entry above.
 
+- [ ] D37: Impact's card description has no word alone on its last line.
+- [ ] W2: only the seeds' edges draw, at any size; hovering or selecting any
+      paper adds its edges; a graph with no seed draws them all.
+- [ ] W3: the small marks across Zotero are concept C; the add-ons manager's
+      icon is white in the dark theme and dark in the light one.
+- [ ] W4: a search hides the edges of papers it misses; clicking a grey paper
+      gives a corner message; the x clears the box.
+- [ ] W6: type a folder's name in Search collections and press Enter: the paper
+      is added to the first match, also when the library already holds it.
+- [ ] W7: Update this paper's connections on an external paper says when it
+      starts and ends, and new citers draw with no library change.
+- [ ] W8: Title unavailable papers spread out in the No data band, and do not
+      pile up.
+- [ ] W9: fill offline, reconnect, read the failed count, and point at it: do
+      the lit papers have a DOI? Run `return navigator.onLine` in Run JavaScript
+      offline and online.
+- [ ] W10: a selected paper's outermost circle glows, with no extra ring.
+- [ ] W11: while a hop fills, or stops with papers left, Fetch of the next hop
+      is greyed with a tooltip.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
@@ -560,3 +566,9 @@ entries are in git history.
 - 2026-11-01, later: B64 gains a Zotero case: Refresh seeds under served
   refusals comes back in 1.3 s, and red at 16.2 s with `retryRefusals: true`.
   Canvases for D5; proposals for F6, F10 and F12.
+- 2026-11-02 to 11-04: the user walked the 2026-11-01 build. W1 to W4, W6 to W8's
+  stack, W10 and W11 fixed. W7 was real: an update trusted the stored count, so
+  a stored 0 sent no request to the paper's own provider, and any other number
+  capped its list. Filing with Enter also found collection.addItem rejecting
+  outside a transaction: a paper with no identifier or already held was never
+  filed. Not pushed.
