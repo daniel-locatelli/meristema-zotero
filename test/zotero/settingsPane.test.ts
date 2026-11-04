@@ -58,15 +58,27 @@ describe("Meristema settings", function () {
       const parent = win.document.getElementById(
         "zotero-prefpane-meristema-automatic-updates",
       ) as HTMLInputElement;
-      const ready = await until(() => (parent.checked ? true : null));
-      expect(ready, "automatic reads on").to.equal(true);
+      // The script writes this last, once the options listen.
+      const bound = await until(() =>
+        win.document
+          .getElementById("zotero-prefpane-meristema-provider-status")
+          ?.textContent?.includes("providers on"),
+      );
+      expect(bound, "the pane's script ran").to.equal(true);
+      expect(parent.checked, "automatic reads on").to.equal(true);
       expect(child!.disabled, "the option is not greyed").to.equal(false);
       expect(child!.checked, "and reads on").to.equal(true);
 
       child!.click();
-      expect(Zotero.Prefs.get(name("automaticUpdates"), true)).to.equal(false);
+      expect(
+        Zotero.Prefs.get(name("automaticUpdates"), true),
+        "the first untick leaves automatic",
+      ).to.equal(false);
       expect(parent.checked, "the parent follows").to.equal(false);
-      expect(Zotero.Prefs.get(name("updateNewItems"), true)).to.equal(false);
+      expect(
+        Zotero.Prefs.get(name("updateNewItems"), true),
+        "the option stores its untick",
+      ).to.equal(false);
       expect(
         Zotero.Prefs.get(name("updateModifiedItems"), true),
         "the other keeps what it read",

@@ -1378,6 +1378,9 @@ describe("Graph views (D4)", function () {
 
   it("opens More beside the menu on hover, and shuts it on leaving (W5)", async function () {
     this.timeout(60_000);
+    // A case above may have left another tab on top, and that tab takes the hit.
+    win.Zotero_Tabs.select(tabID);
+    await delay(300);
     const menu = await openChipMenu();
     try {
       const wrap = menu.querySelector(".cm-view-more-wrap") as HTMLElement;
