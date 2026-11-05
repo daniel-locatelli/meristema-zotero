@@ -64,6 +64,14 @@ const graphAll = {
   filter: true,
 };
 const graphLinear = { ...graphAll, logarithmic: false };
+/** Shown on a paper, never offered to the graph (W19). */
+const graphNone = {
+  axis: false,
+  logarithmic: false,
+  nodeSize: false,
+  nodeColor: false,
+  filter: false,
+};
 
 export const METRIC_DEFINITIONS: MetricDefinition[] = [
   {
@@ -158,7 +166,8 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     decimals: 1,
     column: { primary: false, defaultVisible: false, width: 126 },
     itemPane: "advanced",
-    graph: graphLinear,
+    // FWCI plots the same comparison and shows how far ahead the outliers are.
+    graph: graphNone,
     value: (node) =>
       node.citationPercentile === null
         ? null

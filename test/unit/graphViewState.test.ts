@@ -768,7 +768,7 @@ describe("hops in the state", function () {
       JSON.stringify({
         ...emptyGraphViewState(),
         layout: {
-          xMetric: "year",
+          xMetric: "citation-percentile",
           xScale: "linear",
           yMetric: "citations-last-year",
           yScale: "log",
@@ -780,6 +780,7 @@ describe("hops in the state", function () {
     )?.layout;
     expect(layout?.yMetric).to.equal("citation-rate");
     expect(layout?.nodeColorMetric).to.equal("citation-rate");
+    expect(layout?.xMetric).to.equal("fwci");
     expect(layout?.nodeSizeMetric).to.equal("citation-rate");
     expect(layout?.yScale, "the rest survives").to.equal("log");
   });

@@ -1,7 +1,7 @@
 import type { MetricID } from "./graphTypes";
 
 /**
- * Metrics removed from the registry (W19), each with the metric a stored
+ * Metrics the graph no longer offers (W19), each with the metric a stored
  * appearance that named it reads instead. Saved graphs, views and defaults
  * keep the old id, so they keep opening.
  */
@@ -10,6 +10,8 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["citations-last-year", "citation-rate"],
   // Two noisy years, and it scales with a paper's size.
   ["citation-acceleration", "citation-rate"],
+  // Still on a paper's sidebar, but FWCI plots the same comparison.
+  ["citation-percentile", "fwci"],
 ]);
 
 const METRIC_FIELDS = [
