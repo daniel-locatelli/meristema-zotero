@@ -18,6 +18,9 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["two-year-mean-citedness", "citations"],
   // Still on a paper's sidebar; it describes the data, not the paper.
   ["reference-coverage", "references"],
+  // Partial references and one old citation skew them.
+  ["reference-age-mean", "year"],
+  ["reference-age-spread", "year"],
 ]);
 
 const METRIC_FIELDS = [

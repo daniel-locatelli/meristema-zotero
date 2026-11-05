@@ -157,9 +157,6 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "component-size":
     case "citation-chain-depth":
     case "reference-coverage":
-    case "reference-age-mean":
-    case "mean-reference-age":
-    case "reference-age-spread":
     case "self-citation-estimate":
     case "estimated-self-citations":
     case "future-references":

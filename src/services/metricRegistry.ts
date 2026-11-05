@@ -218,32 +218,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.referenceCoverage,
   },
   {
-    id: "reference-age-mean",
-    label: "Mean reference age",
-    group: "Bibliography",
-    description:
-      "Mean publication-age difference between this paper and its externally retrieved structured references. Displayed only with at least five usable references and at least 25% reference coverage.",
-    valueType: "decimal",
-    decimals: 1,
-    column: { primary: false, defaultVisible: false, width: 134 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.referenceAgeMean,
-  },
-  {
-    id: "reference-age-spread",
-    label: "Reference-age spread",
-    group: "Bibliography",
-    description:
-      "Standard deviation of reference ages among externally retrieved structured references. Displayed only with at least five usable references and at least 25% reference coverage.",
-    valueType: "decimal",
-    decimals: 1,
-    column: { primary: false, defaultVisible: false, width: 138 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.referenceAgeSpread,
-  },
-  {
     id: "self-citation-estimate",
     label: "Estimated self-citations",
     group: "Bibliography",

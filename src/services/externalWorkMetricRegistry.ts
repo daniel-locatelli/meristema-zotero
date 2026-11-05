@@ -188,10 +188,6 @@ function metricValuesForWork(
     "citation-percentile": finite(work.citationPercentile),
     "influential-citations": finite(work.influentialCitationCount),
     "reference-coverage": referenceCoverage,
-    "reference-age-mean":
-      finite(work.referenceAgeMean) ?? derived.referenceAgeMean,
-    "reference-age-spread":
-      finite(work.referenceAgeSpread) ?? derived.referenceAgeSpread,
     "self-citation-estimate":
       finite(work.selfCitationEstimate) ?? derived.selfCitationEstimate,
     "future-references":
