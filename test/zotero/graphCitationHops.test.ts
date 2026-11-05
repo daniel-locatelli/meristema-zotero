@@ -3783,7 +3783,7 @@ describe("Citation hops (Stage 3)", function () {
    * while details are still being tried: nothing on it, and all of it counted.
    * Without this the rule was only tested on the scope model.
    */
-  describe.only("while a fill's details are being tried (W8, W21)", function () {
+  describe("while a fill's details are being tried (W8, W21)", function () {
     let below: any = null;
     const holdTabs: string[] = [];
     const seedItemIDs: number[] = [];

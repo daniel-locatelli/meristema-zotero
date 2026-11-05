@@ -119,6 +119,9 @@ opacity grade).
       The smallest fix is merged: two attempts per paper per session
       (`mayQueueHydration`), the session mark now a count. The measurement
       is its manual check below
+      Measured 2026-11-05 (a case in the hops suite): after a refused batch only
+      a Refresh asks again. Decide: leave that, or requeue once the provider's
+      window ends (more requests, ADR 0013)
 
 ## Seeds, selection and the detail surfaces
 
@@ -160,10 +163,21 @@ Use all providers button, and the three-action View menu.
 - [ ] W9 D40: 14 failed after an offline fill; nothing changed on reconnecting.
       Two unknowns: what the 14 are, and whether Zotero fires `online`. The
       user left the check for later; no fix without it
-- [ ] W14 why an update can take long is unexplored; W7 only shows it
-- [ ] W19 review every option in Graph display settings: some may be
-      unnecessary. Include the `From view:` line, whose reason (the gear's
-      Use these) has left the gear
+- [ ] W14 why an update can take long. Measured 2026-11-05, keyless, one request
+      at a time: Semantic Scholar refused 3 of 3 lookups with 429; OpenCitations,
+      Crossref and INSPIRE answered in 0.15 to 2.9 s. Semantic Scholar is one
+      request at a time, 1.1 s apart, and each refused request retries at 1, 2
+      and 4 s, postponing the whole provider, so one refusal costs about 7 s and
+      holds every Semantic Scholar request behind it, a running fill's included.
+      An update asks every provider, both directions in turn, so this stacks. The
+      user has a key not yet entered: enter it and walk again before changing
+      anything. Then, the user's call: fewer retries for a manual update
+- [ ] W19 review every option in Graph display settings. Inventory 2026-11-05:
+      X and Y axis (scale, metric); Label; Size; Color; `From view:`; Reset. The
+      metric lists hold 19 metrics in six groups, and the shipped views use only
+      year, citations, references and free. The user's call: drop Data quality
+      from the axis and size lists, drop `From view:`, whose reason has left the
+      gear
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
       Five questions are with the user: what counts as read, where it is stored,
@@ -604,4 +618,5 @@ entries are in git history.
   both directions: the queue's batch waits on a gate, and the plot stays empty
   until it opens. W22 was real: the first tab record is written a second after
   the tab opens, a later mount wrote nothing, and nothing wrote again until the
-  graph changed. The mount now schedules a write.
+  graph changed. The mount now schedules a write. D11's measurement: a refused batch's papers land Title
+  unavailable, a fill or rebuild does not ask again, and a Refresh does.
