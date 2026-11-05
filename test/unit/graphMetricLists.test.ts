@@ -22,9 +22,13 @@ describe("the graph's metric lists (W19)", () => {
         "journal-h-index",
         "journal-i10-index",
         "two-year-mean-citedness",
+        "reference-coverage",
       ]);
     }
     expect(getMetricDefinition("citation-percentile").itemPane).to.equal(
+      "advanced",
+    );
+    expect(getMetricDefinition("reference-coverage").itemPane).to.equal(
       "advanced",
     );
   });

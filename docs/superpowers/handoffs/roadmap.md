@@ -180,7 +180,8 @@ Use all providers button, and the three-action View menu.
       rate). Kept: FWCI. Out of the graph's lists: citation percentile (reads as
       FWCI; the sidebar still shows it). Kept: influential citations. Removed:
       journal h-index, i10-index and 2-year mean citedness (read as citations).
-      Kept: connections in library. Next: reference coverage.
+      Kept: connections in library. Out of the graph's lists: reference coverage
+      (reads as references; the sidebar keeps it). Next: reference age mean.
       `From view:` lost its reason with the gear's Use these
 - [ ] W23 drop the journal requests. Since W19 removed the journal metrics, an
       update still asks OpenAlex for each journal's record (by ID, ISSN or title,
@@ -254,7 +255,7 @@ any failure into a new entry above.
       offers Citations last year or Change in annual citations, and a saved
       graph that used one opens on Recent citation rate. Citation percentile is
       in no graph list, and a paper's sidebar still shows Percentile. No list
-      offers a journal metric. Update a
+      offers a journal metric or Reference coverage. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on

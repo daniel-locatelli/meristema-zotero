@@ -16,6 +16,8 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["journal-h-index", "citations"],
   ["journal-i10-index", "citations"],
   ["two-year-mean-citedness", "citations"],
+  // Still on a paper's sidebar; it describes the data, not the paper.
+  ["reference-coverage", "references"],
 ]);
 
 const METRIC_FIELDS = [

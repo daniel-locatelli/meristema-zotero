@@ -213,7 +213,8 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     decimals: 1,
     column: { primary: false, defaultVisible: false, width: 132 },
     itemPane: "advanced",
-    graph: graphLinear,
+    // It describes the data, not the paper: whether its References are whole.
+    graph: graphNone,
     value: (node) => node.referenceCoverage,
   },
   {
