@@ -75,6 +75,17 @@ export const MAX_RETRY_AFTER_MS = 15000;
 const activeRequestCancellers = new Set<() => void>();
 const responseObservers = new Set<ProviderJSONResponseObserver>();
 let cancellationRequested = false;
+let refusalsReturned = 0;
+
+/**
+ * How many 429s have reached a caller, after any retries. The hydration queue
+ * compares this across a batch to tell a refused paper from one nobody knows
+ * (D11). Another caller's refusal can land in the same span, which costs at
+ * most the one retry that paper is allowed.
+ */
+export function providerRefusalsReturned(): number {
+  return refusalsReturned;
+}
 
 /**
  * Delay before retry `attempt`, jittered upward by up to a quarter.
@@ -418,6 +429,7 @@ export async function requestJSON<T>(
       }
 
       if (response.status === 429 && options.retryRefusals === false) {
+        refusalsReturned += 1;
         postponeProvider(provider, backoffDelayMs(attempt));
         return parseJSON<T>(provider, response);
       }
@@ -432,11 +444,13 @@ export async function requestJSON<T>(
         // instead of freezing every request queued for the provider. The next
         // user-initiated refresh can try again later.
         if (retryAfter !== null && retryAfter > MAX_RETRY_AFTER_MS) {
+          if (response.status === 429) refusalsReturned += 1;
           return parseJSON<T>(provider, response);
         }
         postponeProvider(provider, retryAfter ?? backoffDelayMs(attempt));
         continue;
       }
+      if (response.status === 429) refusalsReturned += 1;
       const parsed = parseJSON<T>(provider, response);
       if (parsed.ok && parsed.data !== null) {
         notifyResponseObservers({

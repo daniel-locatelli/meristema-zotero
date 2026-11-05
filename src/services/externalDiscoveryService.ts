@@ -7,7 +7,10 @@ import type { ExternalWork } from "../domain/externalWork";
 import type { CitationGraphNode } from "../domain/graphTypes";
 import { workIdentifiersForGraphNode } from "../domain/workIdentifiers";
 import type { RelationshipProviderSnapshot } from "../providers/relationshipPolicy";
-import { isCitationRequestCancellationRequested } from "../providers/http";
+import {
+  isCitationRequestCancellationRequested,
+  providerRefusalsReturned,
+} from "../providers/http";
 import {
   ProviderRefusedError,
   type ProviderRequestOptions,
@@ -71,7 +74,10 @@ import {
   fetchRelatedWorkSummaryPage,
   resolveRelatedWorkSummaries,
 } from "./relatedWorkSummaryService";
-import { mayQueueHydration } from "./hydrationAttempts";
+import {
+  mayQueueHydration,
+  REFUSED_HYDRATION_RETRY_MS,
+} from "./hydrationAttempts";
 import {
   normalizeImportedZoteroItems,
   normalizeRelatedWorkText,
@@ -219,6 +225,13 @@ const relationshipMetadataAttemptedThisSession = new Map<string, number>();
 /** Taken from the queue, and not yet published or given up on. */
 const relationshipMetadataInFlight = new Set<string>();
 const relationshipMetadataSettledListeners = new Set<() => void>();
+/** Refused papers waiting to be asked once more (D11). */
+const relationshipMetadataRefused = new Map<
+  string,
+  RelationshipMetadataHydrationQueueEntry
+>();
+let relationshipMetadataRefusedTimer: ReturnType<typeof setTimeout> | null =
+  null;
 
 /**
  * The lookup identities of the papers whose details are still to be tried: a
@@ -277,6 +290,54 @@ function markRelationshipMetadataAttempted(identityKey: string): void {
     if (!oldest) break;
     relationshipMetadataAttemptedThisSession.delete(oldest);
   }
+}
+
+/**
+ * Keep a refused batch's papers for one more ask, a window after the last
+ * refusal. They land as they are meanwhile, and a paper already asked twice
+ * this session is left to a Refresh.
+ */
+function holdRefusedRelationshipMetadata(
+  entries: ReadonlyArray<[string, RelationshipMetadataHydrationQueueEntry]>,
+): void {
+  for (const [key, entry] of entries) {
+    const attempts = relationshipMetadataAttemptedThisSession.get(key) ?? 0;
+    if (mayQueueHydration(attempts)) {
+      relationshipMetadataRefused.set(key, entry);
+    }
+  }
+  if (!relationshipMetadataRefused.size) return;
+  if (relationshipMetadataRefusedTimer !== null) {
+    clearTimeout(relationshipMetadataRefusedTimer);
+  }
+  relationshipMetadataRefusedTimer = setTimeout(() => {
+    relationshipMetadataRefusedTimer = null;
+    queueRefusedRelationshipMetadata();
+  }, REFUSED_HYDRATION_RETRY_MS);
+}
+
+function queueRefusedRelationshipMetadata(): void {
+  const refused = [...relationshipMetadataRefused];
+  relationshipMetadataRefused.clear();
+  if (!externalDiscoveryRunning || isCitationRequestCancellationRequested()) {
+    return;
+  }
+  for (const [key, entry] of refused) {
+    // A Refresh may have asked meanwhile, or another batch found the paper.
+    if (relationshipMetadataHydrationQueue.has(key)) continue;
+    const cached = cachedExternalWorkMetadata(key);
+    const work = cached
+      ? mergeExternalWorkMetadata(entry.work, cached)
+      : entry.work;
+    if (
+      !needsRelationshipBibliographicMetadata(work) ||
+      !mayQueueHydration(relationshipMetadataAttemptedThisSession.get(key) ?? 0)
+    ) {
+      continue;
+    }
+    relationshipMetadataHydrationQueue.set(key, { ...entry, work });
+  }
+  scheduleRelationshipMetadataHydrationRun();
 }
 
 interface ActiveRelationshipRefresh {
@@ -995,6 +1056,7 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
           remainingFallbackLookups - fallbackAllocation,
         );
       }
+      const refusalsBefore = providerRefusalsReturned();
       const hydrated = await hydrateExternalWorksMetadata(
         input,
         false,
@@ -1006,6 +1068,9 @@ async function runRelationshipMetadataHydrationQueue(): Promise<void> {
           registerMetrics: false,
         },
       );
+      if (providerRefusalsReturned() > refusalsBefore) {
+        holdRefusedRelationshipMetadata(batchEntries);
+      }
       await yieldToUI();
       if (isCitationRequestCancellationRequested()) {
         relationshipMetadataHydrationQueue.clear();
@@ -2494,6 +2559,11 @@ export function stopExternalDiscoveryRuntime(): void {
     clearTimeout(relationshipMetadataHydrationTimer);
     relationshipMetadataHydrationTimer = null;
   }
+  if (relationshipMetadataRefusedTimer !== null) {
+    clearTimeout(relationshipMetadataRefusedTimer);
+    relationshipMetadataRefusedTimer = null;
+  }
+  relationshipMetadataRefused.clear();
   relationshipMetadataHydrationQueue.clear();
   relationshipMetadataAttemptedThisSession.clear();
   relationshipRecordSynchronizations.clear();

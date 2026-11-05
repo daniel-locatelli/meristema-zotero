@@ -527,6 +527,9 @@ const HOLD_KNOWN: Record<string, ServedPaper> = {
   failsource: paperOf("failsource", 2017),
   failone: paperOf("failone", 2019),
   failtwo: paperOf("failtwo", 2020),
+  againsource: paperOf("againsource", 2016),
+  againone: paperOf("againone", 2019),
+  againtwo: paperOf("againtwo", 2020),
 };
 const HOLD_CITERS = ["citerone", "citertwo", "citernobody"];
 const HOLD_REFERENCES = ["refone", "reftwo", "refnobody"];
@@ -3808,7 +3811,8 @@ describe("Citation hops (Stage 3)", function () {
       const answer = semanticScholarPaper(paper) as Record<string, unknown>;
       return paper === HOLD_KNOWN.seed ||
         paper === HOLD_KNOWN.origin ||
-        paper === HOLD_KNOWN.failsource
+        paper === HOLD_KNOWN.failsource ||
+        paper === HOLD_KNOWN.againsource
         ? { ...answer, citationCount: 3, referenceCount: 3 }
         : answer;
     }
@@ -3861,7 +3865,8 @@ describe("Citation hops (Stage 3)", function () {
         const paper = match ? knownIn(match[1]!) : undefined;
         return paper === HOLD_KNOWN.seed ||
           paper === HOLD_KNOWN.origin ||
-          paper === HOLD_KNOWN.failsource
+          paper === HOLD_KNOWN.failsource ||
+          paper === HOLD_KNOWN.againsource
           ? providerAnswer(JSON.stringify(holdPaperAnswer(paper!)))
           : providerNotFound();
       }
@@ -3880,13 +3885,21 @@ describe("Citation hops (Stage 3)", function () {
             ),
           );
         }
-        if (list[1] === "citations" && about === HOLD_KNOWN.failsource!.doi) {
+        if (
+          list[1] === "citations" &&
+          (about === HOLD_KNOWN.failsource!.doi ||
+            about === HOLD_KNOWN.againsource!.doi)
+        ) {
+          const prefix =
+            about === HOLD_KNOWN.failsource!.doi ? "fail" : "again";
           return providerAnswer(
             JSON.stringify(
-              ["failone", "failtwo", "failnobody"].map((n) => ({
-                citing: `doi:${holdDOI(n)}`,
-                creation: "2021-01-01",
-              })),
+              ["one", "two", "nobody"]
+                .map((n) => `${prefix}${n}`)
+                .map((n) => ({
+                  citing: `doi:${holdDOI(n)}`,
+                  creation: "2021-01-01",
+                })),
             ),
           );
         }
@@ -4067,11 +4080,11 @@ describe("Citation hops (Stage 3)", function () {
     });
 
     /*
-     * D11's open measurement, on the queue itself. A refused batch settles its
-     * papers, so they land Title unavailable, and neither the fill nor a view
-     * rebuild asks again: only a Refresh does.
+     * D11, on the queue itself. A refused batch settles its papers, so they land
+     * Title unavailable; once the provider's first window has passed the queue
+     * asks once more, with no Refresh, and the plot keeps them throughout.
      */
-    it("asks a refused batch's papers again on a Refresh, not before (D11)", async function () {
+    it("asks a refused batch's papers once more, and they get their details (D11)", async function () {
       this.timeout(180_000);
       await addHoldSeed(HOLD_KNOWN.failsource!);
       await openHoldTab();
@@ -4096,18 +4109,75 @@ describe("Citation hops (Stage 3)", function () {
         await delay(8_000);
         expect(
           batches,
-          `the fill asked a refused batch again; ${holdState()}`,
+          `the queue did not wait out the window; ${holdState()}`,
         ).to.equal(afterLanding);
         refuseBatches = false;
-        await pressRefresh();
         const askedAgain = await waitFor(
           () => (batches > afterLanding ? true : null),
           60_000,
         );
-        expect(askedAgain, `a Refresh did not ask; ${holdState()}`).to.equal(
+        expect(askedAgain, `nothing asked again; ${holdState()}`).to.equal(
           true,
         );
+        expect(
+          hopCounts(1)?.shown,
+          `the retry took papers off the plot; ${holdState()}`,
+        ).to.equal(3);
         await nodeMenuEntry("Find similar papers", HOLD_KNOWN.failone!.title);
+        closeNodeMenu();
+      } finally {
+        refuseBatches = false;
+      }
+    });
+
+    /* Refused twice, the queue stops: only a Refresh asks a third time. */
+    it("stops after one more refusal, and a Refresh still asks (D11)", async function () {
+      this.timeout(240_000);
+      await addHoldSeed(HOLD_KNOWN.againsource!);
+      await openHoldTab();
+      listed = ["againone", "againtwo", "againnobody"];
+      refuseBatches = true;
+      closeGate();
+      openGate!();
+      batches = 0;
+      try {
+        (
+          await nodeMenuEntry("Add as seed", HOLD_KNOWN.againsource!.title)
+        ).click();
+        const landed = await waitFor(
+          () => ((hopCounts(1)?.shown ?? 0) === 3 ? true : null),
+          60_000,
+        );
+        expect(landed, `a refused batch held papers; ${holdState()}`).to.equal(
+          true,
+        );
+        const afterLanding = batches;
+        const askedAgain = await waitFor(
+          () => (batches > afterLanding ? true : null),
+          60_000,
+        );
+        expect(askedAgain, `nothing asked again; ${holdState()}`).to.equal(
+          true,
+        );
+        // The retry's own backoff, then more than one window with no third ask.
+        await delay(12_000);
+        const afterRetry = batches;
+        await delay(40_000);
+        expect(
+          batches,
+          `the queue asked a third time; ${holdState()}`,
+        ).to.equal(afterRetry);
+        refuseBatches = false;
+        await pressRefresh();
+        const refreshed = await waitFor(
+          () => (batches > afterRetry ? true : null),
+          60_000,
+        );
+        expect(refreshed, `a Refresh did not ask; ${holdState()}`).to.equal(
+          true,
+        );
+        // The Refresh remounts the view: the next case clicks the settled one.
+        await nodeMenuEntry("Find similar papers", HOLD_KNOWN.againone!.title);
         closeNodeMenu();
       } finally {
         refuseBatches = false;
@@ -4129,9 +4199,11 @@ describe("Citation hops (Stage 3)", function () {
         )?.textContent;
         return text && !text.includes("Finding similar papers") ? text : null;
       }, 60_000);
-      expect(listed ?? "", `Similar never answered; ${holdState()}`).to.include(
-        HOLD_KNOWN.similar!.title,
-      );
+      const section = graphRoot().querySelector(".cm-graph-similar-results");
+      expect(
+        listed ?? "",
+        `Similar never answered, section ${section ? `says "${section.textContent}"` : "gone"}; ${holdState()}`,
+      ).to.include(HOLD_KNOWN.similar!.title);
     });
 
     it("lists similar papers from a paper's node menu", async function () {

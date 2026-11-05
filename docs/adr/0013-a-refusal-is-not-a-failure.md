@@ -28,3 +28,7 @@ emptied the plan until the graph was reopened.
 
 Refined by ADR 0014: an empty list is an answer when something backs it, and a
 paper deferred to the limit fails for the session.
+
+The details queue is not a fill and has its own rule (D11): a paper in a refused
+batch lands as it is and is asked once more 30 s after the batch's last refusal,
+then waits for a Refresh.
