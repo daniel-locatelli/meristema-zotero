@@ -176,8 +176,8 @@ Use all providers button, and the three-action View menu.
       far: publication order (renamed from citation sequence). Removed: citations
       last year (a stored one reads as recent citation rate). Kept and fixed:
       recent citation rate, which divides by the years a paper existed in the
-      window. Next: citation acceleration. `From view:` lost its reason with the
-      gear's Use these
+      window. Removed: change in annual citations (reads as recent citation
+      rate). Next: FWCI. `From view:` lost its reason with the gear's Use these
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
       Five questions are with the user: what counts as read, where it is stored,
@@ -242,8 +242,8 @@ any failure into a new entry above.
       papers left. The floor, the facets and hiding refit them too; the search
       only greys. A year axis ends at this year, not at 2050. The X axis metric
       reads Publication order where it read Citation sequence. No metric list
-      offers Citations last year, and a saved graph that used it opens on
-      Recent citation rate. Update a paper published last year: its Recent
+      offers Citations last year or Change in annual citations, and a saved
+      graph that used one opens on Recent citation rate. Update a paper published last year: its Recent
       citation rate is last year's count, not a third of it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
@@ -638,3 +638,5 @@ entries are in git history.
 - 2026-11-05, later: W19 kept recent citation rate and fixed it: it divided by 3
   even for a paper one year old. A rate already stored changes on the paper's
   next update.
+- 2026-11-05, later: W19 removed change in annual citations: two noisy years,
+  scaled by a paper's size; rate against year shows what is gaining.

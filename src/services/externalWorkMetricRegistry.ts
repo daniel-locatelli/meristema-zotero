@@ -184,7 +184,6 @@ function metricValuesForWork(
     citations: finite(work.citationCount),
     references: referenceCount,
     "citation-rate": finite(work.citationVelocity),
-    "citation-acceleration": finite(work.citationAcceleration),
     fwci: finite(work.fwci),
     "citation-percentile": finite(work.citationPercentile),
     "influential-citations": finite(work.influentialCitationCount),

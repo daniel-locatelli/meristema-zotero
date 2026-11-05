@@ -773,12 +773,13 @@ describe("hops in the state", function () {
           yMetric: "citations-last-year",
           yScale: "log",
           nodeSizeMetric: "citations-last-year",
-          nodeColorMetric: "provider",
+          nodeColorMetric: "citation-acceleration",
           nodeLabelMode: "title",
         },
       }),
     )?.layout;
     expect(layout?.yMetric).to.equal("citation-rate");
+    expect(layout?.nodeColorMetric).to.equal("citation-rate");
     expect(layout?.nodeSizeMetric).to.equal("citation-rate");
     expect(layout?.yScale, "the rest survives").to.equal("log");
   });

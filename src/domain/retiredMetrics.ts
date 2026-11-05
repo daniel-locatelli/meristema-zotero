@@ -8,6 +8,8 @@ import type { MetricID } from "./graphTypes";
 const RETIRED_METRICS = new Map<string, MetricID>([
   // Last year's count alone; the three-year mean answers the same question.
   ["citations-last-year", "citation-rate"],
+  // Two noisy years, and it scales with a paper's size.
+  ["citation-acceleration", "citation-rate"],
 ]);
 
 const METRIC_FIELDS = [

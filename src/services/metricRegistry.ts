@@ -136,21 +136,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.citationVelocity,
   },
   {
-    id: "citation-acceleration",
-    label: "Change in annual citations",
-    shortLabel: "Annual citation change",
-    group: "Impact",
-    description:
-      "Citations in the most recent complete calendar year minus citations in the preceding year. Positive values indicate growth; negative values indicate decline.",
-    valueType: "decimal",
-    decimals: 0,
-    allowsNegative: true,
-    column: { primary: false, defaultVisible: false, width: 154 },
-    itemPane: "advanced",
-    graph: graphLinear,
-    value: (node) => node.citationAcceleration,
-  },
-  {
     id: "fwci",
     label: "FWCI",
     group: "Impact",

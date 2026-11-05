@@ -12,7 +12,6 @@ export type MetricID =
   | "citations"
   | "references"
   | "citation-rate"
-  | "citation-acceleration"
   | "fwci"
   | "citation-percentile"
   | "influential-citations"

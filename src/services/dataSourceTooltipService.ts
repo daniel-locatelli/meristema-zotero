@@ -140,9 +140,6 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "structured-references":
       return referenceSources(node);
     case "citation-rate":
-    case "citation-acceleration":
-    case "change-in-annual-citations":
-    case "annual-citation-change":
     case "fwci":
     case "citation-percentile":
       return openAlexSource(node);
