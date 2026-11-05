@@ -319,8 +319,8 @@ export class CitationGraphRenderer {
   /** Bumped whenever `scopeKeys` changes, so the assignment cache can notice. */
   private scopeRevision = 0;
   /**
-   * The papers the axes fit (B118): what the rail's folders and hops admit,
-   * before the floor, the facets and the search. Null fits the whole model.
+   * The papers the axes fit (B118): what the graph draws, before the
+   * search, which only greys. Null fits the whole model.
    * A seeded graph keeps the whole library in its model, and a paper it does
    * not show must not stretch the axis its hop papers are read on.
    */

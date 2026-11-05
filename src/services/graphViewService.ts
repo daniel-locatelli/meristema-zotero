@@ -5000,24 +5000,15 @@ ${error instanceof Error ? error.message : String(error)}`,
     };
     const scope = computeGraphScope(scopeInput);
     lastScope = scope;
-    // What the axes fit (B118): the folders and hops alone. The floor, the
-    // facets, the shared rule and hiding narrow what is drawn, never the
-    // coordinate system, so a paper keeps its place while they change.
-    const frame = computeGraphScope({
-      ...scopeInput,
-      hiddenKeys: new Set<string>(),
-      facetAdmits: () => true,
-      floor: 0,
-      keepNoCount: true,
-      shared: 1,
-    });
     // What the graph is a graph *of*. The search box stays out of it: it only
     // greys the rest (ADR 0023), so counts, colours, regions and exports do
     // not move as the reader types.
     visibleKeys = scope.visibleKeys;
     for (const key of visibleKeys) placedKeys.add(key);
     renderer?.setScopeKeys(visibleKeys);
-    renderer?.setFrameKeys(frame.visibleKeys, false);
+    // The axes fit what is drawn: the floor, the facets, the shared rule and
+    // hiding refit them, and the search does not (it only greys).
+    renderer?.setFrameKeys(visibleKeys, false);
     renderer?.setFloor(floor, scope.belowFloorCount, false);
     renderer?.setVisibleKeys(visibleKeys, false);
     if (libraryEmphasisKeys) {

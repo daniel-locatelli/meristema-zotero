@@ -154,6 +154,14 @@ function linearAxisScale(
   if (domainMaximum < maximum) domainMaximum += step;
   if (domainMinimum > minimum) domainMinimum -= step;
   if (domainMinimum === domainMaximum) domainMaximum += step;
+  // A year axis stops at this year, or at the latest paper when one is dated
+  // ahead: a rounded step must not draw decades nobody has published in.
+  if (metric === "year") {
+    domainMaximum = Math.min(
+      domainMaximum,
+      Math.max(maximum, new Date().getFullYear()),
+    );
+  }
 
   const ticks: number[] = [];
   for (
@@ -161,6 +169,7 @@ function linearAxisScale(
     value <= domainMaximum + step * 1e-8;
     value += step
   ) {
+    if (value > domainMaximum) break;
     ticks.push(Number(value.toPrecision(12)));
     if (ticks.length > 30) break;
   }
