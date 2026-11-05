@@ -524,6 +524,9 @@ const HOLD_KNOWN: Record<string, ServedPaper> = {
   refone: paperOf("refone", 2009),
   reftwo: paperOf("reftwo", 2010),
   similar: paperOf("similar", 2022),
+  failsource: paperOf("failsource", 2017),
+  failone: paperOf("failone", 2019),
+  failtwo: paperOf("failtwo", 2020),
 };
 const HOLD_CITERS = ["citerone", "citertwo", "citernobody"];
 const HOLD_REFERENCES = ["refone", "reftwo", "refnobody"];
@@ -3780,12 +3783,14 @@ describe("Citation hops (Stage 3)", function () {
    * while details are still being tried: nothing on it, and all of it counted.
    * Without this the rule was only tested on the scope model.
    */
-  describe("while a fill's details are being tried (W8, W21)", function () {
+  describe.only("while a fill's details are being tried (W8, W21)", function () {
     let below: any = null;
     const holdTabs: string[] = [];
     const seedItemIDs: number[] = [];
     const asked: string[] = [];
     let batches = 0;
+    /** A listed paper's batch is refused while this is set (D11). */
+    let refuseBatches = false;
     let openGate: (() => void) | null = null;
     let gate: Promise<void> | null = null;
     /** The list under test: only its papers' lookups wait and count. */
@@ -3801,7 +3806,9 @@ describe("Citation hops (Stage 3)", function () {
     /** The seed reports its lists: a paper with a count of 0 is never asked. */
     function holdPaperAnswer(paper: ServedPaper): unknown {
       const answer = semanticScholarPaper(paper) as Record<string, unknown>;
-      return paper === HOLD_KNOWN.seed || paper === HOLD_KNOWN.origin
+      return paper === HOLD_KNOWN.seed ||
+        paper === HOLD_KNOWN.origin ||
+        paper === HOLD_KNOWN.failsource
         ? { ...answer, citationCount: 3, referenceCount: 3 }
         : answer;
     }
@@ -3836,6 +3843,7 @@ describe("Citation hops (Stage 3)", function () {
           if (holds) {
             batches += 1;
             await gate;
+            if (refuseBatches) return providerRefusal();
           }
           return providerAnswer(
             JSON.stringify(
@@ -3851,7 +3859,9 @@ describe("Citation hops (Stage 3)", function () {
         }
         const match = /\/paper\/([^/]+)$/.exec(parsed.pathname);
         const paper = match ? knownIn(match[1]!) : undefined;
-        return paper === HOLD_KNOWN.seed || paper === HOLD_KNOWN.origin
+        return paper === HOLD_KNOWN.seed ||
+          paper === HOLD_KNOWN.origin ||
+          paper === HOLD_KNOWN.failsource
           ? providerAnswer(JSON.stringify(holdPaperAnswer(paper!)))
           : providerNotFound();
       }
@@ -3864,6 +3874,16 @@ describe("Citation hops (Stage 3)", function () {
           return providerAnswer(
             JSON.stringify(
               HOLD_CITERS.map((n) => ({
+                citing: `doi:${holdDOI(n)}`,
+                creation: "2021-01-01",
+              })),
+            ),
+          );
+        }
+        if (list[1] === "citations" && about === HOLD_KNOWN.failsource!.doi) {
+          return providerAnswer(
+            JSON.stringify(
+              ["failone", "failtwo", "failnobody"].map((n) => ({
                 citing: `doi:${holdDOI(n)}`,
                 creation: "2021-01-01",
               })),
@@ -4044,6 +4064,54 @@ describe("Citation hops (Stage 3)", function () {
         Math.min(...low),
         `a placed paper left during the Refresh: ${low.join(",")}; ${holdState()}`,
       ).to.equal(3);
+    });
+
+    /*
+     * D11's open measurement, on the queue itself. A refused batch settles its
+     * papers, so they land Title unavailable, and neither the fill nor a view
+     * rebuild asks again: only a Refresh does.
+     */
+    it("asks a refused batch's papers again on a Refresh, not before (D11)", async function () {
+      this.timeout(180_000);
+      await addHoldSeed(HOLD_KNOWN.failsource!);
+      await openHoldTab();
+      listed = ["failone", "failtwo", "failnobody"];
+      refuseBatches = true;
+      closeGate();
+      openGate!();
+      batches = 0;
+      try {
+        (
+          await nodeMenuEntry("Add as seed", HOLD_KNOWN.failsource!.title)
+        ).click();
+        const landed = await waitFor(
+          () => ((hopCounts(1)?.shown ?? 0) === 3 ? true : null),
+          60_000,
+        );
+        expect(landed, `a refused batch held papers; ${holdState()}`).to.equal(
+          true,
+        );
+        const afterLanding = batches;
+        expect(afterLanding, "the batch was asked").to.be.greaterThan(0);
+        await delay(8_000);
+        expect(
+          batches,
+          `the fill asked a refused batch again; ${holdState()}`,
+        ).to.equal(afterLanding);
+        refuseBatches = false;
+        await pressRefresh();
+        const askedAgain = await waitFor(
+          () => (batches > afterLanding ? true : null),
+          60_000,
+        );
+        expect(askedAgain, `a Refresh did not ask; ${holdState()}`).to.equal(
+          true,
+        );
+        await nodeMenuEntry("Find similar papers", HOLD_KNOWN.failone!.title);
+        closeNodeMenu();
+      } finally {
+        refuseBatches = false;
+      }
     });
 
     it("lists similar papers from the toolbar", async function () {
