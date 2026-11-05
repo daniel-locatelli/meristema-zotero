@@ -18,6 +18,11 @@ describe("the graph's metric lists (W19)", () => {
       expect(list.map((metric) => metric.id)).to.not.include(
         "citation-percentile",
       );
+      expect(list.map((metric) => metric.id)).to.not.include.members([
+        "journal-h-index",
+        "journal-i10-index",
+        "two-year-mean-citedness",
+      ]);
     }
     expect(getMetricDefinition("citation-percentile").itemPane).to.equal(
       "advanced",

@@ -146,11 +146,6 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "influential-citations":
     case "influential-citation-count":
       return normalizedSources(["semantic-scholar"]);
-    case "two-year-mean-citedness":
-    case "2-year-mean-citedness":
-    case "journal-h-index":
-    case "journal-i10-index":
-      return normalizedSources(["openalex"]);
     case "library-coverage":
     case "connections-in-library":
     case "local-global-impact":
@@ -228,14 +223,6 @@ function nodeUpdatedAt(
     case "doi":
     case "metadata-completeness":
       return latestTimestamp(itemModifiedAt(item), node.metricsUpdatedAt);
-    case "two-year-mean-citedness":
-    case "2-year-mean-citedness":
-    case "journal-h-index":
-    case "journal-i10-index":
-      return latestTimestamp(
-        node.sourceMetrics?.updatedAt,
-        node.metricsUpdatedAt,
-      );
     default:
       return node.metricsUpdatedAt;
   }

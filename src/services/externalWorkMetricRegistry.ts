@@ -187,9 +187,6 @@ function metricValuesForWork(
     fwci: finite(work.fwci),
     "citation-percentile": finite(work.citationPercentile),
     "influential-citations": finite(work.influentialCitationCount),
-    "two-year-mean-citedness": finite(work.sourceMetrics?.twoYearMeanCitedness),
-    "journal-h-index": finite(work.sourceMetrics?.hIndex),
-    "journal-i10-index": finite(work.sourceMetrics?.i10Index),
     "reference-coverage": referenceCoverage,
     "reference-age-mean":
       finite(work.referenceAgeMean) ?? derived.referenceAgeMean,

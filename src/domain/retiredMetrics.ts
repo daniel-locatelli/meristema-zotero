@@ -12,6 +12,10 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["citation-acceleration", "citation-rate"],
   // Still on a paper's sidebar, but FWCI plots the same comparison.
   ["citation-percentile", "fwci"],
+  // The journal's, not the paper's, and nothing replaces them.
+  ["journal-h-index", "citations"],
+  ["journal-i10-index", "citations"],
+  ["two-year-mean-citedness", "citations"],
 ]);
 
 const METRIC_FIELDS = [

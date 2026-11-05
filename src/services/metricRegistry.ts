@@ -188,43 +188,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.influentialCitationCount,
   },
   {
-    id: "journal-h-index",
-    label: "Journal h-index",
-    group: "Source",
-    description:
-      "OpenAlex source h-index: the largest h for which the journal has at least h works cited at least h times.",
-    valueType: "integer",
-    column: { primary: false, defaultVisible: false, width: 118 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.sourceMetrics?.hIndex ?? null,
-  },
-  {
-    id: "journal-i10-index",
-    label: "Journal i10-index",
-    group: "Source",
-    description:
-      "Number of works from the journal or source that OpenAlex reports as having at least ten citations.",
-    valueType: "integer",
-    column: { primary: false, defaultVisible: false, width: 126 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.sourceMetrics?.i10Index ?? null,
-  },
-  {
-    id: "two-year-mean-citedness",
-    label: "Journal 2-year mean citedness",
-    group: "Source",
-    description:
-      "OpenAlex source metric measuring the recent average citation activity of works from this journal or source.",
-    valueType: "decimal",
-    decimals: 2,
-    column: { primary: false, defaultVisible: false, width: 172 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.sourceMetrics?.twoYearMeanCitedness ?? null,
-  },
-  {
     id: "library-coverage",
     label: "Connections in library",
     group: "Library",

@@ -4,7 +4,6 @@ import type { ExternalWork } from "../domain/externalWork";
 import type {
   CitationGraphEdge,
   CitationGraphNode,
-  GraphLayoutOptions,
 } from "../domain/graphTypes";
 import type {
   LibraryCollectionFilter,
@@ -168,10 +167,6 @@ import {
   AUTOMATIC_RELATIONSHIP_MEMBERSHIP_LIMIT,
   fillCutIntent,
 } from "./relationshipRefreshPolicy";
-import {
-  ensureSourceMetricsForNodes,
-  graphLayoutUsesSourceMetrics,
-} from "./sourceMetricsService";
 import { buildKeyModel } from "./graphKeyModel";
 import {
   routeStatus,
@@ -1407,40 +1402,6 @@ export function renderGraphView(
     if (hopModel) renderer?.fitVisibleNodes();
     else renderer?.fitView();
   };
-  let sourceMetricsRefreshActive = false;
-  const refreshSourceMetricsForLayout = (layout: GraphLayoutOptions): void => {
-    if (!graphLayoutUsesSourceMetrics(layout) || sourceMetricsRefreshActive)
-      return;
-    sourceMetricsRefreshActive = true;
-    const candidates = model.nodes.filter(
-      (node) => node.kind !== "external" && visibleKeys.has(node.key),
-    );
-    void ensureSourceMetricsForNodes(candidates, () => {
-      if (cleaned || !graphLayoutUsesSourceMetrics(currentLayout)) return;
-      renderer?.setLayout(currentLayout);
-      fitCurrentGraph();
-    })
-      .then((updated) => {
-        if (
-          !updated ||
-          cleaned ||
-          !graphLayoutUsesSourceMetrics(currentLayout)
-        ) {
-          return;
-        }
-        renderer?.setLayout(currentLayout);
-        // Late metrics move the ramp's ends and the radii, and this redraw
-        // does not end in `updateSummary`, so the Key is rebuilt here or it
-        // goes on printing the range it read before they arrived (B82). Once,
-        // when the batch lands: `onUpdate` fires for every paper.
-        refreshKeyRail();
-        fitCurrentGraph();
-        if (selectedNode) renderOverview(selectedNode);
-      })
-      .finally(() => {
-        sourceMetricsRefreshActive = false;
-      });
-  };
   const appearance = createAxesAppearance(
     document,
     initialLayout,
@@ -1454,7 +1415,6 @@ export function renderGraphView(
       // until something else happened to refresh it (B52).
       refreshKeyRail();
       fitCurrentGraph();
-      refreshSourceMetricsForLayout(layout);
       refreshViewChip();
       // The appearance is part of the graph's state now, so a rebuild, a
       // restored tab and the saved graph all keep the edit.
@@ -4944,7 +4904,6 @@ ${error instanceof Error ? error.message : String(error)}`,
     refreshScopeRail();
   };
   renderOverview(null);
-  refreshSourceMetricsForLayout(currentLayout);
 
   const onGraphAreaPointerDown = (event: PointerEvent): void => {
     const target = event.target as Element | null;

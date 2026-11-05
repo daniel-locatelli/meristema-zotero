@@ -178,7 +178,11 @@ Use all providers button, and the three-action View menu.
       recent citation rate, which divides by the years a paper existed in the
       window. Removed: change in annual citations (reads as recent citation
       rate). Kept: FWCI. Out of the graph's lists: citation percentile (reads as
-      FWCI; the sidebar still shows it). Next: influential citations.
+      FWCI; the sidebar still shows it). Kept: influential citations. Removed:
+      journal h-index, i10-index and 2-year mean citedness (read as citations).
+      An update still asks OpenAlex for each journal's record, and nothing shows
+      it now; ask the user whether to drop those requests. Next: library
+      coverage.
       `From view:` lost its reason with the gear's Use these
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
@@ -246,7 +250,8 @@ any failure into a new entry above.
       reads Publication order where it read Citation sequence. No metric list
       offers Citations last year or Change in annual citations, and a saved
       graph that used one opens on Recent citation rate. Citation percentile is
-      in no graph list, and a paper's sidebar still shows Percentile. Update a
+      in no graph list, and a paper's sidebar still shows Percentile. No list
+      offers a journal metric. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
@@ -646,3 +651,6 @@ entries are in git history.
   scaled by a paper's size; rate against year shows what is gaining.
 - 2026-11-05, later: W19 kept FWCI, and took citation percentile out of the
   graph's lists: FWCI plots the same comparison and shows the gaps.
+- 2026-11-05, later: W19 kept influential citations and removed the three journal
+  metrics: they describe the venue, and h-index and i10 grow with its size. B82's
+  case went with them; it coloured by journal h-index.

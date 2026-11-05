@@ -34,7 +34,6 @@ import {
   getCachedCitationGraph,
   getCachedCitationGraphForSnapshot,
 } from "./citationGraphService";
-import { ensureSourceMetricsForNodes } from "./sourceMetricsService";
 import { openFocusItemsInNewTab, refreshOpenGraphViews } from "./windowService";
 import { loadWholeLibrary } from "./zoteroLibraryService";
 import { clear, text } from "./graphViewControls";
@@ -316,16 +315,6 @@ function renderOverview(
   const badges = createBadges(document, node);
   if (badges) container.appendChild(detailSection(document, badges));
   container.appendChild(createOverviewMetrics(document, node));
-
-  void ensureSourceMetricsForNodes([node])
-    .then((updated) => {
-      if (updated > 0 && container.isConnected) rerender();
-    })
-    .catch((error: unknown) => {
-      Zotero.logError(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    });
 
   // The rows the section draws read `host.snapshot`, so the library snapshot
   // has to be in hand before the first of them exists — but only here, which is
