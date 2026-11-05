@@ -502,6 +502,32 @@ function normalize(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** The W8 and W21 block's fixtures: no name is a prefix of another. */
+const HOLD_TOKEN = `hold${RUN}`;
+const holdDOI = (n: string): string =>
+  `10.5555/${HOLD_TOKEN}.${n}`.toLowerCase();
+const holdTitle = (n: string): string => `W8 ${HOLD_TOKEN} ${n}`;
+const paperOf = (n: string, year: number): ServedPaper =>
+  ({
+    id: `${HOLD_TOKEN}${n}`,
+    doi: holdDOI(n),
+    title: holdTitle(n),
+    year,
+    cites: [],
+  }) as ServedPaper;
+/** Known to the batch. Each list also holds one paper nobody knows. */
+const HOLD_KNOWN: Record<string, ServedPaper> = {
+  seed: paperOf("seed", 2018),
+  origin: paperOf("origin", 2019),
+  citerone: paperOf("citerone", 2020),
+  citertwo: paperOf("citertwo", 2021),
+  refone: paperOf("refone", 2009),
+  reftwo: paperOf("reftwo", 2010),
+  similar: paperOf("similar", 2022),
+};
+const HOLD_CITERS = ["citerone", "citertwo", "citernobody"];
+const HOLD_REFERENCES = ["refone", "reftwo", "refnobody"];
+
 /**
  * The citation hop ladder, walked through the plugin's own chrome. The test
  * bundle is a second copy of the plugin, so nothing here reaches into a view:
@@ -3755,41 +3781,16 @@ describe("Citation hops (Stage 3)", function () {
    * Without this the rule was only tested on the scope model.
    */
   describe("while a fill's details are being tried (W8, W21)", function () {
-    const TOKEN = `hold${RUN}`;
-    const holdDOI = (n: string): string =>
-      `10.5555/${TOKEN}.${n}`.toLowerCase();
-    const holdTitle = (n: string): string => `W8 ${TOKEN} ${n}`;
-    const paperOf = (n: string, year: number): ServedPaper =>
-      ({
-        id: `${TOKEN}${n}`,
-        doi: holdDOI(n),
-        title: holdTitle(n),
-        year,
-        cites: [],
-      }) as ServedPaper;
-    /** Known to the batch. Each list also holds one paper nobody knows. */
-    const KNOWN: Record<string, ServedPaper> = {
-      seed: paperOf("seed", 2018),
-      origin: paperOf("origin", 2019),
-      citerone: paperOf("citerone", 2020),
-      citertwo: paperOf("citertwo", 2021),
-      refone: paperOf("refone", 2009),
-      reftwo: paperOf("reftwo", 2010),
-      similar: paperOf("similar", 2022),
-    };
-    const CITERS = ["citerone", "citertwo", "citernobody"];
-    const REFERENCES = ["refone", "reftwo", "refnobody"];
-
     let below: any = null;
     const holdTabs: string[] = [];
     const seedItemIDs: number[] = [];
-    let asked: string[] = [];
+    const asked: string[] = [];
     let batches = 0;
     let openGate: (() => void) | null = null;
-    let gate: Promise<void> = Promise.resolve();
+    let gate: Promise<void> | null = null;
     /** The list under test: only its papers' lookups wait and count. */
-    let listed: string[] = CITERS;
-    let batchIDs: string[] = [];
+    let listed: string[] = HOLD_CITERS;
+    const batchIDs: string[] = [];
 
     function closeGate(): void {
       gate = new Promise((resolve) => {
@@ -3800,14 +3801,14 @@ describe("Citation hops (Stage 3)", function () {
     /** The seed reports its lists: a paper with a count of 0 is never asked. */
     function holdPaperAnswer(paper: ServedPaper): unknown {
       const answer = semanticScholarPaper(paper) as Record<string, unknown>;
-      return paper === KNOWN.seed || paper === KNOWN.origin
+      return paper === HOLD_KNOWN.seed || paper === HOLD_KNOWN.origin
         ? { ...answer, citationCount: 3, referenceCount: 3 }
         : answer;
     }
 
     function knownIn(identifier: string): ServedPaper | undefined {
       const lower = decodeURIComponent(identifier).toLowerCase();
-      return Object.values(KNOWN).find(
+      return Object.values(HOLD_KNOWN).find(
         (paper) =>
           lower.includes(paper.doi) || lower.includes(paper.id.toLowerCase()),
       );
@@ -3820,7 +3821,7 @@ describe("Citation hops (Stage 3)", function () {
         if (parsed.pathname.includes("/recommendations/")) {
           return providerAnswer(
             JSON.stringify({
-              recommendedPapers: [holdPaperAnswer(KNOWN.similar!)],
+              recommendedPapers: [holdPaperAnswer(HOLD_KNOWN.similar!)],
             }),
           );
         }
@@ -3830,7 +3831,7 @@ describe("Citation hops (Stage 3)", function () {
           // Only a listed paper's lookup waits; the seed's own has to get through.
           batchIDs.push(ids.map((id) => id.split(".").pop()).join(","));
           const holds = ids.some((id) =>
-            listed.some((n) => id.toLowerCase().includes(`${TOKEN}.${n}`)),
+            listed.some((n) => id.toLowerCase().includes(`${HOLD_TOKEN}.${n}`)),
           );
           if (holds) {
             batches += 1;
@@ -3850,7 +3851,7 @@ describe("Citation hops (Stage 3)", function () {
         }
         const match = /\/paper\/([^/]+)$/.exec(parsed.pathname);
         const paper = match ? knownIn(match[1]!) : undefined;
-        return paper === KNOWN.seed || paper === KNOWN.origin
+        return paper === HOLD_KNOWN.seed || paper === HOLD_KNOWN.origin
           ? providerAnswer(JSON.stringify(holdPaperAnswer(paper!)))
           : providerNotFound();
       }
@@ -3859,20 +3860,20 @@ describe("Citation hops (Stage 3)", function () {
       );
       if (list) {
         const about = decodeURIComponent(list[2]!).toLowerCase();
-        if (list[1] === "citations" && about === KNOWN.seed!.doi) {
+        if (list[1] === "citations" && about === HOLD_KNOWN.seed!.doi) {
           return providerAnswer(
             JSON.stringify(
-              CITERS.map((n) => ({
+              HOLD_CITERS.map((n) => ({
                 citing: `doi:${holdDOI(n)}`,
                 creation: "2021-01-01",
               })),
             ),
           );
         }
-        if (list[1] === "references" && about === KNOWN.origin!.doi) {
+        if (list[1] === "references" && about === HOLD_KNOWN.origin!.doi) {
           return providerAnswer(
             JSON.stringify(
-              REFERENCES.map((n) => ({ cited: `doi:${holdDOI(n)}` })),
+              HOLD_REFERENCES.map((n) => ({ cited: `doi:${holdDOI(n)}` })),
             ),
           );
         }
@@ -3974,17 +3975,17 @@ describe("Citation hops (Stage 3)", function () {
       ) => {
         const mine =
           PROVIDER_HOST.test(url) &&
-          (url.toLowerCase().includes(TOKEN) ||
+          (url.toLowerCase().includes(HOLD_TOKEN) ||
             url.includes("/recommendations/") ||
             String(options?.body ?? "")
               .toLowerCase()
-              .includes(TOKEN));
+              .includes(HOLD_TOKEN));
         if (!mine) return below.call(Zotero.HTTP, method, url, options);
         asked.push(url.replace(/^https:\/\//, "").slice(0, 90));
         await delay(SERVED_LATENCY_MS);
         return answer(url, options);
       };
-      await addHoldSeed(KNOWN.seed!);
+      await addHoldSeed(HOLD_KNOWN.seed!);
       await openHoldTab();
     });
 
@@ -4002,8 +4003,8 @@ describe("Citation hops (Stage 3)", function () {
       this.timeout(180_000);
       await holdsBackThenLands(
         async () =>
-          (await nodeMenuEntry("Add as seed", KNOWN.seed!.title)).click(),
-        CITERS,
+          (await nodeMenuEntry("Add as seed", HOLD_KNOWN.seed!.title)).click(),
+        HOLD_CITERS,
       );
     });
 
@@ -4011,10 +4012,10 @@ describe("Citation hops (Stage 3)", function () {
       this.timeout(180_000);
       // Only now: a walk over the plot selects what it passes, and selecting a
       // paper fetches its lists, which would leave nothing to hold back.
-      await addHoldSeed(KNOWN.origin!);
+      await addHoldSeed(HOLD_KNOWN.origin!);
       await openHoldTab();
       await holdsBackThenLands(async () => {
-        (await nodeMenuEntry("Add as seed", KNOWN.origin!.title)).click();
+        (await nodeMenuEntry("Add as seed", HOLD_KNOWN.origin!.title)).click();
         // The switch appears with the first seed.
         const cell = await waitFor(() => {
           try {
@@ -4025,7 +4026,7 @@ describe("Citation hops (Stage 3)", function () {
         }, 30_000);
         expect(cell, `no direction switch; ${holdState()}`).to.exist;
         cell!.click();
-      }, REFERENCES);
+      }, HOLD_REFERENCES);
     });
 
     it("keeps a placed paper on the plot through a Refresh", async function () {
@@ -4061,13 +4062,15 @@ describe("Citation hops (Stage 3)", function () {
         return text && !text.includes("Finding similar papers") ? text : null;
       }, 60_000);
       expect(listed ?? "", `Similar never answered; ${holdState()}`).to.include(
-        KNOWN.similar!.title,
+        HOLD_KNOWN.similar!.title,
       );
     });
 
     it("lists similar papers from a paper's node menu", async function () {
       this.timeout(120_000);
-      (await nodeMenuEntry("Find similar papers", KNOWN.origin!.title)).click();
+      (
+        await nodeMenuEntry("Find similar papers", HOLD_KNOWN.origin!.title)
+      ).click();
       const listed = await waitFor(() => {
         const text = graphRoot().querySelector(
           ".cm-inline-similar-results",
@@ -4075,7 +4078,7 @@ describe("Citation hops (Stage 3)", function () {
         return text && !text.includes("Finding similar papers") ? text : null;
       }, 60_000);
       expect(listed ?? "", `Similar never answered; ${holdState()}`).to.include(
-        KNOWN.similar!.title,
+        HOLD_KNOWN.similar!.title,
       );
     });
   });
