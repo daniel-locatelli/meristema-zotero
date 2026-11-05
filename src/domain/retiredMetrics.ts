@@ -21,6 +21,8 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   // Partial references and one old citation skew them.
   ["reference-age-mean", "year"],
   ["reference-age-spread", "year"],
+  // Surnames alone matched different authors.
+  ["self-citation-estimate", "references"],
 ]);
 
 const METRIC_FIELDS = [

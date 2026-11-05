@@ -218,19 +218,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.referenceCoverage,
   },
   {
-    id: "self-citation-estimate",
-    label: "Estimated self-citations",
-    group: "Bibliography",
-    description:
-      "Estimated share of externally retrieved structured references sharing an author identifier, or a normalized surname when identifiers are unavailable. Displayed only with at least five comparable references and at least 25% reference coverage.",
-    valueType: "percentage",
-    decimals: 1,
-    column: { primary: false, defaultVisible: false, width: 152 },
-    itemPane: "advanced",
-    graph: graphLinear,
-    value: (node) => node.selfCitationEstimate,
-  },
-  {
     id: "metadata-completeness",
     label: "Metadata completeness",
     group: "Data quality",

@@ -25,6 +25,7 @@ describe("the graph's metric lists (W19)", () => {
         "reference-coverage",
         "reference-age-mean",
         "reference-age-spread",
+        "self-citation-estimate",
       ]);
     }
     expect(getMetricDefinition("citation-percentile").itemPane).to.equal(

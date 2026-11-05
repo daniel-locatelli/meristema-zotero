@@ -23,7 +23,6 @@ export type MetricID =
   | "component-size"
   | "citation-chain-depth"
   | "reference-coverage"
-  | "self-citation-estimate"
   | "future-references"
   | "data-age"
   | "metadata-completeness"
