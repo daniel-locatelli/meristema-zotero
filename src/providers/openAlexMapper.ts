@@ -69,7 +69,16 @@ export function openAlexAbstract(
   return words.map((entry) => entry[1]).join(" ") || null;
 }
 
-export function openAlexYearlyMetrics(counts: CitationYearCount[]): {
+/**
+ * The yearly trend behind the recent citation rate and acceleration. The rate
+ * averages the last three complete years the paper existed in (W19), so a
+ * paper from last year is not held to three years' worth; one from this year
+ * has no complete year and no rate. An unknown year uses the whole window.
+ */
+export function openAlexYearlyMetrics(
+  counts: CitationYearCount[],
+  publicationYear: number | null,
+): {
   lastYear: number | null;
   velocity: number | null;
   acceleration: number | null;
@@ -78,12 +87,13 @@ export function openAlexYearlyMetrics(counts: CitationYearCount[]): {
   const byYear = new Map(counts.map((entry) => [entry.year, entry.count]));
   const previous = byYear.get(current - 1) ?? 0;
   const before = byYear.get(current - 2) ?? 0;
-  const three = [current - 3, current - 2, current - 1].map(
-    (year) => byYear.get(year) ?? 0,
+  const window = [current - 3, current - 2, current - 1].filter(
+    (year) => publicationYear === null || year >= publicationYear,
   );
+  const total = window.reduce((sum, year) => sum + (byYear.get(year) ?? 0), 0);
   return {
     lastYear: previous,
-    velocity: three.reduce((sum, count) => sum + count, 0) / 3,
+    velocity: window.length ? total / window.length : null,
     acceleration: previous - before,
   };
 }
@@ -124,7 +134,10 @@ export function openAlexWorkMetadata(
     .filter(
       (entry) => Number.isInteger(entry.year) && Number.isFinite(entry.count),
     );
-  const trend = openAlexYearlyMetrics(counts);
+  const trend = openAlexYearlyMetrics(
+    counts,
+    publicationYearOrNull(work.publication_year),
+  );
   const sourceMetrics = openAlexSourceMetrics(work);
   const groups: RelatedWorkFieldGroup[] = ["summary"];
   if (work.abstract_inverted_index !== undefined) groups.push("abstract");

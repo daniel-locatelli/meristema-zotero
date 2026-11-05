@@ -127,7 +127,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     shortLabel: "Citation rate",
     group: "Impact",
     description:
-      "Average citations received per year over the three most recent complete calendar years.",
+      "Average citations received per year over the three most recent complete calendar years, or the ones since the paper appeared.",
     valueType: "decimal",
     decimals: 2,
     column: { primary: false, defaultVisible: false, width: 124 },

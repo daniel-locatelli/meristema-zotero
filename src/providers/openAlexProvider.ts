@@ -240,7 +240,7 @@ async function success(
     .filter(
       (entry) => Number.isFinite(entry.year) && Number.isFinite(entry.count),
     );
-  const trend = yearlyMetrics(counts);
+  const trend = yearlyMetrics(counts, related.year ?? null);
   const percentile = numberOrNull(work.citation_normalized_percentile?.value);
   return {
     status: "success",
