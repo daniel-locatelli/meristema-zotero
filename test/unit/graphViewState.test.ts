@@ -763,6 +763,26 @@ describe("hops in the state", function () {
     ).to.equal(null);
   });
 
+  it("reads a removed metric as its replacement (W19)", function () {
+    const layout = parseGraphViewState(
+      JSON.stringify({
+        ...emptyGraphViewState(),
+        layout: {
+          xMetric: "year",
+          xScale: "linear",
+          yMetric: "citations-last-year",
+          yScale: "log",
+          nodeSizeMetric: "citations-last-year",
+          nodeColorMetric: "provider",
+          nodeLabelMode: "title",
+        },
+      }),
+    )?.layout;
+    expect(layout?.yMetric).to.equal("citation-rate");
+    expect(layout?.nodeSizeMetric).to.equal("citation-rate");
+    expect(layout?.yScale, "the rest survives").to.equal("log");
+  });
+
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {
     const v3 = parseGraphViewState(
       JSON.stringify({

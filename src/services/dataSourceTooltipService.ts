@@ -139,7 +139,6 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
       return normalizedSources([node.referenceCountProvider ?? node.provider]);
     case "structured-references":
       return referenceSources(node);
-    case "citations-last-year":
     case "citation-rate":
     case "citation-acceleration":
     case "change-in-annual-citations":

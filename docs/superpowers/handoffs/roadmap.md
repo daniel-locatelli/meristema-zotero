@@ -173,8 +173,9 @@ Use all providers button, and the three-action View menu.
       (scale, metric); Label; Size; Color; `From view:`; Reset. The metric lists hold
       19 metrics in six groups. The shipped views use year, citations, references
       and free, and publication order is a seeded graph's default X axis. Kept so
-      far: publication order (renamed from citation sequence). `From view:` lost
-      its reason with the gear's Use these
+      far: publication order (renamed from citation sequence). Removed: citations
+      last year (a stored one reads as recent citation rate). Next: recent
+      citation rate. `From view:` lost its reason with the gear's Use these
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
       Five questions are with the user: what counts as read, where it is stored,
@@ -238,7 +239,9 @@ any failure into a new entry above.
 - [ ] Refit: on Shared papers, set Cited by at least 2: the axes shrink to the
       papers left. The floor, the facets and hiding refit them too; the search
       only greys. A year axis ends at this year, not at 2050. The X axis metric
-      reads Publication order where it read Citation sequence.
+      reads Publication order where it read Citation sequence. No metric list
+      offers Citations last year, and a saved graph that used it opens on
+      Recent citation rate.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the
@@ -627,3 +630,5 @@ entries are in git history.
   admit (B118 had kept hidden papers in the frame, so a filtered Shared view
   spanned 1860 to 2050), and a year axis stops at this year. W19 began:
   citation sequence stays, named Publication order.
+- 2026-11-05, later: W19 removed citations last year: one year's count is noisy
+  and unfair to new papers, and the three-year rate asks the same thing.

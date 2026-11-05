@@ -122,18 +122,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.referenceCount,
   },
   {
-    id: "citations-last-year",
-    label: "Citations last year",
-    group: "Impact",
-    description:
-      "Citations received during the most recent complete calendar year.",
-    valueType: "integer",
-    column: { primary: false, defaultVisible: false, width: 128 },
-    itemPane: "advanced",
-    graph: graphAll,
-    value: (node) => node.citationsLastYear,
-  },
-  {
     id: "citation-rate",
     label: "Recent citation rate",
     shortLabel: "Citation rate",

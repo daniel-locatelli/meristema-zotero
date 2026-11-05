@@ -183,7 +183,6 @@ function metricValuesForWork(
     year: publicationYearOrNull(work.year),
     citations: finite(work.citationCount),
     references: referenceCount,
-    "citations-last-year": finite(work.citationsLastYear),
     "citation-rate": finite(work.citationVelocity),
     "citation-acceleration": finite(work.citationAcceleration),
     fwci: finite(work.fwci),

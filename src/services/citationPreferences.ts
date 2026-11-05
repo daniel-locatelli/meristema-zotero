@@ -5,6 +5,7 @@ import {
   type CitationProviderPreference,
 } from "../domain/citationTypes";
 import type { GraphLayoutOptions } from "../domain/graphTypes";
+import { withCurrentMetrics } from "../domain/retiredMetrics";
 import { citationDataSourceLabel } from "./providerPresentation";
 
 const key = (name: string): string => `${config.prefsPrefix}.${name}`;
@@ -188,11 +189,13 @@ const LEGACY_DEFAULT_GRAPH_LAYOUT: GraphLayoutOptions = {
  * "collection" was the default colouring until folders became regions. The
  * appearance schema version is deliberately not bumped for it: changing one
  * field is no reason to throw away the reader's axes, scales, size metric
- * and label mode.
+ * and label mode. A removed metric reads as its replacement, for the same
+ * reason.
  */
 function withoutRetiredColouring(
-  options: GraphLayoutOptions,
+  stored: GraphLayoutOptions,
 ): GraphLayoutOptions {
+  const options = withCurrentMetrics(stored);
   return (options.nodeColorMetric as string) === "collection"
     ? { ...options, nodeColorMetric: "uniform" }
     : options;

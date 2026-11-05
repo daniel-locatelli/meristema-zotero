@@ -11,6 +11,7 @@ import type {
 import { clampHopDepth, type HopDirection } from "./graphHopModel";
 import { normaliseLayoutFor } from "./graphLayoutAvailability";
 import { getMetricDefinition } from "./metricRegistry";
+import { withCurrentMetrics } from "../domain/retiredMetrics";
 import {
   defaultPaperListFilterState,
   type PaperListFilterState,
@@ -661,9 +662,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * own (D17). The failing field is named the way the view's wire names it.
  */
 export function decodeGraphAppearance(
-  a: unknown,
+  stored: unknown,
 ): { ok: true; appearance: GraphLayoutOptions } | { ok: false; field: string } {
-  if (!isRecord(a)) return { ok: false, field: "appearance" };
+  if (!isRecord(stored)) return { ok: false, field: "appearance" };
+  const a = withCurrentMetrics(stored);
   const axis = (v: unknown): v is GraphAxisMetric =>
     AXIS_METRICS.has(v as string) || isMetricID(v);
   if (!axis(a.xMetric)) return { ok: false, field: "appearance.xMetric" };

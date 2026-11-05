@@ -82,6 +82,27 @@ describe("the graph appearance preference", function () {
   });
 });
 
+describe("a stored default naming a removed metric (W19)", function () {
+  it("opens on the replacement and keeps the rest", function () {
+    stubPrefs({
+      graphAppearanceVersion: 4,
+      graphAppearance: JSON.stringify({
+        xMetric: "citations-last-year",
+        xScale: "log",
+        yMetric: "citations",
+        yScale: "linear",
+        nodeSizeMetric: "citations",
+        nodeColorMetric: "citations-last-year",
+        nodeLabelMode: "author-year",
+      }),
+    });
+    const appearance = getGraphAppearance();
+    expect(appearance.xMetric).to.equal("citation-rate");
+    expect(appearance.nodeColorMetric).to.equal("citation-rate");
+    expect(appearance.xScale).to.equal("log");
+  });
+});
+
 describe("the focus graph appearance preference", function () {
   it("coerces a stored Collection colouring to Uniform", function () {
     // getFocusGraphAppearance has no callers today (confirmed by grep before

@@ -11,7 +11,6 @@ export type MetricID =
   | "citation-sequence"
   | "citations"
   | "references"
-  | "citations-last-year"
   | "citation-rate"
   | "citation-acceleration"
   | "fwci"
