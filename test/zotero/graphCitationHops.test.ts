@@ -3747,6 +3747,339 @@ describe("Citation hops (Stage 3)", function () {
     });
   });
 
+  /*
+   * W8 and W21, end to end. OpenCitations names a paper by DOI alone, so what
+   * the list lands has no title until the details queue answers. The queue's
+   * batch waits on a gate the case opens, which is what lets it read the plot
+   * while details are still being tried: nothing on it, and all of it counted.
+   * Without this the rule was only tested on the scope model.
+   */
+  describe("while a fill's details are being tried (W8, W21)", function () {
+    const TOKEN = `hold${RUN}`;
+    const holdDOI = (n: string): string =>
+      `10.5555/${TOKEN}.${n}`.toLowerCase();
+    const holdTitle = (n: string): string => `W8 ${TOKEN} ${n}`;
+    const paperOf = (n: string, year: number): ServedPaper =>
+      ({
+        id: `${TOKEN}${n}`,
+        doi: holdDOI(n),
+        title: holdTitle(n),
+        year,
+        cites: [],
+      }) as ServedPaper;
+    /** Known to the batch. Each list also holds one paper nobody knows. */
+    const KNOWN: Record<string, ServedPaper> = {
+      seed: paperOf("seed", 2018),
+      origin: paperOf("origin", 2019),
+      citerone: paperOf("citerone", 2020),
+      citertwo: paperOf("citertwo", 2021),
+      refone: paperOf("refone", 2009),
+      reftwo: paperOf("reftwo", 2010),
+      similar: paperOf("similar", 2022),
+    };
+    const CITERS = ["citerone", "citertwo", "citernobody"];
+    const REFERENCES = ["refone", "reftwo", "refnobody"];
+
+    let below: any = null;
+    const holdTabs: string[] = [];
+    const seedItemIDs: number[] = [];
+    let asked: string[] = [];
+    let batches = 0;
+    let openGate: (() => void) | null = null;
+    let gate: Promise<void> = Promise.resolve();
+    /** The list under test: only its papers' lookups wait and count. */
+    let listed: string[] = CITERS;
+    let batchIDs: string[] = [];
+
+    function closeGate(): void {
+      gate = new Promise((resolve) => {
+        openGate = resolve;
+      });
+    }
+
+    /** The seed reports its lists: a paper with a count of 0 is never asked. */
+    function holdPaperAnswer(paper: ServedPaper): unknown {
+      const answer = semanticScholarPaper(paper) as Record<string, unknown>;
+      return paper === KNOWN.seed || paper === KNOWN.origin
+        ? { ...answer, citationCount: 3, referenceCount: 3 }
+        : answer;
+    }
+
+    function knownIn(identifier: string): ServedPaper | undefined {
+      const lower = decodeURIComponent(identifier).toLowerCase();
+      return Object.values(KNOWN).find(
+        (paper) =>
+          lower.includes(paper.doi) || lower.includes(paper.id.toLowerCase()),
+      );
+    }
+
+    /** The answers the whole block runs on: DOIs from the lists, details from the batch. */
+    async function answer(url: string, options: any): Promise<unknown> {
+      const parsed = new URL(url);
+      if (SEMANTIC_SCHOLAR_HOST.test(url)) {
+        if (parsed.pathname.includes("/recommendations/")) {
+          return providerAnswer(
+            JSON.stringify({
+              recommendedPapers: [holdPaperAnswer(KNOWN.similar!)],
+            }),
+          );
+        }
+        if (parsed.pathname.endsWith("/paper/batch")) {
+          const ids = (JSON.parse(String(options?.body ?? "{}")).ids ??
+            []) as string[];
+          // Only a listed paper's lookup waits; the seed's own has to get through.
+          batchIDs.push(ids.map((id) => id.split(".").pop()).join(","));
+          const holds = ids.some((id) =>
+            listed.some((n) => id.toLowerCase().includes(`${TOKEN}.${n}`)),
+          );
+          if (holds) {
+            batches += 1;
+            await gate;
+          }
+          return providerAnswer(
+            JSON.stringify(
+              ids.map((id) => {
+                const paper = knownIn(id);
+                return paper ? holdPaperAnswer(paper) : null;
+              }),
+            ),
+          );
+        }
+        if (/\/(citations|references)$/.test(parsed.pathname)) {
+          return providerAnswer(JSON.stringify({ data: [] }));
+        }
+        const match = /\/paper\/([^/]+)$/.exec(parsed.pathname);
+        const paper = match ? knownIn(match[1]!) : undefined;
+        return paper === KNOWN.seed || paper === KNOWN.origin
+          ? providerAnswer(JSON.stringify(holdPaperAnswer(paper!)))
+          : providerNotFound();
+      }
+      const list = /\/index\/v2\/(citations|references)\/doi:(.+)$/.exec(
+        parsed.pathname,
+      );
+      if (list) {
+        const about = decodeURIComponent(list[2]!).toLowerCase();
+        if (list[1] === "citations" && about === KNOWN.seed!.doi) {
+          return providerAnswer(
+            JSON.stringify(
+              CITERS.map((n) => ({
+                citing: `doi:${holdDOI(n)}`,
+                creation: "2021-01-01",
+              })),
+            ),
+          );
+        }
+        if (list[1] === "references" && about === KNOWN.origin!.doi) {
+          return providerAnswer(
+            JSON.stringify(
+              REFERENCES.map((n) => ({ cited: `doi:${holdDOI(n)}` })),
+            ),
+          );
+        }
+        return providerAnswer("[]");
+      }
+      if (/crossref/.test(url) && parsed.pathname.endsWith("/works")) {
+        return providerAnswer(JSON.stringify({ message: { items: [] } }));
+      }
+      if (META_LOOKUP.test(url)) return providerAnswer("[]");
+      return providerNotFound();
+    }
+
+    function holdState(): string {
+      return (
+        `ladder ${ladder()}; line "${progressText()}"; ${batches} batch(es); ` +
+        `${asked.length} request(s), last: ${asked.slice(-8).join(" | ")}; ` +
+        `direction ${directionState()}; batches ${batchIDs.join(" | ")}`
+      );
+    }
+
+    /** One direction's whole story, on the seed the block's first case adds. */
+    async function holdsBackThenLands(
+      start: () => Promise<void> | void,
+      list: string[],
+    ): Promise<void> {
+      listed = list;
+      closeGate();
+      batches = 0;
+      try {
+        await start();
+        const asking = await waitFor(() => (batches > 0 ? true : null), 60_000);
+        expect(asking, `the queue never asked; ${holdState()}`).to.equal(true);
+        const counted = await waitFor(
+          () => ((hopCounts(1)?.available ?? 0) === 3 ? true : null),
+          30_000,
+        );
+        expect(counted, `the list was not counted; ${holdState()}`).to.equal(
+          true,
+        );
+        // Long enough for a rebuild that would wrongly place them.
+        await delay(1_000);
+        expect(
+          hopCounts(1),
+          `a paper landed before its details were tried; ${holdState()}`,
+        ).to.deep.equal({ shown: 0, available: 3 });
+      } finally {
+        openGate!();
+      }
+      const landed = await waitFor(
+        () => ((hopCounts(1)?.shown ?? 0) === 3 ? true : null),
+        60_000,
+      );
+      expect(landed, `the papers never landed; ${holdState()}`).to.equal(true);
+      // Found by its title: the batch's details reached the plot.
+      await nodeMenuEntry("Find similar papers", holdTitle(list[0]!));
+      closeNodeMenu();
+    }
+
+    async function addHoldSeed(paper: ServedPaper): Promise<void> {
+      const item = new Zotero.Item("journalArticle");
+      item.libraryID = Zotero.Libraries.userLibraryID;
+      item.setField("title", paper.title);
+      item.setField("date", String(paper.year));
+      item.setField("DOI", paper.doi);
+      seedItemIDs.push(await item.saveTx());
+    }
+
+    async function openHoldTab(): Promise<void> {
+      const id = await openNewGraphTab();
+      holdTabs.push(id);
+      currentTabID = id;
+      win.Zotero_Tabs.select(id);
+      const rail = await waitFor(
+        () =>
+          tabContent(id)?.querySelector(".cm-scope-section .cm-scope-count"),
+        30_000,
+      );
+      expect(rail, "the block's Scope section").to.exist;
+      await dismissGallery(id);
+      const fit = await waitFor(
+        () =>
+          graphRoot().querySelector(
+            '.cm-zoom-controls button[data-action="fit"]',
+          ) as HTMLButtonElement | null,
+        10_000,
+      );
+      expect(fit, "the block's fit button").to.exist;
+      fit!.click();
+    }
+
+    before(async function () {
+      this.timeout(120_000);
+      if (getOpenAlexAPIKey() !== "") this.skip();
+      below = Zotero.HTTP.request;
+      (Zotero.HTTP as any).request = async (
+        method: string,
+        url: string,
+        options?: any,
+      ) => {
+        const mine =
+          PROVIDER_HOST.test(url) &&
+          (url.toLowerCase().includes(TOKEN) ||
+            url.includes("/recommendations/") ||
+            String(options?.body ?? "")
+              .toLowerCase()
+              .includes(TOKEN));
+        if (!mine) return below.call(Zotero.HTTP, method, url, options);
+        asked.push(url.replace(/^https:\/\//, "").slice(0, 90));
+        await delay(SERVED_LATENCY_MS);
+        return answer(url, options);
+      };
+      await addHoldSeed(KNOWN.seed!);
+      await openHoldTab();
+    });
+
+    after(async function () {
+      this.timeout(30_000);
+      openGate?.();
+      if (below) (Zotero.HTTP as any).request = below;
+      for (const id of holdTabs) win.Zotero_Tabs.close(id);
+      currentTabID = null;
+      await delay(500);
+      for (const id of seedItemIDs) await Zotero.Items.erase(id);
+    });
+
+    it("holds Citers back until their details were tried, then lands them", async function () {
+      this.timeout(180_000);
+      await holdsBackThenLands(
+        async () =>
+          (await nodeMenuEntry("Add as seed", KNOWN.seed!.title)).click(),
+        CITERS,
+      );
+    });
+
+    it("holds References back the same way", async function () {
+      this.timeout(180_000);
+      // Only now: a walk over the plot selects what it passes, and selecting a
+      // paper fetches its lists, which would leave nothing to hold back.
+      await addHoldSeed(KNOWN.origin!);
+      await openHoldTab();
+      await holdsBackThenLands(async () => {
+        (await nodeMenuEntry("Add as seed", KNOWN.origin!.title)).click();
+        // The switch appears with the first seed.
+        const cell = await waitFor(() => {
+          try {
+            return directionCell("References");
+          } catch {
+            return null;
+          }
+        }, 30_000);
+        expect(cell, `no direction switch; ${holdState()}`).to.exist;
+        cell!.click();
+      }, REFERENCES);
+    });
+
+    it("keeps a placed paper on the plot through a Refresh", async function () {
+      this.timeout(120_000);
+      closeGate();
+      batches = 0;
+      await pressRefresh();
+      const low: number[] = [];
+      for (let i = 0; i < 20; i += 1) {
+        low.push(hopCounts(1)?.shown ?? -1);
+        await delay(150);
+      }
+      openGate!();
+      expect(
+        Math.min(...low),
+        `a placed paper left during the Refresh: ${low.join(",")}; ${holdState()}`,
+      ).to.equal(3);
+    });
+
+    it("lists similar papers from the toolbar", async function () {
+      this.timeout(120_000);
+      const button = (
+        Array.from(
+          graphRoot().querySelectorAll(".cm-toolbar-button"),
+        ) as HTMLButtonElement[]
+      ).find((candidate) => normalize(candidate.textContent) === "Similar");
+      expect(button, "the toolbar's Similar button").to.exist;
+      button!.click();
+      const listed = await waitFor(() => {
+        const text = graphRoot().querySelector(
+          ".cm-graph-similar-results",
+        )?.textContent;
+        return text && !text.includes("Finding similar papers") ? text : null;
+      }, 60_000);
+      expect(listed ?? "", `Similar never answered; ${holdState()}`).to.include(
+        KNOWN.similar!.title,
+      );
+    });
+
+    it("lists similar papers from a paper's node menu", async function () {
+      this.timeout(120_000);
+      (await nodeMenuEntry("Find similar papers", KNOWN.origin!.title)).click();
+      const listed = await waitFor(() => {
+        const text = graphRoot().querySelector(
+          ".cm-inline-similar-results",
+        )?.textContent;
+        return text && !text.includes("Finding similar papers") ? text : null;
+      }, 60_000);
+      expect(listed ?? "", `Similar never answered; ${holdState()}`).to.include(
+        KNOWN.similar!.title,
+      );
+    });
+  });
+
   describe("with shared citers (Stage 4)", function () {
     let previousKey: unknown = undefined;
     let previousAppearance: unknown = undefined;

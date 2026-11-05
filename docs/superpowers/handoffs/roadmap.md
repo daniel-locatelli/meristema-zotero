@@ -164,9 +164,11 @@ Use all providers button, and the three-action View menu.
 - [ ] W19 review every option in Graph display settings: some may be
       unnecessary. Include the `From view:` line, whose reason (the gear's
       Use these) has left the gear
-- [ ] W22 "keeps a record of an open graph tab" failed once with no records at
-      all, in the full run at `c0bc3b8`, after 149/0 twice, and not in the three
-      runs since. Cause unknown; the case prints the records
+- [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
+      reading state"). Nothing is built beyond the view's name, text and icon.
+      Five questions are with the user: what counts as read, where it is stored,
+      which statuses, how a paper is marked, and whether 3 annotated papers is
+      the right bar. Then a spec; the diamond goes on a canvas first
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -211,7 +213,7 @@ any failure into a new entry above.
 - [ ] W20: an outside paper's sidebar says Update connections, and has no Open
       DOI button; a paper with no DOI has Open provider record.
 - [ ] W21: Similar works from the toolbar and from a paper's sidebar: results
-      list, each one a real paper. No case runs it against a provider.
+      list, each one a real paper. The suite runs both on fake providers.
 - [ ] B78: with an OpenAlex key, seed two papers that share a citer which made
       only one seed's cut of 50 (two seeds in one field with many citers).
       Set Colour to Seeds linked: the Key lists the tiers, and the citer is in
@@ -598,3 +600,8 @@ entries are in git history.
   state, then mounted on a frame, and a click in that gap was lost (Fetch hop N
   went back to its button). The refresh now reads again at the mount. Zotero's own `#zotero-pane-progress` can lie over the whole pane in a full
   run, so a hit test there asks what of the graph is on top.
+- 2026-11-05, overnight: W8 and Similar now run end to end on fake providers, in
+  both directions: the queue's batch waits on a gate, and the plot stays empty
+  until it opens. W22 was real: the first tab record is written a second after
+  the tab opens, a later mount wrote nothing, and nothing wrote again until the
+  graph changed. The mount now schedules a write.

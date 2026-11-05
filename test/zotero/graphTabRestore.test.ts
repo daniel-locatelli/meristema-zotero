@@ -1,5 +1,6 @@
 /// <reference types="mocha" />
 import { expect } from "chai";
+import { FRAME_FALLBACK_MS } from "../../src/services/frameOrTimer";
 import { config } from "../../package.json";
 import { emptyGraphViewState } from "../../src/services/graphViewState";
 import {
@@ -153,6 +154,64 @@ describe("Graph tabs after a restart (F15)", function () {
       10_000,
     );
     expect(dropped, "the closed tab's record is dropped").to.equal(true);
+    openedTabID = null;
+  });
+
+  /*
+   * W22: the first write comes a second after the tab opens, and the view
+   * mounts on a frame. A frame later than that wrote no record, since no state
+   * exists yet, and nothing wrote again until the graph next changed.
+   */
+  it("records a tab whose view mounted after the first write", async function () {
+    this.timeout(60_000);
+    // A write the last case's tab close scheduled must land first.
+    await delay(2_000);
+    const doc = win.document as Document;
+    const already = new Set(graphTabs().map((tab) => tab.id));
+    const realSetTimeout = win.setTimeout;
+    const realFrame = win.requestAnimationFrame;
+    // The frame helper's fallback and the frame itself, both past the write.
+    win.setTimeout = (run: unknown, delayMs?: number, ...rest: unknown[]) =>
+      realSetTimeout.call(
+        win,
+        run,
+        delayMs === FRAME_FALLBACK_MS ? 2_500 : delayMs,
+        ...rest,
+      );
+    win.requestAnimationFrame = (run: unknown) =>
+      realSetTimeout.call(win, () => realFrame.call(win, run), 2_500);
+    try {
+      const toolsPopup = doc.getElementById("menu_ToolsPopup")!;
+      let showing = shown(toolsPopup);
+      (toolsPopup as any).openPopup(null, "after_start", 0, 0, false, false);
+      await showing;
+      const tools = customMenu(toolsPopup, `${config.addonRef}-tools-submenu`);
+      showing = shown(tools.menupopup);
+      tools.openMenu(true);
+      await showing;
+      command(
+        customMenu(
+          tools.menupopup,
+          `${config.addonRef}-new-graph-view-command`,
+        ),
+      );
+      (toolsPopup as any).hidePopup();
+      const tab = await waitFor(
+        () => graphTabs().find((candidate) => !already.has(candidate.id)),
+        20_000,
+      );
+      expect(tab, "the graph's tab").to.exist;
+      openedTabID = tab.id as string;
+      const kept = await waitFor(() => record(openedTabID!), 12_000);
+      const keys = (await listOpenGraphTabs()).map((entry) => entry.key);
+      expect(kept, `no record for ${openedTabID}; records: ${keys.join(", ")}`)
+        .to.exist;
+    } finally {
+      win.setTimeout = realSetTimeout;
+      win.requestAnimationFrame = realFrame;
+    }
+    win.Zotero_Tabs.close(openedTabID);
+    await waitFor(async () => !(await record(openedTabID!)) && true, 10_000);
     openedTabID = null;
   });
 

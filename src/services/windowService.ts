@@ -1763,6 +1763,8 @@ function renderTab(
           targetInstanceID: instance.instanceID,
         }),
     );
+    // A write before this frame found no state, and skipped the tab (W22).
+    scheduleOpenGraphTabRecords(win);
   };
   frames.request(render);
 }
