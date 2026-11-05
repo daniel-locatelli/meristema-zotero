@@ -180,10 +180,13 @@ Use all providers button, and the three-action View menu.
       rate). Kept: FWCI. Out of the graph's lists: citation percentile (reads as
       FWCI; the sidebar still shows it). Kept: influential citations. Removed:
       journal h-index, i10-index and 2-year mean citedness (read as citations).
-      An update still asks OpenAlex for each journal's record, and nothing shows
-      it now; ask the user whether to drop those requests. Next: library
-      coverage.
+      Kept: connections in library. Next: reference coverage.
       `From view:` lost its reason with the gear's Use these
+- [ ] W23 drop the journal requests. Since W19 removed the journal metrics, an
+      update still asks OpenAlex for each journal's record (by ID, ISSN or title,
+      `librarySourceMetricsService.ts`) and stores h-index, i10 and citedness that
+      nothing shows. The user agreed 2026-11-05 to drop them; fewer requests per
+      update may help W14
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
       Five questions are with the user: what counts as read, where it is stored,
