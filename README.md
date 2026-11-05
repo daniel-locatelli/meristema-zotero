@@ -52,7 +52,7 @@ To **update** the plugin, install the newer `.xpi` in the same way. Zotero willr
   ![MainLibrary](docs/assets/MainLibrary.png)
 
 - **Customize and export the map**
-  Arrange papers by publication year, citation sequence, citation count, and other available metrics. Map values to axes, node size, and colour; filter by metadata and data quality; and export the visible graph as PNG, CSV, or JSON.
+  Arrange papers by publication year, publication order, citation count, and other available metrics. Map values to axes, node size, and colour; filter by metadata and data quality; and export the visible graph as PNG, CSV, or JSON.
 
 - **Discover and add missing papers**
   Explore external references, citing works, and similar papers alongside your Zotero items. Preview their metadata, open the DOI, mark incorrect matches, or add the paper directly to Zotero.

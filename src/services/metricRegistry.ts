@@ -79,12 +79,13 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     id: "citation-sequence",
-    label: "Citation sequence",
+    // The id predates the name; saved graphs and defaults store the id.
+    label: "Publication order",
     group: "Core",
     description:
-      "Ordinal publication order in the current graph. On a seeded graph the primary seed is 0, references are negative steps and citing papers are positive steps.",
+      "The graph's papers in publication order, one step apart. On a seeded graph the seed is 0, its references count down and its citers count up.",
     interpretation:
-      "Equal spacing represents one paper in sequence, not a fixed amount of elapsed time. Full dates are used when available; year-only ties are ordered deterministically.",
+      "One step is one paper, not a fixed span of time. Full dates are used when known; papers with only the same year keep a fixed order.",
     valueType: "integer",
     allowsNegative: true,
     column: false,
