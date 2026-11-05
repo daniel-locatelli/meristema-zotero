@@ -248,7 +248,7 @@ any failure into a new entry above.
 `npm test` launches the dev Zotero and runs `test/zotero`; the user has said it
 may be run from a session. Run it in full every 4 or 5 commits, not per change
 (the user, 2026-09-17: per-change runs are unsustainable); a case under work
-runs alone under a temporary `describe.only`. Last full run: 2026-11-05 at `9912c64` (152/0), so count from there. A clean run is 152 cases as of 2026-11-05. B28's case deselects the folder the case before it left
+runs alone under a temporary `describe.only`. Last full run: 2026-11-05 at `2f9a910` (159/0, three in a row), so count from there. A clean run is 159 cases as of 2026-11-05. B28's case deselects the folder the case before it left
 selected, so it does not test what its name says.
 
 - The suite never reaches a citation provider (`networkGuard.test.ts`): the
