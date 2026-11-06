@@ -30,8 +30,8 @@ A **reading list** is a Zotero folder holding one standalone note tagged
   by lowercased title, then key.
 - A note with an unknown `version` or unparsable JSON is not a list; readers say
   so and never rewrite it.
-- One list note per folder. A second one is ignored, and the plugin names it in
-  the sidebar.
+- One list note per folder: the oldest by date added, then key. A second one is
+  ignored, and the plugin names it in the sidebar.
 
 **Read state** is personal and per paper, the same in every list. It lives in
 one standalone note in the user's own library, outside any folder, tagged
@@ -43,8 +43,9 @@ one standalone note in the user's own library, outside any folder, tagged
 - `at` is ISO 8601 with a zone (`Z` or `±HH:MM`) and a real calendar time,
   compared to the millisecond; any other `at` is dropped.
 
-- A paper id is `doi:<normalized DOI>`, else `<library>:<item key>` (`user` or
-  `group-<id>`), so the state holds for a group's copy and a future platform.
+- A paper id is `doi:<normalized DOI>` (from the DOI field), else
+  `<library>:<item key>` (`user` or `group-<id>`), so the state holds for a
+  group's copy and a future platform.
 - A paper absent from `states` is Unread. **Next up** is a list's first step that
   is Reading, else its first Unread step.
 - The truth is not tags: tags on group items are shared with every member, and
@@ -56,7 +57,10 @@ one standalone note in the user's own library, outside any folder, tagged
   mirror tags. The skill can rebuild the mirror on request.
 - Two state notes (a sync race) are merged per paper, the later `at` winning,
   then Read over Reading over Unread, then the greater `at` text, so either
-  order gives the same note; the plugin keeps the merge and trashes the other.
+  order gives the same note; the plugin keeps the merge in the note with the
+  smallest key, so two computers keep the same one, and trashes the other. A
+  state note that cannot be read is never rewritten; if none can be read,
+  marking is refused.
 - Lists and state are two versioned JSON documents; Zotero is one store for
   them, and an online platform would keep the same two shapes (a shared list, a
   per-user state).
@@ -128,8 +132,10 @@ wrote. A folder that already holds a list is refused unless `--replace` is given
 ## Build order and plans
 
 1. The format and its sample notes.
-2. The plugin, and the skill verb beside it.
+2. The plugin, and the skill verb beside it, in three plans: 2a the plugin core
+   (store, tag mirror, menus, Step column), 2b the sidebar section and list tab,
+   2c the Python port of the format and `zot.py reading-list`.
 3. Meristema's view.
 4. Last: rename this repo to `zotero-meristema-graph`.
 
-Steps 1 to 3 each get their own implementation plan.
+Steps 1 and 3 get one implementation plan each.

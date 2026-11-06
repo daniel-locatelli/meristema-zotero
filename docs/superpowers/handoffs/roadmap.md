@@ -194,9 +194,11 @@ Use all providers button, and the three-action View menu.
       `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
       `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
       share one note format. Step 1 (format and fixtures) is done in
-      `zotero-meristema-reading` (public on GitHub, no license yet). Next: the plan for
-      step 2 (the plugin and the skill verb). Renaming this repo to
-      `zotero-meristema-graph` comes last.
+      `zotero-meristema-reading` (public on GitHub, no license yet). Step 2 is
+      three plans; 2a (plugin core) is in
+      `docs/superpowers/plans/2026-11-07-reading-plugin-core.md`, then 2b
+      (sidebar, list tab) and 2c (Python port, `zot.py reading-list`).
+      Renaming this repo to `zotero-meristema-graph` comes last.
 - [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
       `toLocaleLowerCase`, so a Turkish-locale Zotero gives other ids; the
       reading copy uses `toLowerCase`. Match it.
