@@ -194,8 +194,7 @@ Use all providers button, and the three-action View menu.
       `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
       `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
       share one note format. Next: the plan for step 1 (the format and its
-      sample notes). Renaming this repo to `zotero-meristema-graph` waits on the
-      user.
+      sample notes). Renaming this repo to `zotero-meristema-graph` comes last.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 

@@ -33,10 +33,22 @@ A **reading list** is a Zotero folder holding one standalone note tagged
 - One list note per folder. A second one is ignored, and the plugin names it in
   the sidebar.
 
-**Read state** is per paper, on the paper, as tags: none is Unread, `_reading`
-is Reading, `_read` is Read. Writers keep the two exclusive; a paper carrying
-both reads as Read. **Next up** is the first step that is Reading, else the first
-Unread step.
+**Read state** is personal and per paper, the same in every list. It lives in
+one standalone note in the user's own library, outside any folder, tagged
+`meristema-reading-state`, its JSON in `<pre data-meristema-reading-state="1">`:
+`{ "version": 1, "states": { "<paper id>": { "state": "reading" | "read", "at": ISO date } } }`.
+
+- A paper id is `doi:<normalized DOI>`, else `<library>:<item key>` (`user` or
+  `group-<id>`), so the state holds for a group's copy and a future platform.
+- A paper absent from `states` is Unread. **Next up** is a list's first step that
+  is Reading, else its first Unread step.
+- Not tags: tags on group items are shared with every member, and a removed tag
+  cannot be restored, while a trashed note can.
+- Two state notes (a sync race) are merged per paper, the later `at` winning;
+  the plugin keeps the merge and trashes the other.
+- Lists and state are two versioned JSON documents; Zotero is one store for
+  them, and an online platform would keep the same two shapes (a shared list, a
+  per-user state).
 
 ## 2. Meristema Reading (`zotero-meristema-reading`)
 
@@ -46,8 +58,8 @@ node unit tests, Zotero mocha suite). Display name "Meristema Reading".
 | Unit                | Does                                                                                                                            |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `readingListFormat` | Pure. Parses and writes the note per section 1.                                                                                 |
-| `readState`         | Reads and sets a paper's state from its tags, keeping them exclusive.                                                           |
-| `readingListStore`  | Finds the list note in a folder, caches it, writes changes; follows Zotero's notifier so sync and skill edits show.             |
+| `readState`         | Pure. Parses, merges and writes the state note; maps a Zotero item to its paper id.                                             |
+| `readingListStore`  | Finds the list notes and the state note, caches them, writes changes; follows Zotero's notifier so sync and skill edits show.   |
 | Sidebar section     | For a list folder, or a paper in one: steps in order, drag handles, editable reasons, a read-state toggle, next up highlighted. |
 | Step column         | A "Step" column in the item list, so a folder sorts in reading order.                                                           |
 | List tab            | Double-click a list: full-width cards to drag, reasons in full.                                                                 |
@@ -59,15 +71,17 @@ A merged or deleted paper drops out of the list. Remapping merged keys through
 
 ## 3. Meristema's Reading plan view
 
-- Meristema reads the note itself with its own copy of the format code; it needs
-  only the note and the tags, not Meristema Reading.
+- Meristema reads both notes itself with its own copy of the format code; it
+  needs only the notes, not Meristema Reading.
 - Available when a ticked folder holds a list note. Otherwise its row reads
   "Needs a reading list in a ticked folder" (replaces "Arrives with reading
   state").
 - Appearance: x is a new **Reading step** metric (1…n; unordered papers after
   the last step), y is citations, colour is a new **Read state** colouring
-  (Unread, Reading, Read). Papers in no list (other ticked folders, hops) are
-  greyed. A **reading path** joins consecutive steps, drawn apart from citation
+  (Unread, Reading, Read). The nodes are the ticked folders' papers, drawn as
+  any ticked folder already draws; nothing is greyed. A paper in no list has no
+  step and sits after the last one; hops appear only when expanded, as in every
+  view. A **reading path** joins consecutive steps, drawn apart from citation
   edges.
 - Several ticked list folders each keep their own steps; a path never joins two
   lists.
@@ -76,6 +90,8 @@ A merged or deleted paper drops out of the list. Remapping merged keys through
 
 ## 4. The skill verb
 
+The using-zotero skill drives Zotero through one script, `zot.py`, whose
+subcommands (`search`, `add`, `tag`, `file-into`) are its verbs. A new one,
 `zot.py reading-list --topic T --collection NAME --steps steps.json`, where each
 `steps.json` entry is `{ "doi" | "key", "why" }`. It runs `doctor`, adds missing
 papers (`from-doi`, `add`), files them into the folder (made if absent), writes
@@ -85,19 +101,20 @@ wrote. A folder that already holds a list is refused unless `--replace` is given
 ## Testing
 
 - One set of sample notes (ordered, unordered leftovers, missing keys, wrong
-  version, both tags) is read alike by the plugin's, Meristema's and the skill's
-  parsers.
+  version; state notes with DOI and key ids, and two to merge) is read alike by
+  the plugin's, Meristema's and the skill's parsers.
 - Plugin: unit tests for the format and read state; Zotero cases for the store's
   notifier, sidebar dragging, the folder menu and the item menu, driven through
   the plugin's own menus.
 - Meristema: unit tests for Reading step and Read state; a Zotero case where a
-  ticked list folder lights the view and papers outside it are grey.
+  ticked list folder lights the view, places its papers by step and colours them
+  by state.
 
 ## Build order and plans
 
 1. The format and its sample notes.
 2. The plugin, and the skill verb beside it.
 3. Meristema's view.
+4. Last: rename this repo to `zotero-meristema-graph`.
 
-Each gets its own implementation plan. Renaming this repo to
-`zotero-meristema-graph` is a separate step, done when the user says.
+Steps 1 to 3 each get their own implementation plan.
