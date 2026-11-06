@@ -193,8 +193,13 @@ Use all providers button, and the three-action View menu.
 - [ ] R1 Reading lists: spec in
       `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
       `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
-      share one note format. Next: the plan for step 1 (the format and its
-      sample notes). Renaming this repo to `zotero-meristema-graph` comes last.
+      share one note format. Step 1 (format and fixtures) is done in the local
+      repo `zotero-meristema-reading`, not yet on GitHub. Next: the plan for
+      step 2 (the plugin and the skill verb). Renaming this repo to
+      `zotero-meristema-graph` comes last.
+- [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
+      `toLocaleLowerCase`, so a Turkish-locale Zotero gives other ids; the
+      reading copy uses `toLowerCase`. Match it.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
@@ -264,6 +269,11 @@ any failure into a new entry above.
       Retraction or Provider, and a retracted paper still has its ring. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
+- [ ] R1: in Zotero, paste a list note from
+      `zotero-meristema-reading/fixtures/lists/ordered.html` into a folder
+      note, edit its readable part, save, and reopen the HTML (Run
+      JavaScript, `item.getNote()`): the `<pre data-meristema-reading-list="1">`
+      attribute is still there.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

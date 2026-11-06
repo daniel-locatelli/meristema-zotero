@@ -27,7 +27,7 @@ A **reading list** is a Zotero folder holding one standalone note tagged
   on every change. Writers write both parts.
 - Readers drop step keys that resolve to no live regular item in the folder,
   and put folder papers absent from `steps` after the last step, as unordered,
-  in Zotero's title order.
+  by lowercased title, then key.
 - A note with an unknown `version` or unparsable JSON is not a list; readers say
   so and never rewrite it.
 - One list note per folder. A second one is ignored, and the plugin names it in
@@ -36,7 +36,12 @@ A **reading list** is a Zotero folder holding one standalone note tagged
 **Read state** is personal and per paper, the same in every list. It lives in
 one standalone note in the user's own library, outside any folder, tagged
 `meristema-reading-state`, its JSON in `<pre data-meristema-reading-state="1">`:
-`{ "version": 1, "states": { "<paper id>": { "state": "reading" | "read", "at": ISO date } } }`.
+`{ "version": 1, "states": { "<paper id>": { "state": "unread" | "reading" | "read", "at": ISO date } } }`.
+
+- Unread is stored only as a tombstone after un-marking, so a merge cannot
+  bring back an older Read; an absent paper is Unread.
+- `at` is ISO 8601 with a zone (`Z` or `±HH:MM`) and a real calendar time,
+  compared to the millisecond; any other `at` is dropped.
 
 - A paper id is `doi:<normalized DOI>`, else `<library>:<item key>` (`user` or
   `group-<id>`), so the state holds for a group's copy and a future platform.
@@ -49,8 +54,9 @@ one standalone note in the user's own library, outside any folder, tagged
   from the note after every change and at startup. The mirror is one way: a
   tag added or removed by hand is overwritten, never read. Group items get no
   mirror tags. The skill can rebuild the mirror on request.
-- Two state notes (a sync race) are merged per paper, the later `at` winning;
-  the plugin keeps the merge and trashes the other.
+- Two state notes (a sync race) are merged per paper, the later `at` winning,
+  then Read over Reading over Unread, then the greater `at` text, so either
+  order gives the same note; the plugin keeps the merge and trashes the other.
 - Lists and state are two versioned JSON documents; Zotero is one store for
   them, and an online platform would keep the same two shapes (a shared list, a
   per-user state).
@@ -108,7 +114,10 @@ wrote. A folder that already holds a list is refused unless `--replace` is given
 - One set of sample notes (ordered, unordered leftovers, missing keys, wrong
   version; state notes with DOI and key ids, two to merge, and the tags each
   mirrors) is read alike by
-  the plugin's, Meristema's and the skill's parsers.
+  the plugin's, Meristema's and the skill's parsers. They live in
+  `zotero-meristema-reading/fixtures/`, described by its `README.md`, which
+  states every rule a port needs (entities, block finding, timestamps, the
+  exact bytes each writer outputs).
 - Plugin: unit tests for the format and read state; Zotero cases for the store's
   notifier, sidebar dragging, the folder menu and the item menu, driven through
   the plugin's own menus.
