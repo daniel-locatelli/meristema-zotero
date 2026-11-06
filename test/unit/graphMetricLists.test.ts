@@ -26,12 +26,16 @@ describe("the graph's metric lists (W19)", () => {
         "reference-age-mean",
         "reference-age-spread",
         "self-citation-estimate",
+        "metadata-completeness",
       ]);
     }
     expect(getMetricDefinition("citation-percentile").itemPane).to.equal(
       "advanced",
     );
     expect(getMetricDefinition("reference-coverage").itemPane).to.equal(
+      "advanced",
+    );
+    expect(getMetricDefinition("metadata-completeness").itemPane).to.equal(
       "advanced",
     );
   });

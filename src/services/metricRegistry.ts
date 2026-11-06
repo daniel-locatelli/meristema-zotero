@@ -227,7 +227,8 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     decimals: 0,
     column: { primary: false, defaultVisible: false, width: 150 },
     itemPane: "advanced",
-    graph: graphLinear,
+    // For fixing records in the item list, not for reading a graph.
+    graph: graphNone,
     value: (node) => node.metadataCompleteness,
   },
 ];

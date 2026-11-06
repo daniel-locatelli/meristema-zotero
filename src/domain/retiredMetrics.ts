@@ -23,6 +23,8 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["reference-age-spread", "year"],
   // Surnames alone matched different authors.
   ["self-citation-estimate", "references"],
+  // Still a column and on a paper's sidebar; it describes the record.
+  ["metadata-completeness", "citations"],
 ]);
 
 const METRIC_FIELDS = [
