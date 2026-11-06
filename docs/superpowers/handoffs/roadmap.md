@@ -190,11 +190,12 @@ Use all providers button, and the three-action View menu.
       Publication type, Citation hop and Seeds linked kept; Provider removed
       (reads as Publication type). `From view:` removed: the View button names
       the view and marks it edited. Left: tick W19 once the user has walked it.
-- [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
-      reading state"). Nothing is built beyond the view's name, text and icon.
-      Five questions are with the user: what counts as read, where it is stored,
-      which statuses, how a paper is marked, and whether 3 annotated papers is
-      the right bar. Then a spec; the diamond goes on a canvas first
+- [ ] R1 Reading lists: spec in
+      `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
+      `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
+      share one note format. Next: the plan for step 1 (the format and its
+      sample notes). Renaming this repo to `zotero-meristema-graph` waits on the
+      user.
 
 ## Manual verification (the user checks these in Zotero, in one batch)
 
