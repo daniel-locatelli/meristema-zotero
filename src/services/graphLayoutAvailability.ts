@@ -49,8 +49,6 @@ export function colourOptionHasData(
       return nodes.some(
         (node) => node.isOpenAccess !== null || Boolean(node.openAccessStatus),
       );
-    case "retraction":
-      return nodes.some((node) => node.isRetracted !== null);
     case "citation-hop":
     case "seed-links":
       return true;

@@ -37,7 +37,6 @@ export const CATEGORICAL_COLOR_LABELS: Record<string, string> = {
   "publication-type": "Publication type",
   provider: "Provider",
   "open-access": "Open Access",
-  retraction: "Retraction",
   "citation-hop": "Citation hop",
   "seed-links": "Seeds linked",
 };

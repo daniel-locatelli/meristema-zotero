@@ -112,7 +112,6 @@ interface CategoryRef {
 }
 
 const OPEN_ACCESS_LABELS = ["Open access", "Closed"] as const;
-const RETRACTION_LABELS = ["Retracted", "Not retracted"] as const;
 
 /** The node's single category under this metric, or null when it has none. */
 export function nodeCategory(
@@ -149,14 +148,6 @@ export function nodeCategory(
     const label = node.isOpenAccess
       ? OPEN_ACCESS_LABELS[0]
       : OPEN_ACCESS_LABELS[1];
-    return { key: label, label };
-  }
-  if (metric === "retraction") {
-    if (node.isRetracted === null || node.isRetracted === undefined)
-      return null;
-    const label = node.isRetracted
-      ? RETRACTION_LABELS[0]
-      : RETRACTION_LABELS[1];
     return { key: label, label };
   }
   return null;

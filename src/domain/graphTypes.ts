@@ -37,7 +37,6 @@ export type GraphNodeColorMetric =
   | "publication-type"
   | "provider"
   | "open-access"
-  | "retraction"
   | "citation-hop"
   | "seed-links"
   | MetricID;

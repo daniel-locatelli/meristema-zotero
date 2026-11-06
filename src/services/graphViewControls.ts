@@ -457,12 +457,6 @@ export function createAxesAppearance(
       available: colourOptionHasData(nodes, "open-access"),
     },
     {
-      value: "retraction",
-      label: "Retraction",
-      description: "Distinguish works with known retraction status.",
-      available: colourOptionHasData(nodes, "retraction"),
-    },
-    {
       value: "citation-hop",
       label: "Citation hop",
       description:

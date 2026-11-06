@@ -260,7 +260,8 @@ export const SUPPLEMENTARY_PROPERTY_DEFINITIONS: SupplementaryPropertyDefinition
       group: "Data quality",
       column: { primary: false, defaultVisible: false, width: 92 },
       itemPane: "advanced",
-      graph: { nodeColor: true, filter: true },
+      // The plot rings and labels a retracted paper under any colouring (W19).
+      graph: { nodeColor: false, filter: false },
       value: (node) => node.isRetracted,
       format: (value) => (value === true ? "Yes" : "No"),
     },

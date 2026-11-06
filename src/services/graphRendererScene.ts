@@ -8,7 +8,6 @@ import type {
 import { authorYearLabel, cutLabel } from "../domain/authorLabel";
 import { publicationYearOrNull } from "../domain/valueNormalization";
 import {
-  getExternalWorkMetadata,
   getExternalWorkMetricValue,
   getExternalWorkNodeLabel,
 } from "./externalWorkMetricRegistry";
@@ -241,12 +240,6 @@ function ghostColor(
     metric === "seed-links"
   ) {
     return theme.categorical.noValue;
-  }
-  const work = getExternalWorkMetadata(preview.key);
-  if (metric === "retraction") {
-    return work?.isRetracted
-      ? theme.states.retracted
-      : theme.categorical.noValue;
   }
   const value = getExternalWorkMetricValue(preview.key, metric);
   const domain = metricDomain(nodes, metric);

@@ -459,7 +459,6 @@ function metricWord(metric: string): string {
     "publication-type": "publication type",
     provider: "provider",
     "open-access": "open access",
-    retraction: "retraction",
     "citation-hop": "citation hop",
     "seed-links": "seeds linked",
   };
@@ -636,7 +635,6 @@ const COLOUR_METRICS = new Set<string>([
   "publication-type",
   "provider",
   "open-access",
-  "retraction",
   "citation-hop",
   "seed-links",
 ]);

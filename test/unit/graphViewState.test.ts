@@ -785,6 +785,24 @@ describe("hops in the state", function () {
     expect(layout?.yScale, "the rest survives").to.equal("log");
   });
 
+  it("reads the removed Retraction colouring as Uniform (W19)", function () {
+    const layout = parseGraphViewState(
+      JSON.stringify({
+        ...emptyGraphViewState(),
+        layout: {
+          xMetric: "year",
+          xScale: "linear",
+          yMetric: "citations",
+          yScale: "log",
+          nodeSizeMetric: "citations",
+          nodeColorMetric: "retraction",
+          nodeLabelMode: "title",
+        },
+      }),
+    )?.layout;
+    expect(layout?.nodeColorMetric).to.equal("uniform");
+  });
+
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {
     const v3 = parseGraphViewState(
       JSON.stringify({

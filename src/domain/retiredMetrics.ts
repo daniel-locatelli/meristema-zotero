@@ -1,11 +1,11 @@
-import type { MetricID } from "./graphTypes";
+import type { GraphNodeColorMetric } from "./graphTypes";
 
 /**
  * Metrics the graph no longer offers (W19), each with the metric a stored
  * appearance that named it reads instead. Saved graphs, views and defaults
  * keep the old id, so they keep opening.
  */
-const RETIRED_METRICS = new Map<string, MetricID>([
+const RETIRED_METRICS = new Map<string, GraphNodeColorMetric>([
   // Last year's count alone; the three-year mean answers the same question.
   ["citations-last-year", "citation-rate"],
   // Two noisy years, and it scales with a paper's size.
@@ -25,6 +25,8 @@ const RETIRED_METRICS = new Map<string, MetricID>([
   ["self-citation-estimate", "references"],
   // Still a column and on a paper's sidebar; it describes the record.
   ["metadata-completeness", "citations"],
+  // A colouring: the plot rings and labels a retracted paper under any.
+  ["retraction", "uniform"],
 ]);
 
 const METRIC_FIELDS = [
