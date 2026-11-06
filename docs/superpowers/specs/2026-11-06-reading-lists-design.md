@@ -42,8 +42,13 @@ one standalone note in the user's own library, outside any folder, tagged
   `group-<id>`), so the state holds for a group's copy and a future platform.
 - A paper absent from `states` is Unread. **Next up** is a list's first step that
   is Reading, else its first Unread step.
-- Not tags: tags on group items are shared with every member, and a removed tag
-  cannot be restored, while a trashed note can.
+- The truth is not tags: tags on group items are shared with every member, and
+  a removed tag cannot be restored, while a trashed note can.
+- For apps without plugins (Zotero for iOS), the plugin mirrors the state onto
+  papers in the user's own library as `_reading` and `_read` tags, rewritten
+  from the note after every change and at startup. The mirror is one way: a
+  tag added or removed by hand is overwritten, never read. Group items get no
+  mirror tags. The skill can rebuild the mirror on request.
 - Two state notes (a sync race) are merged per paper, the later `at` winning;
   the plugin keeps the merge and trashes the other.
 - Lists and state are two versioned JSON documents; Zotero is one store for
@@ -55,16 +60,16 @@ one standalone note in the user's own library, outside any folder, tagged
 Own repo, same toolchain as Meristema (zotero-plugin-scaffold, TypeScript,
 node unit tests, Zotero mocha suite). Display name "Meristema Reading".
 
-| Unit                | Does                                                                                                                            |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `readingListFormat` | Pure. Parses and writes the note per section 1.                                                                                 |
-| `readState`         | Pure. Parses, merges and writes the state note; maps a Zotero item to its paper id.                                             |
-| `readingListStore`  | Finds the list notes and the state note, caches them, writes changes; follows Zotero's notifier so sync and skill edits show.   |
-| Sidebar section     | For a list folder, or a paper in one: steps in order, drag handles, editable reasons, a read-state toggle, next up highlighted. |
-| Step column         | A "Step" column in the item list, so a folder sorts in reading order.                                                           |
-| List tab            | Double-click a list: full-width cards to drag, reasons in full.                                                                 |
-| Folder menu         | Make reading list: a note with the folder's papers in their current order.                                                      |
-| Item menu           | Mark Unread, Reading or Read, for one paper or a selection.                                                                     |
+| Unit                | Does                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `readingListFormat` | Pure. Parses and writes the note per section 1.                                                                                                  |
+| `readState`         | Pure. Parses, merges and writes the state note; maps a Zotero item to its paper id.                                                              |
+| `readingListStore`  | Finds the list notes and the state note, caches them, writes changes and the tag mirror; follows Zotero's notifier so sync and skill edits show. |
+| Sidebar section     | For a list folder, or a paper in one: steps in order, drag handles, editable reasons, a read-state toggle, next up highlighted.                  |
+| Step column         | A "Step" column in the item list, so a folder sorts in reading order.                                                                            |
+| List tab            | Double-click a list: full-width cards to drag, reasons in full.                                                                                  |
+| Folder menu         | Make reading list: a note with the folder's papers in their current order.                                                                       |
+| Item menu           | Mark Unread, Reading or Read, for one paper or a selection.                                                                                      |
 
 A merged or deleted paper drops out of the list. Remapping merged keys through
 `dc:replaces` is left for later.
@@ -101,7 +106,8 @@ wrote. A folder that already holds a list is refused unless `--replace` is given
 ## Testing
 
 - One set of sample notes (ordered, unordered leftovers, missing keys, wrong
-  version; state notes with DOI and key ids, and two to merge) is read alike by
+  version; state notes with DOI and key ids, two to merge, and the tags each
+  mirrors) is read alike by
   the plugin's, Meristema's and the skill's parsers.
 - Plugin: unit tests for the format and read state; Zotero cases for the store's
   notifier, sidebar dragging, the folder menu and the item menu, driven through
