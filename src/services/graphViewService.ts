@@ -124,7 +124,6 @@ import {
   draftParagraph,
   encodeGraphView,
   graphViewIsEdited,
-  graphViewLayoutIsEdited,
   isShippedViewName,
   planGraphView,
   sharedRuleWords,
@@ -2384,18 +2383,8 @@ export function renderGraphView(
     if (!active) {
       viewsMenu.setLabel(null, false);
       viewsMenu.setActive(null);
-      appearance.setSource(null);
       return;
     }
-    // The gear names the view too, edited by its own fields only (D28).
-    appearance.setSource({
-      name: active.name,
-      edited: graphViewLayoutIsEdited(
-        active,
-        model.nodes,
-        appearance.getLayout(),
-      ),
-    });
     const edited = graphViewIsEdited(active, {
       nodes: model.nodes,
       layout: appearance.getLayout(),

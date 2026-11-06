@@ -589,12 +589,11 @@ describe("Graph views (D4)", function () {
       return panel && !panel.hidden ? panel : null;
     }, 5_000);
     expect(panelOpen, "the gear's panel opened").to.exist;
-    // D28: the gear names the view its settings came from.
-    const source = (): string =>
-      normalize(
-        panelOpen!.querySelector(".cm-appearance-source")?.textContent ?? "",
-      );
-    expect(source()).to.equal("From view: Overview");
+    // The gear no longer names the view (W19); the View button does.
+    expect(
+      panelOpen!.querySelector(".cm-appearance-source"),
+      "the gear's From view line",
+    ).to.equal(null);
     const labels = labelSelect();
     expect(labels.value, "Overview's own label mode").to.equal("author-year");
     labels.value = "none";
@@ -603,7 +602,6 @@ describe("Graph views (D4)", function () {
     expect(chipName(), `chip text was "${chipText()}"`).to.equal(
       "Overview (edited)",
     );
-    expect(source()).to.equal("Edited from view: Overview");
     // Leave the gear shut for the cases that follow.
     await waitFor(() => {
       const panel = graphRoot().querySelector(

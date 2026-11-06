@@ -492,11 +492,6 @@
   display: grid;
   gap: 4px;
 }
-.cm-appearance-source {
-  margin: 0 0 8px;
-  color: var(--cm-muted);
-  font-size: calc(11 * var(--cm-font-unit));
-}
 .cm-appearance-actions {
   display: flex;
   justify-content: flex-end;

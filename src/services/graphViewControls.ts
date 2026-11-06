@@ -341,12 +341,6 @@ export interface AppearanceDefaults {
   forget: () => GraphLayoutOptions;
 }
 
-/** The view a graph's settings came from, and whether the gear moved them. */
-export interface AppearanceSource {
-  name: string;
-  edited: boolean;
-}
-
 export function createAxesAppearance(
   document: Document,
   initial: GraphLayoutOptions,
@@ -360,8 +354,6 @@ export function createAxesAppearance(
   setLayout: (layout: GraphLayoutOptions) => void;
   getLayout: () => GraphLayoutOptions;
   close: () => void;
-  /** Name the view the settings came from (D28); null hides the line. */
-  setSource: (source: AppearanceSource | null) => void;
   /** Open the panel, as its button does; View's Graph display settings (D35). */
   open: () => void;
   /** Reset, and what View's menu offers for new blank graphs (D35). */
@@ -591,18 +583,9 @@ export function createAxesAppearance(
   );
   describeInTooltip(colorMetric, "Choose node colour.");
 
-  // D28: "Use these" for new blank graphs reads as overwriting the view the graph
-  // came from unless the gear says which view that was.
-  const sourceLine = text(document, "p", "", "cm-appearance-source");
-  const setSource = (source: AppearanceSource | null): void => {
-    sourceLine.hidden = !source;
-    sourceLine.style.display = source ? "" : "none";
-    sourceLine.textContent = source
-      ? `${source.edited ? "Edited from" : "From"} view: ${source.name}`
-      : "";
-  };
-  setSource(null);
-  panel.append(sourceLine, tabs, xPane, yPane, nodesPane);
+  // The View button names the view a graph came from and marks it edited, so
+  // the gear no longer repeats it (W19, after D28).
+  panel.append(tabs, xPane, yPane, nodesPane);
   // New blank graphs' default is View's to set (D35); the gear keeps Reset.
   const actions = element(document, "div", "cm-appearance-actions");
   const reset = element(document, "button", "cm-secondary-button");
@@ -715,7 +698,6 @@ export function createAxesAppearance(
     setLayout,
     getLayout: read,
     close,
-    setSource,
     open,
     reset: resetGraph,
     useForNewBlank,

@@ -188,8 +188,8 @@ Use all providers button, and the three-action View menu.
       Retraction removed (reads as Uniform; the ring, the RETRACTED label and
       the badge stay). Last update and Match method never reach the graph.
       Publication type, Citation hop and Seeds linked kept; Provider removed
-      (reads as Publication type). Next: `From view:`.
-      `From view:` lost its reason with the gear's Use these
+      (reads as Publication type). `From view:` removed: the View button names
+      the view and marks it edited. Left: tick W19 once the user has walked it.
 - [ ] W23 drop the journal requests. Since W19 removed the journal metrics, an
       update still asks OpenAlex for each journal's record (by ID, ISSN or title,
       `librarySourceMetricsService.ts`) and stores h-index, i10 and citedness that
@@ -677,3 +677,4 @@ entries are in git history.
   plot marks a retracted paper under every colouring.
 - 2026-11-06: W19 removed the Provider colouring; Publication type, Citation hop
   and Seeds linked stay.
+- 2026-11-06: W19 removed the gear's `From view:` line.
