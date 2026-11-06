@@ -2,7 +2,6 @@ import type {
   CitationProviderID,
   ProviderLookupResult,
   RelatedWorkMetadata,
-  SourceMetrics,
   WorkIdentifiers,
 } from "../domain/citationTypes";
 import type { CancellationSignal } from "../services/cancellationScope";
@@ -72,10 +71,6 @@ export interface CitationProvider {
     offset?: number,
     options?: ProviderRequestOptions,
   ): Promise<RelatedWorkMetadata[]>;
-  fetchSourceMetrics?(
-    sourceID: string,
-    options?: ProviderRequestOptions,
-  ): Promise<SourceMetrics | null>;
 }
 
 export function failureStatusFromHTTP(

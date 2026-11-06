@@ -493,3 +493,30 @@ describe("a faulted relationship page (B84)", function () {
     ).to.deep.equal([]);
   });
 });
+
+describe("an OpenAlex lookup (W23)", function () {
+  it("asks for the work alone, not its journal's record", async function () {
+    respond = (url) =>
+      url.includes("/works/")
+        ? answered({
+            id: "https://openalex.org/W23",
+            doi: "https://doi.org/10.1000/w23",
+            display_name: "A paper in a journal",
+            publication_year: 2020,
+            primary_location: {
+              source: { id: "https://openalex.org/S23", display_name: "J" },
+            },
+          })
+        : answered(null);
+    const result = await openAlexProvider.lookup(
+      identifiers({ doi: "10.1000/w23" }),
+    );
+    expect(result.status).to.equal("success");
+    expect(
+      calls.map((call) => call.url),
+      "an update asked for a journal",
+    ).to.satisfy((urls: string[]) =>
+      urls.every((url) => !url.includes("/sources")),
+    );
+  });
+});

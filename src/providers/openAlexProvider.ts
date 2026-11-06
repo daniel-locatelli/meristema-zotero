@@ -1,7 +1,6 @@
 import type {
   ProviderLookupResult,
   RelatedWorkMetadata,
-  SourceMetrics,
   WorkIdentifiers,
 } from "../domain/citationTypes";
 import {
@@ -12,10 +11,10 @@ import {
 import { getOpenAlexAPIKey } from "../services/citationPreferences";
 import { requestJSON, type HTTPResult } from "./http";
 import {
+  openAlexSourceMetrics as sourceMetrics,
   openAlexWorkMetadata as toRelated,
   openAlexYearlyMetrics as yearlyMetrics,
   type OpenAlexList,
-  type OpenAlexSource,
   type OpenAlexWork,
 } from "./openAlexMapper";
 import { shortOpenAlexID as shortID } from "./providerIdentifiers";
@@ -26,7 +25,6 @@ const OPENALEX_BASE_URL = "https://api.openalex.org";
 const OPENALEX_MAX_PER_PAGE = 100;
 const BACKGROUND_REFERENCE_LIMIT = 200;
 const ON_DEMAND_REFERENCE_LIMIT = 100;
-const sourceMetricsCache = new Map<string, SourceMetrics | null>();
 const workByIDCache = new Map<string, Promise<OpenAlexWork | null>>();
 
 function openAlexURL(
@@ -182,46 +180,10 @@ function resolveReferences(work: OpenAlexWork): RelatedWorkMetadata[] {
     }));
 }
 
-async function sourceMetrics(
-  source: OpenAlexSource | null | undefined,
-  options?: ProviderRequestOptions,
-): Promise<SourceMetrics | null> {
-  const id = shortID(source?.id);
-  if (!id) return null;
-  if (sourceMetricsCache.has(id)) return sourceMetricsCache.get(id) ?? null;
-  let resolved = source ?? null;
-  if (!resolved?.summary_stats) {
-    const response = await requestOpenAlex<OpenAlexSource>(
-      `/sources/${encodeURIComponent(id)}`,
-      {},
-      options,
-    );
-    resolved = response.ok ? response.data : resolved;
-  }
-  const metrics: SourceMetrics = {
-    sourceID: id,
-    sourceTitle: stringOrNull(resolved?.display_name),
-    twoYearMeanCitedness: numberOrNull(
-      resolved?.summary_stats?.["2yr_mean_citedness"],
-    ),
-    hIndex: numberOrNull(resolved?.summary_stats?.h_index),
-    i10Index: numberOrNull(resolved?.summary_stats?.i10_index),
-    updatedAt: new Date().toISOString(),
-  };
-  const hasMetric =
-    metrics.twoYearMeanCitedness !== null ||
-    metrics.hIndex !== null ||
-    metrics.i10Index !== null;
-  if (!hasMetric) return null;
-  sourceMetricsCache.set(id, metrics);
-  return metrics;
-}
-
 async function success(
   work: OpenAlexWork,
   matchedBy: "doi" | "pmid" | "arxiv" | "isbn" | "title",
   confidence: number,
-  options?: ProviderRequestOptions,
 ): Promise<ProviderLookupResult> {
   const related = toRelated(work);
   if (!related) {
@@ -276,7 +238,8 @@ async function success(
     openAccessStatus: related.openAccessStatus ?? null,
     isOpenAccess: related.isOpenAccess ?? null,
     publicationType: stringOrNull(work.type),
-    sourceMetrics: await sourceMetrics(work.primary_location?.source, options),
+    // What the work's record carries; no journal is asked for (W23).
+    sourceMetrics: sourceMetrics(work),
   };
 }
 
@@ -454,7 +417,6 @@ export async function fetchOpenAlexRelatedWorks(
 }
 
 export function clearOpenAlexProviderCache(): void {
-  sourceMetricsCache.clear();
   workByIDCache.clear();
 }
 
@@ -503,7 +465,6 @@ export const openAlexProvider: CitationProvider = {
       response.data,
       target.kind,
       target.kind === "doi" ? 1 : 0.98,
-      options,
     );
   },
   searchExactTitle: async (identifiers, options) => {
@@ -534,7 +495,7 @@ export const openAlexProvider: CitationProvider = {
       );
     });
     if (compatible.length === 1) {
-      return success(compatible[0], "title", 0.92, options);
+      return success(compatible[0], "title", 0.92);
     }
     const candidates = exact
       .map(toRelated)
@@ -575,5 +536,4 @@ export const openAlexProvider: CitationProvider = {
         authors: [],
       }));
   },
-  fetchSourceMetrics: async (id, options) => sourceMetrics({ id }, options),
 };

@@ -22,18 +22,13 @@ import {
   RELATIONSHIP_ITEM_PARALLELISM,
 } from "./providerExecutionPolicy";
 import { getStoredRelationshipSummary } from "./relationshipStoreService";
-import {
-  enrichLibrarySourceMetrics,
-  type LibrarySourceMetricResult,
-} from "./librarySourceMetricsService";
 import { mapBounded, yieldToUI } from "./backgroundTaskService";
 import {
   cancellationRequested,
   type CancellationSignal,
 } from "./cancellationScope";
 
-export type LibraryCompletionPhase =
-  "source-metrics" | "relationships" | "finalizing";
+export type LibraryCompletionPhase = "relationships" | "finalizing";
 
 export type LibraryRelationshipLoadMode = "first-page" | "complete";
 
@@ -48,11 +43,8 @@ export interface LibraryCompletionProgress {
 
 export interface LibraryCompletionResult {
   records: CitationMetricRecord[];
-  sourceMetricsUpdated: number;
-  sourceMetricsUnresolved: number;
   relationshipListsUpdated: number;
   relationshipFailures: number;
-  sourceRequestFailures: number;
 }
 
 interface RelationshipTask {
@@ -281,35 +273,11 @@ export async function completeLibraryItemUpdates(
     .filter((item): item is Zotero.Item => Boolean(item));
   const relationshipMode = options.relationshipMode ?? "first-page";
 
-  let sourceResult: LibrarySourceMetricResult = {
-    records,
-    updated: 0,
-    unresolved: 0,
-    failedRequests: 0,
-  };
-  if (!cancelled()) {
-    sourceResult = await enrichLibrarySourceMetrics(
-      relevantItems,
-      records,
-      ({ completed, total, message }) =>
-        onProgress?.({
-          phase: "source-metrics",
-          completed,
-          total,
-          message,
-        }),
-      { force: options.force },
-    );
-  }
-
   const nodes: CitationGraphNode[] = relevantItems.map((item) =>
     createMetricNodeForItem(item, { includeReferences: false }),
   );
   const latestByItemKey = new Map(
-    latestRecords(sourceResult.records).map((record) => [
-      record.itemKey,
-      record,
-    ]),
+    latestRecords(records).map((record) => [record.itemKey, record]),
   );
   const relationshipTasks: RelationshipTask[] = [];
   for (const node of nodes) {
@@ -440,7 +408,7 @@ export async function completeLibraryItemUpdates(
 
   const finalizedAt = new Date().toISOString();
   const finalRecords: CitationMetricRecord[] = [];
-  for (const record of latestRecords(sourceResult.records)) {
+  for (const record of latestRecords(records)) {
     const current =
       getCitationMetricRecord(record.libraryID, record.itemKey) ?? record;
     const resolutions = relationshipResolutions.get(record.itemKey);
@@ -527,11 +495,8 @@ export async function completeLibraryItemUpdates(
   });
 
   return {
-    records: latestRecords(sourceResult.records),
-    sourceMetricsUpdated: sourceResult.updated,
-    sourceMetricsUnresolved: sourceResult.unresolved,
+    records: latestRecords(records),
     relationshipListsUpdated,
     relationshipFailures,
-    sourceRequestFailures: sourceResult.failedRequests,
   };
 }

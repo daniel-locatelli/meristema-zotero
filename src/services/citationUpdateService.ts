@@ -555,8 +555,6 @@ async function runUpdate(
   let enrichmentDurationMs = 0;
   let enrichedCount = 0;
   let failedBatches = 0;
-  let sourceMetricsUpdated = 0;
-  let sourceMetricsUnresolved = 0;
   let relationshipListsUpdated = 0;
   let relationshipFailures = 0;
   let completionDurationMs = 0;
@@ -677,16 +675,11 @@ async function runUpdate(
         },
       );
       completionDurationMs = Date.now() - completionStartedAt;
-      sourceMetricsUpdated = completion.sourceMetricsUpdated;
-      sourceMetricsUnresolved = completion.sourceMetricsUnresolved;
       relationshipListsUpdated = completion.relationshipListsUpdated;
       relationshipFailures = completion.relationshipFailures;
       enrichmentText =
         ` · ${enrichment.enriched} metric record${enrichment.enriched === 1 ? "" : "s"} completed` +
         ` · ${completion.relationshipListsUpdated} relationship list${completion.relationshipListsUpdated === 1 ? "" : "s"} updated` +
-        (completion.sourceMetricsUnresolved
-          ? ` · ${completion.sourceMetricsUnresolved} journal metric${completion.sourceMetricsUnresolved === 1 ? "" : "s"} unavailable`
-          : "") +
         (enrichment.failedBatches || completion.relationshipFailures
           ? ` · ${enrichment.failedBatches + completion.relationshipFailures} warning${enrichment.failedBatches + completion.relationshipFailures === 1 ? "" : "s"}`
           : "");
@@ -714,8 +707,6 @@ async function runUpdate(
               enrichmentMs: enrichmentDurationMs,
               completionMs: completionDurationMs,
               enriched: enrichedCount,
-              sourceMetricsUpdated,
-              sourceMetricsUnresolved,
               relationshipListsUpdated,
               relationshipFailures,
               failedBatches,

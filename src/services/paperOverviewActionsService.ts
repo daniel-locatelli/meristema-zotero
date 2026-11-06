@@ -120,7 +120,7 @@ export function createPaperOverviewActionBar(
   refreshButton.type = "button";
   refreshButton.appendChild(createIcon(document, "refresh"));
   refreshButton.title =
-    "Check scholarly-data providers online and update the citation metrics, reference metrics, open-access and retraction status, journal metrics, and stored cited-by/reference lists for this paper.";
+    "Check scholarly-data providers online and update the citation metrics, reference metrics, open-access and retraction status, and stored cited-by/reference lists for this paper.";
   refreshButton.setAttribute("aria-label", refreshButton.title);
   refreshButton.addEventListener("click", () =>
     invoke(refreshButton, options.onRefresh),

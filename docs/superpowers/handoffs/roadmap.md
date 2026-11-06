@@ -190,11 +190,6 @@ Use all providers button, and the three-action View menu.
       Publication type, Citation hop and Seeds linked kept; Provider removed
       (reads as Publication type). `From view:` removed: the View button names
       the view and marks it edited. Left: tick W19 once the user has walked it.
-- [ ] W23 drop the journal requests. Since W19 removed the journal metrics, an
-      update still asks OpenAlex for each journal's record (by ID, ISSN or title,
-      `librarySourceMetricsService.ts`) and stores h-index, i10 and citedness that
-      nothing shows. The user agreed 2026-11-05 to drop them; fewer requests per
-      update may help W14
 - [ ] R1 Reading status, which the Reading plan view waits on ("Arrives with
       reading state"). Nothing is built beyond the view's name, text and icon.
       Five questions are with the user: what counts as read, where it is stored,
@@ -260,7 +255,9 @@ any failure into a new entry above.
       only greys. A year axis ends at this year, not at 2050. The X axis metric
       reads Publication order where it read Citation sequence. No metric list
       offers Citations last year or Change in annual citations, and a saved
-      graph that used one opens on Recent citation rate. Citation percentile is
+      graph that used one opens on Recent citation rate. W23: an update's
+      progress never reads Retrieving journal metrics, and its summary names
+      no journal metrics. Citation percentile is
       in no graph list, and a paper's sidebar still shows Percentile. No list
       offers a journal metric, Reference coverage, a reference age or Estimated
       self-citations, and none offers Metadata completeness. Colour offers no
@@ -678,3 +675,6 @@ entries are in git history.
 - 2026-11-06: W19 removed the Provider colouring; Publication type, Citation hop
   and Seeds linked stay.
 - 2026-11-06: W19 removed the gear's `From view:` line.
+- 2026-11-06: W23 shipped: an update no longer asks OpenAlex for journals (the
+  update's journal step and the lookup's `/sources` fetch are gone). The stored
+  record keeps its shape, since it carries each item's update state.
