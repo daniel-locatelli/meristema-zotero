@@ -65,21 +65,21 @@ describe("normaliseLayoutFor", function () {
   });
 
   it("falls back a categorical colour with no matching node data to Uniform, and keeps it when a node carries the field", function () {
-    const withoutProvider = [node({ citationCount: 10, provider: null })];
+    const withoutStatus = [node({ citationCount: 10, isOpenAccess: null })];
     expect(
-      normaliseLayoutFor(withoutProvider, {
+      normaliseLayoutFor(withoutStatus, {
         ...layout,
-        nodeColorMetric: "provider",
+        nodeColorMetric: "open-access",
       }).nodeColorMetric,
     ).to.equal("uniform");
 
-    const withProvider = [node({ citationCount: 10, provider: "openalex" })];
+    const withStatus = [node({ citationCount: 10, isOpenAccess: true })];
     expect(
-      normaliseLayoutFor(withProvider, {
+      normaliseLayoutFor(withStatus, {
         ...layout,
-        nodeColorMetric: "provider",
+        nodeColorMetric: "open-access",
       }).nodeColorMetric,
-    ).to.equal("provider");
+    ).to.equal("open-access");
   });
 });
 

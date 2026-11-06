@@ -139,9 +139,6 @@ export function nodeCategory(
       ? { key: node.publicationType, label: node.publicationType }
       : null;
   }
-  if (metric === "provider") {
-    return node.provider ? { key: node.provider, label: node.provider } : null;
-  }
   if (metric === "open-access") {
     if (node.isOpenAccess === null || node.isOpenAccess === undefined)
       return null;

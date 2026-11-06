@@ -35,7 +35,6 @@ export type GraphNodeSizeMetric = "uniform" | MetricID;
 export type GraphNodeColorMetric =
   | "uniform"
   | "publication-type"
-  | "provider"
   | "open-access"
   | "citation-hop"
   | "seed-links"

@@ -233,10 +233,10 @@ describe("The gear's default", () => {
       defaults,
     );
     const select = colourSelect(gear);
-    select.value = "provider";
+    select.value = "citations";
     select.fire("change");
     expect(changes.map((layout) => layout.nodeColorMetric)).to.deep.equal([
-      "provider",
+      "citations",
     ]);
     expect(persisted, "a gear edit stored a default").to.deep.equal([]);
   });
@@ -251,11 +251,11 @@ describe("The gear's default", () => {
       defaults,
     );
     const select = colourSelect(gear);
-    select.value = "provider";
+    select.value = "citations";
     select.fire("change");
     gear.useForNewBlank();
     expect(persisted).to.deep.equal([
-      { ...BUILT_IN, nodeColorMetric: "provider" },
+      { ...BUILT_IN, nodeColorMetric: "citations" },
     ]);
   });
 

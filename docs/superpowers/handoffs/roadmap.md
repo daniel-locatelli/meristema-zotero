@@ -186,9 +186,9 @@ Use all providers button, and the three-action View menu.
       references). Out of the graph's lists: metadata completeness (reads as
       citations; the column and sidebar keep it). Colourings: Open Access kept,
       Retraction removed (reads as Uniform; the ring, the RETRACTED label and
-      the badge stay). Last update and Match method never reach the graph. Next:
-      Publication type, Provider, Citation hop and Seeds linked, then
-      `From view:`.
+      the badge stay). Last update and Match method never reach the graph.
+      Publication type, Citation hop and Seeds linked kept; Provider removed
+      (reads as Publication type). Next: `From view:`.
       `From view:` lost its reason with the gear's Use these
 - [ ] W23 drop the journal requests. Since W19 removed the journal metrics, an
       update still asks OpenAlex for each journal's record (by ID, ISSN or title,
@@ -264,7 +264,7 @@ any failure into a new entry above.
       in no graph list, and a paper's sidebar still shows Percentile. No list
       offers a journal metric, Reference coverage, a reference age or Estimated
       self-citations, and none offers Metadata completeness. Colour offers no
-      Retraction, and a retracted paper still has its ring. Update a
+      Retraction or Provider, and a retracted paper still has its ring. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
@@ -675,3 +675,5 @@ entries are in git history.
   metrics are done.
 - 2026-11-06: W19 kept the Open Access colouring and removed Retraction's: the
   plot marks a retracted paper under every colouring.
+- 2026-11-06: W19 removed the Provider colouring; Publication type, Citation hop
+  and Seeds linked stay.

@@ -187,7 +187,7 @@ describe("the default a new graph opens with (D17)", function () {
     yMetric: "citations",
     yScale: "log",
     nodeSizeMetric: "references",
-    nodeColorMetric: "provider",
+    nodeColorMetric: "open-access",
     nodeLabelMode: "title",
   } as const;
   /** The built-in default before D22: what every open used to write. */

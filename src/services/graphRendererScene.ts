@@ -234,7 +234,6 @@ function ghostColor(
   // to none of the assigned categories. Only a numeric metric can place it.
   if (
     metric === "publication-type" ||
-    metric === "provider" ||
     metric === "open-access" ||
     metric === "citation-hop" ||
     metric === "seed-links"

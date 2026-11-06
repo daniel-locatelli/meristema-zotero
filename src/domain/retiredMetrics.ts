@@ -27,6 +27,8 @@ const RETIRED_METRICS = new Map<string, GraphNodeColorMetric>([
   ["metadata-completeness", "citations"],
   // A colouring: the plot rings and labels a retracted paper under any.
   ["retraction", "uniform"],
+  // It described the data's source; the sidebar names it.
+  ["provider", "publication-type"],
 ]);
 
 const METRIC_FIELDS = [

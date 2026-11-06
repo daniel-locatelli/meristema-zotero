@@ -457,7 +457,6 @@ function metricWord(metric: string): string {
   if (metric === "uniform") return "uniform";
   const special: Record<string, string> = {
     "publication-type": "publication type",
-    provider: "provider",
     "open-access": "open access",
     "citation-hop": "citation hop",
     "seed-links": "seeds linked",
@@ -633,7 +632,6 @@ const SIZE_METRICS = new Set<string>(["uniform"]);
 const COLOUR_METRICS = new Set<string>([
   "uniform",
   "publication-type",
-  "provider",
   "open-access",
   "citation-hop",
   "seed-links",

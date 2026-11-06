@@ -738,7 +738,7 @@ describe("hops in the state", function () {
       yMetric: "citations",
       yScale: "log",
       nodeSizeMetric: "uniform",
-      nodeColorMetric: "provider",
+      nodeColorMetric: "open-access",
       nodeLabelMode: "title",
     } as const;
     const own = { ...emptyGraphViewState(), layout };
@@ -801,6 +801,24 @@ describe("hops in the state", function () {
       }),
     )?.layout;
     expect(layout?.nodeColorMetric).to.equal("uniform");
+  });
+
+  it("reads the removed Provider colouring as Publication type (W19)", function () {
+    const layout = parseGraphViewState(
+      JSON.stringify({
+        ...emptyGraphViewState(),
+        layout: {
+          xMetric: "year",
+          xScale: "linear",
+          yMetric: "citations",
+          yScale: "log",
+          nodeSizeMetric: "citations",
+          nodeColorMetric: "provider",
+          nodeLabelMode: "title",
+        },
+      }),
+    )?.layout;
+    expect(layout?.nodeColorMetric).to.equal("publication-type");
   });
 
   it("still migrates versions 1 to 3 and then applies the same mapping", function () {

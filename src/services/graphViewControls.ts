@@ -444,13 +444,6 @@ export function createAxesAppearance(
       available: colourOptionHasData(nodes, "publication-type"),
     },
     {
-      value: "provider",
-      label: "Provider",
-      description:
-        "Colour nodes by the scholarly-data provider used for the item.",
-      available: colourOptionHasData(nodes, "provider"),
-    },
-    {
       value: "open-access",
       label: "Open Access",
       description: "Distinguish works with known open-access status.",

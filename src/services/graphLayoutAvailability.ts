@@ -43,8 +43,6 @@ export function colourOptionHasData(
       return true;
     case "publication-type":
       return nodes.some((node) => Boolean(node.publicationType));
-    case "provider":
-      return nodes.some((node) => Boolean(node.provider));
     case "open-access":
       return nodes.some(
         (node) => node.isOpenAccess !== null || Boolean(node.openAccessStatus),
