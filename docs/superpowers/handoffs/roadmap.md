@@ -193,8 +193,8 @@ Use all providers button, and the three-action View menu.
 - [ ] R1 Reading lists: spec in
       `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
       `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
-      share one note format. Step 1 (format and fixtures) is done in the local
-      repo `zotero-meristema-reading`, not yet on GitHub. Next: the plan for
+      share one note format. Step 1 (format and fixtures) is done in
+      `zotero-meristema-reading` (public on GitHub, no license yet). Next: the plan for
       step 2 (the plugin and the skill verb). Renaming this repo to
       `zotero-meristema-graph` comes last.
 - [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
