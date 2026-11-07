@@ -239,7 +239,9 @@ export interface ResolvedRegions {
 }
 
 /** Depth-first tree order: parents before children, siblings by orderIndex. */
-function treeOrder(folders: readonly ViewFolder[]): ViewFolder[] {
+export function foldersInTreeOrder(
+  folders: readonly ViewFolder[],
+): ViewFolder[] {
   const byParent = new Map<number | null, ViewFolder[]>();
   for (const f of folders) {
     const list = byParent.get(f.parentCollectionID) ?? [];
@@ -267,7 +269,7 @@ export function resolveViewRegions(
   folders: readonly ViewFolder[],
 ): ResolvedRegions | null {
   if (regions === null) return null;
-  const ordered = treeOrder(folders);
+  const ordered = foldersInTreeOrder(folders);
   if (regions === "ticked") {
     const byID = new Map(folders.map((f) => [f.collectionID, f]));
     const hasTickedAncestor = (f: ViewFolder): boolean => {

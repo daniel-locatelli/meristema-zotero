@@ -76,7 +76,15 @@ import {
   subscribeRelationshipPublications,
   type RelationshipPublicationEvent,
 } from "./relationshipEvents";
+import {
+  buildReadingPlan,
+  EMPTY_READING_SOURCE,
+  type ReadingPlan,
+  type ReadingSource,
+} from "../domain/readingPlan";
 import { subscribeLibraryFoldersChanged } from "./libraryFolderEvents";
+import { subscribeReadingNotesChanged } from "./readingNoteEvents";
+import { loadReadingSource } from "./readingNoteSource";
 import { refreshSnapshotFolders } from "./libraryFolders";
 import {
   collectionScopeIDs,
@@ -92,6 +100,7 @@ import {
   computeGraphScope,
   keysInCollections,
   expandTicksThroughDescendants,
+  isCollectionTicked,
   onlyCollectionsTicked,
   purgeHiddenKeys,
   regionMemberKeys,
@@ -123,6 +132,7 @@ import {
   captureGraphView,
   draftParagraph,
   encodeGraphView,
+  foldersInTreeOrder,
   graphViewIsEdited,
   isShippedViewName,
   planGraphView,
@@ -1015,6 +1025,51 @@ export function renderGraphView(
       orderIndex: c.orderIndex,
       ticked: collectionTickStateOf(c),
     }));
+  // The Reading plan view's data: the notes as last read, and the plan built
+  // from them for the ticked folders. `readingPlan` is the last plan pushed to
+  // the renderer; Task 6's menu row reads `readingPlan.paths.length > 0`.
+  let readingSource: ReadingSource = EMPTY_READING_SOURCE;
+  let readingPlan: ReadingPlan = buildReadingPlan(EMPTY_READING_SOURCE, []);
+  let readingLoad = 0;
+  let readingReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  const tickedFoldersInTreeOrder = (): number[] =>
+    foldersInTreeOrder(viewFolders())
+      .filter((folder) =>
+        isCollectionTicked(collectionTicks, folder.collectionID),
+      )
+      .map((folder) => folder.collectionID);
+  const pushReadingPlan = (draw: boolean): void => {
+    readingPlan = buildReadingPlan(readingSource, tickedFoldersInTreeOrder());
+    renderer?.setReadingPlan(readingPlan, draw);
+  };
+  const reloadReadingSource = async (): Promise<void> => {
+    const load = ++readingLoad;
+    try {
+      const source = await loadReadingSource(
+        snapshot.libraryID,
+        snapshot.collections.map((c) => c.collectionID),
+        libraryModel.nodes.flatMap((n) => (n.itemID > 0 ? [n.itemID] : [])),
+      );
+      if (cleaned || load !== readingLoad) return;
+      readingSource = source;
+      pushReadingPlan(true);
+      refreshViewChip();
+    } catch (error) {
+      // Keep the last good source; a note that cannot be read must not reach
+      // the view.
+      Zotero.logError(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  };
+  const unsubscribeReadingNotes = subscribeReadingNotesChanged(() => {
+    if (cleaned) return;
+    if (readingReloadTimer) clearTimeout(readingReloadTimer);
+    readingReloadTimer = setTimeout(() => {
+      readingReloadTimer = null;
+      void reloadReadingSource();
+    }, 250);
+  });
   /**
    * The shipped list first: it is in memory, and a saved view's id is always
    * `user:`-prefixed, so a shipped id never reaches the preference read.
@@ -4453,6 +4508,8 @@ ${error instanceof Error ? error.message : String(error)}`,
       }
     },
   });
+  // The notes load once the renderer exists; the plan reaches it from there.
+  void reloadReadingSource();
   const scopeSeedRows = (): ScopeSeedInput[] => {
     const colors = hopModel
       ? seedColorsFor(hopModel)
@@ -4833,6 +4890,8 @@ ${error instanceof Error ? error.message : String(error)}`,
   refreshScopeRail = (): void => {
     if (!lastScope) return;
     const drawnRegions = regionsForRenderer();
+    // Before setRegions: if that call draws, one frame carries both.
+    pushReadingPlan(false);
     renderer?.setRegions(drawnRegions);
     lastScopeRailModel = buildScopeRailModel({
       collections: snapshot.collections,
@@ -6102,6 +6161,9 @@ ${error instanceof Error ? error.message : String(error)}`,
     unsubscribeRelationshipMutations();
     unsubscribeRelationshipPublications();
     unsubscribeLibraryFolders();
+    unsubscribeReadingNotes();
+    if (readingReloadTimer) clearTimeout(readingReloadTimer);
+    readingReloadTimer = null;
     graphFilter.destroy();
     document.removeEventListener(
       "pointerdown",

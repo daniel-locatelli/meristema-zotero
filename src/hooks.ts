@@ -53,6 +53,7 @@ import {
 } from "./services/zoteroLibraryService";
 import { refreshSnapshotFolders } from "./services/libraryFolders";
 import { publishLibraryFoldersChanged } from "./services/libraryFolderEvents";
+import { publishReadingNotesChanged } from "./services/readingNoteEvents";
 import {
   clearLocalCitationExtractionCache,
   invalidateLocalCitationExtractionCache,
@@ -80,6 +81,7 @@ const TEARDOWN_MARKER = `__${config.addonRef}RuntimeTeardownListener`;
 let teardownStarted = false;
 let unsubscribeUpdateListener: (() => void) | null = null;
 let librarySnapshotNotifierID: string | null = null;
+let readingNotesNotifierID: string | null = null;
 /**
  * Records the open graph tabs the moment a quit is granted, while they are
  * still open: Zotero closes every tab as its window goes, and a tab closed
@@ -264,6 +266,26 @@ function unregisterLibrarySnapshotInvalidation(): void {
   librarySnapshotNotifierID = null;
 }
 
+/*
+ * Reading-list and read-state notes are ordinary notes, and a paper filed into
+ * or out of a list folder changes its steps, so every item and collection-item
+ * event pings the open graphs. They debounce and reload; no filtering here.
+ */
+function registerReadingNotesObserver(): void {
+  if (readingNotesNotifierID) return;
+  readingNotesNotifierID = Zotero.Notifier.registerObserver(
+    { notify: () => publishReadingNotesChanged() },
+    ["item", "collection-item"],
+    "meristema-reading-notes",
+  );
+}
+
+function unregisterReadingNotesObserver(): void {
+  if (!readingNotesNotifierID) return;
+  Zotero.Notifier.unregisterObserver(readingNotesNotifierID);
+  readingNotesNotifierID = null;
+}
+
 function installUpdateRefreshListener(): void {
   if (unsubscribeUpdateListener) return;
   unsubscribeUpdateListener = subscribeToCitationUpdates(async (event) => {
@@ -309,6 +331,7 @@ function beginTeardown(closeGraphTab = true): void {
   clearWholeLibrarySnapshotCache();
   clearLocalCitationExtractionCache();
   unregisterLibrarySnapshotInvalidation();
+  unregisterReadingNotesObserver();
   cancelPendingGraphRefreshes();
   for (const action of [
     unregisterAutomaticCitationUpdates,
@@ -346,6 +369,7 @@ async function onStartup(): Promise<void> {
     startProviderResponseCache();
     installUpdateRefreshListener();
     registerLibrarySnapshotInvalidation();
+    registerReadingNotesObserver();
   })();
   setGraphStartupGate(stores);
   await Zotero.uiReadyPromise;
