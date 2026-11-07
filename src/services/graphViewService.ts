@@ -1045,15 +1045,16 @@ export function renderGraphView(
         isCollectionTicked(collectionTicks, folder.collectionID),
       )
       .map((folder) => folder.collectionID);
-  const pushReadingPlan = (draw: boolean): void => {
-    if (!readingSourceLoaded) return;
+  /** Hands the renderer the plan if it changed; answers whether it did. */
+  const pushReadingPlan = (draw: boolean): boolean => {
+    if (!readingSourceLoaded) return false;
     const ticks = tickedFoldersInTreeOrder();
     if (
       pushedSource === readingSource &&
       pushedTicks &&
       sameTicks(pushedTicks, ticks)
     ) {
-      return;
+      return false;
     }
     pushedSource = readingSource;
     pushedTicks = ticks;
@@ -1061,6 +1062,7 @@ export function renderGraphView(
     renderer?.setReadingPlan(readingPlan, draw);
     // The gallery's cards follow the plan; re-run what already shows it.
     if (!viewGallery.root.hidden) maybeShowGallery();
+    return true;
   };
   const reloadReadingSource = async (): Promise<void> => {
     const load = ++readingLoad;
@@ -1073,7 +1075,10 @@ export function renderGraphView(
       if (cleaned || load !== readingLoad) return;
       readingSource = source;
       readingSourceLoaded = true;
-      pushReadingPlan(true);
+      // The Key counts read states and steps off the plan, and nothing else
+      // repaints it when only the notes changed: a note edit, or the first
+      // load on a remounted view, left it on "Not in library".
+      if (pushReadingPlan(true)) refreshKeyRail();
       refreshViewChip();
     } catch (error) {
       // Keep the last good source; a note that cannot be read must not reach
