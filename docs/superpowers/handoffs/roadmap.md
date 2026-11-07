@@ -193,11 +193,11 @@ Use all providers button, and the three-action View menu.
 - [ ] R1 Reading lists: spec in
       `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. Steps 1 and
       2 are built: the format, fixtures and the Meristema Reading plugin in
-      `zotero-meristema-reading` (main, not pushed; 30 Zotero cases), and
+      `zotero-meristema-reading` (pushed; 36 Zotero cases), and
       `zot.py reading-list` with its Python port in the skills repo (1.12.0,
-      main, not pushed). Next: walk the R1 manual checks below, answer the R1
-      decisions, then plan step 3 (Meristema's Reading plan view; its format
-      copy must carry the note-editor fallback). Renaming this repo to
+      pushed). Next: plan step 3 (Meristema's Reading plan view; its format
+      copy must carry the note-editor fallback), walk the R1 manual checks
+      below and answer the R1 decisions. Renaming this repo to
       `zotero-meristema-graph` comes last.
 - [ ] R1 decisions for the user (defaults are built; change any): - Labels: item menu "Mark as" > Unread, Reading, Read; folder menu "Make
       Reading List" and "Open Reading List"; section "Reading list", with
