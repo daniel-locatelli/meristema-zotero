@@ -137,3 +137,8 @@ export function readingStepOf(
   if (!plan) return null;
   return plan.stepByKey.get(key) ?? plan.afterLast;
 }
+
+/** Whether two ticked-folder lists (in tree order) are the same list. */
+export function sameTicks(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
+}

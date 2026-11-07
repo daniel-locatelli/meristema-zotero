@@ -79,6 +79,7 @@ import {
 import {
   buildReadingPlan,
   EMPTY_READING_SOURCE,
+  sameTicks,
   type ReadingPlan,
   type ReadingSource,
 } from "../domain/readingPlan";
@@ -1031,6 +1032,11 @@ export function renderGraphView(
   let readingSource: ReadingSource = EMPTY_READING_SOURCE;
   let readingPlan: ReadingPlan = buildReadingPlan(EMPTY_READING_SOURCE, []);
   let readingLoad = 0;
+  // No plan is pushed before the first load lands: the empty source would read
+  // every library paper as "Not in library".
+  let readingSourceLoaded = false;
+  let pushedTicks: readonly number[] | null = null;
+  let pushedSource: ReadingSource | null = null;
   let readingReloadTimer: ReturnType<typeof setTimeout> | null = null;
   const tickedFoldersInTreeOrder = (): number[] =>
     foldersInTreeOrder(viewFolders())
@@ -1039,7 +1045,18 @@ export function renderGraphView(
       )
       .map((folder) => folder.collectionID);
   const pushReadingPlan = (draw: boolean): void => {
-    readingPlan = buildReadingPlan(readingSource, tickedFoldersInTreeOrder());
+    if (!readingSourceLoaded) return;
+    const ticks = tickedFoldersInTreeOrder();
+    if (
+      pushedSource === readingSource &&
+      pushedTicks &&
+      sameTicks(pushedTicks, ticks)
+    ) {
+      return;
+    }
+    pushedSource = readingSource;
+    pushedTicks = ticks;
+    readingPlan = buildReadingPlan(readingSource, ticks);
     renderer?.setReadingPlan(readingPlan, draw);
   };
   const reloadReadingSource = async (): Promise<void> => {
@@ -1052,6 +1069,7 @@ export function renderGraphView(
       );
       if (cleaned || load !== readingLoad) return;
       readingSource = source;
+      readingSourceLoaded = true;
       pushReadingPlan(true);
       refreshViewChip();
     } catch (error) {
@@ -1062,14 +1080,17 @@ export function renderGraphView(
       );
     }
   };
-  const unsubscribeReadingNotes = subscribeReadingNotesChanged(() => {
+  const scheduleReadingReload = (): void => {
     if (cleaned) return;
     if (readingReloadTimer) clearTimeout(readingReloadTimer);
     readingReloadTimer = setTimeout(() => {
       readingReloadTimer = null;
       void reloadReadingSource();
     }, 250);
-  });
+  };
+  const unsubscribeReadingNotes = subscribeReadingNotesChanged(
+    scheduleReadingReload,
+  );
   /**
    * The shipped list first: it is in memory, and a saved view's id is always
    * `user:`-prefixed, so a shipped id never reaches the preference read.
@@ -3250,6 +3271,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     libraryModel.nodes.splice(0, libraryModel.nodes.length, ...next.nodes);
     libraryModel.edges.splice(0, libraryModel.edges.length, ...next.edges);
     Object.assign(libraryModel.statistics, next.statistics);
+    scheduleReadingReload();
     markLibraryGraphChanged(false);
     if (hopModel) {
       rebuildCurrentFocus();
@@ -5662,6 +5684,7 @@ ${error instanceof Error ? error.message : String(error)}`,
     }
     node = createMetricNodeForItem(item);
     libraryModel.nodes.push(node);
+    scheduleReadingReload();
     markLibraryGraphChanged();
     return node;
   };

@@ -5,6 +5,7 @@ import {
   buildReadingPlan,
   readStateFromNotes,
   readingStepOf,
+  sameTicks,
   type ReadingSource,
 } from "../../src/domain/readingPlan";
 
@@ -192,5 +193,14 @@ describe("readStateFromNotes", () => {
   it("is empty with no notes", () => {
     expect(readStateFromNotes([])).to.deep.equal({ version: 1, states: {} });
     expect(EMPTY_READING_SOURCE.folders).to.deep.equal([]);
+  });
+});
+
+describe("sameTicks", () => {
+  it("is true only for the same ids in the same order", () => {
+    expect(sameTicks([], [])).to.equal(true);
+    expect(sameTicks([1, 2], [1, 2])).to.equal(true);
+    expect(sameTicks([1, 2], [2, 1])).to.equal(false);
+    expect(sameTicks([1], [1, 2])).to.equal(false);
   });
 });
