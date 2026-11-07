@@ -281,8 +281,9 @@ any failure into a new entry above.
       Retraction or Provider, and a retracted paper still has its ring. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
-- [ ] R1, Meristema Reading. Install `zotero-meristema-reading/.scaffold/build/`'s
-      XPI (`npm run build` there first if it is missing). Answered already:
+- [ ] R1, Meristema Reading. Install
+      `zotero-meristema-reading/.scaffold/build/meristema-reading.xpi` (`npm run build`
+      there first if it is missing). Answered already:
       Zotero's note editor drops the `<pre>`'s attribute, so readers fall back
       to the block's content. - Mark a paper Read and another Reading from the item menu: My Library
       gains one state note, outside any folder, and the papers get `_read`
@@ -299,7 +300,8 @@ any failure into a new entry above.
       paper: it shows blank, after the last step. - The Reading list section, light and dark themes: drag a step's handle
       with the mouse to reorder; drop a paper from Not in the steps onto a
       step; drop a step onto Not in the steps; Alt+Up and Alt+Down twice in
-      a row. Long titles stay on one line in the section. - Type a reason, then click away: it is saved. Escape restores it. A mark
+      a row; the item list keeps its selection. Long titles stay on one line in
+      the section. - Type a reason, then click away: it is saved. Escape restores it. A mark
       or sync landing while you type keeps your text. Dragging text out of a
       reason into another app works and moves no step. - Open Reading List: full-width cards, reasons in full, a long list
       scrolls inside the tab, no context pane. Click a title: Zotero switches
