@@ -3,6 +3,7 @@ import { expect } from "chai";
 import type { CitationGraphNode } from "../../src/domain/graphTypes";
 import {
   colourOptionHasData,
+  metricHasData,
   normaliseLayoutFor,
 } from "../../src/services/graphLayoutAvailability";
 
@@ -95,5 +96,12 @@ describe("colourOptionHasData for citation-hop", function () {
       colourOptionHasData([node({ citationCount: 3 })], "citation-hop"),
       "a graph with nodes but no hops says the same: the probe abstains",
     ).to.equal(true);
+  });
+});
+
+describe("reading plan options", function () {
+  it("always offers Reading step and Read state; their data arrives on the renderer", function () {
+    expect(metricHasData([], "reading-step")).to.equal(true);
+    expect(colourOptionHasData([], "read-state")).to.equal(true);
   });
 });

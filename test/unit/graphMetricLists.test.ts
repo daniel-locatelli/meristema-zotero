@@ -39,4 +39,14 @@ describe("the graph's metric lists (W19)", () => {
       "advanced",
     );
   });
+
+  it("offers Reading step on the axes only", () => {
+    expect(axisMetricDefinitions().map((m) => m.id)).to.include("reading-step");
+    expect(nodeSizeMetricDefinitions().map((m) => m.id)).to.not.include(
+      "reading-step",
+    );
+    expect(nodeColorMetricDefinitions().map((m) => m.id)).to.not.include(
+      "reading-step",
+    );
+  });
 });

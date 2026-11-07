@@ -108,6 +108,27 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     value: (node) => node.citationSequence,
   },
   {
+    id: "reading-step",
+    label: "Reading step",
+    group: "Library",
+    description:
+      "A paper's place in the reading list of a ticked folder (Meristema Reading). Papers the list leaves unordered sit one step after its last; papers in no ticked list sit after every list.",
+    interpretation:
+      "A paper in two ticked lists takes its step from the first list in folder order.",
+    valueType: "integer",
+    column: false,
+    itemPane: false,
+    graph: {
+      axis: true,
+      logarithmic: false,
+      nodeSize: false,
+      nodeColor: false,
+      filter: false,
+    },
+    // The step is the renderer's map (setReadingPlan), not a node field.
+    value: () => null,
+  },
+  {
     id: "citations",
     label: "Citations",
     group: "Core",

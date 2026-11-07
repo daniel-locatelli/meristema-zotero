@@ -460,6 +460,7 @@ function metricWord(metric: string): string {
     "open-access": "open access",
     "citation-hop": "citation hop",
     "seed-links": "seeds linked",
+    "read-state": "read state",
   };
   if (special[metric]) return special[metric];
   return getMetricDefinition(metric as MetricID).label.toLowerCase();
@@ -635,6 +636,7 @@ const COLOUR_METRICS = new Set<string>([
   "open-access",
   "citation-hop",
   "seed-links",
+  "read-state",
 ]);
 const SCALES = new Set<string>(["linear", "log"]);
 const LABELS = new Set<string>(["title", "author-year", "none"]);

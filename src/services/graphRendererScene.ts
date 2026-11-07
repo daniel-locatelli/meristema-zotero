@@ -236,7 +236,8 @@ function ghostColor(
     metric === "publication-type" ||
     metric === "open-access" ||
     metric === "citation-hop" ||
-    metric === "seed-links"
+    metric === "seed-links" ||
+    metric === "read-state"
   ) {
     return theme.categorical.noValue;
   }

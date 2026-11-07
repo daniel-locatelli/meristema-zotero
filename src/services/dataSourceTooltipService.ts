@@ -175,6 +175,7 @@ function nodeSources(node: CitationGraphNode, field: string): DataSourceID[] {
     case "open-access":
     case "citation-hop":
     case "seed-links":
+    case "read-state":
     case "openaccessstatus":
     case "open-access-status":
     case "retracted":

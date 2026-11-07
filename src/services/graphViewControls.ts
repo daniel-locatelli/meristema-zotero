@@ -455,6 +455,13 @@ export function createAxesAppearance(
         "Colour hop-1 papers by how many of your seeds they are linked to.",
       available: colourOptionHasData(nodes, "seed-links"),
     },
+    {
+      value: "read-state",
+      label: "Read state",
+      description:
+        "Colour papers Unread, Reading or Read, from Meristema Reading's read state.",
+      available: colourOptionHasData(nodes, "read-state"),
+    },
   ];
   for (const definition of categoricalDefinitions) {
     if (!definition.available) continue;

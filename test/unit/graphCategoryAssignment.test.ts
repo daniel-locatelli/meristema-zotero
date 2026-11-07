@@ -329,3 +329,55 @@ describe("the Seeds linked colouring", function () {
     expect(assignment.ledger).to.equal(ledger);
   });
 });
+
+describe("read-state colouring", () => {
+  const states = new Map([
+    ["a", "unread"],
+    ["b", "reading"],
+    ["c", "read"],
+    ["d", "read"],
+  ] as const);
+  const assign = () =>
+    assignCategories(
+      [node("a"), node("b"), node("c"), node("d"), node("x")],
+      "read-state",
+      LIGHT,
+      {
+        ledger: emptySwatchLedger(),
+        readStateOf: (key) => states.get(key as "a"),
+      },
+    );
+
+  it("colours each state from a fixed ramp stop, in reading order", () => {
+    const result = assign();
+    expect(
+      result.entries.map((e) => [e.label, e.count, e.color]),
+    ).to.deep.equal([
+      ["Unread", 1, LIGHT.ramp[0]],
+      ["Reading", 1, LIGHT.ramp[2]],
+      ["Read", 2, LIGHT.ramp[4]],
+    ]);
+    expect(result.other).to.equal(null);
+    expect(result.noValue?.label).to.equal("Not in library");
+    expect(result.colorFor(node("x"))).to.equal(LIGHT.categorical.noValue);
+    expect(result.labelFor(node("c"))).to.equal("Read");
+  });
+
+  it("never moves the swatch ledger", () => {
+    const ledger = emptySwatchLedger();
+    const result = assignCategories([node("a")], "read-state", LIGHT, {
+      ledger,
+      readStateOf: () => "read",
+    });
+    expect(result.ledger).to.equal(ledger);
+  });
+
+  it("keeps a state's colour when another state is absent", () => {
+    const result = assignCategories([node("c")], "read-state", LIGHT, {
+      ledger: emptySwatchLedger(),
+      readStateOf: () => "read",
+    });
+    expect(result.entries).to.have.length(1);
+    expect(result.entries[0].color).to.equal(LIGHT.ramp[4]);
+  });
+});

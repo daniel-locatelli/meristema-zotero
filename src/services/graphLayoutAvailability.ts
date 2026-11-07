@@ -21,6 +21,8 @@ export function metricHasData(
   // appearance controls are created (ADR 0008), so the option stays
   // selectable even when the library graph has no precise publication dates.
   if (metric === "citation-sequence") return true;
+  // Reading step is the renderer's map too, from the reading-list notes.
+  if (metric === "reading-step") return true;
   return nodes.some((node) => {
     const value = metricValue(node, metric);
     return typeof value === "number" && Number.isFinite(value);
@@ -49,6 +51,7 @@ export function colourOptionHasData(
       );
     case "citation-hop":
     case "seed-links":
+    case "read-state":
       return true;
     default:
       return metricHasData(nodes, colour);

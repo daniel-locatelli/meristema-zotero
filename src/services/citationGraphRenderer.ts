@@ -104,6 +104,7 @@ import {
 } from "./graphEdgeStyle";
 import { seedLinkLabelRank } from "./graphSeedLinks";
 import { isContextMenuKey } from "./nodeMenu";
+import { readingStepOf, type ReadingPlan } from "../domain/readingPlan";
 import { seedMarksWithin, type SeedMarks } from "./graphHopModel";
 import {
   floorAtWorld,
@@ -340,6 +341,8 @@ export class CitationGraphRenderer {
   private seedMarks: SeedMarks | null = null;
   /** Bumped by `setSeedMarks`, so the category assignment rebuilds. */
   private seedMarksRevision = 0;
+  private readingPlan: ReadingPlan | null = null;
+  private readingPlanRevision = 0;
   /** The folders drawn as regions, with the papers each one holds. */
   private regions: ReadonlyArray<{
     collectionID: number;
@@ -1243,7 +1246,7 @@ export class CitationGraphRenderer {
     // matter: without them two adjacent plain-decimal counters
     // (`scopeRevision`, `hopsRevision`) could concatenate into an
     // ambiguous key.
-    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.seedMarksRevision}`;
+    const key = `${this.layout.nodeColorMetric}${this.model.nodes.length}${this.theme.scheme}${this.scopeRevision}${this.seedMarksRevision}${this.readingPlanRevision}`;
     if (!this.categoryAssignment || this.categoryAssignmentKey !== key) {
       this.categoryAssignment = assignCategories(
         this.getScopeNodes(),
@@ -1253,6 +1256,7 @@ export class CitationGraphRenderer {
           labels: { labelFor: (id) => this.collectionLabels.get(id) ?? null },
           ledger: this.categorySwatchLedger,
           hopOf: (nodeKey) => this.seedMarks?.hops.get(nodeKey),
+          readStateOf: (nodeKey) => this.readingPlan?.stateByKey.get(nodeKey),
           seedLinks: this.seedMarks
             ? {
                 of: (nodeKey) => this.seedMarks?.seedLinks.get(nodeKey),
@@ -2501,6 +2505,17 @@ export class CitationGraphRenderer {
   }
 
   /**
+   * What the reading-list notes put on the plot: each paper's step and read
+   * state, and each ticked list's path; null when the view has none yet.
+   */
+  public setReadingPlan(plan: ReadingPlan | null, draw = true): void {
+    this.readingPlan = plan;
+    this.readingPlanRevision += 1;
+    this.categoryAssignment = null;
+    if (draw) this.draw();
+  }
+
+  /**
    * The one reader every axis, size, colour and Key read goes through: the
    * node's own field, except that `citation-sequence` on a seeded graph is
    * the marks' map. An arrow property, so it can be handed to the scene and
@@ -2509,6 +2524,9 @@ export class CitationGraphRenderer {
   public metricNumber: MetricReader = (node, metric) => {
     if (metric === "citation-sequence" && this.seedMarks) {
       return this.seedMarks.citationSequence.get(node.key) ?? null;
+    }
+    if (metric === "reading-step") {
+      return readingStepOf(this.readingPlan, node.key);
     }
     return metricNumber(node, metric);
   };

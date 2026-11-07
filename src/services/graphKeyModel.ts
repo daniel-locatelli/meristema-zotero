@@ -38,6 +38,7 @@ export const CATEGORICAL_COLOR_LABELS: Record<string, string> = {
   "open-access": "Open Access",
   "citation-hop": "Citation hop",
   "seed-links": "Seeds linked",
+  "read-state": "Read state",
 };
 
 export function isCategoricalColorMetric(

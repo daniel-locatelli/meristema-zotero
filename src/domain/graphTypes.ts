@@ -9,6 +9,7 @@ import type {
 export type MetricID =
   | "year"
   | "citation-sequence"
+  | "reading-step"
   | "citations"
   | "references"
   | "citation-rate"
@@ -38,6 +39,7 @@ export type GraphNodeColorMetric =
   | "open-access"
   | "citation-hop"
   | "seed-links"
+  | "read-state"
   | MetricID;
 export type GraphNodeLabelMode = "title" | "author-year" | "none";
 

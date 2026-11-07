@@ -12,6 +12,7 @@ import {
   swatchIndexFor,
   type SwatchLedgerState,
 } from "./graphSwatchLedger";
+import type { ReadState } from "../readingFormat/readState";
 import {
   seedLinkRampIndex,
   seedLinkTierKey,
@@ -60,6 +61,20 @@ const NO_VALUE_KEY = `${RESERVED_PREFIX}no-value`;
 const OTHER_KEY = `${RESERVED_PREFIX}other`;
 /** Seeds linked's no-value label: seeds and papers past hop 1 are not graded. */
 const NOT_GRADED = "Not graded";
+
+const READ_STATE_ORDER: readonly ReadState[] = ["unread", "reading", "read"];
+const READ_STATE_LABELS: Record<ReadState, string> = {
+  unread: "Unread",
+  reading: "Reading",
+  read: "Read",
+};
+/** Fixed ramp stops, so a state is the same colour on every graph (user, 2026-11-07). */
+const READ_STATE_RAMP: Record<ReadState, number> = {
+  unread: 0,
+  reading: 2,
+  read: 4,
+};
+const NOT_IN_LIBRARY = "Not in library";
 
 export interface CategoryEntry {
   /** Stable identity — a provider ID, a type name. */
@@ -119,7 +134,14 @@ export function nodeCategory(
   metric: GraphNodeColorMetric,
   hopOf?: (key: string) => number | undefined,
   seedLinks?: SeedLinkSource,
+  readStateOf?: (key: string) => ReadState | undefined,
 ): CategoryRef | null {
+  if (metric === "read-state") {
+    const state = readStateOf?.(node.key);
+    return state
+      ? { key: `read-state:${state}`, label: READ_STATE_LABELS[state] }
+      : null;
+  }
   if (metric === "seed-links") {
     const k = seedLinks?.of(node.key);
     if (k === undefined || !seedLinks) return null;
@@ -166,6 +188,11 @@ export interface AssignCategoriesOptions {
    * seed count and the direction, from the seed marks (ADR 0008).
    */
   seedLinks?: SeedLinkSource;
+  /**
+   * The Read state colouring's source: the reading plan's state per library
+   * paper.
+   */
+  readStateOf?: (key: string) => ReadState | undefined;
 }
 
 export function assignCategories(
@@ -176,6 +203,7 @@ export function assignCategories(
 ): CategoryAssignment {
   if (metric === "seed-links")
     return assignSeedLinkTiers(nodes, theme, options);
+  if (metric === "read-state") return assignReadStates(nodes, theme, options);
 
   const counts = new Map<string, { label: string; count: number }>();
   let noValueCount = 0;
@@ -313,6 +341,63 @@ function assignSeedLinkTiers(
     },
     labelFor(node) {
       return ref(node)?.label ?? NOT_GRADED;
+    },
+    keyFor(node) {
+      return ref(node)?.key ?? null;
+    },
+  };
+}
+
+/**
+ * Read state is categorical but fixed: Unread, Reading, Read in that order,
+ * each from its own ramp stop, so the ledger is neither read nor moved and no
+ * state collapses into Other. A paper with no state (not in the library) is
+ * the no-value grey.
+ */
+function assignReadStates(
+  nodes: CitationGraphNode[],
+  theme: GraphTheme,
+  options: AssignCategoriesOptions,
+): CategoryAssignment {
+  const ref = (node: CitationGraphNode): CategoryRef | null =>
+    nodeCategory(node, "read-state", undefined, undefined, options.readStateOf);
+  const counts = new Map<ReadState, number>();
+  let noValueCount = 0;
+  for (const node of nodes) {
+    const state = options.readStateOf?.(node.key);
+    if (state) counts.set(state, (counts.get(state) ?? 0) + 1);
+    else noValueCount += 1;
+  }
+  const colorOf = (state: ReadState): string =>
+    theme.ramp[Math.min(READ_STATE_RAMP[state], theme.ramp.length - 1)];
+  const entries: CategoryEntry[] = READ_STATE_ORDER.filter((s) =>
+    counts.has(s),
+  ).map((state) => ({
+    key: `read-state:${state}`,
+    label: READ_STATE_LABELS[state],
+    count: counts.get(state) ?? 0,
+    color: colorOf(state),
+  }));
+  const noValue: CategoryEntry | null = noValueCount
+    ? {
+        key: NO_VALUE_KEY,
+        label: NOT_IN_LIBRARY,
+        count: noValueCount,
+        color: theme.categorical.noValue,
+      }
+    : null;
+  return {
+    metric: "read-state",
+    entries,
+    other: null,
+    noValue,
+    ledger: options.ledger,
+    colorFor(node) {
+      const state = options.readStateOf?.(node.key);
+      return state ? colorOf(state) : theme.categorical.noValue;
+    },
+    labelFor(node) {
+      return ref(node)?.label ?? NOT_IN_LIBRARY;
     },
     keyFor(node) {
       return ref(node)?.key ?? null;
