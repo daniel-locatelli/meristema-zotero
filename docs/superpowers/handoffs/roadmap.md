@@ -195,10 +195,9 @@ Use all providers button, and the three-action View menu.
       2 are built: the format, fixtures and the Meristema Reading plugin in
       `zotero-meristema-reading` (pushed; 36 Zotero cases), and
       `zot.py reading-list` with its Python port in the skills repo (1.12.0,
-      pushed). Next: plan step 3 (Meristema's Reading plan view; its format
-      copy must carry the note-editor fallback), walk the R1 manual checks
-      below and answer the R1 decisions. Renaming this repo to
-      `zotero-meristema-graph` comes last.
+      pushed). Step 3 (the Reading plan view) is built on main, not pushed, in
+      this repo. Next: walk the R1 manual checks below and answer the R1
+      decisions. Renaming this repo to `zotero-meristema-graph` comes last.
 - [ ] R1 decisions for the user (defaults are built; change any): - Labels: item menu "Mark as" > Unread, Reading, Read; folder menu "Make
       Reading List" and "Open Reading List"; section "Reading list", with
       "Open as Tab" and "Not in the steps". - The tab opens from the folder menu or the section, not by
@@ -208,7 +207,13 @@ Use all providers button, and the three-action View menu.
       title. - The plugin owns the whole note: text typed into a list or state note
       is lost at the next rewrite. - Sync race: if computer A merges and trashes B's state note before B
       downloads that, a mark B made meanwhile can land in the trashed note
-      and be ignored. Merging trashed state notes too would close it. - `zotero-meristema-reading` still has no license.
+      and be ignored. Merging trashed state notes too would close it. - `zotero-meristema-reading` still has no license. - A paper in two ticked lists takes the first list's step (folder-tree
+      order). - The Reading plan view's copy: summary "Reading step × citations,
+      colour read state. What to read next."; paragraph "Ticked reading lists
+      in reading order, higher the more they are cited, coloured by what you
+      have read; a dashed line joins each list's steps." - Read state colours are fixed: Unread ramp stop 0, Reading stop 2, Read
+      stop 4. A paper outside the library (a citation-hop paper) reads "Not in
+      library", the no-value grey. - Papers in no ticked list sit one step after the last.
 - [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
       `toLocaleLowerCase`, so a Turkish-locale Zotero gives other ids; the
       reading copy uses `toLowerCase`. Match it.
@@ -319,6 +324,15 @@ any failure into a new entry above.
       different folders each show their own Step column and section. - Two computers: mark different papers on each before syncing; after
       both sync, one state note is left, the other in the trash, and both
       marks are kept.
+- [ ] R1, Reading plan view. Install `.scaffold/build/meristema.xpi`; tick a
+      folder with a reading list (made by Meristema Reading); choose View >
+      Reading plan. The papers line up by step, the dashed path joins the steps
+      in order, and the Key reads Unread/Reading/Read in both themes. Mark a
+      paper Read in Meristema Reading: the graph recolours within a second.
+      Tick two list folders: two separate paths. Untick: the row greys. Editing
+      a read-state note (or marking a paper) rebuilds the open graph view, and
+      papers read "Not in library" for a moment until the notes reload; say
+      whether that flash is acceptable.
 - [ ] R1, `zot.py reading-list` on the live library: write a `steps.json`
       with one DOI not yet in Zotero and one existing item key, run
       `python <skills>/skills/zotero/using-zotero/scripts/zot.py reading-list --topic "RL test" --collection "RL test" --steps steps.json`,

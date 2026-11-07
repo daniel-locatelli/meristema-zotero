@@ -103,6 +103,10 @@ A merged or deleted paper drops out of the list. Remapping merged keys through
   edges.
 - Several ticked list folders each keep their own steps; a path never joins two
   lists.
+- Meristema's copy of the format is vendored (`src/readingFormat/`,
+  `test/fixtures/reading-format/`) and checked against a sibling checkout.
+- Read state colours are fixed per state.
+- A paper in two ticked lists takes the first list's step (folder-tree order).
 - No shapes for read state. The summary and paragraph are rewritten; the
   "3 annotated papers" rule goes.
 
