@@ -191,14 +191,24 @@ Use all providers button, and the three-action View menu.
       (reads as Publication type). `From view:` removed: the View button names
       the view and marks it edited. Left: tick W19 once the user has walked it.
 - [ ] R1 Reading lists: spec in
-      `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. A new plugin,
-      `zotero-meristema-reading`, a skill verb, and the Reading plan view, which
-      share one note format. Step 1 (format and fixtures) is done in
-      `zotero-meristema-reading` (public on GitHub, no license yet). Step 2 is
-      three plans; 2a (plugin core) is in
-      `docs/superpowers/plans/2026-11-07-reading-plugin-core.md`, then 2b
-      (sidebar, list tab) and 2c (Python port, `zot.py reading-list`).
-      Renaming this repo to `zotero-meristema-graph` comes last.
+      `docs/superpowers/specs/2026-11-06-reading-lists-design.md`. Steps 1 and
+      2 are built: the format, fixtures and the Meristema Reading plugin in
+      `zotero-meristema-reading` (main, not pushed; 30 Zotero cases), and
+      `zot.py reading-list` with its Python port in the skills repo (1.12.0,
+      main, not pushed). Next: walk the R1 manual checks below, answer the R1
+      decisions, then plan step 3 (Meristema's Reading plan view; its format
+      copy must carry the note-editor fallback). Renaming this repo to
+      `zotero-meristema-graph` comes last.
+- [ ] R1 decisions for the user (defaults are built; change any): - Labels: item menu "Mark as" > Unread, Reading, Read; folder menu "Make
+      Reading List" and "Open Reading List"; section "Reading list", with
+      "Open as Tab" and "Not in the steps". - The tab opens from the folder menu or the section, not by
+      double-clicking the note (that opens Zotero's note editor). - The state toggle cycles Unread, Reading, Read. Alt+Up and Alt+Down move
+      a step. - A merge keeps the state note with the smallest key. A paper id reads
+      the DOI field only, not Extra. - A new list follows the item list's order; papers it hides follow by
+      title. - The plugin owns the whole note: text typed into a list or state note
+      is lost at the next rewrite. - Sync race: if computer A merges and trashes B's state note before B
+      downloads that, a mark B made meanwhile can land in the trashed note
+      and be ignored. Merging trashed state notes too would close it. - `zotero-meristema-reading` still has no license.
 - [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
       `toLocaleLowerCase`, so a Turkish-locale Zotero gives other ids; the
       reading copy uses `toLowerCase`. Match it.
@@ -271,11 +281,47 @@ any failure into a new entry above.
       Retraction or Provider, and a retracted paper still has its ring. Update a
       paper published last year: its Recent
       citation rate is last year's count, not a third of it.
-- [ ] R1: in Zotero, paste a list note from
-      `zotero-meristema-reading/fixtures/lists/ordered.html` into a folder
-      note, edit its readable part, save, and reopen the HTML (Run
-      JavaScript, `item.getNote()`): the `<pre data-meristema-reading-list="1">`
-      attribute is still there.
+- [ ] R1, Meristema Reading. Install `zotero-meristema-reading/.scaffold/build/`'s
+      XPI (`npm run build` there first if it is missing). Answered already:
+      Zotero's note editor drops the `<pre>`'s attribute, so readers fall back
+      to the block's content. - Mark a paper Read and another Reading from the item menu: My Library
+      gains one state note, outside any folder, and the papers get `_read`
+      and `_reading`. Time a mark on the real library, from the click until
+      the section's toggle changes. After a sync, Zotero for iOS shows the
+      tags. - A paper's own tags survive marking. Two copies with one DOI both get
+      the tag. A tag added or removed by hand comes back as the state says. - With the Step column on (column picker), click quickly between items
+      while a mark settles: the selection never jumps back and the list
+      never visibly reloads. Typing 30 s in a child note does not disturb
+      the cursor. - A sync of many changed items, or the first sync of a new profile:
+      `_read` tags do not vanish and come back; no errors in the console. - Make Reading List on a folder sorted some other way than by title: the
+      note follows that order. With a search filter on, the shown papers
+      come first. Sort by Step: steps 1 to n, then the rest blank. Add a
+      paper: it shows blank, after the last step. - The Reading list section, light and dark themes: drag a step's handle
+      with the mouse to reorder; drop a paper from Not in the steps onto a
+      step; drop a step onto Not in the steps; Alt+Up and Alt+Down twice in
+      a row. Long titles stay on one line in the section. - Type a reason, then click away: it is saved. Escape restores it. A mark
+      or sync landing while you type keeps your text. Dragging text out of a
+      reason into another app works and moves no step. - Open Reading List: full-width cards, reasons in full, a long list
+      scrolls inside the tab, no context pane. Click a title: Zotero switches
+      to the library, on that folder, with the paper selected. A reader tab's
+      context pane is as it was after you switch back. Quit with the tab open
+      and restart: the tab does not come back. - Open a list note and the state note in the note editor, edit lists
+      from the section, then look again: the readable part is rebuilt, one
+      note each, nothing in the trash. - Groups: in an editable group folder, make a list and reorder it; its
+      links point at `groups/<id>`. Mark a group paper: My Library's state
+      note changes, the group item gets no tag, a My Library copy with the
+      same DOI does. In a read-only group, the section and the tab offer no
+      editing. - Disable and re-enable the plugin with a list tab open: one of each menu
+      entry, one Step column, one section, styles still applied, no leftover
+      tab, no console errors. Two main windows (File, New Window) on
+      different folders each show their own Step column and section. - Two computers: mark different papers on each before syncing; after
+      both sync, one state note is left, the other in the trash, and both
+      marks are kept.
+- [ ] R1, `zot.py reading-list` on the live library: write a `steps.json`
+      with one DOI not yet in Zotero and one existing item key, run
+      `python <skills>/skills/zotero/using-zotero/scripts/zot.py reading-list --topic "RL test" --collection "RL test" --steps steps.json`,
+      and check the folder is made, the paper added, and the plugin shows the
+      list. Run it again: it refuses; with `--replace` it rewrites the note.
 - B42 (the newer-version read-only notice) was skipped at the user's call on
   2026-09-13, unwalked: there is no newer version anywhere. Re-offer it when a
   second version exists in someone else's hands; `node:sqlite` can edit the

@@ -25,6 +25,9 @@ A **reading list** is a Zotero folder holding one standalone note tagged
      `{ "version": 1, "topic": string, "steps": [{ "key": string, "why": string }] }`.
 - The JSON is the source of truth. The plugin rewrites the readable part from it
   on every change. Writers write both parts.
+- Zotero's note editor saves a note it holds without the `<pre>`'s attribute, so
+  readers fall back to the first `<pre>` whose text is a JSON object with a
+  `version` member.
 - Readers drop step keys that resolve to no live regular item in the folder,
   and put folder papers absent from `steps` after the last step, as unordered,
   by lowercased title, then key.
