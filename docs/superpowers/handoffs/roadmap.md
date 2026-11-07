@@ -214,6 +214,9 @@ Use all providers button, and the three-action View menu.
       have read; a dashed line joins each list's steps." - Read state colours are fixed: Unread ramp stop 0, Reading stop 2, Read
       stop 4. A paper outside the library (a citation-hop paper) reads "Not in
       library", the no-value grey. - Papers in no ticked list sit one step after the last.
+- [ ] Automatic citation updates should ignore a modify that only changes
+      Meristema Reading's mirror tags (`_reading`, `_read`); today each mark
+      costs a provider request and a graph remount.
 - [ ] `normalizeDOI` in `src/domain/workIdentity.ts` lowercases with
       `toLocaleLowerCase`, so a Turkish-locale Zotero gives other ids; the
       reading copy uses `toLowerCase`. Match it.
@@ -329,10 +332,10 @@ any failure into a new entry above.
       Reading plan. The papers line up by step, the dashed path joins the steps
       in order, and the Key reads Unread/Reading/Read in both themes. Mark a
       paper Read in Meristema Reading: the graph recolours within a second.
-      Tick two list folders: two separate paths. Untick: the row greys. Editing
-      a read-state note (or marking a paper) rebuilds the open graph view, and
-      papers read "Not in library" for a moment until the notes reload; say
-      whether that flash is acceptable.
+      Tick two list folders: two separate paths. Untick: the row greys. Marking
+      a paper rewrites its `_reading`/`_read` tags, which starts the automatic
+      citation update for it, and that refresh remounts the open graph: papers
+      read "Not in library" until the notes reload. Is that flash acceptable?
 - [ ] R1, `zot.py reading-list` on the live library: write a `steps.json`
       with one DOI not yet in Zotero and one existing item key, run
       `python <skills>/skills/zotero/using-zotero/scripts/zot.py reading-list --topic "RL test" --collection "RL test" --steps steps.json`,
