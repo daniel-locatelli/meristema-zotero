@@ -142,3 +142,24 @@ export function readingStepOf(
 export function sameTicks(a: readonly number[], b: readonly number[]): boolean {
   return a.length === b.length && a.every((id, i) => id === b[i]);
 }
+
+/**
+ * The source's content as one string: equal for equal notes, papers and ids
+ * however they were read, so a reload that found nothing new pushes nothing.
+ */
+export function readingSourceSignature(source: ReadingSource): string {
+  const byKey = <T extends { key: string }>(items: readonly T[]): T[] =>
+    [...items].sort((a, b) => compare(a.key, b.key));
+  const folders = [...source.folders]
+    .sort((a, b) => a.collectionID - b.collectionID)
+    .map((folder) => [
+      folder.collectionID,
+      byKey(folder.notes).map((n) => [n.key, n.dateAdded, n.html]),
+      byKey(folder.papers).map((p) => [p.key, p.title]),
+    ]);
+  const stateNotes = byKey(source.stateNotes).map((n) => [n.key, n.html]);
+  const paperIds = [...source.paperIds].sort(
+    (a, b) => compare(a[0], b[0]) || compare(a[1], b[1]),
+  );
+  return JSON.stringify([folders, stateNotes, paperIds]);
+}

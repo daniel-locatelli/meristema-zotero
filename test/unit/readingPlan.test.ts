@@ -4,6 +4,7 @@ import {
   EMPTY_READING_SOURCE,
   buildReadingPlan,
   readStateFromNotes,
+  readingSourceSignature,
   readingStepOf,
   sameTicks,
   type ReadingSource,
@@ -13,6 +14,7 @@ const A = "AAAAAAA2";
 const B = "BBBBBBB3";
 const C = "CCCCCCC4";
 const D = "DDDDDDD5";
+const E = "EEEEEEE6";
 
 const list = (topic: string, keys: string[]): string =>
   `<h1>Reading list - ${topic}</h1><pre data-meristema-reading-list="1">${JSON.stringify(
@@ -151,6 +153,48 @@ describe("buildReadingPlan", () => {
     expect(plan.afterLast).to.equal(4);
   });
 
+  it("puts papers in no ticked list one past the last of every list", () => {
+    const lists = source({
+      folders: [
+        {
+          collectionID: 1,
+          notes: [
+            {
+              key: "NNNNNNN6",
+              dateAdded: "2026-01-01 00:00:00",
+              html: list("Long", [C, D, E]),
+            },
+          ],
+          papers: papers(C, D, E),
+        },
+        {
+          collectionID: 2,
+          notes: [
+            {
+              key: "MMMMMMM6",
+              dateAdded: "2026-01-01 00:00:00",
+              html: list("Short", [A]),
+            },
+          ],
+          papers: papers(A, B),
+        },
+      ],
+    });
+    // Short: 1 step and an unordered paper, so n+2 = 3. Long: 3 steps and
+    // none unordered, so n+1 = 4. The larger wins, whichever is ticked last.
+    expect(buildReadingPlan(lists, [1, 2]).afterLast).to.equal(4);
+    expect(buildReadingPlan(lists, [2, 1]).afterLast).to.equal(4);
+    expect(buildReadingPlan(lists, [2]).afterLast).to.equal(3);
+  });
+
+  it("skips a ticked folder it has no source for", () => {
+    const plan = buildReadingPlan(source(), [99, 1]);
+    expect(plan.paths).to.deep.equal([
+      { collectionID: 1, topic: "One", keys: [B, A] },
+    ]);
+    expect(plan.afterLast).to.equal(4);
+  });
+
   it("reads every paper's state, Unread when absent", () => {
     const plan = buildReadingPlan(
       source({
@@ -202,5 +246,57 @@ describe("sameTicks", () => {
     expect(sameTicks([1, 2], [1, 2])).to.equal(true);
     expect(sameTicks([1, 2], [2, 1])).to.equal(false);
     expect(sameTicks([1], [1, 2])).to.equal(false);
+  });
+});
+
+describe("readingSourceSignature", () => {
+  const two = (): ReadingSource =>
+    source({
+      folders: [
+        {
+          collectionID: 1,
+          notes: [
+            { key: "NNNNNNN6", dateAdded: "2026-01-01 00:00:00", html: "x" },
+            { key: "MMMMMMM6", dateAdded: "2026-02-01 00:00:00", html: "y" },
+          ],
+          papers: papers(A, B),
+        },
+        { collectionID: 2, notes: [], papers: papers(C) },
+      ],
+      stateNotes: [
+        { key: "SSSSSSS2", html: "s" },
+        { key: "TTTTTTT2", html: "t" },
+      ],
+    });
+
+  it("is equal for equal content read in another order", () => {
+    const a = two();
+    const b: ReadingSource = {
+      folders: [...a.folders].reverse().map((f) => ({
+        ...f,
+        notes: [...f.notes].reverse(),
+        papers: [...f.papers].reverse(),
+      })),
+      stateNotes: [...a.stateNotes].reverse(),
+      paperIds: new Map([...a.paperIds].reverse()),
+    };
+    expect(readingSourceSignature(b)).to.equal(readingSourceSignature(a));
+  });
+
+  it("differs when a note's html, a paper, or a paper id changes", () => {
+    const base = readingSourceSignature(two());
+    const note = two();
+    note.folders[0].notes[1] = { ...note.folders[0].notes[1], html: "z" };
+    const stateNote = two();
+    stateNote.stateNotes[0] = { key: "SSSSSSS2", html: "u" };
+    const paper = two();
+    paper.folders[1].papers = papers(C, D);
+    const title = two();
+    title.folders[0].papers = [{ key: A, title: "Renamed" }, ...papers(B)];
+    const id = two();
+    id.paperIds = new Map([...id.paperIds, [A, "doi:10.1000/a"]]);
+    for (const changed of [note, stateNote, paper, title, id]) {
+      expect(readingSourceSignature(changed)).to.not.equal(base);
+    }
   });
 });

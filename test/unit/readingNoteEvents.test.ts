@@ -16,15 +16,22 @@ describe("reading note events", () => {
   });
 
   it("still reaches a listener after one that throws", () => {
-    (globalThis as { Zotero?: unknown }).Zotero ??= { debug: () => {} };
-    let calls = 0;
-    const offBad = subscribeReadingNotesChanged(() => {
-      throw new Error("boom");
-    });
-    const offGood = subscribeReadingNotesChanged(() => (calls += 1));
-    publishReadingNotesChanged();
-    offBad();
-    offGood();
-    expect(calls).to.equal(1);
+    const global = globalThis as { Zotero?: unknown };
+    const previous = global.Zotero;
+    global.Zotero ??= { debug: () => {} };
+    try {
+      let calls = 0;
+      const offBad = subscribeReadingNotesChanged(() => {
+        throw new Error("boom");
+      });
+      const offGood = subscribeReadingNotesChanged(() => (calls += 1));
+      publishReadingNotesChanged();
+      offBad();
+      offGood();
+      expect(calls).to.equal(1);
+    } finally {
+      if (previous === undefined) delete global.Zotero;
+      else global.Zotero = previous;
+    }
   });
 });

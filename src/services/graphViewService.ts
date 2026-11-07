@@ -79,6 +79,7 @@ import {
 import {
   buildReadingPlan,
   EMPTY_READING_SOURCE,
+  readingSourceSignature,
   sameTicks,
   type ReadingPlan,
   type ReadingSource,
@@ -1037,7 +1038,9 @@ export function renderGraphView(
   // every library paper as "Not in library".
   let readingSourceLoaded = false;
   let pushedTicks: readonly number[] | null = null;
-  let pushedSource: ReadingSource | null = null;
+  let pushedSignature: string | null = null;
+  // A reload asked for while the tab was away; it runs on return.
+  let inactiveReadingDirty = false;
   let readingReloadTimer: ReturnType<typeof setTimeout> | null = null;
   const tickedFoldersInTreeOrder = (): number[] =>
     foldersInTreeOrder(viewFolders())
@@ -1049,14 +1052,17 @@ export function renderGraphView(
   const pushReadingPlan = (draw: boolean): boolean => {
     if (!readingSourceLoaded) return false;
     const ticks = tickedFoldersInTreeOrder();
+    // Any item event reloads the notes; one that changed nothing in them
+    // must not redraw the graph.
+    const signature = readingSourceSignature(readingSource);
     if (
-      pushedSource === readingSource &&
+      pushedSignature === signature &&
       pushedTicks &&
       sameTicks(pushedTicks, ticks)
     ) {
       return false;
     }
-    pushedSource = readingSource;
+    pushedSignature = signature;
     pushedTicks = ticks;
     readingPlan = buildReadingPlan(readingSource, ticks);
     renderer?.setReadingPlan(readingPlan, draw);
@@ -1090,11 +1096,25 @@ export function renderGraphView(
   };
   const scheduleReadingReload = (): void => {
     if (cleaned) return;
+    if (!viewActive) {
+      inactiveReadingDirty = true;
+      return;
+    }
     if (readingReloadTimer) clearTimeout(readingReloadTimer);
     readingReloadTimer = setTimeout(() => {
       readingReloadTimer = null;
+      if (cleaned) return;
+      if (!viewActive) {
+        inactiveReadingDirty = true;
+        return;
+      }
       void reloadReadingSource();
     }, 250);
+  };
+  const reconcileInactiveReading = (): void => {
+    if (!inactiveReadingDirty || cleaned) return;
+    inactiveReadingDirty = false;
+    void reloadReadingSource();
   };
   const unsubscribeReadingNotes = subscribeReadingNotesChanged(
     scheduleReadingReload,
@@ -6039,6 +6059,7 @@ ${error instanceof Error ? error.message : String(error)}`,
       }
       renderer?.resizeViewport();
       reconcileInactiveView();
+      reconcileInactiveReading();
       // The runner starts no request while its tab is away; the plan resumes
       // on return (spec, "The fill" — "Inactive tab").
       scheduleHopFill();
