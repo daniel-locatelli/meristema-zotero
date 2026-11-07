@@ -1,0 +1,14 @@
+{
+  "kind": "list",
+  "doc": {
+    "version": 1,
+    "topic": "Timber joints",
+    "steps": [
+      { "key": "ABCD2345", "why": "Start here: the vocabulary." },
+      { "key": "BCDE3456", "why": "" }
+    ]
+  },
+  "labels": { "ABCD2345": "Smith 2001, Joints", "BCDE3456": "Lee 2010, Tests" },
+  "library": { "kind": "user" },
+  "note": "list-plain.html"
+}

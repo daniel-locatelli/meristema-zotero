@@ -1,0 +1,21 @@
+{
+  "kind": "list",
+  "doc": {
+    "version": 1,
+    "topic": "Bois & <colle> \"lamellé\" 'x' 木 😀",
+    "steps": [
+      {
+        "key": "ABCD2345",
+        "why": "a < b & c > d, \"quoted\", back\\slash, tab\tnew\nline, unit\u001f, sep\u2028end"
+      }
+    ]
+  },
+  "labels": {
+    "ABCD2345": "Müller & <Co> \"2001\""
+  },
+  "library": {
+    "kind": "group",
+    "id": 123
+  },
+  "note": "list-escapes.html"
+}

@@ -1,0 +1,15 @@
+{
+  "notes": ["editor-saved.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "doi:10.1000/xyz": { "state": "read", "at": "2026-11-01T10:00:00Z" },
+      "user:ABCD2345": { "state": "reading", "at": "2026-11-02T10:00:00Z" }
+    },
+    "absent": ["user:CDEF4567"],
+    "mirror": {
+      "doi:10.1000/xyz": "_read",
+      "user:ABCD2345": "_reading"
+    }
+  }
+}

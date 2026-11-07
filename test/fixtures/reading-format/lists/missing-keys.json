@@ -1,0 +1,16 @@
+{
+  "note": "missing-keys.html",
+  "folder": [
+    { "key": "ABCD2345", "title": "A" },
+    { "key": "CDEF4567", "title": "C" }
+  ],
+  "expect": {
+    "ok": true,
+    "topic": "Gaps",
+    "steps": [
+      { "step": 1, "key": "ABCD2345", "why": "a" },
+      { "step": 2, "key": "CDEF4567", "why": "c" }
+    ],
+    "unordered": []
+  }
+}

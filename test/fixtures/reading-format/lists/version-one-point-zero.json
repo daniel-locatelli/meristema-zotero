@@ -1,0 +1,5 @@
+{
+  "note": "version-one-point-zero.html",
+  "folder": [],
+  "expect": { "ok": true, "topic": "Point zero", "steps": [], "unordered": [] }
+}

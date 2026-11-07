@@ -1,0 +1,10 @@
+{
+  "note": "editor-mangled.html",
+  "folder": [{ "key": "ABCD2345", "title": "A" }],
+  "expect": {
+    "ok": true,
+    "topic": "Joints & glue",
+    "steps": [{ "step": 1, "key": "ABCD2345", "why": "Read <this> first" }],
+    "unordered": []
+  }
+}

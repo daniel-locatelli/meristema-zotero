@@ -1,0 +1,10 @@
+{
+  "note": "missing-why.html",
+  "folder": [{ "key": "ABCD2345", "title": "A" }],
+  "expect": {
+    "ok": true,
+    "topic": "No reasons",
+    "steps": [{ "step": 1, "key": "ABCD2345", "why": "" }],
+    "unordered": []
+  }
+}

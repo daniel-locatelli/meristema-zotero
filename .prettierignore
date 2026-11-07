@@ -15,3 +15,5 @@ FILE_MANIFEST.sha256
 .superpowers/
 docs/design_handoff_citation_chain_depth/
 .claude/
+src/readingFormat/*.ts
+test/fixtures/reading-format/

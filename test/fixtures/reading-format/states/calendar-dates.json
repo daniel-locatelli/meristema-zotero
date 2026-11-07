@@ -1,0 +1,44 @@
+{
+  "notes": ["calendar-dates.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": {
+        "state": "read",
+        "at": "2024-02-29T23:59:59.9999+01:00"
+      },
+      "user:GHJK8923": {
+        "state": "read",
+        "at": "2000-02-29T12:00:00Z"
+      },
+      "user:HJKL9234": {
+        "state": "read",
+        "at": "0000-02-29T00:00:00Z"
+      },
+      "user:JKLM2345": {
+        "state": "read",
+        "at": "0001-01-01T00:00:00+01:00"
+      },
+      "user:KLMN3456": {
+        "state": "read",
+        "at": "9999-12-31T23:59:59-01:00"
+      }
+    },
+    "absent": [
+      "user:BCDE3456",
+      "user:CDEF4567",
+      "user:DEFG5678",
+      "user:EFGH6789",
+      "user:FGHJ7892",
+      "user:LMNP4567",
+      "user:MNPQ5678",
+      "user:NPQR6789",
+      "user:PQRS7892",
+      "user:QRST8923"
+    ],
+    "mirror": {
+      "user:ABCD2345": "_read",
+      "user:BCDE3456": null
+    }
+  }
+}

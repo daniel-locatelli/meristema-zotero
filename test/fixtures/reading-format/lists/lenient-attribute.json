@@ -1,0 +1,5 @@
+{
+  "note": "lenient-attribute.html",
+  "folder": [],
+  "expect": { "ok": true, "topic": "Lenient", "steps": [], "unordered": [] }
+}

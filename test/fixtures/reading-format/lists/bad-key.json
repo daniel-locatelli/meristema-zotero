@@ -1,0 +1,5 @@
+{
+  "note": "bad-key.html",
+  "folder": [],
+  "expect": { "ok": false, "reason": "bad-shape" }
+}

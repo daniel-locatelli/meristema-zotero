@@ -1,0 +1,16 @@
+{
+  "note": "duplicate-step.html",
+  "folder": [
+    { "key": "ABCD2345", "title": "A" },
+    { "key": "BCDE3456", "title": "B" }
+  ],
+  "expect": {
+    "ok": true,
+    "topic": "Twice",
+    "steps": [
+      { "step": 1, "key": "ABCD2345", "why": "first" },
+      { "step": 2, "key": "BCDE3456", "why": "b" }
+    ],
+    "unordered": []
+  }
+}

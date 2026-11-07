@@ -1,0 +1,5 @@
+{
+  "note": "br-inside-string.html",
+  "folder": [],
+  "expect": { "ok": false, "reason": "bad-json" }
+}

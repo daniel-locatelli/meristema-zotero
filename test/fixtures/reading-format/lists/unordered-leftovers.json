@@ -1,0 +1,18 @@
+{
+  "note": "unordered-leftovers.html",
+  "folder": [
+    { "key": "DEFG5678", "title": "beta" },
+    { "key": "ABCD2345", "title": "A" },
+    { "key": "EFGH6789", "title": "Alpha" },
+    { "key": "BCDE3456", "title": "B" }
+  ],
+  "expect": {
+    "ok": true,
+    "topic": "Leftovers",
+    "steps": [
+      { "step": 1, "key": "ABCD2345", "why": "a" },
+      { "step": 2, "key": "BCDE3456", "why": "b" }
+    ],
+    "unordered": ["EFGH6789", "DEFG5678"]
+  }
+}

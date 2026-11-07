@@ -1,0 +1,11 @@
+{
+  "notes": ["merge-bad-date-a.html", "merge-bad-date-b.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": { "state": "unread", "at": "2020-01-01T00:00:00Z" }
+    },
+    "absent": [],
+    "mirror": { "user:ABCD2345": null }
+  }
+}

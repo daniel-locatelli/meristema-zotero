@@ -1,0 +1,13 @@
+{
+  "note": "duplicate-malformed.html",
+  "folder": [
+    {
+      "key": "ABCD2345",
+      "title": "A"
+    }
+  ],
+  "expect": {
+    "ok": false,
+    "reason": "bad-shape"
+  }
+}

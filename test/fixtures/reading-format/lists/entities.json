@@ -1,0 +1,16 @@
+{
+  "note": "entities.html",
+  "folder": [{ "key": "ABCD2345", "title": "A" }],
+  "expect": {
+    "ok": true,
+    "topic": "Caf&eacute; notes & more",
+    "steps": [
+      {
+        "step": 1,
+        "key": "ABCD2345",
+        "why": "&#65 stays, A and 😀 decode, &lt; once"
+      }
+    ],
+    "unordered": []
+  }
+}

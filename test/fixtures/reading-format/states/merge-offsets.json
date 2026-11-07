@@ -1,0 +1,12 @@
+{
+  "notes": ["merge-offsets-a.html", "merge-offsets-b.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": { "state": "unread", "at": "2026-11-01T09:00:00Z" },
+      "user:BCDE3456": { "state": "read", "at": "2026-11-01T10:00:00-05:00" }
+    },
+    "absent": [],
+    "mirror": { "user:ABCD2345": null, "user:BCDE3456": "_read" }
+  }
+}

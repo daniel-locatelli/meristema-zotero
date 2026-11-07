@@ -1,0 +1,18 @@
+{
+  "note": "ordered.html",
+  "folder": [
+    { "key": "CDEF4567", "title": "Robots" },
+    { "key": "ABCD2345", "title": "Joints" },
+    { "key": "BCDE3456", "title": "Tests" }
+  ],
+  "expect": {
+    "ok": true,
+    "topic": "Timber joints",
+    "steps": [
+      { "step": 1, "key": "ABCD2345", "why": "Start here: the vocabulary." },
+      { "step": 2, "key": "BCDE3456", "why": "The experiments." },
+      { "step": 3, "key": "CDEF4567", "why": "Where it is going." }
+    ],
+    "unordered": []
+  }
+}

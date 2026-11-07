@@ -1,0 +1,12 @@
+{
+  "notes": ["merge-sub-millisecond-a.html", "merge-sub-millisecond-b.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": { "state": "read", "at": "2026-11-01T00:00:00.0001Z" },
+      "user:BCDE3456": { "state": "read", "at": "2026-11-01T00:00:00.0009Z" }
+    },
+    "absent": [],
+    "mirror": { "user:ABCD2345": "_read", "user:BCDE3456": "_read" }
+  }
+}

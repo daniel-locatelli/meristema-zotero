@@ -1,0 +1,38 @@
+[
+  {
+    "steps": ["ABCD2345", "BCDE3456", "CDEF4567"],
+    "states": {
+      "ABCD2345": "read",
+      "CDEF4567": "reading"
+    },
+    "expect": "CDEF4567"
+  },
+  {
+    "steps": ["ABCD2345", "BCDE3456", "CDEF4567"],
+    "states": {
+      "ABCD2345": "read"
+    },
+    "expect": "BCDE3456"
+  },
+  {
+    "steps": ["ABCD2345", "BCDE3456"],
+    "states": {
+      "ABCD2345": "read",
+      "BCDE3456": "read"
+    },
+    "expect": null
+  },
+  {
+    "steps": [],
+    "states": {},
+    "expect": null
+  },
+  {
+    "steps": ["ABCD2345", "BCDE3456", "CDEF4567"],
+    "states": {
+      "ABCD2345": "read",
+      "BCDE3456": "unread"
+    },
+    "expect": "BCDE3456"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "note": "title-ties.html",
+  "folder": [
+    { "key": "EFGH6789", "title": "Zeta" },
+    { "key": "DEFG5678", "title": "alpha" },
+    { "key": "CDEF4567", "title": "Alpha" },
+    { "key": "BCDE3456", "title": "Émile" },
+    { "key": "ABCD2345", "title": "😀 smile" },
+    { "key": "FGHJ7892", "title": "Ｚ wide" }
+  ],
+  "expect": {
+    "ok": true,
+    "topic": "Ties",
+    "steps": [],
+    "unordered": [
+      "CDEF4567",
+      "DEFG5678",
+      "EFGH6789",
+      "BCDE3456",
+      "ABCD2345",
+      "FGHJ7892"
+    ]
+  }
+}

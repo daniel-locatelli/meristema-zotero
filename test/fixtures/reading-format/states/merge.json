@@ -1,0 +1,19 @@
+{
+  "notes": ["merge-a.html", "merge-b.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": { "state": "unread", "at": "2026-11-03T00:00:00Z" },
+      "user:BCDE3456": { "state": "reading", "at": "2026-11-05T00:00:00Z" },
+      "user:CDEF4567": { "state": "read", "at": "2026-11-04T00:00:00Z" },
+      "user:DEFG5678": { "state": "reading", "at": "2026-11-01T00:00:00Z" }
+    },
+    "absent": ["user:EFGH6789"],
+    "mirror": {
+      "user:ABCD2345": null,
+      "user:BCDE3456": "_reading",
+      "user:CDEF4567": "_read",
+      "user:DEFG5678": "_reading"
+    }
+  }
+}

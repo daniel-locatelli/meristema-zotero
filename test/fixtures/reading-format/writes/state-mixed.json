@@ -1,0 +1,19 @@
+{
+  "kind": "state",
+  "doc": {
+    "version": 1,
+    "states": {
+      "user:BCDE3456": { "state": "read", "at": "2026-11-02T00:00:00Z" },
+      "group-123:CDEF4567": {
+        "state": "unread",
+        "at": "2026-11-03T10:00:00.123456+02:00"
+      },
+      "doi:10.1000/a(b);c": {
+        "state": "reading",
+        "at": "2026-11-01T00:00:00.000Z"
+      },
+      "user:ABCD2345": { "state": "read", "at": "2026-11-04T00:00:00Z" }
+    }
+  },
+  "note": "state-mixed.html"
+}

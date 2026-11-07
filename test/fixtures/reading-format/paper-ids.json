@@ -1,0 +1,94 @@
+[
+  {
+    "ref": {
+      "doi": "https://doi.org/10.1000/ABC.",
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "doi:10.1000/abc"
+  },
+  {
+    "ref": {
+      "doi": null,
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "user:ABCD2345"
+  },
+  {
+    "ref": {
+      "doi": "",
+      "library": {
+        "kind": "group",
+        "id": 123
+      },
+      "key": "BCDE3456"
+    },
+    "id": "group-123:BCDE3456"
+  },
+  {
+    "ref": {
+      "doi": "not a doi",
+      "library": {
+        "kind": "user"
+      },
+      "key": "CDEF4567"
+    },
+    "id": "user:CDEF4567"
+  },
+  {
+    "ref": {
+      "doi": "doi:10.1000/DEF",
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "doi:10.1000/def"
+  },
+  {
+    "ref": {
+      "doi": "http://dx.doi.org/10.1000/GHI",
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "doi:10.1000/ghi"
+  },
+  {
+    "ref": {
+      "doi": "See 10.1000/JKL, p. 3",
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "doi:10.1000/jkl"
+  },
+  {
+    "ref": {
+      "doi": "10.1000/MNO",
+      "library": {
+        "kind": "group",
+        "id": 123
+      },
+      "key": "BCDE3456"
+    },
+    "id": "doi:10.1000/mno"
+  },
+  {
+    "ref": {
+      "doi": "10.1000/GHI",
+      "library": {
+        "kind": "user"
+      },
+      "key": "ABCD2345"
+    },
+    "id": "doi:10.1000/ghi"
+  }
+]

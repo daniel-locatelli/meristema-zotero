@@ -1,0 +1,52 @@
+{
+  "lists": [
+    "attribute-wins.json",
+    "bad-json.json",
+    "bad-key.json",
+    "block-finding.json",
+    "br-inside-string.json",
+    "duplicate-malformed.json",
+    "duplicate-step.json",
+    "editor-mangled.json",
+    "editor-saved.json",
+    "entities.json",
+    "fallback-after-code.json",
+    "lenient-attribute.json",
+    "missing-keys.json",
+    "missing-why.json",
+    "no-data.json",
+    "not-an-object.json",
+    "ordered.json",
+    "plain-code-block.json",
+    "title-ties.json",
+    "unordered-leftovers.json",
+    "version-one-point-zero.json",
+    "version-string.json",
+    "version-true.json",
+    "why-null.json",
+    "wrong-version.json"
+  ],
+  "states": [
+    "bad-dates.json",
+    "calendar-dates.json",
+    "damaged-entries.json",
+    "doi-and-keys.json",
+    "editor-saved.json",
+    "merge-bad-date.json",
+    "merge-offsets.json",
+    "merge-same-instant.json",
+    "merge-sub-millisecond.json",
+    "merge.json",
+    "states-not-an-object.json",
+    "wrong-version.json"
+  ],
+  "writes": [
+    "list-empty.json",
+    "list-escapes.json",
+    "list-plain.json",
+    "state-empty.json",
+    "state-mixed.json"
+  ],
+  "paperIds": "paper-ids.json",
+  "nextUp": "next-up.json"
+}

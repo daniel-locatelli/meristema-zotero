@@ -1,0 +1,4 @@
+{
+  "notes": ["states-not-an-object.html"],
+  "expect": { "ok": false, "reason": "bad-shape" }
+}

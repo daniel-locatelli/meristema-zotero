@@ -1,0 +1,10 @@
+{
+  "note": "attribute-wins.html",
+  "folder": [{ "key": "ABCD2345", "title": "A" }],
+  "expect": {
+    "ok": true,
+    "topic": "Attributed",
+    "steps": [{ "step": 1, "key": "ABCD2345", "why": "" }],
+    "unordered": []
+  }
+}

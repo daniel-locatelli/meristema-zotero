@@ -1,0 +1,19 @@
+{
+  "notes": ["bad-dates.html"],
+  "expect": {
+    "ok": true,
+    "states": {
+      "user:ABCD2345": { "state": "read", "at": "2026-11-01T09:30:00.5+02:00" }
+    },
+    "absent": [
+      "user:BCDE3456",
+      "user:CDEF4567",
+      "user:DEFG5678",
+      "user:EFGH6789",
+      "user:FGHJ7892",
+      "user:GHJK8923",
+      "user:HJKL9234"
+    ],
+    "mirror": {}
+  }
+}
