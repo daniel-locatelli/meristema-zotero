@@ -87,8 +87,12 @@ export class FakeContext2D {
   strokeRect(): void {}
   beginPath(): void {}
   closePath(): void {}
-  moveTo(): void {}
-  lineTo(): void {}
+  moveTo(...args: unknown[]): void {
+    this.record("moveTo", args);
+  }
+  lineTo(...args: unknown[]): void {
+    this.record("lineTo", args);
+  }
   quadraticCurveTo(): void {}
   arc(...args: unknown[]): void {
     this.record("arc", args);
@@ -97,7 +101,9 @@ export class FakeContext2D {
   clip(): void {}
   rotate(): void {}
   translate(): void {}
-  setLineDash(): void {}
+  setLineDash(...args: unknown[]): void {
+    this.record("setLineDash", args);
+  }
   fillText(...args: unknown[]): void {
     this.record("fillText", args);
   }

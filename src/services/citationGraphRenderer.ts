@@ -341,7 +341,9 @@ export class CitationGraphRenderer {
   private seedMarks: SeedMarks | null = null;
   /** Bumped by `setSeedMarks`, so the category assignment rebuilds. */
   private seedMarksRevision = 0;
+  /** What the reading-list notes put on the plot (steps, read states, paths), or null before the view has them. */
   private readingPlan: ReadingPlan | null = null;
+  /** Bumped by `setReadingPlan`, so the category assignment rebuilds. */
   private readingPlanRevision = 0;
   /** The folders drawn as regions, with the papers each one holds. */
   private regions: ReadonlyArray<{
@@ -2025,6 +2027,39 @@ export class CitationGraphRenderer {
   }
 
   /**
+   * Each ticked list's steps joined in order, a dashed line under the
+   * citation edges and the nodes. A step hidden by scope or filters is
+   * skipped, so the line joins the visible steps either side of it; a list
+   * is never joined to another.
+   */
+  private drawReadingPaths(plot: PlotRect): void {
+    const paths = this.readingPlan?.paths ?? [];
+    if (!paths.length) return;
+    const visible = new Set(this.visibleNodes().map((node) => node.key));
+    const context = this.context;
+    context.save();
+    context.beginPath();
+    context.rect(plot.left, plot.top, plot.width, plot.height);
+    context.clip();
+    context.strokeStyle = this.theme.states.readingPath;
+    context.lineWidth = 1.5 * this.ratio;
+    context.lineJoin = "round";
+    context.setLineDash([6 * this.ratio, 4 * this.ratio]);
+    for (const path of paths) {
+      const points = path.keys
+        .filter((key) => visible.has(key))
+        .map((key) => this.screenPositions.get(key))
+        .filter((point): point is Position => Boolean(point));
+      if (points.length < 2) continue;
+      context.beginPath();
+      context.moveTo(points[0].x, points[0].y);
+      for (const point of points.slice(1)) context.lineTo(point.x, point.y);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  /**
    * A folder is a region behind the nodes, not a slice of their fill: cutting
    * a paper filed in three folders into three pie slices left the fill unable
    * to carry a metric at the same time. The hull clears the node discs by a
@@ -2316,6 +2351,7 @@ export class CitationGraphRenderer {
         this.floorTagRect = null;
       }
       this.drawRegions(plot);
+      this.drawReadingPaths(plot);
       const sizeDomain =
         this.layout.nodeSizeMetric === "uniform"
           ? null

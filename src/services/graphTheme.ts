@@ -71,6 +71,8 @@ export interface GraphStateTokens {
   floorLine: string;
   /** The band over the plot's hidden side, under the floor. */
   floorBand: string;
+  /** The dashed line joining a reading list's steps (R1), apart from citation edges. */
+  readingPath: string;
 }
 
 export interface GraphCategoricalTokens {
@@ -162,6 +164,7 @@ const LIGHT_THEME: GraphTheme = {
     uniformFill: "#8d928a",
     floorLine: "#2563eb",
     floorBand: "rgba(27, 29, 25, .06)",
+    readingPath: "#63665d",
   },
 };
 
@@ -213,6 +216,7 @@ const DARK_THEME: GraphTheme = {
     uniformFill: "#787d75",
     floorLine: "#8fb8ff",
     floorBand: "rgba(0, 0, 0, .28)",
+    readingPath: "#9a9c93",
   },
 };
 
