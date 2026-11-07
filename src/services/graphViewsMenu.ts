@@ -1,6 +1,7 @@
 import {
   graphViewAvailabilityLine,
   graphViewIsAvailable,
+  type GraphViewNeeds,
   graphViewRequirementLine,
   type GraphViewDefinition,
 } from "./graphViews";
@@ -75,6 +76,8 @@ export interface GraphViewsMenuOptions {
   onOpen?: () => void;
   /** The gear's actions, in their own group under the view actions (D35). */
   display?: GraphDisplayActions;
+  /** The needs a view can be offered on right now; read at every draw. */
+  metNeeds?: () => ReadonlySet<GraphViewNeeds>;
 }
 
 export interface GraphViewsMenu {
@@ -94,8 +97,9 @@ function row(
   active: boolean,
   onChoose: () => void,
   onEdit: (() => void) | null,
+  met: ReadonlySet<GraphViewNeeds>,
 ): HTMLElement {
-  const available = graphViewIsAvailable(view);
+  const available = graphViewIsAvailable(view, met);
   const button = element(document, "button", "cm-view-row");
   button.type = "button";
   button.dataset.viewId = view.id;
@@ -114,7 +118,7 @@ function row(
   const head = element(document, "span", "cm-view-row-head");
   head.append(text(document, "span", view.name, "cm-view-row-name"));
   const note =
-    graphViewAvailabilityLine(view) ?? graphViewRequirementLine(view);
+    graphViewAvailabilityLine(view, met) ?? graphViewRequirementLine(view);
   if (note) head.append(text(document, "span", note, "cm-view-row-note"));
   body.append(
     head,
@@ -169,6 +173,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
   const refresh = (nextActiveID: string | null): void => {
     activeID = nextActiveID;
     menu.replaceChildren();
+    const met = o.metNeeds?.() ?? new Set<GraphViewNeeds>();
     for (const view of o.shipped) {
       menu.append(
         row(
@@ -180,6 +185,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
             o.onChoose(view);
           },
           null,
+          met,
         ),
       );
     }
@@ -200,6 +206,7 @@ export function createGraphViewsMenu(o: GraphViewsMenuOptions): GraphViewsMenu {
               close();
               o.onEdit(view);
             },
+            met,
           ),
         );
       }
@@ -456,6 +463,8 @@ export function createViewGallery(
     onChoose: (view: GraphViewDefinition) => void;
     onBlank: () => void;
     onImport: () => void;
+    /** The needs a view can be offered on right now; read at every `show`. */
+    metNeeds?: () => ReadonlySet<GraphViewNeeds>;
   },
 ): ViewGallery {
   const root = element(document, "section", "cm-view-gallery");
@@ -464,32 +473,44 @@ export function createViewGallery(
   root.setAttribute("aria-label", "Choose a view");
   const heading = text(document, "h2", "", "cm-view-gallery-heading");
   const grid = element(document, "div", "cm-view-gallery-grid");
+  const cards: Array<(met: ReadonlySet<GraphViewNeeds>) => void> = [];
   for (const view of o.shipped) {
     const card = element(document, "button", "cm-view-gallery-card");
     card.type = "button";
     card.dataset.viewId = view.id;
-    const available = graphViewIsAvailable(view);
-    if (!available) {
-      card.classList.add("cm-view-gallery-card--unavailable");
-      card.setAttribute("aria-disabled", "true");
-    }
-    card.append(createIcon(document, view.icon, 28));
-    card.append(text(document, "span", view.name, "cm-view-gallery-name"));
-    card.append(text(document, "span", view.paragraph, "cm-view-gallery-para"));
+    const fixed = [
+      createIcon(document, view.icon, 28),
+      text(document, "span", view.name, "cm-view-gallery-name"),
+      text(document, "span", view.paragraph, "cm-view-gallery-para"),
+    ];
+    let available = true;
     // The note is a tag, so it never reads as more of the paragraph: outlined
     // for a seed the reader can add, filled for a view that has not arrived.
-    const status = graphViewAvailabilityLine(view);
-    const note = status ?? graphViewRequirementLine(view);
-    if (note) {
-      const tag = text(
-        document,
-        "span",
-        note.charAt(0).toUpperCase() + note.slice(1),
-        "cm-view-chip-tag cm-view-gallery-note",
-      );
-      if (status) tag.classList.add("cm-view-gallery-note--status");
-      card.append(tag);
-    }
+    // It is rebuilt on every flag, so a view that becomes available loses it.
+    const flag = (met: ReadonlySet<GraphViewNeeds>): void => {
+      available = graphViewIsAvailable(view, met);
+      if (available) {
+        card.classList.remove("cm-view-gallery-card--unavailable");
+        card.removeAttribute("aria-disabled");
+      } else {
+        card.classList.add("cm-view-gallery-card--unavailable");
+        card.setAttribute("aria-disabled", "true");
+      }
+      const status = graphViewAvailabilityLine(view, met);
+      const note = status ?? graphViewRequirementLine(view);
+      const tag = note
+        ? text(
+            document,
+            "span",
+            note.charAt(0).toUpperCase() + note.slice(1),
+            "cm-view-chip-tag cm-view-gallery-note",
+          )
+        : null;
+      if (tag && status) tag.classList.add("cm-view-gallery-note--status");
+      card.replaceChildren(...fixed, ...(tag ? [tag] : []));
+    };
+    flag(o.metNeeds?.() ?? new Set());
+    cards.push(flag);
     card.addEventListener("click", () => {
       if (available) o.onChoose(view);
     });
@@ -510,6 +531,7 @@ export function createViewGallery(
   savedHeading.hidden = true;
   savedRow.hidden = true;
   let savedSignature: string | null = null;
+  let shownNeeds = [...(o.metNeeds?.() ?? [])].sort().join(",");
   const drawSaved = (): boolean => {
     const titled = o.listSaved().map((view) => ({
       view,
@@ -564,11 +586,23 @@ export function createViewGallery(
     show(scope) {
       const line = galleryHeading(scope);
       const savedChanged = drawSaved();
+      const met = o.metNeeds?.() ?? new Set<GraphViewNeeds>();
+      const metSignature = [...met].sort().join(",");
+      const metChanged = metSignature !== shownNeeds;
+      if (metChanged) {
+        shownNeeds = metSignature;
+        for (const flag of cards) flag(met);
+      }
       // `maybeShowGallery` runs at the end of every filter pass. Writing the
       // same heading into a gallery that is already up would re-invalidate
       // its blurred compositing layer each time, so an unchanged show is a
       // no-op.
-      if (!root.hidden && heading.textContent === line && !savedChanged) {
+      if (
+        !root.hidden &&
+        heading.textContent === line &&
+        !savedChanged &&
+        !metChanged
+      ) {
         return;
       }
       heading.textContent = line;

@@ -699,9 +699,11 @@ describe("Graph views (D4)", function () {
     const row = viewRow("reading-plan");
     expect(
       row.getAttribute("aria-disabled"),
-      `Reading plan waits on reading state; the row read "${normalize(row.textContent)}"`,
+      `Reading plan waits on a reading list; the row read "${normalize(row.textContent)}"`,
     ).to.equal("true");
-    expect(normalize(row.textContent)).to.contain("Arrives with reading state");
+    expect(normalize(row.textContent)).to.contain(
+      "Needs a reading list in a ticked folder",
+    );
     row.click();
     // A fixed window on purpose: nothing is meant to happen, so there is no
     // state to wait for. The menu-still-open assertion below carries it — a

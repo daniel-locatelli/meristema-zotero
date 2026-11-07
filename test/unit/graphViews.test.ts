@@ -8,6 +8,7 @@ import {
   decodeGraphViewRecord,
   encodeGraphView,
   graphViewAvailabilityLine,
+  graphViewIsAvailable,
   graphViewIsEdited,
   graphViewLayoutIsEdited,
   graphViewRequirementLine,
@@ -151,13 +152,29 @@ describe("the shipped views", function () {
     expect(cornerstones.name).to.equal("References");
   });
 
+  it("offers Reading plan only when a ticked folder holds a reading list", () => {
+    const view = SHIPPED_GRAPH_VIEWS.find((v) => v.id === "reading-plan")!;
+    expect(graphViewIsAvailable(view)).to.equal(false);
+    expect(graphViewAvailabilityLine(view)).to.equal(
+      "Needs a reading list in a ticked folder",
+    );
+    const met = new Set(["reading-list"] as const);
+    expect(graphViewIsAvailable(view, met)).to.equal(true);
+    expect(graphViewAvailabilityLine(view, met)).to.equal(null);
+    expect(view.appearance).to.deep.include({
+      xMetric: "reading-step",
+      yMetric: "citations",
+      nodeColorMetric: "read-state",
+    });
+  });
+
   it("names what a greyed view waits on, and what a view needs", function () {
     expect(graphViewAvailabilityLine(overview)).to.equal(null);
     expect(
       graphViewAvailabilityLine(
         SHIPPED_GRAPH_VIEWS.find((v) => v.id === "reading-plan")!,
       ),
-    ).to.equal("Arrives with reading state");
+    ).to.equal("Needs a reading list in a ticked folder");
     expect(
       graphViewAvailabilityLine(
         SHIPPED_GRAPH_VIEWS.find((v) => v.id === "who-cites-whom")!,

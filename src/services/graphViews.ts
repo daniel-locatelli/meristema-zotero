@@ -27,7 +27,7 @@ import type { IconName } from "./uiIconService";
 
 export const GRAPH_VIEW_WIRE_VERSION = 1;
 
-export type GraphViewNeeds = "reading-state";
+export type GraphViewNeeds = "reading-list";
 export type GraphViewAvailability = "ready" | { needs: GraphViewNeeds };
 export type GraphViewRequires = "none" | "seed" | "two-seeds";
 /** Folder names, every ticked subtree top, or leave the regions alone. */
@@ -138,17 +138,20 @@ export const SHIPPED_GRAPH_VIEWS: readonly GraphViewDefinition[] = [
   {
     id: "reading-plan",
     name: "Reading plan",
-    summary: "Unread frontier, shape = read state. What to read next.",
-    // board 3a's text, cut down at the user's request (2026-10-09)
+    summary: "Reading step × citations, colour read state. What to read next.",
     paragraph:
-      "Unread papers your own reading points at: diamonds are unread, and only those cited by at least 3 papers you annotated stay lit.",
+      "Ticked reading lists in reading order, higher the more they are cited, coloured by what you have read; a dashed line joins each list's steps.",
     icon: "view-reading-plan",
-    appearance: { ...BASE, nodeColorMetric: "citations" },
+    appearance: {
+      ...BASE,
+      xMetric: "reading-step",
+      nodeColorMetric: "read-state",
+    },
     regions: null,
     filters: null,
     explore: null,
     requires: "none",
-    availability: { needs: "reading-state" },
+    availability: { needs: "reading-list" },
   },
   {
     id: "who-cites-whom",
@@ -197,14 +200,17 @@ export function isShippedViewName(name: string): boolean {
   return SHIPPED_GRAPH_VIEWS.some((v) => v.name.toLowerCase() === wanted);
 }
 
+const NO_NEEDS: ReadonlySet<GraphViewNeeds> = new Set();
+
 const NEEDS_LINE: Record<GraphViewNeeds, string> = {
-  "reading-state": "Arrives with reading state",
+  "reading-list": "Needs a reading list in a ticked folder",
 };
 
 export function graphViewAvailabilityLine(
   view: GraphViewDefinition,
+  met: ReadonlySet<GraphViewNeeds> = NO_NEEDS,
 ): string | null {
-  return view.availability === "ready"
+  return graphViewIsAvailable(view, met) || view.availability === "ready"
     ? null
     : NEEDS_LINE[view.availability.needs];
 }
@@ -217,8 +223,11 @@ export function graphViewRequirementLine(
   return null;
 }
 
-export function graphViewIsAvailable(view: GraphViewDefinition): boolean {
-  return view.availability === "ready";
+export function graphViewIsAvailable(
+  view: GraphViewDefinition,
+  met: ReadonlySet<GraphViewNeeds> = NO_NEEDS,
+): boolean {
+  return view.availability === "ready" || met.has(view.availability.needs);
 }
 
 // ---------------------------------------------------------------- regions

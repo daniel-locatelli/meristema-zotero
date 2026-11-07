@@ -139,6 +139,7 @@ import {
   planGraphView,
   sharedRuleWords,
   SHIPPED_GRAPH_VIEWS,
+  type GraphViewNeeds,
   tutorialChips,
   tutorialFootnote,
   type GraphViewDefinition,
@@ -1028,7 +1029,7 @@ export function renderGraphView(
     }));
   // The Reading plan view's data: the notes as last read, and the plan built
   // from them for the ticked folders. `readingPlan` is the last plan pushed to
-  // the renderer; Task 6's menu row reads `readingPlan.paths.length > 0`.
+  // the renderer; the Reading plan row reads `readingPlan.paths.length > 0`.
   let readingSource: ReadingSource = EMPTY_READING_SOURCE;
   let readingPlan: ReadingPlan = buildReadingPlan(EMPTY_READING_SOURCE, []);
   let readingLoad = 0;
@@ -1058,6 +1059,8 @@ export function renderGraphView(
     pushedTicks = ticks;
     readingPlan = buildReadingPlan(readingSource, ticks);
     renderer?.setReadingPlan(readingPlan, draw);
+    // The gallery's cards follow the plan; re-run what already shows it.
+    if (!viewGallery.root.hidden) maybeShowGallery();
   };
   const reloadReadingSource = async (): Promise<void> => {
     const load = ++readingLoad;
@@ -1099,8 +1102,12 @@ export function renderGraphView(
     SHIPPED_GRAPH_VIEWS.find((v) => v.id === id) ??
     listSavedGraphViews().find((v) => v.id === id) ??
     null;
+  // Read when the menu or gallery draws, long after `readingPlan` is set.
+  const readingNeeds = (): ReadonlySet<GraphViewNeeds> =>
+    new Set(readingPlan.paths.length ? (["reading-list"] as const) : []);
   const viewsMenu = createGraphViewsMenu({
     document,
+    metNeeds: readingNeeds,
     shipped: SHIPPED_GRAPH_VIEWS,
     listSaved: listSavedGraphViews,
     onChoose: (chosen) => applyGraphView(chosen),
@@ -1126,6 +1133,7 @@ export function renderGraphView(
     dismissTutorial(id),
   );
   const viewGallery = createViewGallery(document, {
+    metNeeds: readingNeeds,
     shipped: SHIPPED_GRAPH_VIEWS,
     listSaved: listSavedGraphViews,
     onChoose: (chosen) => applyGraphView(chosen),

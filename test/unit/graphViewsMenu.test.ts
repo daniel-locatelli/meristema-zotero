@@ -38,6 +38,12 @@ class FakeElement {
           .join(" ");
       },
       contains: (name: string) => this.className.split(" ").includes(name),
+      remove: (...names: string[]) => {
+        this.className = this.className
+          .split(" ")
+          .filter((c) => c && !names.includes(c))
+          .join(" ");
+      },
     };
   }
   get textContent(): string {
@@ -49,6 +55,9 @@ class FakeElement {
   }
   setAttribute(name: string, value: string): void {
     this.attributes.set(name, value);
+  }
+  removeAttribute(name: string): void {
+    this.attributes.delete(name);
   }
   getAttribute(name: string): string | null {
     return this.attributes.get(name) ?? null;
@@ -95,6 +104,7 @@ function openMenu(
   activeID: string | null,
   onCopyCurrent: () => void = () => {},
   display?: GraphDisplayActions,
+  metNeeds?: () => ReadonlySet<"reading-list">,
 ): FakeElement {
   const menu = createGraphViewsMenu({
     document: fakeDocument,
@@ -107,6 +117,7 @@ function openMenu(
     onImport: () => {},
     onOpenGallery: () => {},
     ...(display ? { display } : {}),
+    ...(metNeeds ? { metNeeds } : {}),
   });
   menu.setActive(activeID);
   menu.open();
@@ -154,6 +165,30 @@ describe("the View dropdown's rows (D18)", function () {
     expect(head.children.map((c) => c.className)).to.deep.equal([
       "cm-view-row-name",
     ]);
+  });
+});
+
+describe("the View dropdown's Reading plan row", function () {
+  it("is greyed with its note until a ticked folder holds a list", function () {
+    const row = rowFor(openMenu(null), "reading-plan");
+    expect(row.getAttribute("aria-disabled")).to.equal("true");
+    expect(row.textContent).to.contain(
+      "Needs a reading list in a ticked folder",
+    );
+  });
+
+  it("is offered, with no note, once the need is met", function () {
+    const row = rowFor(
+      openMenu(
+        null,
+        undefined,
+        undefined,
+        () => new Set(["reading-list"] as const),
+      ),
+      "reading-plan",
+    );
+    expect(row.getAttribute("aria-disabled")).to.equal(null);
+    expect(row.all("cm-view-row-note")).to.have.length(0);
   });
 });
 
@@ -268,7 +303,34 @@ describe("the gallery's card notes (D34)", function () {
     expect(tag.classList.contains("cm-view-gallery-note--status")).to.equal(
       true,
     );
-    expect(tag.textContent).to.equal("Arrives with reading state");
+    expect(tag.textContent).to.equal("Needs a reading list in a ticked folder");
+  });
+
+  it("re-flags a card when the need flips between two shows", function () {
+    let met: ReadonlySet<"reading-list"> = new Set();
+    const root = createViewGallery(fakeDocument, {
+      shipped: SHIPPED_GRAPH_VIEWS,
+      listSaved: () => [],
+      onChoose: () => {},
+      onBlank: () => {},
+      onImport: () => {},
+      metNeeds: () => met,
+    });
+    const card = (): FakeElement =>
+      (root.root as unknown as FakeElement)
+        .all("cm-view-gallery-card")
+        .find((c) => c.dataset.viewId === "reading-plan")!;
+    root.show({ shown: 5 });
+    expect(card().getAttribute("aria-disabled")).to.equal("true");
+    expect(card().all("cm-view-gallery-note")).to.have.length(1);
+    met = new Set(["reading-list"] as const);
+    root.show({ shown: 5 });
+    expect(card().getAttribute("aria-disabled")).to.equal(null);
+    expect(card().all("cm-view-gallery-note")).to.have.length(0);
+    met = new Set();
+    root.show({ shown: 5 });
+    expect(card().getAttribute("aria-disabled")).to.equal("true");
+    expect(card().all("cm-view-gallery-note--status")).to.have.length(1);
   });
 
   it("gives a view that needs nothing no tag", function () {
